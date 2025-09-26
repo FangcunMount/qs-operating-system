@@ -1,0 +1,12 @@
+.show-container {
+  transition: all 0.3s ease-in-out;
+
+  &:hover {
+    background-color: #efefef;
+    cursor: grab;
+  }
+}
+
+.show-container-selected {
+  background-color: #f4f4f4;
+}

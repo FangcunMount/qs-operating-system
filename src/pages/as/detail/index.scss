@@ -1,0 +1,35 @@
+.qs-edit--container {
+  display: flex;
+  flex-direction: row;
+  width: 100% !important;
+  height: 100%;
+}
+
+.qs-edit--header {
+  flex-grow: 0;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  height: 46px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.qs-edit--bottom {
+  flex-grow: 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  height: 46px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.qs-edit-show {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1;
+  padding: 0 10%;
+  overflow: auto;
+  background-color: #F1F1F1;
+}

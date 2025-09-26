@@ -1,0 +1,15 @@
+.qs-factor--container {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  background-color: #fafafa;
+  height: 100%;
+
+  .qs-factor--contanier-content {
+    display: flex;
+    flex-flow: row wrap;
+    height: 0;
+    flex-grow: 0;
+  }
+}
+

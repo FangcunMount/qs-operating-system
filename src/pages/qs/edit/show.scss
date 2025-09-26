@@ -1,0 +1,16 @@
+.qs-edit-show {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1;
+  padding: 0 10%;
+  overflow: auto;
+  background-color: #f1f1f1;
+
+  .qs-edit-show-list {
+    width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-shadow: 0 7px 8px -4px #0003, 0 12px 17px 2px #00000024, 0 5px 22px 4px #0000001f;
+  }
+}
