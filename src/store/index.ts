@@ -7,6 +7,9 @@ import { authStore } from './authStore'
 import { questionSheetListStore } from './questionSheetListStore'
 import { answerSheetStore } from './answerSheetStore'
 import { statisticsStore } from './statisticsStore'
+import { subjectStore } from './subject'
+import { screeningStore } from './screening'
+import { pushStore } from './push'
 
 // 单独导出各个 store（方便直接引用）
 export {
@@ -17,7 +20,10 @@ export {
   questionSheetListStore,
   answerSheetStore,
   statisticsStore,
-  analysisStore
+  analysisStore,
+  subjectStore,
+  screeningStore,
+  pushStore
 }
 
 // 统一导出所有 store（用于新代码）
@@ -32,7 +38,12 @@ export const rootStore = {
   authStore,
   questionSheetListStore,
   answerSheetStore,
-  statisticsStore
+  statisticsStore,
+  
+  // 新模块的 store
+  subjectStore,
+  screeningStore,
+  pushStore
 }
 
 // 兼容旧的导出名称（用于旧代码）

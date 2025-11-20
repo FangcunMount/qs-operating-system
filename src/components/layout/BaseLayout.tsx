@@ -89,7 +89,7 @@ const BaseLayout: React.FC<BaseLayoutProps> = ({ children, header, footer, foote
               <Popconfirm
                 className="s-ml-md"
                 placement="topLeft"
-                title="返回问卷列表页后，本次修改的内容将全部丢失，是否确认返回！"
+                title="返回列表页后，本次修改的内容将全部丢失，是否确认返回！"
                 onConfirm={() => {
                   history.push('/qs/list')
                 }}
@@ -98,7 +98,7 @@ const BaseLayout: React.FC<BaseLayoutProps> = ({ children, header, footer, foote
               >
                 <Button>
                   <VerticalRightOutlined />
-                  不保存并返回问卷列表页
+                  不保存并返回列表页
                 </Button>
               </Popconfirm>
             ) : null}
@@ -108,7 +108,7 @@ const BaseLayout: React.FC<BaseLayoutProps> = ({ children, header, footer, foote
             {footerButtons?.includes('saveToQsList') ? (
               <Button type="primary" loading={haveBackLoading} onClick={handleBackSubmit}>
                 <SaveOutlined />
-                保存并返回问卷列表页
+                保存并返回列表页
               </Button>
             ) : null}
             {footerButtons?.includes('saveToNext') ? (

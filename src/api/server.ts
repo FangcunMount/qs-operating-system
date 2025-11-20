@@ -71,3 +71,12 @@ export const post = <T>(url: string, data: IAnyObj, params: IAnyObj = {}): Promi
       })
   })
 }
+
+// Mock 相关工具函数
+export const isMockEnabled = (): boolean => {
+  return process.env.REACT_APP_MOCK === 'true' || localStorage.getItem('mockEnabled') === 'true'
+}
+
+export const mockDelay = (ms = 500): Promise<void> => {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}

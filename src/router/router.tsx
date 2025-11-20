@@ -27,20 +27,36 @@ const RouteView: React.FC = () => {
           <Route path="/">
             <MainLayout>
               <Switch>
+                {/* 渲染所有路由（包括子路由） */}
                 {routes
                   .filter(v => v.path !== '/user/login')
-                  .map((v) => (
-                    <Route key={v.name} path={v.path} exact={v.exact}>
-                      {v.component ? <v.component /> : null}
-                      {v.children
-                        ? v.children.map((c) => (
-                          <Route key={c.name} path={c.path} exact={c.exact}>
-                            {c.component ? <c.component /> : null}
-                          </Route>
-                        ))
-                        : null}
-                    </Route>
-                  ))}
+                  .flatMap((v) => {
+                    const routeElements = []
+                    
+                    // 如果有子路由，添加所有子路由
+                    if (v.children) {
+                      v.children.forEach((c) => {
+                        if (c.component) {
+                          routeElements.push(
+                            <Route key={c.name} path={c.path} exact={c.exact}>
+                              <c.component />
+                            </Route>
+                          )
+                        }
+                      })
+                    }
+                    
+                    // 如果父路由有组件，也添加父路由
+                    if (v.component) {
+                      routeElements.push(
+                        <Route key={v.name} path={v.path} exact={v.exact}>
+                          <v.component />
+                        </Route>
+                      )
+                    }
+                    
+                    return routeElements
+                  })}
                 <Redirect to="/" />
               </Switch>
             </MainLayout>

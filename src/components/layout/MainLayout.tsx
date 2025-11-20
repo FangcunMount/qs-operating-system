@@ -4,21 +4,18 @@ import { Layout, Menu, Dropdown, Avatar, Badge, Space, Button } from 'antd'
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  HomeOutlined,
-  FileTextOutlined,
-  FormOutlined,
   UserOutlined,
   LogoutOutlined,
   SettingOutlined,
   BellOutlined,
-  BarChartOutlined,
   QuestionCircleOutlined,
   GithubOutlined,
-  TeamOutlined,
-  SafetyOutlined
+  FileTextOutlined
 } from '@ant-design/icons'
 import { useHistory, useLocation } from 'react-router-dom'
 import { authorizationHandler } from 'fc-tools-pc/dist/bundle'
+import { routes } from '../../router/map'
+import { IRoute } from '../../types/router'
 import './mainLayout.scss'
 
 const { Header, Sider, Content, Footer } = Layout
@@ -33,35 +30,95 @@ const MainLayout: React.FC<IMainLayoutProps> = ({ children }) => {
   const location = useLocation()
 
   // 获取当前选中的菜单项
-  const getSelectedKey = () => {
+  const getSelectedKey = (): string => {
     const path = location.pathname
-    if (path === '/' || path === '/home') return 'home'
-    if (path.startsWith('/qs')) return 'qs'
-    if (path.startsWith('/as')) return 'as'
-    if (path.startsWith('/admin/list')) return 'admin-list'
-    if (path.startsWith('/admin/authz')) return 'admin-authz'
-    if (path.startsWith('/user/profile')) return 'user'
-    return 'home'
-  }
+    
+    // 递归查找匹配的路由
+    const findMatchedRoute = (routes: IRoute[]): string | null => {
+      for (const route of routes) {
+        // 检查子路由
+        if (route.children) {
+          for (const child of route.children) {
+            const childPath = child.path.split(':')[0].replace(/\/$/, '')
+            if (path.startsWith(childPath)) {
+              return child.name
+            }
+          }
+        }
+        // 检查当前路由
+        if (path === route.path || (route.path !== '/' && path.startsWith(route.path))) {
+          return route.name
+        }
+      }
+      return null
+    }
 
-  // 获取当前展开的菜单项
-  const getOpenKeys = () => {
-    const path = location.pathname
-    if (path.startsWith('/admin')) return ['admin']
-    return []
+    return findMatchedRoute(routes) || 'home'
   }
 
   // 获取页面标题
   const getPageTitle = () => {
     const path = location.pathname
-    if (path === '/' || path === '/home') return '首页'
-    if (path === '/qs/list') return '问卷列表'
-    if (path.includes('/qs/edit')) return '编辑问卷'
-    if (path.includes('/qs/factor')) return '设置因子'
-    if (path.includes('/qs/analysis')) return '设置解读'
-    if (path.includes('/as/list')) return '答卷列表'
-    if (path.includes('/as/detail')) return '答卷详情'
-    return '问卷系统'
+    
+    // 递归查找标题
+    const findTitle = (routes: IRoute[]): string => {
+      for (const route of routes) {
+        if (route.children) {
+          for (const child of route.children) {
+            const childPath = child.path.split(':')[0].replace(/\/$/, '')
+            if (path.startsWith(childPath)) {
+              return child.title
+            }
+          }
+        }
+        if (path === route.path) {
+          return route.title
+        }
+      }
+      return '问卷系统'
+    }
+
+    return findTitle(routes)
+  }
+
+  // 渲染菜单项
+  const renderMenuItems = (routes: IRoute[]) => {
+    return routes.map(route => {
+      if (route.hideInMenu) return null
+
+      // 检查是否有子菜单
+      if (route.children && route.children.some(child => !child.hideInMenu)) {
+        return (
+          <Menu.SubMenu 
+            key={route.name} 
+            icon={route.icon}
+            title={route.title}
+          >
+            {route.children
+              .filter(child => !child.hideInMenu)
+              .map(child => (
+                <Menu.Item 
+                  key={child.name}
+                  onClick={() => history.push(child.path)}
+                >
+                  {child.title}
+                </Menu.Item>
+              ))}
+          </Menu.SubMenu>
+        )
+      }
+
+      // 一级菜单项
+      return (
+        <Menu.Item 
+          key={route.name} 
+          icon={route.icon}
+          onClick={() => history.push(route.path)}
+        >
+          {route.title}
+        </Menu.Item>
+      )
+    })
   }
 
   // 用户菜单
@@ -110,56 +167,8 @@ const MainLayout: React.FC<IMainLayoutProps> = ({ children }) => {
           theme="dark"
           mode="inline"
           selectedKeys={[getSelectedKey()]}
-          defaultOpenKeys={getOpenKeys()}
         >
-          <Menu.Item 
-            key="home" 
-            icon={<HomeOutlined />}
-            onClick={() => history.push('/')}
-          >
-            首页
-          </Menu.Item>
-          <Menu.Item 
-            key="qs" 
-            icon={<FileTextOutlined />}
-            onClick={() => history.push('/qs/list')}
-          >
-            问卷管理
-          </Menu.Item>
-          <Menu.Item 
-            key="as" 
-            icon={<FormOutlined />}
-            onClick={() => history.push('/qs/list')}
-          >
-            答卷管理
-          </Menu.Item>
-          <Menu.Item 
-            key="analysis" 
-            icon={<BarChartOutlined />}
-            onClick={() => history.push('/qs/list')}
-          >
-            数据分析
-          </Menu.Item>
-          <Menu.SubMenu 
-            key="admin" 
-            icon={<SettingOutlined />}
-            title="系统管理"
-          >
-            <Menu.Item 
-              key="admin-list" 
-              icon={<TeamOutlined />}
-              onClick={() => history.push('/admin/list')}
-            >
-              管理员管理
-            </Menu.Item>
-            <Menu.Item 
-              key="admin-authz" 
-              icon={<SafetyOutlined />}
-              onClick={() => history.push('/admin/authz')}
-            >
-              权限配置
-            </Menu.Item>
-          </Menu.SubMenu>
+          {renderMenuItems(routes)}
         </Menu>
       </Sider>
 
