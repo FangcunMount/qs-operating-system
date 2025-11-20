@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import PropTypes from 'prop-types'
 import { Button, Modal, Popconfirm, Select, Radio, message } from 'antd'
-import { observable } from 'mobx'
-import { store } from '@/store'
+import { questionSheetStore } from '@/store'
 import {
   ICheckBoxQuestion,
   IControllerQuestion,
@@ -18,7 +17,6 @@ import useSubmit from '@/components/useSubmit'
 
 const { Option } = Select
 
-const questionSheetStore = observable(store.questionSheetStore)
 
 const initShowController: IQuestionShowController = {
   rule: void 0,

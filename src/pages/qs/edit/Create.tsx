@@ -26,15 +26,13 @@ import CreateMatrixRadio from './widget/matrixRadio/Create'
 
 import './create.scss'
 import { IQuestion } from '@/models/question'
-import { observable } from 'mobx'
-import { store } from '@/store'
+import { questionSheetStore } from '@/store'
 import { api } from '@/api'
 
 const IconFont = createFromIconfontCN({
   scriptUrl: '//at.alicdn.com/t/font_2758274_u8jryrvrw1q.js'
 })
 
-const questionSheetStore = observable(store.questionSheetStore)
 
 const QuestionCreate: React.FC<{ showToBottom: () => void }> = ({ showToBottom }) => {
   const handleAddQuestion = async (v: IQuestion, i?: number) => {

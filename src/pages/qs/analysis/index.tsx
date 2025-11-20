@@ -6,13 +6,10 @@ import './index.scss'
 import { api } from '@/api'
 import AnalysisSetting from './widget/setting'
 
-import { observable } from 'mobx'
-import { store } from '@/store'
+import { analysisStore } from '@/store'
 import { IFactorAnalysis, IMacroAnalysis } from '@/models/analysis'
 import { observer } from 'mobx-react-lite'
 import BaseLayout from '@/components/layout/BaseLayout'
-
-const analysisStore = observable(store.analysisStore)
 
 const QsAnalysis: React.FC = () => {
   const { questionsheetid } = useParams<{ questionsheetid: string }>()

@@ -1,15 +1,13 @@
 import React from 'react'
-import { observable } from 'mobx'
 import PropTypes from 'prop-types' 
 import { observer } from 'mobx-react'
 
-import { store } from '@/store/index'
+import { questionSheetStore } from '@/store'
 import { IQuestion, ISectionQuestion } from '@/models/question'
 import SettingContainer from '../components/SettingContainer'
 import { message } from 'antd'
 
 
-const questionSheetStore = observable(store.questionSheetStore)
 
 const TypeSection: React.FC<TypeSectionProps> = (props) => {
   return (

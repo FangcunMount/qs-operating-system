@@ -1,16 +1,14 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import { Divider, Input } from 'antd'
-import { observable } from 'mobx'
 import { observer } from 'mobx-react'
 
-import { store } from '@/store/index'
+import { questionSheetStore } from '@/store'
 import { ITextQuestion } from '@/models/question'
 import SettingContainer from '../components/SettingContainer'
 import ValidateRulesSetting from '../components/ValidateRulesSetting'
 import { message } from 'antd'
 
-const questionSheetStore = observable(store.questionSheetStore)
 
 const TypeText: React.FC<TypeTextProps> = (props) => {
   return (

@@ -1,11 +1,10 @@
 import React from 'react'
-import { observable } from 'mobx'
 import PropTypes from 'prop-types'
 import { observer } from 'mobx-react'
 import { Divider, message } from 'antd'
 
 import { api } from '@/api'
-import { store } from '@/store'
+import { questionSheetStore } from '@/store'
 import { ICheckBoxQuestion } from '@/models/question'
 import SettingContainer from '../components/SettingContainer'
 import OptionSetting from '../components/OptionSetting'
@@ -13,7 +12,6 @@ import ValidateRulesSetting from '../components/ValidateRulesSetting'
 import CalculationSetting from '../components/CalculationSetting'
 import CalculationRuleSetting from '../components/CalculationRuleSetting'
 
-const questionSheetStore = observable(store.questionSheetStore)
 
 const SettingCheckBox: React.FC<SettingCheckBoxProps> = ({ question }) => {
   return (

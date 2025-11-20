@@ -3,11 +3,9 @@ import { Input, InputNumber, Button, message } from 'antd'
 import PropTypes from 'prop-types'
 import { IScoreRadioOption } from '@/models/question'
 import { api } from '@/api'
-import { observable } from 'mobx'
-import { store } from '@/store'
+import { questionSheetStore } from '@/store'
 import { observer } from 'mobx-react-lite'
 
-const questionSheetStore = observable(store.questionSheetStore)
 
 const ScoreOptionSetting: React.FC<ScoreOptionSettingProps> = (props) => {
   const { leftDesc, rightDesc, options } = props

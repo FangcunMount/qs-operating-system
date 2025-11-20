@@ -6,5 +6,6 @@ export interface IRoute {
   name: string;
   component?: React.FC;
   icon?: string;
+  exact?: boolean;
   children?: Array<IRoute>
 }

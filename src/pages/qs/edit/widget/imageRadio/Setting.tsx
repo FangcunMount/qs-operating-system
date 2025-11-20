@@ -1,9 +1,8 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import { observable } from 'mobx'
 import { observer } from 'mobx-react'
 
-import { store } from '@/store/index'
+import { questionSheetStore } from '@/store'
 import SettingContainer from '../components/SettingContainer'
 import { IImageRadioQuestion } from '@/models/question'
 import { Divider } from 'antd'
@@ -12,7 +11,6 @@ import ValidateRulesSetting from '../components/ValidateRulesSetting'
 import CalculationSetting from '../components/CalculationSetting'
 import ImageOptionSetting from '../components/ImageOptionSetting'
 
-const questionSheetStore = observable(store.questionSheetStore)
 const SettingImageRadio: React.FC<SettingImageRadioProps> = (props) => {
   return (
     <SettingContainer

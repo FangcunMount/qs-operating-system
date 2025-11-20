@@ -1,16 +1,14 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import { Divider, Input } from 'antd'
-import { observable } from 'mobx'
 import { observer } from 'mobx-react'
 
-import { store } from '@/store/index'
+import { questionSheetStore } from '@/store'
 import { INumberQuestion } from '@/models/question'
 import SettingContainer from '../components/SettingContainer'
 import ValidateRulesSetting from '../components/ValidateRulesSetting'
 import { message } from 'antd'
 
-const questionSheetStore = observable(store.questionSheetStore)
 
 const SettingNumber: React.FC<SettingNumberProps> = (props) => {
   return (

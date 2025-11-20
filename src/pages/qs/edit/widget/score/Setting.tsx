@@ -1,17 +1,15 @@
 import React from 'react'
-import { observable } from 'mobx'
 import PropTypes from 'prop-types'
 import { observer } from 'mobx-react'
 import { Divider, message } from 'antd'
 
-import { store } from '@/store'
+import { questionSheetStore } from '@/store'
 import { IScoreRadioQuestion } from '@/models/question'
 import SettingContainer from '../components/SettingContainer'
 import ScoreOptionSetting from '../components/ScoreOptionSetting'
 import ValidateRulesSetting from '../components/ValidateRulesSetting'
 import CalculationSetting from '../components/CalculationSetting'
 
-const questionSheetStore = observable(store.questionSheetStore)
 
 const TypeScoreRadio: React.FC<TypeScoreRadioProps> = (props) => {
   return (

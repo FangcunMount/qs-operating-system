@@ -1,15 +1,13 @@
 import React from 'react'
-import { observable } from 'mobx'
 import { observer } from 'mobx-react'
 import { Divider } from 'antd'
 import PropTypes from 'prop-types'
 
-import { store } from '@/store'
+import { questionSheetStore } from '@/store'
 import './show.scss'
 import ShowQuestionItem, { SortableGifsContainer } from './widget/ShowQuestionItem'
 import ShowQuestionShowHeader from './widget/ShowQuestionHeader'
 
-const questionSheetStore = observable(store.questionSheetStore)
 
 const QuestionShow: React.FC<{ showContainerRef: any }> = ({ showContainerRef }) => {
   const onSortEnd = (e: any) => {

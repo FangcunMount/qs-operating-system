@@ -5,14 +5,14 @@ module.exports = function (app) {
   app.use(
     '/api',
     createProxyMiddleware({
-      target: 'https://adwenjuan.fangcunhulian.cn',
+      target: 'https://adwenjuan.yangshujie.com',
       changeOrigin: true
     })
   )
   app.use(
     '/oss',
     createProxyMiddleware({
-      target: 'https://api.fangcunyisheng.com',
+      target: 'https://api.yangshujie.com',
       changeOrigin: true
     })
   )

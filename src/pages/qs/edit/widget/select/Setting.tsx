@@ -1,18 +1,15 @@
 import React from 'react'
-import { observable } from 'mobx'
 import PropTypes from 'prop-types'
 import { observer } from 'mobx-react'
 import { Divider, message } from 'antd'
 
-import { store } from '@/store'
+import { questionSheetStore } from '@/store'
 import { ISelectQuestion } from '@/models/question'
 import SettingContainer from '../components/SettingContainer'
 import CalculationSetting from '../components/CalculationSetting'
 import SelectOptionSetting from '../components/SelectOptionSetting'
 import ValidateRulesSetting from '../components/ValidateRulesSetting'
 import { api } from '@/api'
-
-const questionSheetStore = observable(store.questionSheetStore)
 
 const SettingSelect: React.FC<SettingSelectProps> = ({ question }) => {
   return (

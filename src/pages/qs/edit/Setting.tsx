@@ -1,17 +1,15 @@
 import React from 'react'
 import { Divider, message, Popconfirm, Tooltip } from 'antd'
 import { observer } from 'mobx-react'
-import { observable } from 'mobx'
 import { CopyOutlined, DeleteOutlined } from '@ant-design/icons'
 
 import './setting.scss'
 
-import { store } from '@/store'
+import { questionSheetStore } from '@/store'
 import { api } from '@/api'
 import { deepCopy } from '@/utils'
 import { getSettingComponent } from '../../../tools/question'
 
-const questionSheetStore = observable(store.questionSheetStore)
 
 const QuestionSetting: React.FC = () => {
   const delQuestion = async () => {

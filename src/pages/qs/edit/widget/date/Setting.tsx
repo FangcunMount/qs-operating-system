@@ -1,16 +1,14 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import { Divider, Radio, Space } from 'antd'
-import { observable } from 'mobx'
 import { observer } from 'mobx-react'
 
-import { store } from '@/store/index'
+import { questionSheetStore } from '@/store'
 import { IDateQuestion } from '@/models/question'
 import SettingContainer from '../components/SettingContainer'
 import ValidateRulesSetting from '../components/ValidateRulesSetting'
 import { message } from 'antd'
 
-const questionSheetStore = observable(store.questionSheetStore)
 
 const SettingDate: React.FC<SettingDateProps> = (props) => {
   return (

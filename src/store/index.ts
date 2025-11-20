@@ -1,7 +1,50 @@
+// 导入所有 store 实例
 import { analysisStore } from './analysis'
 import { questionSheetStore } from './questionSheet'
+import { userStore } from './userStore'
+import { adminStore } from './adminStore'
+import { authStore } from './authStore'
+import { questionSheetListStore } from './questionSheetListStore'
+import { answerSheetStore } from './answerSheetStore'
+import { statisticsStore } from './statisticsStore'
 
-export const store = {
+// 单独导出各个 store（方便直接引用）
+export {
+  userStore,
+  adminStore,
+  authStore,
   questionSheetStore,
+  questionSheetListStore,
+  answerSheetStore,
+  statisticsStore,
   analysisStore
-} 
+}
+
+// 统一导出所有 store（用于新代码）
+export const rootStore = {
+  // 原有的 store
+  questionSheetStore,
+  analysisStore,
+  
+  // 新增的 store
+  userStore,
+  adminStore,
+  authStore,
+  questionSheetListStore,
+  answerSheetStore,
+  statisticsStore
+}
+
+// 兼容旧的导出名称（用于旧代码）
+// 使用 getter 延迟访问，避免循环引用
+export const store = {
+  get questionSheetStore(): typeof questionSheetStore {
+    return questionSheetStore
+  },
+  get analysisStore(): typeof analysisStore {
+    return analysisStore
+  }
+}
+
+// 导出类型
+export type RootStore = typeof rootStore 

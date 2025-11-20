@@ -1,9 +1,8 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import { observable } from 'mobx'
 import { observer } from 'mobx-react'
 
-import { store } from '@/store/index'
+import { questionSheetStore } from '@/store'
 import SettingContainer from '../components/SettingContainer'
 import { IImageCheckBoxQuestion } from '@/models/question'
 import ImageOptionSetting from '../components/ImageOptionSetting'
@@ -13,7 +12,6 @@ import ValidateRulesSetting from '../components/ValidateRulesSetting'
 import CalculationSetting from '../components/CalculationSetting'
 import CalculationRuleSetting from '../components/CalculationRuleSetting'
 
-const questionSheetStore = observable(store.questionSheetStore)
 const SettingImageCheckBox: React.FC<SettingImageCheckBoxProps> = ({ question }) => {
   return (
     <SettingContainer

@@ -18,7 +18,7 @@ const configMap = {
     dev: '?dev_user=' + 'www' + '&display=json',
     host: '',
     ossHost: '',
-    domain: 'fangcunhulian.cn',
+    domain: 'yangshujie.com',
     appID: 'wwb454f1d5286955cb',
     agentID: '1000025'
   },
@@ -26,9 +26,9 @@ const configMap = {
   development: {
     token: '',
     dev: '?dev_user=' + 'www' + '&display=json',
-    host: '//adwenjuan.fangcunhulian.cn',
-    ossHost: 'https://api.fangcunyisheng.com',
-    domain: 'fangcunhulian.cn',
+    host: '//adwenjuan.yangshujie.com',
+    ossHost: 'https://api.yangshujie.com',
+    domain: 'yangshujie.com',
     appID: 'wwb454f1d5286955cb',
     agentID: '1000025'
   },
@@ -36,9 +36,9 @@ const configMap = {
   production: {
     token: '',
     dev: '?display=json',
-    host: '//adwenjuan.fangcunyisheng.com',
-    ossHost: 'https://api.fangcunyisheng.com',
-    domain: 'fangcunyisheng.com',
+    host: '//adwenjuan.yangshujie.com',
+    ossHost: 'https://api.yangshujie.com',
+    domain: 'yangshujie.com',
     appID: 'ww6f0fda0b94f5df88',
     agentID: '1000040'
   }
@@ -47,11 +47,8 @@ const configMap = {
 // 通过链接获取当前环境
 function getDevType(): keyof IConfigMap {
   switch (location.host) {
-  case 'adwenjuan.fangcunyisheng.com':
+  case 'adwenjuan.yangshujie.com':
     return 'production'
-
-  case 'adwenjuan.fangcunhulian.cn':
-    return 'development'
 
   default:
     return 'local'

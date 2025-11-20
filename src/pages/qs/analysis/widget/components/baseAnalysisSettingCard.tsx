@@ -1,14 +1,12 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import { observable } from 'mobx'
 import { observer } from 'mobx-react'
 import { Checkbox } from 'antd'
 
-import { store } from '@/store'
+import { analysisStore } from '@/store'
 import InterpretationCard from './interpretationCard'
 import { IInterpretation, IInterpret_rule, IMacroAnalysis } from '@/models/analysis'
 
-const analysisStore = observable(store.analysisStore)
 const AnalysisSettingCard: React.FC<AnalysisSettingCardProps> = ({ code, is_show, title, max_score, interpretation, is_total_score }) => {
   // 设置选项，根据是否有 code 判断是否是 factor 的内容
   const changeOption = (k: string, v: any) => {

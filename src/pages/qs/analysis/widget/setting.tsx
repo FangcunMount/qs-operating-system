@@ -1,13 +1,10 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import { observable } from 'mobx'
 
 import AnalysisSettingCard from './components/baseAnalysisSettingCard'
-import { store } from '@/store'
+import { analysisStore } from '@/store'
 import { observer } from 'mobx-react'
 import './setting.scss'
-
-const analysisStore = observable(store.analysisStore)
 
 const AnalysisSetting: React.FC<{ haveTotal: () => boolean }> = ({ haveTotal }) => {
   return (

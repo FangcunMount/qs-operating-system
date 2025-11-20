@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import PropTypes from 'prop-types'
-import { observable } from 'mobx'
 
 import './showControllerCard.scss'
-import { store } from '@/store'
+import { questionSheetStore } from '@/store'
 import { IQuestionShowController } from '@/models/question'
 import { Button } from 'antd'
 import { EditOutlined } from '@ant-design/icons'
 
-const questionSheetStore = observable(store.questionSheetStore)
 
 const ruleMap = {
   and: {

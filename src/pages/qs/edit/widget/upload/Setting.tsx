@@ -1,15 +1,13 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import { observable } from 'mobx'
 import { observer } from 'mobx-react'
 
-import { store } from '@/store/index'
+import { questionSheetStore } from '@/store'
 import SettingContainer from '../components/SettingContainer'
 import { IUploadQuestion } from '@/models/question'
 import ValidateRulesSetting from '../components/ValidateRulesSetting'
 import { Divider } from 'antd'
 
-const questionSheetStore = observable(store.questionSheetStore)
 const SettingUpload: React.FC<SettingUploadProps> = (props) => {
   return (
     <SettingContainer

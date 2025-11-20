@@ -1,13 +1,12 @@
 import React, { useEffect, useRef } from 'react'
 import { useParams } from 'react-router'
-import { observable } from 'mobx'
 import { message, notification } from 'antd'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 
 import './index.scss'
 import { api } from '@/api'
-import { store } from '@/store/index'
+import { questionSheetStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
 import QuestionSetting from './Setting'
 import QuestionShow from './Show'
@@ -57,7 +56,6 @@ const checkMap = {
   Upload: checkUpload
 }
 
-const questionSheetStore = observable(store.questionSheetStore)
 
 const QsEdit: React.FC = () => {
   const showContainerRef = useRef<HTMLInputElement>(null)

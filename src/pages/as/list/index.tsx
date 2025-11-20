@@ -1,41 +1,30 @@
 import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router'
 import { Button, Card, Table } from 'antd'
-import { api } from '@/api'
-import { IAnswerSheet } from '@/models/answerSheet'
+import { observer } from 'mobx-react-lite'
+import { rootStore } from '@/store'
 import { Link } from 'react-router-dom'
 import BaseLayout from '@/components/layout/BaseLayout'
 import ExportDialog from './weight/exportDialog'
 
 const { Column } = Table
 
-const AsList: React.FC = () => {
+const AsList: React.FC = observer(() => {
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
-  const [pageInfo, setPageInfo] = useState({ pagesize: 10, pagenum: 1, total: 0 })
-  const [answerSheetList, setAnswerSheetList] = useState<IAnswerSheet[]>([])
-
+  const { answerSheetStore } = rootStore
   const [exportDialogFlag, setExportDialogFlag] = useState(false)
   const [exportType, setExportType] = useState<'answer' | 'factorScore'>('answer')
-  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    initData(pageInfo.pagesize, pageInfo.pagenum)
-  }, [])
+    answerSheetStore.fetchAnswerSheetList(questionsheetid, 1, 10)
+  }, [questionsheetid, answerSheetStore])
 
-  const initData = async (size: number, num: number) => {
-    setLoading(true)
-    const [e, r] = await api.getAnswerSheetList(questionsheetid, String(size), String(num))
-    if (!e && r) {
-      setAnswerSheetList(r.data.list)
-      setPageInfo({ pagesize: parseInt(r.data.pagesize), pagenum: parseInt(r.data.pagenum), total: parseInt(r.data.total_count) })
-    }
-    setLoading(false)
+  const initData = (size: number, num: number) => {
+    answerSheetStore.fetchAnswerSheetList(questionsheetid, num, size)
   }
 
   const handleChangePagination = (size: number, num: number) => {
-    if (size !== pageInfo.pagesize) num = 1
-
-    setPageInfo({ ...pageInfo, pagenum: num, pagesize: size })
+    if (size !== answerSheetStore.pageInfo.pagesize) num = 1
     initData(size, num)
   }
 
@@ -73,14 +62,18 @@ const AsList: React.FC = () => {
               批量导出计算后的因子得分
             </Button>
           </div>
-          <span>共 {pageInfo.total} 条</span>
+          <span>共 {answerSheetStore.pageInfo.total} 条</span>
         </div>
 
         <Table
-          dataSource={answerSheetList}
-          pagination={{ total: pageInfo.total, pageSize: pageInfo.pagesize, current: pageInfo.pagenum }}
+          dataSource={answerSheetStore.answerSheetList}
+          pagination={{ 
+            total: answerSheetStore.pageInfo.total, 
+            pageSize: answerSheetStore.pageInfo.pagesize, 
+            current: answerSheetStore.pageInfo.pagenum 
+          }}
           rowKey="id"
-          loading={loading}
+          loading={answerSheetStore.loading}
           style={{ width: '100%' }}
           onChange={(e) => handleChangePagination(e.pageSize as number, e.current as number)}
         >
@@ -102,6 +95,6 @@ const AsList: React.FC = () => {
       </Card>
     </BaseLayout>
   )
-}
+})
 
 export default AsList

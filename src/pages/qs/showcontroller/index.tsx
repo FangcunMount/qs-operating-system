@@ -9,13 +9,11 @@ import { getShowControllerList } from '@/api/path/showController'
 import ModifyShowController from './weight/ModifyShowController'
 import ShowControllerCard from './weight/ShowControllerCard'
 
-import { observable } from 'mobx'
-import { store } from '@/store'
+import { questionSheetStore } from '@/store'
 import { api } from '@/api'
 import { IQuestionShowController } from '@/models/question'
 import BaseLayout from '@/components/layout/BaseLayout'
 
-const questionSheetStore = observable(store.questionSheetStore)
 
 const QsRouter: React.FC = () => {
   // 获取url参数

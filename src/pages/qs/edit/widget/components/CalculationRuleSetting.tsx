@@ -3,10 +3,8 @@ import { Radio, Space } from 'antd'
 import PropTypes from 'prop-types'
 import { observer } from 'mobx-react-lite'
 import { ICheckBoxQuestion, IImageCheckBoxQuestion } from '@/models/question'
-import { observable } from 'mobx'
-import { store } from '@/store'
+import { questionSheetStore } from '@/store'
 
-const questionSheetStore = observable(store.questionSheetStore)
 
 const defaultRules = [
   { key: 'sum', label: '求和分' },
