@@ -1,36 +1,91 @@
 import { makeAutoObservable } from 'mobx'
 import * as subjectApi from '../api/path/subject'
 
-export interface Subject {
-  id: string
+// 受试者详情页数据类型
+export interface Guardian {
   name: string
+  relation: string
   phone: string
-  idCard?: string
-  schoolId: string
-  schoolName: string
-  gradeId: string
-  gradeName: string
-  classId: string
-  className: string
-  answerCount: number
-  scaleReportCount: number
-  createdAt: string
 }
 
-export interface PageInfo {
-  current: number
-  pageSize: number
-  total: number
+export interface SubjectBasicInfo {
+  name: string
+  gender: string
+  age: number
+  tags: string[]
+  attentionLevel: string
+  guardians: Guardian[]
+}
+
+export interface TaskStatus {
+  week: number
+  status: 'completed' | 'pending' | 'overdue'
+  completedAt?: string
+  dueDate?: string
+}
+
+export interface PeriodicProject {
+  id: string
+  name: string
+  totalWeeks: number
+  completedWeeks: number
+  completionRate: number
+  tasks: TaskStatus[]
+}
+
+export interface SurveyRecord {
+  id: string
+  questionnaireName: string
+  completedAt: string
+  status: string
+  source: string
+}
+
+export interface FactorScore {
+  name: string
+  score: number
+  level: string
+}
+
+export interface ScaleRecord {
+  id: string
+  scaleName: string
+  completedAt: string
+  totalScore: number
+  result: string
+  riskLevel: string
+  source: string
+  factors?: FactorScore[]
+}
+
+export interface TestRecord {
+  testId: string
+  testDate: string
+  totalScore: number
+  result: string
+  factors: Array<{
+    factorName: string
+    score: number
+    level?: string
+  }>
+}
+
+export interface ScaleAnalysisData {
+  scaleId: string
+  scaleName: string
+  tests: TestRecord[]
+}
+
+export interface SubjectDetail {
+  basicInfo: SubjectBasicInfo
+  periodicStats: PeriodicProject[]
+  scaleAnalysis: ScaleAnalysisData[]
+  surveys: SurveyRecord[]
+  scales: ScaleRecord[]
 }
 
 class SubjectStore {
-  subjectList: Subject[] = []
-  currentSubject: Subject | null = null
-  pageInfo: PageInfo = {
-    current: 1,
-    pageSize: 10,
-    total: 0
-  }
+  subjectDetail: SubjectDetail | null = null
   loading = false
 
   constructor() {
@@ -41,85 +96,19 @@ class SubjectStore {
     this.loading = loading
   }
 
-  setSubjectList(list: Subject[]) {
-    this.subjectList = list
+  setSubjectDetail(detail: SubjectDetail | null) {
+    this.subjectDetail = detail
   }
 
-  setCurrentSubject(subject: Subject | null) {
-    this.currentSubject = subject
-  }
-
-  setPageInfo(pageInfo: Partial<PageInfo>) {
-    this.pageInfo = { ...this.pageInfo, ...pageInfo }
-  }
-
-  async fetchSubjectList(page: number, pageSize: number, keyword?: string) {
+  async fetchSubjectDetailPage(id: string) {
     this.setLoading(true)
     try {
-      const res = await subjectApi.getSubjectList({ page, pageSize, keyword })
+      const res = await subjectApi.getSubjectDetailPage(id)
       if (res?.data) {
-        this.setSubjectList(res.data.list)
-        this.setPageInfo({
-          current: page,
-          pageSize,
-          total: res.data.total
-        })
+        this.setSubjectDetail(res.data)
       }
     } catch (error) {
-      console.error('获取受试者列表失败:', error)
-    } finally {
-      this.setLoading(false)
-    }
-  }
-
-  async fetchSubjectDetail(id: string) {
-    this.setLoading(true)
-    try {
-      const res = await subjectApi.getSubjectDetail(id)
-      if (res?.data) {
-        this.setCurrentSubject(res.data)
-      }
-    } catch (error) {
-      console.error('获取受试者详情失败:', error)
-    } finally {
-      this.setLoading(false)
-    }
-  }
-
-  async createSubject(subject: Partial<Subject>) {
-    this.setLoading(true)
-    try {
-      await subjectApi.createSubject(subject)
-      return true
-    } catch (error) {
-      console.error('创建受试者失败:', error)
-      return false
-    } finally {
-      this.setLoading(false)
-    }
-  }
-
-  async updateSubject(id: string, subject: Partial<Subject>) {
-    this.setLoading(true)
-    try {
-      await subjectApi.updateSubject(id, subject)
-      return true
-    } catch (error) {
-      console.error('更新受试者失败:', error)
-      return false
-    } finally {
-      this.setLoading(false)
-    }
-  }
-
-  async deleteSubject(id: string) {
-    this.setLoading(true)
-    try {
-      await subjectApi.deleteSubject(id)
-      return true
-    } catch (error) {
-      console.error('删除受试者失败:', error)
-      return false
+      console.error('获取受试者详情页数据失败:', error)
     } finally {
       this.setLoading(false)
     }
