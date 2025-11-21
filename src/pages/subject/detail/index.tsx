@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useHistory } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
 import { Spin } from 'antd'
 import { subjectStore } from '@/store'
@@ -14,6 +14,7 @@ import './index.scss'
 
 const SubjectDetail: React.FC = observer(() => {
   const { id } = useParams<{ id: string }>()
+  const history = useHistory()
 
   useEffect(() => {
     if (id) {
@@ -25,13 +26,11 @@ const SubjectDetail: React.FC = observer(() => {
 
   // 查看详情回调
   const handleViewSurveyDetail = (record: any) => {
-    console.log('查看问卷详情:', record)
-    // TODO: 跳转到问卷详情页
+    history.push(`/subject/${id}/answer/${record.id}`)
   }
 
   const handleViewScaleDetail = (record: any) => {
-    console.log('查看量表详情:', record)
-    // TODO: 跳转到量表详情页
+    history.push(`/subject/${id}/scale/${record.id}`)
   }
 
   if (subjectStore.loading) {

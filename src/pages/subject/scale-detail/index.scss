@@ -1,0 +1,290 @@
+.subject-scale-detail-page {
+  padding: 24px;
+  background: #f0f2f5;
+  min-height: 100vh;
+
+  .scale-detail-header {
+    margin-bottom: 24px;
+  }
+
+  .scale-detail-content {
+    max-width: 1400px;
+
+    .ant-card {
+      margin-bottom: 16px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+
+      .ant-card-head {
+        border-bottom: 2px solid #f0f0f0;
+        
+        .ant-card-head-title {
+          font-size: 16px;
+          font-weight: 600;
+          color: #262626;
+        }
+      }
+
+      .ant-card-body {
+        padding: 24px;
+      }
+    }
+
+    // 基本信息卡片
+    .info-card {
+      .ant-descriptions-item-label {
+        width: 120px;
+        background: #fafafa;
+        font-weight: 500;
+      }
+    }
+
+    // Tabs 卡片
+    .tabs-card {
+      .ant-card-body {
+        padding: 0;
+      }
+
+      .ant-tabs {
+        .ant-tabs-nav {
+          padding: 0 24px;
+          margin-bottom: 0;
+        }
+
+        .ant-tabs-content {
+          padding: 24px;
+        }
+      }
+    }
+
+    // 测评分数模块
+    .score-module {
+      .total-score-card {
+        margin-bottom: 16px;
+        background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+
+        .total-score-content {
+          display: flex;
+          align-items: center;
+          justify-content: space-around;
+          padding: 32px 24px;
+
+          .score-left {
+            flex: 1;
+            text-align: center;
+
+            .score-label {
+              font-size: 14px;
+              color: #8c8c8c;
+              margin-bottom: 12px;
+              font-weight: 500;
+            }
+
+            .score-value {
+              font-size: 56px;
+              font-weight: 700;
+              color: #1890ff;
+              line-height: 1;
+              margin-bottom: 8px;
+            }
+
+            .score-desc {
+              font-size: 12px;
+              color: #bfbfbf;
+            }
+          }
+
+          .score-divider {
+            width: 1px;
+            height: 80px;
+            background: linear-gradient(to bottom, transparent, #e8e8e8, transparent);
+            margin: 0 32px;
+          }
+
+          .score-right {
+            flex: 1;
+            text-align: center;
+
+            .risk-label {
+              font-size: 14px;
+              color: #8c8c8c;
+              margin-bottom: 12px;
+              font-weight: 500;
+            }
+
+            .risk-badge {
+              display: inline-block;
+              padding: 10px 24px;
+              border-radius: 20px;
+              font-size: 18px;
+              font-weight: 600;
+              margin-bottom: 8px;
+            }
+
+            .result-text {
+              font-size: 14px;
+              color: #595959;
+              margin-top: 8px;
+            }
+          }
+        }
+      }
+
+      .factor-scores-card {
+        margin-bottom: 16px;
+
+        .factor-score {
+          .factor-level {
+            color: #8c8c8c;
+            font-size: 12px;
+          }
+        }
+      }
+
+      .radar-card {
+        .ant-card-body {
+          padding: 24px;
+        }
+      }
+    }
+
+    // 测评报告模块
+    .report-module {
+      .report-section {
+        margin-bottom: 32px;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        h3 {
+          margin-bottom: 16px;
+          font-weight: 600;
+          font-size: 18px;
+          color: #262626;
+          position: relative;
+          padding-left: 12px;
+
+          &::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 20px;
+            background: #1890ff;
+            border-radius: 2px;
+          }
+        }
+
+        h4 {
+          margin-bottom: 8px;
+          font-weight: 600;
+          font-size: 15px;
+          color: #262626;
+        }
+
+        .report-summary {
+          padding: 16px;
+          background: #e6f7ff;
+          border-left: 4px solid #1890ff;
+          border-radius: 4px;
+          line-height: 1.8;
+          color: #595959;
+        }
+
+        .report-detail-item {
+          margin-bottom: 16px;
+          padding: 16px;
+          background: #fafafa;
+          border-radius: 8px;
+          border: 1px solid #f0f0f0;
+
+          &:last-child {
+            margin-bottom: 0;
+          }
+
+          p {
+            line-height: 1.8;
+            color: #595959;
+            margin: 0;
+          }
+        }
+
+        .report-suggestions {
+          ul {
+            padding-left: 20px;
+            margin: 0;
+
+            li {
+              margin-bottom: 12px;
+              line-height: 1.8;
+              color: #595959;
+
+              &::marker {
+                color: #1890ff;
+              }
+
+              &:last-child {
+                margin-bottom: 0;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 原始答卷模块
+    .answer-module {
+      .answer-item {
+        margin-bottom: 16px;
+        padding: 16px;
+        background: #fafafa;
+        border-radius: 4px;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        .s-question-title {
+          font-size: 14px;
+          font-weight: 500;
+          color: #262626;
+          margin-bottom: 12px;
+          line-height: 1.6;
+        }
+
+        .ant-input,
+        .ant-input-textarea {
+          width: 100% !important;
+          max-width: 800px;
+
+          textarea {
+            min-height: 100px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #595959;
+          }
+        }
+
+        .ant-input {
+          font-size: 14px;
+          color: #595959;
+        }
+      }
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding: 16px;
+
+    .scale-detail-content {
+      .ant-card {
+        .ant-card-body {
+          padding: 16px;
+        }
+      }
+    }
+  }
+}

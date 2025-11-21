@@ -29,6 +29,8 @@ const AdminAuthz = lazy(() => import('../pages/admin/authz'))
 // 新增页面组件
 const SubjectList = lazy(() => import('../pages/subject/list'))
 const SubjectDetail = lazy(() => import('../pages/subject/detail'))
+const SubjectAnswerDetail = lazy(() => import('../pages/subject/answer-detail'))
+const SubjectScaleDetail = lazy(() => import('../pages/subject/scale-detail'))
 const ScreeningList = lazy(() => import('../pages/screening/list'))
 const ScreeningDetail = lazy(() => import('../pages/screening/detail'))
 const PushList = lazy(() => import('../pages/push/list'))
@@ -67,6 +69,20 @@ export const routes: Array<IRoute> = [
         name: 'subject-detail',
         path: '/subject/detail/:id',
         component: SubjectDetail,
+        hideInMenu: true
+      },
+      {
+        title: '问卷答卷详情',
+        name: 'subject-answer-detail',
+        path: '/subject/:subjectId/answer/:answerId',
+        component: SubjectAnswerDetail,
+        hideInMenu: true
+      },
+      {
+        title: '量表测评详情',
+        name: 'subject-scale-detail',
+        path: '/subject/:subjectId/scale/:testId',
+        component: SubjectScaleDetail,
         hideInMenu: true
       }
     ]
