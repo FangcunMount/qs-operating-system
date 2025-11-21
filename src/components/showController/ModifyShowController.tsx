@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import PropTypes from 'prop-types'
 import { Button, Modal, Popconfirm, Select, Radio, message } from 'antd'
-import { questionSheetStore } from '@/store'
 import {
   ICheckBoxQuestion,
   IControllerQuestion,
@@ -12,11 +11,10 @@ import {
 } from '@/models/question'
 import { delShowController, getShowController, postShowController } from '@/api/path/showController'
 
-import ControllerQuestionItem from './ControllerQuestionItem'
+import ControllerQuestionItem from '@/components/showController/widget/ControllerQuestionItem'
 import useSubmit from '@/components/useSubmit'
 
 const { Option } = Select
-
 
 const initShowController: IQuestionShowController = {
   rule: void 0,
@@ -25,8 +23,17 @@ const initShowController: IQuestionShowController = {
 
 const canControllerQuestionTypes = ['Radio', 'ScoreRadio', 'CheckBox', 'Select', 'AddressSelect', 'CascaderSelect', 'ImageCheckBox', 'ImageRadio']
 
+interface ModifyShowControllerProps {
+  questionCode: string | null
+  isModalVisible: boolean
+  questionsheetid: string
+  ok: () => void
+  close: () => void
+  store: any // surveyStore 或 scaleStore,需要有 questions 和 getQuestion 方法
+}
+
 const ModifyShowController: React.FC<ModifyShowControllerProps> = (props) => {
-  const { questionCode, isModalVisible, questionsheetid } = props
+  const { questionCode, isModalVisible, questionsheetid, store } = props
   const { close, ok } = props
 
   const [currentQuestionCode, setCurrentQuestionCode] = useState<string>('')
@@ -38,12 +45,14 @@ const ModifyShowController: React.FC<ModifyShowControllerProps> = (props) => {
   }, [isModalVisible])
 
   useEffect(() => {
-    const { index } = questionSheetStore.getQuestion(currentQuestionCode)
-    let questions = [...questionSheetStore.questions].slice(0, index)
-    questions = questions.filter((v) => canControllerQuestionTypes.includes(v.type))
+    if (!store || !currentQuestionCode) return
+    
+    const { index } = store.getQuestion(currentQuestionCode)
+    let questions = [...store.questions].slice(0, index)
+    questions = questions.filter((v: any) => canControllerQuestionTypes.includes(v.type))
 
     setCanSelectQuestions(questions as Array<IRadioQuestion | IScoreRadioQuestion | ICheckBoxQuestion | ISelectQuestion>)
-  }, [currentQuestionCode])
+  }, [currentQuestionCode, store])
 
   const clearData = () => {
     setCurrentQuestionCode('')
@@ -135,7 +144,7 @@ const ModifyShowController: React.FC<ModifyShowControllerProps> = (props) => {
 
   const [delLoading, handleDelete] = useSubmit({
     submit: async () => {
-      const [e] = await delShowController(questionSheetStore.id as string, currentQuestionCode)
+      const [e] = await delShowController(questionsheetid, currentQuestionCode)
       if (e) throw e
     },
     afterSubmit(status, error) {
@@ -151,7 +160,7 @@ const ModifyShowController: React.FC<ModifyShowControllerProps> = (props) => {
   const [submitLoading, handleSubmit] = useSubmit({
     beforeSubmit: verifyShowController,
     submit: async () => {
-      const [e] = await postShowController(questionSheetStore.id as string, { code: currentQuestionCode, show_controller: showController })
+      const [e] = await postShowController(questionsheetid, { code: currentQuestionCode, show_controller: showController })
       if (e) throw e
     },
     afterSubmit(status, error) {
@@ -185,6 +194,8 @@ const ModifyShowController: React.FC<ModifyShowControllerProps> = (props) => {
     ]
   }
 
+  if (!store) return null
+
   return (
     <Modal
       title={`${questionCode ? '编辑题目显隐规则' : '新建题目显隐规则'}`}
@@ -205,7 +216,7 @@ const ModifyShowController: React.FC<ModifyShowControllerProps> = (props) => {
         showSearch
         filterOption={(input, option) => (option?.children as unknown as string).toLowerCase().includes(input.toLowerCase())}
       >
-        {questionSheetStore.questions.map((v) => (
+        {store.questions.map((v: any) => (
           <Option key={v.code} value={v.code}>
             {v.title}
           </Option>
@@ -243,20 +254,13 @@ const ModifyShowController: React.FC<ModifyShowControllerProps> = (props) => {
   )
 }
 
-interface ModifyShowControllerProps {
-  questionCode: string | null
-  isModalVisible: boolean
-  questionsheetid: string
-  ok: () => void
-  close: () => void
-}
-
 ModifyShowController.propTypes = {
   isModalVisible: PropTypes.any,
   close: PropTypes.any,
   ok: PropTypes.any,
   questionsheetid: PropTypes.any,
-  questionCode: PropTypes.any
+  questionCode: PropTypes.any,
+  store: PropTypes.any
 }
 
 export default ModifyShowController

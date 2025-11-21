@@ -14,11 +14,16 @@ const createIcon = (Icon: React.ComponentType) => React.createElement(Icon)
 
 // 页面组件懒加载
 const Home = lazy(() => import('../pages/home'))
-const QsList = lazy(() => import('../pages/qs/list'))
-const QsEdit = lazy(() => import('../pages/qs/edit'))
-const QsShowController = lazy(() => import('../pages/qs/showcontroller'))
-const QsFactor = lazy(() => import('../pages/qs/factor'))
-const QsAnalysis = lazy(() => import('../pages/qs/analysis'))
+const SurveyList = lazy(() => import('../pages/survey/list'))
+const ScaleList = lazy(() => import('../pages/scale/list'))
+const QsEdit = lazy(() => import('../components/questionEdit'))
+const SurveyInfo = lazy(() => import('../pages/survey/info'))
+const SurveyCreate = lazy(() => import('../pages/survey/create'))
+const SurveyRouting = lazy(() => import('../pages/survey/routing'))
+const ScaleCreate = lazy(() => import('../pages/scale/create'))
+const ScaleRouting = lazy(() => import('../pages/scale/routing'))
+const QsFactor = lazy(() => import('../components/factor'))
+const QsAnalysis = lazy(() => import('../components/analysis'))
 const AsList = lazy(() => import('../pages/as/list'))
 const AsDetail = lazy(() => import('../pages/as/detail'))
 const Login = lazy(() => import('../pages/user/login'))
@@ -96,14 +101,14 @@ export const routes: Array<IRoute> = [
       {
         title: '调查问卷',
         name: 'survey-list',
-        path: '/qs/list',
-        component: QsList
+        path: '/survey/list',
+        component: SurveyList
       },
       {
         title: '医学量表',
         name: 'scale-list',
-        path: '/qs/list',
-        component: QsList
+        path: '/scale/list',
+        component: ScaleList
       }
     ]
   },
@@ -112,6 +117,34 @@ export const routes: Array<IRoute> = [
     name: 'survey-edit',
     path: '/qs/edit/:questionsheetid/:answercnt',
     component: QsEdit,
+    hideInMenu: true
+  },
+  {
+    title: '问卷基本信息',
+    name: 'survey-info',
+    path: '/survey/info/:questionsheetid',
+    component: SurveyInfo,
+    hideInMenu: true
+  },
+  {
+    title: '创建问卷',
+    name: 'survey-create',
+    path: '/survey/create/:questionsheetid/:answercnt',
+    component: SurveyCreate,
+    hideInMenu: true
+  },
+  {
+    title: '问卷路由设置',
+    name: 'survey-routing',
+    path: '/survey/routing/:questionsheetid',
+    component: SurveyRouting,
+    hideInMenu: true
+  },
+  {
+    title: '创建量表',
+    name: 'scale-create',
+    path: '/scale/create/:questionsheetid/:answercnt',
+    component: ScaleCreate,
     hideInMenu: true
   },
   {
@@ -131,8 +164,8 @@ export const routes: Array<IRoute> = [
   {
     title: '设置题目显隐',
     name: 'scale-router',
-    path: '/qs/showController/:questionsheetid',
-    component: QsShowController,
+    path: '/scale/routing/:questionsheetid',
+    component: ScaleRouting,
     hideInMenu: true
   },
   {

@@ -3,14 +3,14 @@ import PropTypes from 'prop-types'
 import { SortableContainer, SortableElement } from 'react-sortable-hoc'
 import { DropTarget } from 'react-dnd'
 import { ColumnHeightOutlined } from '@ant-design/icons'
-import { observable } from 'mobx'
-import { store } from '@/store'
 import { observer } from 'mobx-react'
 
 import { IQuestion } from '@/models/question'
 import { getShowComponent } from '@/tools/question'
+import { questionSheetStore, surveyStore, scaleStore } from '@/store'
 
-const questionSheet = observable(store.questionSheetStore)
+type StoreType = typeof questionSheetStore | typeof surveyStore | typeof scaleStore
+
 const dropIconStyle: React.CSSProperties = {
   position: 'absolute',
   top: '-9px',
@@ -25,9 +25,16 @@ const dropLineStyle: React.CSSProperties = {
   zIndex: 9999
 }
 
-const ShowQuestionItem: React.FC<ShowQuestionItemProps> = ({ item, currentIndex, connectDropTarget, canDrop, isOver }) => {
+const ShowQuestionItem: React.FC<ShowQuestionItemProps> = ({
+  item,
+  currentIndex,
+  connectDropTarget,
+  canDrop,
+  isOver,
+  store = questionSheetStore
+}) => {
   const selectQuestion = (code: string) => {
-    questionSheet.setCurrentCode(code)
+    store.setCurrentCode(code)
   }
 
   return (
@@ -42,7 +49,7 @@ const ShowQuestionItem: React.FC<ShowQuestionItemProps> = ({ item, currentIndex,
       {React.createElement(getShowComponent(item), {
         item,
         title: `${currentIndex + 1}. ${item.title}`,
-        isSelect: questionSheet.currentCode === item.code,
+        isSelect: store.currentCode === item.code,
         onClick: () => {
           selectQuestion(item.code)
         }
@@ -58,6 +65,7 @@ interface ShowQuestionItemProps {
   connectDropTarget: any
   isOver: any
   canDrop: any
+  store?: StoreType
 }
 
 ShowQuestionItem.propTypes = {
@@ -66,7 +74,8 @@ ShowQuestionItem.propTypes = {
   canDrop: PropTypes.any,
   item: PropTypes.any,
   currentIndex: PropTypes.any,
-  index: PropTypes.any
+  index: PropTypes.any,
+  store: PropTypes.any
 }
 
 export const SortableGifsContainer = SortableContainer(({ children }: any) => <div className="gifs">{children}</div>)

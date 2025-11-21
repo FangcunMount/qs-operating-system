@@ -1,22 +1,19 @@
 import React, { useEffect, useState } from 'react'
 import { message } from 'antd'
 import { useParams } from 'react-router'
-import { PlusOutlined } from '@ant-design/icons'
 
-import './index.scss'
+import '../survey/routing.scss'
 import { getShowControllerList } from '@/api/path/showController'
 
-import ModifyShowController from './weight/ModifyShowController'
-import ShowControllerCard from './weight/ShowControllerCard'
+import ModifyShowController from '@/components/showController/ModifyShowController'
+import ShowControllerCard from '@/components/showController/ShowControllerCard'
 
-import { questionSheetStore } from '@/store'
+import { scaleStore } from '@/store'
 import { api } from '@/api'
 import { IQuestionShowController } from '@/models/question'
 import BaseLayout from '@/components/layout/BaseLayout'
 
-
-const QsRouter: React.FC = () => {
-  // 获取url参数
+const ScaleRouting: React.FC = () => {
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
 
   const [showControllerList, setShowControllerList] = useState<{ code: string; show_controller: IQuestionShowController }[]>([])
@@ -47,59 +44,73 @@ const QsRouter: React.FC = () => {
     message.loading({ content: '加载中', duration: 0, key: 'fetch' })
     const [qe, qr] = await api.getQuestionSheet(questionsheetid)
     if (qe) return
-    questionSheetStore.setQuestionSheet(qr?.data.questionsheet)
+    scaleStore.setScale(qr?.data.questionsheet)
     const [e, r] = await api.getQuestionList(questionsheetid)
     if (e) return
-    questionSheetStore.setQuestionSheetQuestions(r?.data.list ?? [])
+    scaleStore.setScaleQuestions(r?.data.list ?? [])
+    message.destroy()
+  }
+
+  const handleSave = async () => {
+    message.loading({ content: '保存中', duration: 0, key: 'save' })
+    // TODO: 实现路由保存 API
+    // const [e] = await api.modifyQuestionShowController(questionsheetid, showControllerList)
+    // if (e) throw e
+    message.destroy()
+  }
+
+  const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
+    if (status === 'success') {
+      message.success('路由设置保存成功')
+      scaleStore.nextStep()
+    }
+    if (status === 'fail') {
+      message.error(`路由设置保存失败 -- ${error?.errmsg ?? error}`)
+    }
   }
 
   return (
     <BaseLayout
-      header="录入题目显隐规则"
+      header='设置题目路由'
+      submitFn={handleSave}
+      afterSubmit={handleAfterSubmit}
       footerButtons={['break', 'breakToQsList', 'saveToQsList', 'saveToNext']}
       nextUrl={`/qs/factor/${questionsheetid}`}
     >
-      <div className="qs-controller--content">
-        <ModifyShowController
-          close={() => {
-            setModifyShowControllerVisible(false)
-          }}
-          ok={() => {
-            initShowController()
-            setModifyShowControllerVisible(false)
-          }}
-          questionsheetid={questionsheetid}
-          questionCode={currentQuestionCode}
-          isModalVisible={modifyShowControllerVisible}
-        ></ModifyShowController>
-        <div className="qs-controller--content__list">
-          {showControllerList.map((v) => {
-            return (
+      <>
+        <div className='qs-router-container'>
+          <div className='qs-router-list'>
+            {showControllerList.map((v) => (
               <ShowControllerCard
                 key={v.code}
                 code={v.code}
                 showController={v.show_controller}
+                store={scaleStore}
                 onEdit={(code) => {
                   setCurrentQuestionCode(code)
                   setModifyShowControllerVisible(true)
                 }}
               />
-            )
-          })}
-          <div
-            className="qs-controller--content__add s-mt-xl s-ml-xl"
-            onClick={() => {
-              setCurrentQuestionCode(null)
-              setModifyShowControllerVisible(true)
-            }}
-          >
-            <PlusOutlined />
-            <span>添加题目关联规则</span>
+            ))}
           </div>
         </div>
-      </div>
+
+        <ModifyShowController
+          isModalVisible={modifyShowControllerVisible}
+          questionCode={currentQuestionCode}
+          questionsheetid={questionsheetid}
+          store={scaleStore}
+          ok={() => {
+            initShowController()
+            setModifyShowControllerVisible(false)
+          }}
+          close={() => {
+            setModifyShowControllerVisible(false)
+          }}
+        />
+      </>
     </BaseLayout>
   )
 }
 
-export default QsRouter
+export default ScaleRouting

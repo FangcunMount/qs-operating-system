@@ -6,6 +6,14 @@ import { ICheckBoxQuestion, IControllerQuestion, IRadioQuestion, IScoreRadioQues
 import { DeleteOutlined } from '@ant-design/icons'
 const { Option } = Select
 
+interface ControllerQuestionItemProps {
+  value: IControllerQuestion
+  questions: Array<IRadioQuestion | IScoreRadioQuestion | ICheckBoxQuestion | ISelectQuestion>
+  index: number
+  onChange: (question: IControllerQuestion, i: number) => void
+  onDel: (i: number) => void
+}
+
 const ControllerQuestionItem: React.FC<ControllerQuestionItemProps> = (props) => {
   const { value, questions, index } = props
   const { onChange, onDel } = props
@@ -14,7 +22,7 @@ const ControllerQuestionItem: React.FC<ControllerQuestionItemProps> = (props) =>
   useEffect(() => {
     const i = questions.findIndex((v) => v.code === value.code)
     setCurrentQuestion(questions[i])
-  }, [value.code])
+  }, [value.code, questions])
 
   const handleChangeQuestion = (v: string) => {
     onChange(
@@ -115,14 +123,6 @@ const ControllerQuestionItem: React.FC<ControllerQuestionItemProps> = (props) =>
       </div>
     </>
   )
-}
-
-interface ControllerQuestionItemProps {
-  value: IControllerQuestion
-  questions: Array<IRadioQuestion | IScoreRadioQuestion | ICheckBoxQuestion | ISelectQuestion>
-  index: number
-  onChange: (question: IControllerQuestion, i: number) => void
-  onDel: (i: number) => void
 }
 
 ControllerQuestionItem.propTypes = {

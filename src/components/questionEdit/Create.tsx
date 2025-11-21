@@ -26,24 +26,28 @@ import CreateMatrixRadio from './widget/matrixRadio/Create'
 
 import './create.scss'
 import { IQuestion } from '@/models/question'
-import { questionSheetStore } from '@/store'
+import { questionSheetStore, surveyStore, scaleStore } from '@/store'
 import { api } from '@/api'
 
 const IconFont = createFromIconfontCN({
   scriptUrl: '//at.alicdn.com/t/font_2758274_u8jryrvrw1q.js'
 })
 
+type StoreType = typeof questionSheetStore | typeof surveyStore | typeof scaleStore
 
-const QuestionCreate: React.FC<{ showToBottom: () => void }> = ({ showToBottom }) => {
+const QuestionCreate: React.FC<{ 
+  showToBottom: () => void
+  store?: StoreType
+}> = ({ showToBottom, store = questionSheetStore }) => {
   const handleAddQuestion = async (v: IQuestion, i?: number) => {
-    const [, r] = await api.getCodeByType('question', questionSheetStore.id as string)
+    const [, r] = await api.getCodeByType('question', store.id as string)
     v.code = r?.data.code as string
 
-    questionSheetStore.setCurrentCode(v.code)
+    store.setCurrentCode(v.code)
     if (i !== void 0) {
-      questionSheetStore.addQuestionByPosition(v, i + 1)
+      store.addQuestionByPosition(v, i + 1)
     } else {
-      questionSheetStore.addQuestion(v)
+      store.addQuestion(v)
       showToBottom()
     }
   }
@@ -83,7 +87,8 @@ const QuestionCreate: React.FC<{ showToBottom: () => void }> = ({ showToBottom }
 }
 
 QuestionCreate.propTypes = {
-  showToBottom: PropTypes.any
+  showToBottom: PropTypes.any,
+  store: PropTypes.any
 }
 
 export default QuestionCreate

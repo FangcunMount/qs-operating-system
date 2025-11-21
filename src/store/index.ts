@@ -10,6 +10,8 @@ import { statisticsStore } from './statisticsStore'
 import { subjectStore } from './subject'
 import { screeningStore } from './screening'
 import { pushStore } from './push'
+import { surveyStore } from './surveyStore'
+import { scaleStore } from './scaleStore'
 
 // 单独导出各个 store（方便直接引用）
 export {
@@ -23,7 +25,9 @@ export {
   analysisStore,
   subjectStore,
   screeningStore,
-  pushStore
+  pushStore,
+  surveyStore,
+  scaleStore
 }
 
 // 统一导出所有 store（用于新代码）
@@ -43,7 +47,11 @@ export const rootStore = {
   // 新模块的 store
   subjectStore,
   screeningStore,
-  pushStore
+  pushStore,
+  
+  // 问卷和量表的 store
+  surveyStore,
+  scaleStore
 }
 
 // 兼容旧的导出名称（用于旧代码）

@@ -2,11 +2,9 @@ import React, { useEffect, useState } from 'react'
 import PropTypes from 'prop-types'
 
 import './showControllerCard.scss'
-import { questionSheetStore } from '@/store'
 import { IQuestionShowController } from '@/models/question'
 import { Button } from 'antd'
 import { EditOutlined } from '@ant-design/icons'
-
 
 const ruleMap = {
   and: {
@@ -26,8 +24,15 @@ interface IControllerCardInfo {
   ruleStr: string
 }
 
+interface ShowControllerCardProps {
+  code: string
+  showController: IQuestionShowController
+  onEdit: (code: string) => void
+  store: any // surveyStore 或 scaleStore,需要有 getQuestionTitleByCode 和 getQuestionOptionContent 方法
+}
+
 const ShowControllerCard: React.FC<ShowControllerCardProps> = (props) => {
-  const { code, showController } = props
+  const { code, showController, store } = props
   const { onEdit } = props
 
   const [questionTitle, setQuestionTitle] = useState<string>('')
@@ -35,21 +40,23 @@ const ShowControllerCard: React.FC<ShowControllerCardProps> = (props) => {
   const [controllers, setControllers] = useState<IControllerCardInfo[]>([])
 
   useEffect(() => {
-    setQuestionTitle(questionSheetStore.getQuestionTitleByCode(code))
+    if (!store) return
+    
+    setQuestionTitle(store.getQuestionTitleByCode(code))
     setRuleStr(showController.rule ? ruleMap[showController.rule].str : '')
 
     const cs = showController.questions.map((q) => {
-      const title = questionSheetStore.getQuestionTitleByCode(q.code)
+      const title = store.getQuestionTitleByCode(q.code)
       return {
         code: q.code,
         title: title,
-        contents: q.option_controller.select_option_codes.map((c) => questionSheetStore.getQuestionOptionContent(q.code, c)),
+        contents: q.option_controller.select_option_codes.map((c) => store.getQuestionOptionContent(q.code, c)),
         ruleStr: q.option_controller.rule ? ruleMap[q.option_controller.rule].info : ''
       }
     })
 
     setControllers(cs)
-  }, [code, showController])
+  }, [code, showController, store])
 
   const contentsJoin = (contents: string[]) => {
     return contents.map((content, ci) => {
@@ -93,15 +100,11 @@ const ShowControllerCard: React.FC<ShowControllerCardProps> = (props) => {
   )
 }
 
-interface ShowControllerCardProps {
-  code: string
-  showController: IQuestionShowController
-  onEdit: (code: string) => void
-}
 ShowControllerCard.propTypes = {
   code: PropTypes.any,
   showController: PropTypes.any,
-  onEdit: PropTypes.any
+  onEdit: PropTypes.any,
+  store: PropTypes.any
 }
 
 export default ShowControllerCard
