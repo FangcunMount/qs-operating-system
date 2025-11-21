@@ -1,6 +1,15 @@
 .main-layout {
-  min-height: 100vh;
+  height: 100vh; // 固定整体高度为视口高度
+  overflow: hidden; // 禁止整体滚动
   background: #f0f2f5;
+
+  // 主体布局容器
+  .site-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100vh; // 固定高度
+    overflow: hidden; // 禁止容器滚动
+  }
 
   // 侧边栏样式
   .main-layout-sider {
@@ -117,6 +126,7 @@
     align-items: center;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     z-index: 9;
+    flex-shrink: 0; // 防止被压缩
 
     .header-left {
       display: flex;
@@ -187,15 +197,11 @@
 
   // 内容区域
   .main-layout-content {
-    margin: 0;
-    display: flex;
-    flex-direction: column;
+    flex: 1; // 占据剩余空间
+    overflow-y: auto; // 只允许垂直滚动
+    overflow-x: hidden; // 禁止横向滚动
     background: #f0f2f5;
-
-    .content-wrapper {
-      flex: 1;
-      min-height: calc(100vh - 64px - 48px);
-    }
+    padding: 0;
   }
 
   // 页脚样式
@@ -204,6 +210,7 @@
     text-align: center;
     background: #fff;
     border-top: 1px solid #f0f0f0;
+    flex-shrink: 0; // 防止被压缩
 
     .footer-content {
       display: flex;
