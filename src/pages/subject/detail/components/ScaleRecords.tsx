@@ -1,7 +1,6 @@
 /* eslint-disable react/prop-types */
 import React from 'react'
 import { Card, Table, Button, Tag, Statistic, Row, Col } from 'antd'
-import { FileTextOutlined } from '@ant-design/icons'
 import { ColumnType } from 'antd/es/table'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -88,15 +87,7 @@ const ScaleRecords: React.FC<ScaleRecordsProps> = ({ data, onViewDetail }) => {
   ]
 
   return (
-    <Card 
-      title={
-        <span>
-          <FileTextOutlined style={{ marginRight: 8 }} />
-          医学量表测评记录
-        </span>
-      }
-      style={{ marginTop: 16 }}
-    >
+    <>
       <Table
         columns={columns}
         dataSource={data}
@@ -164,7 +155,7 @@ const ScaleRecords: React.FC<ScaleRecordsProps> = ({ data, onViewDetail }) => {
           },
         }}
       />
-    </Card>
+    </>
   )
 }
 

@@ -1,7 +1,6 @@
 /* eslint-disable react/prop-types */
 import React from 'react'
-import { Card, Table, Button, Tag } from 'antd'
-import { FormOutlined } from '@ant-design/icons'
+import { Table, Button, Tag } from 'antd'
 import { ColumnType } from 'antd/es/table'
 
 interface SurveyRecord {
@@ -67,22 +66,12 @@ const SurveyRecords: React.FC<SurveyRecordsProps> = ({ data, onViewDetail }) => 
   ]
 
   return (
-    <Card 
-      title={
-        <span>
-          <FormOutlined style={{ marginRight: 8 }} />
-          调查问卷记录
-        </span>
-      }
-      style={{ marginTop: 16 }}
-    >
-      <Table
-        columns={columns}
-        dataSource={data}
-        rowKey="id"
-        pagination={{ pageSize: 5, showTotal: (total) => `共 ${total} 条` }}
-      />
-    </Card>
+    <Table
+      columns={columns}
+      dataSource={data}
+      rowKey="id"
+      pagination={{ pageSize: 5, showTotal: (total) => `共 ${total} 条` }}
+    />
   )
 }
 

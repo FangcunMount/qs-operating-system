@@ -3,6 +3,35 @@
   background: #f0f2f5;
   min-height: calc(100vh - 64px - 70px); // 减去 header 和 footer 高度
 
+  .main-tabs {
+    background: #fff;
+    padding: 16px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+    .ant-tabs-nav {
+      margin-bottom: 16px;
+    }
+
+    .ant-tabs-content {
+      padding-top: 8px;
+    }
+  }
+
+  .info-card {
+    margin-bottom: 16px;
+
+    .ant-tabs-card {
+      .ant-tabs-content {
+        padding: 16px 0 0;
+      }
+
+      .ant-tabs-nav {
+        margin-bottom: 0;
+      }
+    }
+  }
+
   .ant-card {
     margin-bottom: 16px;
     border-radius: 8px;
