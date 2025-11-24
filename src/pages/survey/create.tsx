@@ -30,11 +30,7 @@ import { checkSelect } from '@/components/questionEdit/widget/select/Setting'
 import { checkAddressSelect } from '@/components/questionEdit/widget/addressSelect/Setting'
 import { checkCascaderSelect } from '@/components/questionEdit/widget/cascaderSelect/Setting'
 import { checkImageCheckBox } from '@/components/questionEdit/widget/imageCheckBox/Setting'
-import { checkImageMatrixCheckBox } from '@/components/questionEdit/widget/imageMatrixCheckBox/Setting'
-import { checkImageMatrixRadio } from '@/components/questionEdit/widget/imageMatrixRadio/Setting'
 import { checkImageRadio } from '@/components/questionEdit/widget/imageRadio/Setting'
-import { checkMatrixCheckBox } from '@/components/questionEdit/widget/matrixCheckBox/Setting'
-import { checkMatrixRadio } from '@/components/questionEdit/widget/matrixRadio/Setting'
 import { checkUpload } from '@/components/questionEdit/widget/upload/Setting'
 
 const checkMap = {
@@ -50,11 +46,7 @@ const checkMap = {
   AddressSelect: checkAddressSelect,
   CascaderSelect: checkCascaderSelect,
   ImageCheckBox: checkImageCheckBox,
-  ImageMatrixCheckBox: checkImageMatrixCheckBox,
-  ImageMatrixRadio: checkImageMatrixRadio,
   ImageRadio: checkImageRadio,
-  MatrixCheckBox: checkMatrixCheckBox,
-  MatrixRadio: checkMatrixRadio,
   Upload: checkUpload
 }
 
@@ -114,7 +106,14 @@ const SurveyCreate: React.FC = observer(() => {
     for (let index = 0; index < questions.length; index++) {
       const element = questions[index]
 
-      if (!checkMap[element.type](element as any, index)) return false
+      // 跳过已删除的矩阵题型
+      if (['MatrixCheckBox', 'MatrixRadio', 'ImageMatrixCheckBox', 'ImageMatrixRadio'].includes(element.type)) {
+        console.warn(`题型 ${element.type} 已不再支持，跳过验证`)
+        continue
+      }
+
+      const checker = (checkMap as any)[element.type]
+      if (!checker || !checker(element as any, index)) return false
     }
     return true
   }

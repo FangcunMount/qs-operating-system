@@ -33,11 +33,7 @@ import { checkSelect } from '@/components/questionEdit/widget/select/Setting'
 import { checkAddressSelect } from '@/components/questionEdit/widget/addressSelect/Setting'
 import { checkCascaderSelect } from '@/components/questionEdit/widget/cascaderSelect/Setting'
 import { checkImageCheckBox } from '@/components/questionEdit/widget/imageCheckBox/Setting'
-import { checkImageMatrixCheckBox } from '@/components/questionEdit/widget/imageMatrixCheckBox/Setting'
-import { checkImageMatrixRadio } from '@/components/questionEdit/widget/imageMatrixRadio/Setting'
 import { checkImageRadio } from '@/components/questionEdit/widget/imageRadio/Setting'
-import { checkMatrixCheckBox } from '@/components/questionEdit/widget/matrixCheckBox/Setting'
-import { checkMatrixRadio } from '@/components/questionEdit/widget/matrixRadio/Setting'
 import { checkUpload } from '@/components/questionEdit/widget/upload/Setting'
 
 const checkMap = {
@@ -53,11 +49,7 @@ const checkMap = {
   AddressSelect: checkAddressSelect,
   CascaderSelect: checkCascaderSelect,
   ImageCheckBox: checkImageCheckBox,
-  ImageMatrixCheckBox: checkImageMatrixCheckBox,
-  ImageMatrixRadio: checkImageMatrixRadio,
   ImageRadio: checkImageRadio,
-  MatrixCheckBox: checkMatrixCheckBox,
-  MatrixRadio: checkMatrixRadio,
   Upload: checkUpload
 }
 

@@ -6,11 +6,9 @@ import {
   CheckSquareOutlined,
   CaretDownOutlined,
   StarOutlined,
-  TableOutlined,
   EnvironmentOutlined,
   ApartmentOutlined,
   PictureOutlined,
-  FileImageOutlined,
   UploadOutlined
 } from '@ant-design/icons'
 import PropTypes from 'prop-types'
@@ -29,12 +27,8 @@ import CreateSelect from './widget/select/Create'
 import CreateAddressSelect from './widget/addressSelect/Create'
 import CreateCascaderSelect from './widget/cascaderSelect/Create'
 import CreateImageCheckBox from './widget/imageCheckBox/Create'
-import CreateImageMatrixCheckBox from './widget/imageMatrixCheckBox/Create'
-import CreateImageMatrixRadio from './widget/imageMatrixRadio/Create'
 import CreateImageRadio from './widget/imageRadio/Create'
 import CreateUpload from './widget/upload/Create'
-import CreateMatrixCheckBox from './widget/matrixCheckBox/Create'
-import CreateMatrixRadio from './widget/matrixRadio/Create'
 
 import './create.scss'
 import { IQuestion } from '@/models/question'
@@ -74,15 +68,10 @@ const QuestionCreate: React.FC<{
         <CreateCheckbox class="qs-edit-add-question" icon={<CheckSquareOutlined />} onClick={handleAddQuestion} />
         <CreateSelect class="qs-edit-add-question" icon={<CaretDownOutlined />} onClick={handleAddQuestion} />
         <CreateScore class="qs-edit-add-question" icon={<StarOutlined />} onClick={handleAddQuestion} />
-
-        <CreateMatrixRadio class="qs-edit-add-question" icon={<TableOutlined />} onClick={handleAddQuestion} />
-        <CreateMatrixCheckBox class="qs-edit-add-question" icon={<TableOutlined />} onClick={handleAddQuestion} />
         <CreateAddressSelect class="qs-edit-add-question" icon={<EnvironmentOutlined />} onClick={handleAddQuestion} />
         <CreateCascaderSelect class="qs-edit-add-question" icon={<ApartmentOutlined />} onClick={handleAddQuestion} />
         <CreateImageRadio class="qs-edit-add-question" icon={<PictureOutlined />} onClick={handleAddQuestion} />
         <CreateImageCheckBox class="qs-edit-add-question" icon={<PictureOutlined />} onClick={handleAddQuestion} />
-        <CreateImageMatrixCheckBox class="qs-edit-add-question" icon={<FileImageOutlined />} onClick={handleAddQuestion} />
-        <CreateImageMatrixRadio class="qs-edit-add-question" icon={<FileImageOutlined />} onClick={handleAddQuestion} />
 
         <div style={{ marginLeft: '2%', marginTop: '24px', marginBottom: '8px', fontSize: '13px', fontWeight: 500, color: '#646a73' }}>非结构化题型</div>
         <CreateSection class="qs-edit-add-question" icon={<IconFont type="icon-duanla" />} onClick={handleAddQuestion} />
