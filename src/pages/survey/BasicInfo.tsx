@@ -3,7 +3,7 @@ import { useParams, useHistory } from 'react-router'
 import { Form, Input, Card, message } from 'antd'
 import { observer } from 'mobx-react-lite'
 
-import './info.scss'
+import './BasicInfo.scss'
 import '@/components/editorSteps/index.scss'
 import { surveyStore } from '@/store'
 import { api } from '@/api'
@@ -12,7 +12,7 @@ import BaseLayout from '@/components/layout/BaseLayout'
 
 const { TextArea } = Input
 
-const SurveyInfo: React.FC = observer(() => {
+const BasicInfo: React.FC = observer(() => {
   const history = useHistory()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const [form] = Form.useForm()
@@ -155,4 +155,4 @@ const SurveyInfo: React.FC = observer(() => {
   )
 })
 
-export default SurveyInfo
+export default BasicInfo

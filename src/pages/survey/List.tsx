@@ -11,14 +11,14 @@ import {
   UserOutlined,
   ClockCircleOutlined
 } from '@ant-design/icons'
-import EditQuestionSheetDialog from './widget/editQuestionSheetDialog'
+import EditQuestionSheetDialog from './EditDialog'
 import { getSurveyList } from '@/api/path/template'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
 
 const { Column } = Table
 const { Search } = Input
 
-const SurveyList: React.FC = observer(() => {
+const List: React.FC = observer(() => {
   const [editDialogFlag, setEditDialogFlag] = useState(false)
   const [currentQuestionSheet, setCurrentQuestionSheet] = useState(null)
   const [keyWord, setKeyWord] = useState('')
@@ -262,4 +262,4 @@ const SurveyList: React.FC = observer(() => {
   )
 })
 
-export default SurveyList
+export default List

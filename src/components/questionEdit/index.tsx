@@ -28,11 +28,7 @@ import { checkSelect } from './widget/select/Setting'
 import { checkAddressSelect } from './widget/addressSelect/Setting'
 import { checkCascaderSelect } from './widget/cascaderSelect/Setting'
 import { checkImageCheckBox } from './widget/imageCheckBox/Setting'
-import { checkImageMatrixCheckBox } from './widget/imageMatrixCheckBox/Setting'
-import { checkImageMatrixRadio } from './widget/imageMatrixRadio/Setting'
 import { checkImageRadio } from './widget/imageRadio/Setting'
-import { checkMatrixCheckBox } from './widget/matrixCheckBox/Setting'
-import { checkMatrixRadio } from './widget/matrixRadio/Setting'
 import { checkUpload } from './widget/upload/Setting'
 
 const checkMap = {
@@ -48,11 +44,7 @@ const checkMap = {
   AddressSelect: checkAddressSelect,
   CascaderSelect: checkCascaderSelect,
   ImageCheckBox: checkImageCheckBox,
-  ImageMatrixCheckBox: checkImageMatrixCheckBox,
-  ImageMatrixRadio: checkImageMatrixRadio,
   ImageRadio: checkImageRadio,
-  MatrixCheckBox: checkMatrixCheckBox,
-  MatrixRadio: checkMatrixRadio,
   Upload: checkUpload
 }
 
@@ -104,7 +96,13 @@ const QsEdit: React.FC = () => {
     for (let index = 0; index < questions.length; index++) {
       const element = questions[index]
 
-      if (!checkMap[element.type](element as any, index)) return false
+      // 跳过已废弃的矩阵题型
+      if (['MatrixCheckBox', 'MatrixRadio', 'ImageMatrixCheckBox', 'ImageMatrixRadio'].includes(element.type)) {
+        console.warn(`题型 ${element.type} 已不再支持，跳过验证`)
+        continue
+      }
+
+      if (!(checkMap as any)[element.type](element as any, index)) return false
     }
     return true
   }

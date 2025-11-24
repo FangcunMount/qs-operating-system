@@ -11,12 +11,12 @@ import {
   EyeOutlined
 } from '@ant-design/icons'
 
-import './publish.scss'
+import './Publish.scss'
 import { surveyStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
 import { MobilePreview } from '@/components/preview'
 
-const SurveyPublish: React.FC = observer(() => {
+const Publish: React.FC = observer(() => {
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const history = useHistory()
   
@@ -313,4 +313,4 @@ const SurveyPublish: React.FC = observer(() => {
   )
 })
 
-export default SurveyPublish
+export default Publish

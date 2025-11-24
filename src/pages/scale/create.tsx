@@ -109,15 +109,21 @@ const ScaleCreate: React.FC = observer(() => {
   }
 
   /**
-   * @description: 问题验证函数，验证问题是否合规
+   * @description: 问题验证函数,验证问题是否合规
    * @param questions: 问题列表
-   * @returns boolean 验证成功：true 验证失败：false
+   * @returns boolean 验证成功:true 验证失败:false
    */
   const verifyQuestionSheet = (questions: IQuestion[]): boolean => {
     for (let index = 0; index < questions.length; index++) {
       const element = questions[index]
 
-      if (!checkMap[element.type](element as any, index)) return false
+      // 跳过已废弃的矩阵题型
+      if (['MatrixCheckBox', 'MatrixRadio', 'ImageMatrixCheckBox', 'ImageMatrixRadio'].includes(element.type)) {
+        console.warn(`题型 ${element.type} 已不再支持,跳过验证`)
+        continue
+      }
+
+      if (!(checkMap as any)[element.type](element as any, index)) return false
     }
     return true
   }

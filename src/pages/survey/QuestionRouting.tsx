@@ -3,7 +3,7 @@ import { message } from 'antd'
 import { useParams } from 'react-router'
 import { observer } from 'mobx-react-lite'
 
-import './routing.scss'
+import './QuestionRouting.scss'
 import '@/components/editorSteps/index.scss'
 import { getShowControllerList } from '@/api/path/showController'
 import ShowControllerEditor from '@/components/showController/ShowControllerEditor'
@@ -19,7 +19,7 @@ const EmptyState: React.FC = () => (
   </div>
 )
 
-const SurveyRouting: React.FC = observer(() => {
+const QuestionRouting: React.FC = observer(() => {
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const [editingQuestionCode, setEditingQuestionCode] = useState<string | null>(null)
 
@@ -180,4 +180,4 @@ const SurveyRouting: React.FC = observer(() => {
   )
 })
 
-export default SurveyRouting
+export default QuestionRouting

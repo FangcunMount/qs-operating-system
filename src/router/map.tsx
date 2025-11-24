@@ -14,13 +14,13 @@ const createIcon = (Icon: React.ComponentType) => React.createElement(Icon)
 
 // 页面组件懒加载
 const Home = lazy(() => import('../pages/home'))
-const SurveyList = lazy(() => import('../pages/survey/list'))
+const SurveyList = lazy(() => import('../pages/survey/List'))
 const ScaleList = lazy(() => import('../pages/scale/list'))
 const QsEdit = lazy(() => import('../components/questionEdit'))
-const SurveyInfo = lazy(() => import('../pages/survey/info'))
-const SurveyCreate = lazy(() => import('../pages/survey/create'))
-const SurveyRouting = lazy(() => import('../pages/survey/routing'))
-const SurveyPublish = lazy(() => import('../pages/survey/publish'))
+const SurveyBasicInfo = lazy(() => import('../pages/survey/BasicInfo'))
+const SurveyQuestionEdit = lazy(() => import('../pages/survey/QuestionEdit'))
+const SurveyQuestionRouting = lazy(() => import('../pages/survey/QuestionRouting'))
+const SurveyPublish = lazy(() => import('../pages/survey/Publish'))
 const ScaleCreate = lazy(() => import('../pages/scale/create'))
 const ScaleRouting = lazy(() => import('../pages/scale/routing'))
 const QsFactor = lazy(() => import('../components/factor'))
@@ -124,21 +124,21 @@ export const routes: Array<IRoute> = [
     title: '问卷基本信息',
     name: 'survey-info',
     path: '/survey/info/:questionsheetid',
-    component: SurveyInfo,
+    component: SurveyBasicInfo,
     hideInMenu: true
   },
   {
     title: '创建问卷',
     name: 'survey-create',
     path: '/survey/create/:questionsheetid/:answercnt',
-    component: SurveyCreate,
+    component: SurveyQuestionEdit,
     hideInMenu: true
   },
   {
     title: '问卷路由设置',
     name: 'survey-routing',
     path: '/survey/routing/:questionsheetid',
-    component: SurveyRouting,
+    component: SurveyQuestionRouting,
     hideInMenu: true
   },
   {

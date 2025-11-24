@@ -5,7 +5,7 @@ import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { observer } from 'mobx-react-lite'
 
-import './create.scss'
+import './QuestionEdit.scss'
 import '@/components/questionEdit/index.scss'
 import '@/components/editorSteps/index.scss'
 import { surveyStore } from '@/store'
@@ -50,7 +50,7 @@ const checkMap = {
   Upload: checkUpload
 }
 
-const SurveyCreate: React.FC = observer(() => {
+const QuestionEdit: React.FC = observer(() => {
   const showContainerRef = useRef<HTMLInputElement>(null)
   const { questionsheetid, answercnt } = useParams<{ questionsheetid: string; answercnt: string }>()
 
@@ -143,4 +143,4 @@ const SurveyCreate: React.FC = observer(() => {
   )
 })
 
-export default SurveyCreate
+export default QuestionEdit
