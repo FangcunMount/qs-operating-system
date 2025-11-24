@@ -3,13 +3,12 @@ import { message } from 'antd'
 import { useParams } from 'react-router'
 
 import './routing.scss'
+import '@/components/editorSteps/index.scss'
 import { getShowControllerList } from '@/api/path/showController'
-
 import ModifyShowController from '@/components/showController/ModifyShowController'
 import ShowControllerCard from '@/components/showController/ShowControllerCard'
 
 import { surveyStore } from '@/store'
-import { api } from '@/api'
 import { IQuestionShowController } from '@/models/question'
 import BaseLayout from '@/components/layout/BaseLayout'
 
@@ -23,45 +22,43 @@ const SurveyRouting: React.FC = () => {
   const [modifyShowControllerVisible, setModifyShowControllerVisible] = useState<boolean>(false)
 
   useEffect(() => {
-    initQuestionSheet().then(() => {
-      initShowController()
-    })
-  }, [])
-
-  const initShowController = async () => {
-    message.loading({ content: '加载中', duration: 0, key: 'fetch' })
-
-    const [e, r] = await getShowControllerList(questionsheetid)
-    if (!e && r) {
-      setShowControllerList(r.data.list)
+    // 如果从创建页进入且 store 已有数据，则复用本地；否则进行一次初始化
+    if (surveyStore.id && surveyStore.id === questionsheetid && surveyStore.questions.length > 0) {
+      setShowControllerList(surveyStore.showControllers)
+    } else {
+      initQuestionSheet().then(() => {
+        setShowControllerList(surveyStore.showControllers)
+      })
     }
-
-    message.destroy()
-    message.success({ content: '加载成功!', key: 'fetch', duration: 2 })
-  }
+  }, [questionsheetid])
 
   const initQuestionSheet = async () => {
     message.loading({ content: '加载中', duration: 0, key: 'fetch' })
-    const [qe, qr] = await api.getQuestionSheet(questionsheetid)
-    if (qe) return
-    surveyStore.setSurvey(qr?.data.questionsheet)
-    const [e, r] = await api.getQuestionList(questionsheetid)
-    if (e) return
-    surveyStore.setSurveyQuestions(r?.data.list ?? [])
-    message.destroy()
+    try {
+      await surveyStore.initEditor(questionsheetid)
+      // 补充加载显隐规则（仅在刷新后需要）
+      const [ce, cr] = await getShowControllerList(questionsheetid)
+      if (!ce && cr) {
+        surveyStore.setShowControllers(cr.data.list)
+        setShowControllerList(cr.data.list)
+      } else {
+        setShowControllerList(surveyStore.showControllers)
+      }
+      message.destroy()
+    } catch (error) {
+      message.destroy()
+      message.error('加载问卷失败')
+    }
   }
 
   const handleSave = async () => {
-    message.loading({ content: '保存中', duration: 0, key: 'save' })
-    // TODO: 实现路由保存 API
-    // const [e] = await api.modifyQuestionShowController(questionsheetid, showControllerList)
-    // if (e) throw e
-    message.destroy()
+    // 前端暂存，不触发接口
+    surveyStore.setCurrentStep('publish')
   }
 
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
     if (status === 'success') {
-      message.success('路由设置保存成功')
+      message.success('路由设置已保存到本地，发布时统一提交')
       surveyStore.nextStep()
     }
     if (status === 'fail') {
@@ -71,11 +68,10 @@ const SurveyRouting: React.FC = () => {
 
   return (
     <BaseLayout
-      header='设置题目路由'
       submitFn={handleSave}
       afterSubmit={handleAfterSubmit}
-      footerButtons={['break', 'breakToQsList', 'saveToQsList', 'saveToNext']}
-      nextUrl={'/survey/list'}
+      footerButtons={['saveToNext']}
+      nextUrl={`/survey/publish/${questionsheetid}`}
     >
       <>
         <div className='qs-router-container'>
@@ -98,10 +94,9 @@ const SurveyRouting: React.FC = () => {
         <ModifyShowController
           isModalVisible={modifyShowControllerVisible}
           questionCode={currentQuestionCode}
-          questionsheetid={questionsheetid}
           store={surveyStore}
           ok={() => {
-            initShowController()
+            setShowControllerList([...surveyStore.showControllers])
             setModifyShowControllerVisible(false)
           }}
           close={() => {

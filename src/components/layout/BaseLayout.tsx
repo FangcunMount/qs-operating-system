@@ -1,23 +1,14 @@
 import React from 'react'
 import PropType from 'prop-types'
 import './baseLayout.scss'
-import { Button, Dropdown, Menu, Popconfirm } from 'antd'
+import { Button, Popconfirm } from 'antd'
 import { useHistory } from 'react-router-dom'
-import { RollbackOutlined, SaveOutlined, UserOutlined, VerticalRightOutlined } from '@ant-design/icons'
+import { RollbackOutlined, SaveOutlined, VerticalRightOutlined } from '@ant-design/icons'
 import { voidFunc } from '@/types/base'
-import { authorizationHandler } from 'fc-tools-pc/dist/bundle'
 import useSubmit from '../useSubmit'
 
 const BaseLayout: React.FC<BaseLayoutProps> = ({ children, header, footer, footerButtons, nextUrl, submitFn, beforeSubmit, afterSubmit }) => {
   const history = useHistory()
-
-  const menu = (
-    <Menu>
-      <Menu.Item key="signout" onClick={() => authorizationHandler.logout()}>
-        退出登录
-      </Menu.Item>
-    </Menu>
-  )
 
   const [loading, handleSubmit] = useSubmit({
     beforeSubmit,
@@ -55,16 +46,13 @@ const BaseLayout: React.FC<BaseLayoutProps> = ({ children, header, footer, foote
 
   return (
     <div className="qs-base">
-      <div className="s-py-md s-text-h4 qs-base--header">
-        <span>{header}</span>
-        <Dropdown overlay={menu}>
-          <span className="s-row-center" style={{ height: '100%' }}>
-            <UserOutlined />
-          </span>
-        </Dropdown>
-      </div>
+      {header && (
+        <div className="qs-base--header">
+          <span>{header}</span>
+        </div>
+      )}
       <div className="qs-base--container">{children}</div>
-      <div className="qs-base--footer s-py-md">
+      <div className="qs-base--footer">
         {footer !== void 0 ? (
           footer
         ) : (
@@ -126,7 +114,7 @@ const BaseLayout: React.FC<BaseLayoutProps> = ({ children, header, footer, foote
 
 interface BaseLayoutProps {
   children: JSX.Element
-  header: string | JSX.Element
+  header?: string | JSX.Element
   footer?: string | JSX.Element
   beforeSubmit?: () => boolean
   submitFn?: (next: voidFunc) => void

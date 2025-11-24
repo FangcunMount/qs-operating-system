@@ -18,7 +18,7 @@ import { routes } from '../../router/map'
 import { IRoute } from '../../types/router'
 import './mainLayout.scss'
 
-const { Header, Sider, Content, Footer } = Layout
+const { Header, Sider, Content } = Layout
 
 interface IMainLayoutProps {
   children: React.ReactNode
@@ -228,19 +228,6 @@ const MainLayout: React.FC<IMainLayoutProps> = ({ children }) => {
           </div>
         </Content>
 
-        {/* 页脚 */}
-        <Footer className="main-layout-footer">
-          <div className="footer-content">
-            <div className="copyright">
-              Copyright © 2024 问卷系统管理后台
-            </div>
-            <div className="links">
-              <a href="https://github.com/FangcunMountain/qs-operating-system" target="_blank" rel="noopener noreferrer">
-                <GithubOutlined /> GitHub
-              </a>
-            </div>
-          </div>
-        </Footer>
       </Layout>
     </Layout>
   )

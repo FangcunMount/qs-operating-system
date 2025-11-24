@@ -20,6 +20,7 @@ const QsEdit = lazy(() => import('../components/questionEdit'))
 const SurveyInfo = lazy(() => import('../pages/survey/info'))
 const SurveyCreate = lazy(() => import('../pages/survey/create'))
 const SurveyRouting = lazy(() => import('../pages/survey/routing'))
+const SurveyPublish = lazy(() => import('../pages/survey/publish'))
 const ScaleCreate = lazy(() => import('../pages/scale/create'))
 const ScaleRouting = lazy(() => import('../pages/scale/routing'))
 const QsFactor = lazy(() => import('../components/factor'))
@@ -138,6 +139,13 @@ export const routes: Array<IRoute> = [
     name: 'survey-routing',
     path: '/survey/routing/:questionsheetid',
     component: SurveyRouting,
+    hideInMenu: true
+  },
+  {
+    title: '发布问卷',
+    name: 'survey-publish',
+    path: '/survey/publish/:questionsheetid',
+    component: SurveyPublish,
     hideInMenu: true
   },
   {

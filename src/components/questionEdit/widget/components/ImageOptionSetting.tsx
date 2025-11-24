@@ -6,7 +6,6 @@ import { DeleteOutlined, FormOutlined } from '@ant-design/icons'
 
 import { IImageRadioOption } from '@/models/question'
 import './imageOptionSetting.scss'
-import FcUpload from '@/components/FcUpload'
 
 const item: IImageRadioOption = {
   content: '',
@@ -51,11 +50,12 @@ const ImageOptionSetting: React.FC<ImageOptionSettingProps> = ({ options, change
         <div className="s-row-end s-mb-sm" key={v.code}>
           {/* content */}
           <div>
-            <FcUpload
-              value={v.img_url === '' ? null : { url: v.img_url }}
-              realativePath="image/question"
-              onChange={(v) => handleChangeOptionImg(i, v)}
-            ></FcUpload>
+            <Input 
+              placeholder="请输入图片URL" 
+              value={v.img_url}
+              onChange={(e) => handleChangeOptionImg(i, e.target.value)}
+              style={{ width: '200px' }}
+            />
           </div>
 
           {/* add content */}

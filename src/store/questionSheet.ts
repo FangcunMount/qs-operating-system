@@ -97,10 +97,12 @@ export const questionSheetStore = makeObservable(
 
     addQuestion(question: IQuestion) {
       this.questions.push(question)
+      this.currentCode = question.code
     },
 
     addQuestionByPosition(question: IQuestion, index: number) {
       this.questions.splice(index, 0, question)
+      this.currentCode = question.code
     },
 
     deleteQuestion() {
@@ -179,34 +181,42 @@ export const questionSheetStore = makeObservable(
     },
 
     updateQuestionOptions(options: IScoreRadioOption[]) {
+      if (this.currentIndex < 0) return
       (this.questions[this.currentIndex] as IScoreRadioQuestion).options = options
     },
 
     // ⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇ update info ⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇
     updateQuestionTitle(v: string) {
+      if (this.currentIndex < 0) return
       this.questions[this.currentIndex].title = v
     },
 
     updateQuestionTips(v: string) {
+      if (this.currentIndex < 0) return
       this.questions[this.currentIndex].tips = v
     },
 
     updateQuestionPlaceholder(v: string) {
+      if (this.currentIndex < 0) return
       (this.questions[this.currentIndex] as ITextQuestion).placeholder = v
     },
 
     updateQuestionFormat(v: string) {
+      if (this.currentIndex < 0) return
       (this.questions[this.currentIndex] as IDateQuestion).format = v
     },
 
     updateQuestionLeftDesc(desc: string) {
+      if (this.currentIndex < 0) return
       (this.questions[this.currentIndex] as IScoreRadioQuestion).left_desc = desc
     },
     updateQuestionRightDesc(desc: string) {
+      if (this.currentIndex < 0) return
       (this.questions[this.currentIndex] as IScoreRadioQuestion).right_desc = desc
     },
 
     updateQuestionValidate(k: keyof IValidateRules, v: any) {
+      if (this.currentIndex < 0) return
       // 文本类型设置了最小字数，且最小字数 > 0，则打开必填的验证
       if (k == 'min_words' && v > 0) {
         (this.questions[this.currentIndex] as any).validate_rules['required'] = true
@@ -215,6 +225,7 @@ export const questionSheetStore = makeObservable(
     },
 
     updateQuestionFormula(v: 'sum' | 'svg' | 'max') {
+      if (this.currentIndex < 0) return
       (this.questions[this.currentIndex] as ICheckBoxQuestion).calc_rule.formula = v
     },
 
@@ -244,10 +255,12 @@ export const questionSheetStore = makeObservable(
     },
 
     updateQuestionOption(k: string, i: number, v: unknown) {
+      if (this.currentIndex < 0) return
       (this.questions[this.currentIndex] as any).options[i][k] = v
     },
 
     addQuestionOption(item: IRadioOption) {
+      if (this.currentIndex < 0) return
       const options = (this.questions[this.currentIndex] as any).options
       if (options[options.length - 1]?.is_other) {
         options.splice(options.length - 1, 0, item)
@@ -257,6 +270,7 @@ export const questionSheetStore = makeObservable(
     },
 
     deleteQuestionOption(i: number) {
+      if (this.currentIndex < 0) return
       (this.questions[this.currentIndex] as any).options.splice(i, 1)
     }
   },

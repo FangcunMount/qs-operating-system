@@ -68,11 +68,11 @@ const QuestionSetting: React.FC<{ store?: StoreType }> = ({ store = questionShee
   }
 
   return (
-    <div className="qs-edit-set s-bg-grey-1" style={{ borderLeft: '1px solid #eee' }}>
+    <div className="qs-edit-setting">
       <div className="s-px-sm s-text-h6 s-row" style={{ width: '100%' }}>
         {store.currentCode ? (
-          <Tooltip placement="topLeft" title="复制该题目的所有内容">
-            <CopyOutlined className="s-my-sm" style={{ fontSize: '20px', flexGrow: 0, cursor: 'pointer' }} onClick={copyQuestion} />
+          <Tooltip placement="top" title="复制题目">
+            <CopyOutlined className="s-my-sm" style={{ fontSize: '18px', flexGrow: 0, cursor: 'pointer' }} onClick={copyQuestion} />
           </Tooltip>
         ) : null}
         <span className="s-row-center" style={{ flexGrow: 1 }}>
@@ -81,13 +81,13 @@ const QuestionSetting: React.FC<{ store?: StoreType }> = ({ store = questionShee
         {/* 删除按钮 */}
         {/* 如果当前没有选中，不显示删除按钮 */}
         {store.currentCode ? (
-          <Popconfirm placement="topLeft" title="确认要删除该问题吗？" onConfirm={delQuestion} okText="确定" cancelText="取消">
-            <DeleteOutlined className="s-my-sm" style={{ fontSize: '20px', flexGrow: 0 }} />
+          <Popconfirm placement="top" title="确认要删除该问题吗？" onConfirm={delQuestion} okText="确定" cancelText="取消">
+            <DeleteOutlined className="s-my-sm" style={{ fontSize: '18px', flexGrow: 0, cursor: 'pointer' }} />
           </Popconfirm>
         ) : null}
       </div>
       <Divider style={{ margin: '0px' }}></Divider>
-      <div className="s-pa-md" style={{ overflow: 'auto', width: '100%' }}>
+      <div className="s-pa-md">
         {React.createElement(getSettingComponent(store.currentQuestion), { question: store.currentQuestion, store })}
       </div>
     </div>

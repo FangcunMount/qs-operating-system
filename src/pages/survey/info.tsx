@@ -4,10 +4,11 @@ import { Form, Input, Card, message } from 'antd'
 import { observer } from 'mobx-react-lite'
 
 import './info.scss'
+import '@/components/editorSteps/index.scss'
 import { surveyStore } from '@/store'
 import { api } from '@/api'
 import BaseLayout from '@/components/layout/BaseLayout'
-import FcUpload from '@/components/FcUpload'
+
 
 const { TextArea } = Input
 
@@ -38,40 +39,13 @@ const SurveyInfo: React.FC = observer(() => {
   const handleSave = async () => {
     const values = await form.validateFields()
     
-    if (questionsheetid && questionsheetid !== 'new') {
-      // 更新问卷信息
-      const [e] = await api.modifyQuestionSheet({
-        id: surveyStore.id,
-        title: values.title,
-        desc: values.desc,
-        img_url: values.img_url,
-        createtime: '',
-        question_cnt: '',
-        answersheet_cnt: '',
-        create_user: '',
-        last_update_user: ''
-      })
-      if (e) throw e
-    } else {
-      // 创建新问卷
-      const [e, r] = await api.addQuestionSheet({
-        id: '',
-        title: values.title,
-        desc: values.desc,
-        img_url: values.img_url,
-        createtime: '',
-        question_cnt: '',
-        answersheet_cnt: '',
-        create_user: '',
-        last_update_user: ''
-      })
-      if (e) throw e
-      
-      // 保存新创建的问卷 ID
-      if (r?.data.questionsheetid) {
-        surveyStore.setSurvey({ ...values, id: r.data.questionsheetid })
-      }
-    }
+    // 更新 store 中的数据
+    surveyStore.title = values.title
+    surveyStore.desc = values.desc
+    surveyStore.img_url = values.img_url
+    
+    // 保存基本信息
+    await surveyStore.saveBasicInfo()
   }
 
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
@@ -91,11 +65,9 @@ const SurveyInfo: React.FC = observer(() => {
 
   return (
     <BaseLayout
-      header='创建问卷 - 基本信息'
       submitFn={handleSave}
       afterSubmit={handleAfterSubmit}
       footerButtons={['break', 'breakToQsList', 'saveToNext']}
-      nextUrl={surveyStore.id ? `/survey/create/${surveyStore.id}/0` : '/survey/list'}
     >
       <div className='survey-info-container'>
         <Card title='问卷基本信息' bordered={false}>
@@ -132,11 +104,7 @@ const SurveyInfo: React.FC = observer(() => {
               label='问卷封面'
               name='img_url'
             >
-              <FcUpload
-                value={form.getFieldValue('img_url')}
-                onChange={(url) => form.setFieldsValue({ img_url: url })}
-                realativePath='survey/cover'
-              />
+              <Input placeholder="请输入图片URL" />
             </Form.Item>
           </Form>
         </Card>

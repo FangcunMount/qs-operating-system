@@ -1,11 +1,56 @@
-.qs-edit-set {
+.qs-edit-setting {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  flex-grow: 0;
-  flex-wrap: nowrap;
-  flex-grow: 0;
-  width: 300px;
-  min-width: 300px;
-  overflow: auto;
+  overflow: hidden;
+  background: #fff;
+  
+  .s-px-sm {
+    flex-shrink: 0;
+    padding: 20px 16px 16px;
+  }
+  
+  .s-text-h6 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2329;
+  }
+  
+  .ant-divider {
+    flex-shrink: 0;
+  }
+  
+  .anticon {
+    color: #5f6368;
+    transition: color 0.2s ease;
+    cursor: pointer;
+    
+    &:hover {
+      color: #1677ff;
+    }
+  }
+  
+  // 内容区域添加滚动
+  > .s-pa-md {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    
+    // 美化滚动条
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: #f5f5f5;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 3px;
+      
+      &:hover {
+        background: #a8a8a8;
+      }
+    }
+  }
 }

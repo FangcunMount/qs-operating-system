@@ -1,28 +1,31 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import { Divider, Radio, Space } from 'antd'
+import { Divider, Radio, Space, message } from 'antd'
 import { observer } from 'mobx-react'
 
-import { questionSheetStore } from '@/store'
+import { questionSheetStore, surveyStore, scaleStore } from '@/store'
 import { IDateQuestion } from '@/models/question'
 import SettingContainer from '../components/SettingContainer'
 import ValidateRulesSetting from '../components/ValidateRulesSetting'
-import { message } from 'antd'
+
+type StoreType = typeof questionSheetStore | typeof surveyStore | typeof scaleStore
 
 
 const SettingDate: React.FC<SettingDateProps> = (props) => {
+  const store = props.store ?? questionSheetStore
+
   return (
     <SettingContainer
       title={props.question.title}
       tips={props.question.tips}
       handleChange={(k, v) => {
-        questionSheetStore.updateQuestionDispatch(k, { value: v })
+        store.updateQuestionDispatch(k, { value: v })
       }}
     >
       <Divider />
       <ValidateRulesSetting
         validateRules={props.question.validate_rules}
-        changeValidate={(k, v) => questionSheetStore.updateQuestionDispatch('validate', { key: k, value: v })}
+        changeValidate={(k, v) => store.updateQuestionDispatch('validate', { key: k, value: v })}
       />
       <Divider />
       <div className="s-mt-md">
@@ -30,7 +33,7 @@ const SettingDate: React.FC<SettingDateProps> = (props) => {
         <div className="s-ml-lg">
           <Radio.Group
             onChange={(e) => {
-              questionSheetStore.updateQuestionDispatch('format', { value: e.target.value })
+              store.updateQuestionDispatch('format', { value: e.target.value })
             }}
             value={props.question.format}
           >
@@ -47,10 +50,12 @@ const SettingDate: React.FC<SettingDateProps> = (props) => {
 
 interface SettingDateProps {
   question: IDateQuestion
+  store?: StoreType
 }
 
 SettingDate.propTypes = {
-  question: PropTypes.any.isRequired
+  question: PropTypes.any.isRequired,
+  store: PropTypes.any
 }
 
 export const checkDate = (item: IDateQuestion, index: number): boolean => {

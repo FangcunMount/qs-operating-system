@@ -9,8 +9,6 @@ import {
   IScoreRadioQuestion,
   ISelectQuestion
 } from '@/models/question'
-import { delShowController, getShowController, postShowController } from '@/api/path/showController'
-
 import ControllerQuestionItem from '@/components/showController/widget/ControllerQuestionItem'
 import useSubmit from '@/components/useSubmit'
 
@@ -26,14 +24,13 @@ const canControllerQuestionTypes = ['Radio', 'ScoreRadio', 'CheckBox', 'Select',
 interface ModifyShowControllerProps {
   questionCode: string | null
   isModalVisible: boolean
-  questionsheetid: string
   ok: () => void
   close: () => void
   store: any // surveyStore 或 scaleStore,需要有 questions 和 getQuestion 方法
 }
 
 const ModifyShowController: React.FC<ModifyShowControllerProps> = (props) => {
-  const { questionCode, isModalVisible, questionsheetid, store } = props
+  const { questionCode, isModalVisible, store } = props
   const { close, ok } = props
 
   const [currentQuestionCode, setCurrentQuestionCode] = useState<string>('')
@@ -63,11 +60,9 @@ const ModifyShowController: React.FC<ModifyShowControllerProps> = (props) => {
   const initShowControllerData = async () => {
     clearData()
     if (questionCode) {
-      const [e, r] = await getShowController(questionsheetid, questionCode)
-      if (!e && r) {
-        setCurrentQuestionCode(questionCode)
-        setShowController(r.data.question.show_controller)
-      }
+      const local = store.getShowController(questionCode)
+      setCurrentQuestionCode(questionCode)
+      setShowController(local?.show_controller ?? initShowController)
     } else {
       setCurrentQuestionCode('')
       setShowController({ rule: void 0, questions: [] })
@@ -144,8 +139,8 @@ const ModifyShowController: React.FC<ModifyShowControllerProps> = (props) => {
 
   const [delLoading, handleDelete] = useSubmit({
     submit: async () => {
-      const [e] = await delShowController(questionsheetid, currentQuestionCode)
-      if (e) throw e
+      // 前端暂存删除记录，发布时统一同步
+      store.deleteShowController(currentQuestionCode)
     },
     afterSubmit(status, error) {
       if (status === 'success') {
@@ -160,8 +155,8 @@ const ModifyShowController: React.FC<ModifyShowControllerProps> = (props) => {
   const [submitLoading, handleSubmit] = useSubmit({
     beforeSubmit: verifyShowController,
     submit: async () => {
-      const [e] = await postShowController(questionsheetid, { code: currentQuestionCode, show_controller: showController })
-      if (e) throw e
+      // 本地暂存，发布时统一同步
+      store.upsertShowController(currentQuestionCode, showController)
     },
     afterSubmit(status, error) {
       if (status === 'success') {
@@ -258,7 +253,6 @@ ModifyShowController.propTypes = {
   isModalVisible: PropTypes.any,
   close: PropTypes.any,
   ok: PropTypes.any,
-  questionsheetid: PropTypes.any,
   questionCode: PropTypes.any,
   store: PropTypes.any
 }

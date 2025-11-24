@@ -10,6 +10,7 @@ import { adminApi } from './path/admin'
 import { authApi as authzApi } from './path/authz'
 import { statisticsApi } from './path/statistics'
 import { templateApi } from './path/template'
+import { surveyApi } from './path/survey'
 
 export const api = {
   ...answerSheetApi,
@@ -23,7 +24,8 @@ export const api = {
   ...adminApi,
   ...authzApi,
   ...statisticsApi,
-  ...templateApi
+  ...templateApi,
+  ...surveyApi
 }
 
 // 导出类型

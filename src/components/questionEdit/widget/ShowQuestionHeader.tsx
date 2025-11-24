@@ -9,12 +9,22 @@ const QuestionShowHeader: React.FC<QuestionShowHeaderProps> = ({ title, connectD
       ref={connectDropTarget}
       style={{
         width: '100%',
-        backgroundColor: '#E5F0FF',
-        position: 'relative'
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        position: 'relative',
+        padding: '32px 40px',
+        color: '#fff'
       }}
-      className="s-row-center s-text-h3 s-px-lg"
+      className="s-row-center"
     >
-      {title}
+      <div style={{ 
+        fontSize: '24px', 
+        fontWeight: 600, 
+        textAlign: 'center',
+        lineHeight: '1.4',
+        textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+      }}>
+        {title}
+      </div>
       {(() => {
         if (isOver && canDrop) {
           return (

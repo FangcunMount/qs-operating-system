@@ -1,12 +1,31 @@
 .show-container {
-  transition: all 0.3s ease-in-out;
+  padding: 20px 24px;
+  margin: 12px 16px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-color: #fff;
+  transition: all 0.2s ease;
 
   &:hover {
-    background-color: #efefef;
+    background-color: #f9fafb;
+    border-color: #e8eaed;
     cursor: grab;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  &:active {
+    cursor: grabbing;
   }
 }
 
 .show-container-selected {
-  background-color: #f4f4f4;
+  background-color: #f0f7ff;
+  border-color: #1677ff;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.15);
+
+  &:hover {
+    background-color: #e6f4ff;
+    border-color: #1677ff;
+  }
 }

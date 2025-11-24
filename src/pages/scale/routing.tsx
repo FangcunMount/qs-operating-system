@@ -23,21 +23,30 @@ const ScaleRouting: React.FC = () => {
   const [modifyShowControllerVisible, setModifyShowControllerVisible] = useState<boolean>(false)
 
   useEffect(() => {
-    initQuestionSheet().then(() => {
-      initShowController()
-    })
-  }, [])
+    // 有缓存直接用，否则初始化一次
+    if (scaleStore.id && scaleStore.id === questionsheetid && scaleStore.questions.length > 0) {
+      setShowControllerList(scaleStore.showControllers)
+    } else {
+      initQuestionSheet().then(() => {
+        setShowControllerList(scaleStore.showControllers)
+      })
+    }
+  }, [questionsheetid])
 
   const initShowController = async () => {
-    message.loading({ content: '加载中', duration: 0, key: 'fetch' })
-
-    const [e, r] = await getShowControllerList(questionsheetid)
-    if (!e && r) {
-      setShowControllerList(r.data.list)
+    try {
+      message.loading({ content: '加载中', duration: 0, key: 'fetch' })
+      const [e, r] = await getShowControllerList(questionsheetid)
+      if (!e && r) {
+        setShowControllerList(r.data.list)
+        scaleStore.setShowControllers(r.data.list)
+      }
+      message.success({ content: '加载成功!', key: 'fetch', duration: 2 })
+    } catch (error) {
+      setShowControllerList(scaleStore.showControllers)
+    } finally {
+      message.destroy('fetch')
     }
-
-    message.destroy()
-    message.success({ content: '加载成功!', key: 'fetch', duration: 2 })
   }
 
   const initQuestionSheet = async () => {
@@ -48,20 +57,23 @@ const ScaleRouting: React.FC = () => {
     const [e, r] = await api.getQuestionList(questionsheetid)
     if (e) return
     scaleStore.setScaleQuestions(r?.data.list ?? [])
+    if (questionsheetid && questionsheetid !== 'new') {
+      const [ce, cr] = await getShowControllerList(questionsheetid)
+      if (!ce && cr) {
+        scaleStore.setShowControllers(cr.data.list)
+      }
+    }
     message.destroy()
   }
 
   const handleSave = async () => {
-    message.loading({ content: '保存中', duration: 0, key: 'save' })
-    // TODO: 实现路由保存 API
-    // const [e] = await api.modifyQuestionShowController(questionsheetid, showControllerList)
-    // if (e) throw e
-    message.destroy()
+    // 前端暂存，不触发接口
+    scaleStore.setCurrentStep('edit-factors')
   }
 
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
     if (status === 'success') {
-      message.success('路由设置保存成功')
+      message.success('路由设置已保存到本地，发布时统一提交')
       scaleStore.nextStep()
     }
     if (status === 'fail') {
@@ -74,7 +86,7 @@ const ScaleRouting: React.FC = () => {
       header='设置题目路由'
       submitFn={handleSave}
       afterSubmit={handleAfterSubmit}
-      footerButtons={['break', 'breakToQsList', 'saveToQsList', 'saveToNext']}
+      footerButtons={['saveToNext']}
       nextUrl={`/qs/factor/${questionsheetid}`}
     >
       <>
@@ -98,7 +110,6 @@ const ScaleRouting: React.FC = () => {
         <ModifyShowController
           isModalVisible={modifyShowControllerVisible}
           questionCode={currentQuestionCode}
-          questionsheetid={questionsheetid}
           store={scaleStore}
           ok={() => {
             initShowController()

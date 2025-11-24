@@ -4,7 +4,7 @@ import { observer } from 'mobx-react'
 import { Divider, message } from 'antd'
 
 import { api } from '@/api'
-import { questionSheetStore } from '@/store'
+import { questionSheetStore, surveyStore, scaleStore } from '@/store'
 import { ICheckBoxQuestion } from '@/models/question'
 import SettingContainer from '../components/SettingContainer'
 import OptionSetting from '../components/OptionSetting'
@@ -12,39 +12,41 @@ import ValidateRulesSetting from '../components/ValidateRulesSetting'
 import CalculationSetting from '../components/CalculationSetting'
 import CalculationRuleSetting from '../components/CalculationRuleSetting'
 
+type StoreType = typeof questionSheetStore | typeof surveyStore | typeof scaleStore
 
-const SettingCheckBox: React.FC<SettingCheckBoxProps> = ({ question }) => {
+
+const SettingCheckBox: React.FC<SettingCheckBoxProps> = ({ question, store = questionSheetStore }) => {
   return (
     <SettingContainer
       title={question.title}
       tips={question.tips}
       handleChange={(k, v) => {
-        questionSheetStore.updateQuestionDispatch(k, { value: v })
+        store.updateQuestionDispatch(k, { value: v })
       }}
     >
       <Divider></Divider>
       <OptionSetting
         options={question.options}
         deleteOption={(index) => {
-          questionSheetStore.updateQuestionDispatch('option', { type: 'delete', index })
+          store.updateQuestionDispatch('option', { type: 'delete', index })
         }}
         addOption={async (item) => {
-          const [, r] = await api.getCodeByType('option', questionSheetStore.id as string)
+          const [, r] = await api.getCodeByType('option', store.id as string)
           item.code = r?.data.code as string
-          questionSheetStore.updateQuestionDispatch('option', { type: 'add', value: item })
+          store.updateQuestionDispatch('option', { type: 'add', value: item })
         }}
-        changeOption={(i, k, v) => questionSheetStore.updateQuestionDispatch('option', { type: k, index: i, value: v })}
+        changeOption={(i, k, v) => store.updateQuestionDispatch('option', { type: k, index: i, value: v })}
       ></OptionSetting>
       <Divider />
       <ValidateRulesSetting
         validateRules={question.validate_rules}
-        changeValidate={(k, v) => questionSheetStore.updateQuestionDispatch('validate', { key: k, value: v })}
+        changeValidate={(k, v) => store.updateQuestionDispatch('validate', { key: k, value: v })}
       />
       <Divider />
       <CalculationSetting
         options={question.options}
         handleChangeRadio={(i, k, v) => {
-          questionSheetStore.updateQuestionDispatch('option', { type: k, index: i, value: v })
+          store.updateQuestionDispatch('option', { type: k, index: i, value: v })
         }}
       />
       <Divider />
@@ -55,10 +57,12 @@ const SettingCheckBox: React.FC<SettingCheckBoxProps> = ({ question }) => {
 
 interface SettingCheckBoxProps {
   question: ICheckBoxQuestion
+  store?: StoreType
 }
 
 SettingCheckBox.propTypes = {
-  question: PropTypes.any.isRequired
+  question: PropTypes.any.isRequired,
+  store: PropTypes.any
 }
 
 

@@ -3,7 +3,7 @@ import PropTypes from 'prop-types'
 import { observer } from 'mobx-react'
 import { Divider, message } from 'antd'
 
-import { questionSheetStore } from '@/store'
+import { questionSheetStore, surveyStore, scaleStore } from '@/store'
 import { ISelectQuestion } from '@/models/question'
 import SettingContainer from '../components/SettingContainer'
 import CalculationSetting from '../components/CalculationSetting'
@@ -11,36 +11,38 @@ import SelectOptionSetting from '../components/SelectOptionSetting'
 import ValidateRulesSetting from '../components/ValidateRulesSetting'
 import { api } from '@/api'
 
-const SettingSelect: React.FC<SettingSelectProps> = ({ question }) => {
+type StoreType = typeof questionSheetStore | typeof surveyStore | typeof scaleStore
+
+const SettingSelect: React.FC<SettingSelectProps> = ({ question, store = questionSheetStore }) => {
   return (
     <SettingContainer
       title={question.title}
       tips={question.tips}
       handleChange={(k, v) => {
-        questionSheetStore.updateQuestionDispatch(k, { value: v })
+        store.updateQuestionDispatch(k, { value: v })
       }}
     >
       <Divider />
       <SelectOptionSetting
         options={question.options}
-        deleteOption={(index) => questionSheetStore.updateQuestionDispatch('option', { type: 'delete', index: index })}
+        deleteOption={(index) => store.updateQuestionDispatch('option', { type: 'delete', index: index })}
         addOption={async (item) => {
-          const [, r] = await api.getCodeByType('option', questionSheetStore.id as string)
+          const [, r] = await api.getCodeByType('option', store.id as string)
           item.code = r?.data.code as string
-          questionSheetStore.updateQuestionDispatch('option', { type: 'add', value: item })
+          store.updateQuestionDispatch('option', { type: 'add', value: item })
         }}
-        changeOption={(i, k, v) => questionSheetStore.updateQuestionDispatch('option', { type: k, index: i, value: v })}
+        changeOption={(i, k, v) => store.updateQuestionDispatch('option', { type: k, index: i, value: v })}
       />
       <Divider />
       <ValidateRulesSetting
         validateRules={question.validate_rules}
-        changeValidate={(k, v) => questionSheetStore.updateQuestionDispatch('validate', { key: k, value: v })}
+        changeValidate={(k, v) => store.updateQuestionDispatch('validate', { key: k, value: v })}
       />
       <Divider />
       <CalculationSetting
         options={question.options}
         handleChangeRadio={(i, k, v) => {
-          questionSheetStore.updateQuestionDispatch('option', { type: k, index: i, value: v })
+          store.updateQuestionDispatch('option', { type: k, index: i, value: v })
         }}
       />
     </SettingContainer>
@@ -49,10 +51,12 @@ const SettingSelect: React.FC<SettingSelectProps> = ({ question }) => {
 
 interface SettingSelectProps {
   question: ISelectQuestion
+  store?: StoreType
 }
 
 SettingSelect.propTypes = {
-  question: PropTypes.any.isRequired
+  question: PropTypes.any.isRequired,
+  store: PropTypes.any
 }
 
 export const checkSelect = (item: ISelectQuestion, index: number): boolean => {

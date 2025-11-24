@@ -1,10 +1,22 @@
-.qs-edit--container {
-  display: flex;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
+// 问卷创建页面样式已移至 components/questionEdit/index.scss
+// 这里仅保留页面特有的样式
 
-  > div {
-    flex: 1;
+.survey-create-steps {
+  .ant-steps-item-title {
+    font-size: 13px;
+    font-weight: 500;
+  }
+  
+  .ant-steps-item-process .ant-steps-item-icon {
+    background: #1677ff;
+    border-color: #1677ff;
+  }
+  
+  .ant-steps-item-finish .ant-steps-item-icon {
+    border-color: #1677ff;
+    
+    .ant-steps-icon {
+      color: #1677ff;
+    }
   }
 }

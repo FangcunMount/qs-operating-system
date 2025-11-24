@@ -52,12 +52,12 @@ const QuestionCreate: React.FC<{
     }
   }
   return (
-    <div className="qs-edit-set s-bg-grey-1" style={{ borderLeft: '1px solid #eee' }}>
+    <div className="qs-edit-create">
       <div className="s-px-sm s-text-h6">添加题目</div>
       <Divider className="s-ma-none"></Divider>
 
-      <div className="s-px-md" style={{ overflow: 'auto', width: '100%' }}>
-        <div style={{ marginLeft: '2%' }}>结构化题型：</div>
+      <div className="s-px-md">
+        <div style={{ marginLeft: '2%', marginTop: '16px', marginBottom: '8px', fontSize: '13px', fontWeight: 500, color: '#646a73' }}>结构化题型</div>
         <CreateRadio class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
         <CreateCheckbox class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
         <CreateSelect class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
@@ -71,10 +71,8 @@ const QuestionCreate: React.FC<{
         <CreateImageCheckBox class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
         <CreateImageMatrixCheckBox class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
         <CreateImageMatrixRadio class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
-      </div>
 
-      <div className="s-px-sm" style={{ overflow: 'auto', width: '100%' }}>
-        <div style={{ marginLeft: '2%' }}>非结构化题型：</div>
+        <div style={{ marginLeft: '2%', marginTop: '24px', marginBottom: '8px', fontSize: '13px', fontWeight: 500, color: '#646a73' }}>非结构化题型</div>
         <CreateSection class="qs-edit-add-question" icon={<IconFont type="icon-duanla" />} onClick={handleAddQuestion} />
         <CreateText class="qs-edit-add-question" icon={<IconFont type="icon-danhangwenben1" />} onClick={handleAddQuestion} />
         <CreateTextarea class="qs-edit-add-question" icon={<IconFont type="icon-duanlashuoming" />} onClick={handleAddQuestion} />

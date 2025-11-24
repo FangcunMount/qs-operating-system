@@ -3,7 +3,7 @@ import PropTypes from 'prop-types'
 import { observer } from 'mobx-react'
 import { Divider, message } from 'antd'
 
-import { questionSheetStore } from '@/store'
+import { questionSheetStore, surveyStore, scaleStore } from '@/store'
 import { IScoreRadioQuestion } from '@/models/question'
 import SettingContainer from '../components/SettingContainer'
 import ScoreOptionSetting from '../components/ScoreOptionSetting'
@@ -11,13 +11,17 @@ import ValidateRulesSetting from '../components/ValidateRulesSetting'
 import CalculationSetting from '../components/CalculationSetting'
 
 
+type StoreType = typeof questionSheetStore | typeof surveyStore | typeof scaleStore
+
 const TypeScoreRadio: React.FC<TypeScoreRadioProps> = (props) => {
+  const store = props.store ?? questionSheetStore
+
   return (
     <SettingContainer
       title={props.question.title}
       tips={props.question.tips}
       handleChange={(k, v) => {
-        questionSheetStore.updateQuestionDispatch(k, { value: v })
+        store.updateQuestionDispatch(k, { value: v })
       }}
     >
       <Divider />
@@ -26,25 +30,25 @@ const TypeScoreRadio: React.FC<TypeScoreRadioProps> = (props) => {
         leftDesc={props.question.left_desc}
         rightDesc={props.question.right_desc}
         changeOptions={(options) => {
-          questionSheetStore.updateQuestionDispatch('options', { options })
+          store.updateQuestionDispatch('options', { options })
         }}
         changeLeftDesc={(desc) => {
-          questionSheetStore.updateQuestionDispatch('left_desc', { desc })
+          store.updateQuestionDispatch('left_desc', { desc })
         }}
         changeRightDesc={(desc) => {
-          questionSheetStore.updateQuestionDispatch('right_desc', { desc })
+          store.updateQuestionDispatch('right_desc', { desc })
         }}
       ></ScoreOptionSetting>
       <Divider />
       <ValidateRulesSetting
         validateRules={props.question.validate_rules}
-        changeValidate={(k, v) => questionSheetStore.updateQuestionDispatch('validate', { key: k, value: v })}
+        changeValidate={(k, v) => store.updateQuestionDispatch('validate', { key: k, value: v })}
       />
       <Divider />
       <CalculationSetting
         options={props.question.options}
         handleChangeRadio={(i, k, v) => {
-          questionSheetStore.updateQuestionDispatch('option', { type: k, index: i, value: v })
+          store.updateQuestionDispatch('option', { type: k, index: i, value: v })
         }}
       />
     </SettingContainer>
@@ -53,10 +57,12 @@ const TypeScoreRadio: React.FC<TypeScoreRadioProps> = (props) => {
 
 interface TypeScoreRadioProps {
   question: IScoreRadioQuestion
+  store?: StoreType
 }
 
 TypeScoreRadio.propTypes = {
-  question: PropTypes.any.isRequired
+  question: PropTypes.any.isRequired,
+  store: PropTypes.any
 }
 
 export const checkScoreRadio = (item: IScoreRadioQuestion, index: number): boolean => {

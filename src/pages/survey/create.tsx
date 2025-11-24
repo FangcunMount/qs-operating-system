@@ -1,12 +1,14 @@
 import React, { useEffect, useRef } from 'react'
 import { useParams } from 'react-router'
-import { message, notification, Steps } from 'antd'
+import { message, notification } from 'antd'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { observer } from 'mobx-react-lite'
 
 import './create.scss'
-import { api } from '@/api'
+import '@/components/questionEdit/index.scss'
+import '@/components/editorSteps/index.scss'
+import { getShowControllerList } from '@/api/path/showController'
 import { surveyStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
 import QuestionSetting from '@/components/questionEdit/Setting'
@@ -57,8 +59,6 @@ const checkMap = {
   Upload: checkUpload
 }
 
-const { Step } = Steps
-
 const SurveyCreate: React.FC = observer(() => {
   const showContainerRef = useRef<HTMLInputElement>(null)
   const { questionsheetid, answercnt } = useParams<{ questionsheetid: string; answercnt: string }>()
@@ -74,16 +74,17 @@ const SurveyCreate: React.FC = observer(() => {
       })
     }
     (async () => {
-      const [qe, qr] = await api.getQuestionSheet(questionsheetid)
-      if (qe) return
-      surveyStore.setSurvey(qr?.data.questionsheet)
-      const [e, r] = await api.getQuestionList(questionsheetid)
-      if (e) return
-      surveyStore.setSurveyQuestions(r?.data.list ?? [])
-      
-      // 根据问卷状态设置步骤
-      if (surveyStore.questions.length > 0) {
-        surveyStore.setCurrentStep('edit-questions')
+      try {
+        await surveyStore.initEditor(questionsheetid)
+        // 初始化显隐规则（只在首次载入时获取）
+        if (questionsheetid && questionsheetid !== 'new') {
+          const [e, r] = await getShowControllerList(questionsheetid)
+          if (!e && r) {
+            surveyStore.setShowControllers(r.data.list)
+          }
+        }
+      } catch (error) {
+        console.error('加载问卷失败:', error)
       }
     })()
   }, [questionsheetid])
@@ -93,14 +94,13 @@ const SurveyCreate: React.FC = observer(() => {
   }
 
   const handleSaveQuestionSheet = async () => {
-    const [e] = await api.modifyQuestionSHeetQuestion(surveyStore.id as string, surveyStore.questions)
-    if (e) throw e
+    // 仅本地暂存，不触发后端接口
+    surveyStore.setCurrentStep('set-routing')
   }
 
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
     if (status === 'success') {
-      message.success('问题更新成功')
-      // 保存成功后进入下一步
+      message.success('已保存到本地，稍后统一提交')
       surveyStore.nextStep()
     }
     if (status === 'fail') {
@@ -128,38 +128,15 @@ const SurveyCreate: React.FC = observer(() => {
     }
   }
 
-  const getNextUrl = () => {
-    if (surveyStore.currentStep === 'edit-questions') {
-      return `/survey/routing/${questionsheetid}`
-    }
-    return '/survey/list'
-  }
-
-  const getCurrentStepIndex = () => {
-    const steps = ['create', 'edit-questions', 'set-routing', 'publish']
-    return steps.indexOf(surveyStore.currentStep)
-  }
-
   return (
     <BaseLayout
-      header={
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-          <span>创建问卷 - 录入问题</span>
-          <Steps current={getCurrentStepIndex()} size='small' style={{ width: 400 }}>
-            <Step title='创建问卷' />
-            <Step title='编辑问题' />
-            <Step title='设置路由' />
-            <Step title='发布' />
-          </Steps>
-        </div>
-      }
       beforeSubmit={handleVerifyQuestionSheet}
       submitFn={handleSaveQuestionSheet}
       afterSubmit={handleAfterSubmit}
-      footerButtons={['break', 'breakToQsList', 'saveToQsList', 'saveToNext']}
-      nextUrl={getNextUrl()}
+      footerButtons={['saveToNext']}
+      nextUrl={`/survey/routing/${questionsheetid}`}
     >
-      <div className='qs-edit--container'>
+      <div className='qs-question-edit-container'>
         <DndProvider backend={HTML5Backend}>
           <QuestionCreate showToBottom={showToBottom} store={surveyStore}></QuestionCreate>
           <QuestionShow showContainerRef={showContainerRef} store={surveyStore}></QuestionShow>

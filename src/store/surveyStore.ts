@@ -1,4 +1,4 @@
-import { makeObservable, observable, computed, action } from 'mobx'
+import { makeObservable, observable, computed, action, runInAction } from 'mobx'
 import {
   ICheckBoxQuestion,
   IDateQuestion,
@@ -13,6 +13,9 @@ import {
   IValidateRules
 } from '../models/question'
 import { IQuestionSheet } from '../models/questionSheet'
+import { api } from '../api'
+import { delShowController, postShowController } from '@/api/path/showController'
+import { IQuestionShowController } from '@/models/question'
 
 // 问卷编辑步骤
 export type SurveyStep = 'create' | 'edit-questions' | 'set-routing' | 'publish'
@@ -38,6 +41,9 @@ export const surveyStore = makeObservable(
     desc: surveyInit.desc,
     img_url: surveyInit.img_url,
     questions: surveyInit.questions,
+    // 题目显隐规则（仅前端暂存）
+    showControllers: [] as { code: string; show_controller: IQuestionShowController }[],
+    deletedShowControllerCodes: [] as string[],
     
     // 当前编辑的问题
     currentCode: '',
@@ -73,6 +79,8 @@ export const surveyStore = makeObservable(
       this.desc = surveyInit.desc
       this.img_url = surveyInit.img_url
       this.questions = surveyInit.questions
+      this.showControllers = []
+      this.deletedShowControllerCodes = []
       this.currentCode = ''
       this.currentStep = 'create'
     },
@@ -154,14 +162,43 @@ export const surveyStore = makeObservable(
       }
     },
 
+    // 维护题目显隐规则（前端暂存）
+    setShowControllers(list: Array<{ code: string; show_controller: IQuestionShowController }>) {
+      this.showControllers = list
+    },
+
+    upsertShowController(code: string, show_controller: IQuestionShowController) {
+      const i = this.showControllers.findIndex((item) => item.code === code)
+      if (i > -1) {
+        this.showControllers[i] = { code, show_controller }
+      } else {
+        this.showControllers.push({ code, show_controller })
+      }
+      // 防止在删除列表中的旧记录影响后续发布
+      this.deletedShowControllerCodes = this.deletedShowControllerCodes.filter((v) => v !== code)
+    },
+
+    deleteShowController(code: string) {
+      this.showControllers = this.showControllers.filter((item) => item.code !== code)
+      if (!this.deletedShowControllerCodes.includes(code)) {
+        this.deletedShowControllerCodes.push(code)
+      }
+    },
+
+    getShowController(code: string) {
+      return this.showControllers.find((v) => v.code === code)
+    },
+
     // 添加问题
     addQuestion(question: IQuestion) {
       this.questions.push(question)
+      this.currentCode = question.code
     },
 
     // 在指定位置添加问题
     addQuestionByPosition(question: IQuestion, index: number) {
       this.questions.splice(index, 0, question)
+      this.currentCode = question.code
     },
 
     // 删除当前问题
@@ -323,6 +360,216 @@ export const surveyStore = makeObservable(
 
     deleteQuestionOption(i: number) {
       (this.questions[this.currentIndex] as any).options.splice(i, 1)
+    },
+
+    // ============ 业务功能方法 ============
+
+    /**
+     * 初始化编辑器 - 用于创建或编辑问卷
+     * @param questionsheetid 问卷 ID，如果是 'new' 则初始化为新建模式
+     */
+    async initEditor(questionsheetid: string) {
+      if (!questionsheetid || questionsheetid === 'new') {
+        // 新建模式：初始化空白问卷
+        this.initSurvey()
+        return
+      }
+
+      // 编辑模式：加载问卷和题目
+      const [qe, qr] = await api.getSurvey(questionsheetid)
+      if (qe) {
+        // 问卷不存在时，初始化为新问卷但保留 ID
+        console.warn('问卷不存在，初始化为新问卷:', questionsheetid)
+        runInAction(() => {
+          this.id = questionsheetid
+          this.title = ''
+          this.desc = ''
+          this.img_url = ''
+          this.questions = []
+          this.currentCode = ''
+          this.currentStep = 'edit-questions'
+        })
+        return
+      }
+
+      const questionsheet = qr?.data.questionsheet
+      if (questionsheet) {
+        runInAction(() => {
+          this.id = questionsheet.id
+          this.title = questionsheet.title
+          this.desc = questionsheet.desc
+          this.img_url = questionsheet.img_url
+        })
+      }
+
+      // 加载题目列表
+      const [le, lr] = await api.getSurveyQuestions(questionsheetid)
+      if (le) {
+        console.warn('加载题目列表失败，使用空列表')
+        runInAction(() => {
+          this.questions = []
+          this.currentCode = ''
+          this.currentStep = 'edit-questions'
+        })
+        return
+      }
+
+      const questions = lr?.data.list || []
+      runInAction(() => {
+        this.questions = questions
+        if (questions.length > 0) {
+          this.currentCode = questions[0].code
+          this.currentStep = 'edit-questions'
+        } else {
+          this.currentCode = ''
+          this.currentStep = 'edit-questions'
+        }
+      })
+    },
+
+    /**
+     * 保存问卷基本信息
+     * @returns 返回问卷 ID（新建时返回新 ID，编辑时返回原 ID）
+     */
+    async saveBasicInfo() {
+      const params = {
+        title: this.title,
+        desc: this.desc,
+        img_url: this.img_url
+      }
+
+      // 新建时需要生成 ID 供后续题目/显隐规则使用
+      if (!this.id || this.id === '') {
+        const [e, r] = await api.createSurvey(params)
+        if (e) throw e
+
+        if (r?.data.questionsheetid) {
+          runInAction(() => {
+            this.id = r.data.questionsheetid
+            this.currentStep = 'edit-questions'
+          })
+          return r.data.questionsheetid
+        }
+        throw new Error('创建问卷失败')
+      }
+
+      // 已有 ID 时仅更新本地数据，最终发布时统一更新后端
+      return this.id
+    },
+
+    /**
+     * 保存问卷题目列表
+     */
+    async saveQuestionList(options: { persist?: boolean } = {}) {
+      const { persist = false } = options
+      if (!this.id) {
+        throw new Error('问卷 ID 不能为空')
+      }
+
+      if (persist) {
+        const [e] = await api.saveSurveyQuestions(this.id, this.questions)
+        if (e) throw e
+      }
+
+      runInAction(() => {
+        if (this.currentStep === 'edit-questions') {
+          this.currentStep = 'set-routing'
+        }
+      })
+    },
+
+    // 同步显隐规则（发布前统一提交）
+    async syncShowControllers() {
+      if (!this.id) return
+
+      for (const code of this.deletedShowControllerCodes) {
+        await delShowController(this.id, code)
+      }
+      this.deletedShowControllerCodes = []
+
+      for (const item of this.showControllers) {
+        await postShowController(this.id, item)
+      }
+    },
+
+    /**
+     * 发布问卷到线上
+     */
+    async publish() {
+      if (!this.id) {
+        // 如果还没有创建问卷，先创建以获取 ID
+        const [e, r] = await api.createSurvey({
+          title: this.title,
+          desc: this.desc,
+          img_url: this.img_url
+        })
+        if (e) throw e
+        if (r?.data.questionsheetid) {
+          runInAction(() => {
+            this.id = r.data.questionsheetid
+          })
+        } else {
+          throw new Error('创建问卷失败')
+        }
+      }
+
+      // 此时 this.id 一定存在，使用类型断言
+      const surveyId = this.id as string
+
+      // 更新基本信息
+      const [infoErr] = await api.updateSurvey({
+        questionsheetid: surveyId,
+        title: this.title,
+        desc: this.desc,
+        img_url: this.img_url
+      })
+      if (infoErr) throw infoErr
+
+      // 保存题目列表
+      const [qsErr] = await api.saveSurveyQuestions(surveyId, this.questions)
+      if (qsErr) throw qsErr
+
+      // 同步本地暂存的题目显隐规则
+      await this.syncShowControllers()
+
+      const [e] = await api.publishSurvey(surveyId)
+      if (e) throw e
+
+      runInAction(() => {
+        this.currentStep = 'publish'
+      })
+    },
+
+    /**
+     * 取消发布问卷
+     */
+    async unpublish() {
+      if (!this.id) {
+        throw new Error('问卷 ID 不能为空')
+      }
+
+      const surveyId = this.id as string
+      const [e] = await api.unpublishSurvey(surveyId)
+      if (e) throw e
+    },
+
+    /**
+     * 获取问卷信息（用于预览、发布页等）
+     */
+    async fetchSurveyInfo(questionsheetid: string) {
+      const [e, r] = await api.getSurvey(questionsheetid)
+      if (e) throw e
+
+      const questionsheet = r?.data.questionsheet
+      if (questionsheet) {
+        runInAction(() => {
+          this.id = questionsheet.id
+          this.title = questionsheet.title
+          this.desc = questionsheet.desc
+          this.img_url = questionsheet.img_url
+        })
+      }
+      return questionsheet
     }
   },
   {
@@ -331,6 +578,8 @@ export const surveyStore = makeObservable(
     desc: observable,
     img_url: observable,
     questions: observable,
+    showControllers: observable,
+    deletedShowControllerCodes: observable,
     currentCode: observable,
     currentStep: observable,
     
@@ -351,6 +600,18 @@ export const surveyStore = makeObservable(
     deleteQuestion: action,
     updateQuestionDispatch: action,
     setSurvey: action,
-    setSurveyQuestions: action
+    setSurveyQuestions: action,
+    setShowControllers: action,
+    upsertShowController: action,
+    deleteShowController: action,
+    
+    // 业务功能方法
+    initEditor: action,
+    saveBasicInfo: action,
+    saveQuestionList: action,
+    publish: action,
+    unpublish: action,
+    fetchSurveyInfo: action,
+    syncShowControllers: action
   }
 )

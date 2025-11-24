@@ -124,7 +124,7 @@ const QsEdit: React.FC = () => {
       footerButtons={['break', 'breakToQsList', 'saveToQsList', 'saveToNext']}
       nextUrl={`/qs/showController/${questionsheetid}`}
     >
-      <div className="qs-edit--container">
+      <div className="qs-question-edit-container">
         <DndProvider backend={HTML5Backend}>
           <QuestionCreate showToBottom={showToBottom}></QuestionCreate>
           <QuestionShow showContainerRef={showContainerRef}></QuestionShow>

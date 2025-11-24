@@ -2,15 +2,56 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex-grow: 1;
-  padding: 0 10%;
-  overflow: auto;
-  background-color: #f1f1f1;
+  justify-content: flex-start;
+  padding: 24px 5%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: transparent;
+  min-height: 0;
+  
+  // 美化滚动条
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f7f8fa;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #d0d0d0;
+    border-radius: 4px;
+    
+    &:hover {
+      background: #a8a8a8;
+    }
+  }
 
   .qs-edit-show-list {
     width: 100%;
-    overflow-y: auto;
-    overflow-x: hidden;
-    box-shadow: 0 7px 8px -4px #0003, 0 12px 17px 2px #00000024, 0 5px 22px 4px #0000001f;
+    max-width: 900px;
+    min-height: calc(100vh - 200px);
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition: box-shadow 0.3s ease;
+    margin-bottom: 24px;
+    
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.06);
+    }
+  }
+
+  .qs-edit-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 40px;
+    text-align: center;
+
+    svg {
+      opacity: 0.9;
+    }
   }
 }

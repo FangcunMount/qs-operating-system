@@ -14,6 +14,7 @@ import {
 } from '../models/question'
 import { IQuestionSheet } from '../models/questionSheet'
 import { IFactor } from '../models/factor'
+import { IQuestionShowController } from '@/models/question'
 
 // 量表编辑步骤
 export type ScaleStep = 'create' | 'edit-questions' | 'set-routing' | 'edit-factors' | 'set-interpretation' | 'publish'
@@ -39,6 +40,8 @@ export const scaleStore = makeObservable(
     desc: scaleInit.desc,
     img_url: scaleInit.img_url,
     questions: scaleInit.questions,
+    // 题目显隐规则（本地暂存）
+    showControllers: [] as { code: string; show_controller: IQuestionShowController }[],
     
     // 因子列表（量表特有）
     factors: [] as IFactor[],
@@ -89,6 +92,7 @@ export const scaleStore = makeObservable(
       this.desc = scaleInit.desc
       this.img_url = scaleInit.img_url
       this.questions = scaleInit.questions
+      this.showControllers = []
       this.factors = []
       this.currentCode = ''
       this.currentFactorId = ''
@@ -172,14 +176,38 @@ export const scaleStore = makeObservable(
       }
     },
 
+    // 显隐规则维护（本地暂存）
+    setShowControllers(list: Array<{ code: string; show_controller: IQuestionShowController }>) {
+      this.showControllers = list
+    },
+
+    upsertShowController(code: string, show_controller: IQuestionShowController) {
+      const i = this.showControllers.findIndex((item) => item.code === code)
+      if (i > -1) {
+        this.showControllers[i] = { code, show_controller }
+      } else {
+        this.showControllers.push({ code, show_controller })
+      }
+    },
+
+    deleteShowController(code: string) {
+      this.showControllers = this.showControllers.filter((item) => item.code !== code)
+    },
+
+    getShowController(code: string) {
+      return this.showControllers.find((v) => v.code === code)
+    },
+
     // 添加问题
     addQuestion(question: IQuestion) {
       this.questions.push(question)
+      this.currentCode = question.code
     },
 
     // 在指定位置添加问题
     addQuestionByPosition(question: IQuestion, index: number) {
       this.questions.splice(index, 0, question)
+      this.currentCode = question.code
     },
 
     // 删除当前问题
@@ -398,6 +426,7 @@ export const scaleStore = makeObservable(
     img_url: observable,
     questions: observable,
     factors: observable,
+    showControllers: observable,
     currentCode: observable,
     currentFactorId: observable,
     currentStep: observable,
@@ -415,6 +444,9 @@ export const scaleStore = makeObservable(
     prevStep: action,
     changeQuestionPosition: action,
     setCurrentCode: action,
+    setShowControllers: action,
+    upsertShowController: action,
+    deleteShowController: action,
     addQuestion: action,
     addQuestionByPosition: action,
     deleteQuestion: action,

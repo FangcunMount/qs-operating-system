@@ -1,11 +1,15 @@
 import React, { useEffect, useRef } from 'react'
 import { useParams } from 'react-router'
-import { message, notification, Steps } from 'antd'
+import { message, notification } from 'antd'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { observer } from 'mobx-react-lite'
 
 import './create.scss'
+import '@/components/questionEdit/index.scss'
+import '@/components/editorSteps/index.scss'
+import EditorSteps from '@/components/editorSteps'
+import { getShowControllerList } from '@/api/path/showController'
 import { api } from '@/api'
 import { scaleStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
@@ -57,14 +61,12 @@ const checkMap = {
   Upload: checkUpload
 }
 
-const { Step } = Steps
-
 const ScaleCreate: React.FC = observer(() => {
   const showContainerRef = useRef<HTMLInputElement>(null)
   const { questionsheetid, answercnt } = useParams<{ questionsheetid: string; answercnt: string }>()
 
   useEffect(() => {
-    scaleStore.initScale()
+    scaleStore.initScale()  
     if (Number(answercnt) > 0) {
       notification['warning']({
         message: '警告：该量表已有用户测评！',
@@ -80,6 +82,12 @@ const ScaleCreate: React.FC = observer(() => {
       const [e, r] = await api.getQuestionList(questionsheetid)
       if (e) return
       scaleStore.setScaleQuestions(r?.data.list ?? [])
+      if (questionsheetid && questionsheetid !== 'new') {
+        const [ce, cr] = await getShowControllerList(questionsheetid)
+        if (!ce && cr) {
+          scaleStore.setShowControllers(cr.data.list)
+        }
+      }
       
       // 根据量表状态设置步骤
       if (scaleStore.questions.length > 0) {
@@ -128,17 +136,6 @@ const ScaleCreate: React.FC = observer(() => {
     }
   }
 
-  const getNextUrl = () => {
-    if (scaleStore.currentStep === 'edit-questions') {
-      return `/scale/routing/${questionsheetid}`
-    } else if (scaleStore.currentStep === 'set-routing') {
-      return `/scale/factor/${questionsheetid}`
-    } else if (scaleStore.currentStep === 'edit-factors') {
-      return `/scale/interpretation/${questionsheetid}`
-    }
-    return '/scale/list'
-  }
-
   const getCurrentStepIndex = () => {
     const steps = ['create', 'edit-questions', 'set-routing', 'edit-factors', 'set-interpretation', 'publish']
     return steps.indexOf(scaleStore.currentStep)
@@ -147,25 +144,27 @@ const ScaleCreate: React.FC = observer(() => {
   return (
     <BaseLayout
       header={
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-          <span>创建量表 - 录入问题</span>
-          <Steps current={getCurrentStepIndex()} size='small' style={{ width: 600 }}>
-            <Step title='创建量表' />
-            <Step title='编辑问题' />
-            <Step title='设置路由' />
-            <Step title='编辑因子' />
-            <Step title='设置解读' />
-            <Step title='发布' />
-          </Steps>
+        <div className='qs-editor-header'>
+          <div className='qs-editor-header__title'>创建量表</div>
+          <EditorSteps 
+            current={getCurrentStepIndex()} 
+            steps={[
+              { title: '创建量表' },
+              { title: '编辑问题' },
+              { title: '设置路由' },
+              { title: '编辑因子' },
+              { title: '设置解读' },
+              { title: '发布' }
+            ]} 
+          />
         </div>
       }
       beforeSubmit={handleVerifyQuestionSheet}
       submitFn={handleSaveQuestionSheet}
       afterSubmit={handleAfterSubmit}
-      footerButtons={['break', 'breakToQsList', 'saveToQsList', 'saveToNext']}
-      nextUrl={getNextUrl()}
+      footerButtons={[]}
     >
-      <div className='qs-edit--container'>
+      <div className='qs-question-edit-container'>
         <DndProvider backend={HTML5Backend}>
           <QuestionCreate showToBottom={showToBottom} store={scaleStore}></QuestionCreate>
           <QuestionShow showContainerRef={showContainerRef} store={scaleStore}></QuestionShow>
