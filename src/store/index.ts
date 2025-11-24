@@ -54,6 +54,12 @@ export const rootStore = {
   scaleStore
 }
 
+// 开发环境下暴露到 window 对象方便调试
+if (process.env.NODE_ENV === 'development') {
+  (window as any).surveyStore = surveyStore;
+  (window as any).rootStore = rootStore
+}
+
 // 兼容旧的导出名称（用于旧代码）
 // 使用 getter 延迟访问，避免循环引用
 export const store = {

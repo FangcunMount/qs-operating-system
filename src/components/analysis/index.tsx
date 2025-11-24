@@ -100,7 +100,7 @@ const QsAnalysis: React.FC = () => {
       beforeSubmit={handleVerifyAnalysis}
       submitFn={handleSaveAnalysis}
       afterSubmit={handleAfterSubmit}
-      footerButtons={['break', 'breakToQsList', 'saveToQsList']}
+      footerButtons={['break']}
       nextUrl={'/qs/list'}
     >
       <div className="qs-analysis--container">

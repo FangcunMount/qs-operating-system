@@ -1,4 +1,4 @@
-import { makeObservable, observable, computed, action, runInAction } from 'mobx'
+import { makeObservable, observable, computed, action, runInAction, reaction } from 'mobx'
 import {
   ICheckBoxQuestion,
   IDateQuestion,
@@ -19,6 +19,25 @@ import { IQuestionShowController } from '@/models/question'
 
 // 问卷编辑步骤
 export type SurveyStep = 'create' | 'edit-questions' | 'set-routing' | 'publish'
+
+// localStorage 键名
+const STORAGE_KEY = 'surveyStore_data'
+const STORAGE_VERSION = 'v1'
+
+// 持久化的数据结构
+interface PersistedSurveyData {
+  version: string
+  id: string
+  title: string
+  desc: string
+  img_url: string
+  questions: IQuestion[]
+  showControllers: Array<{ code: string; show_controller: IQuestionShowController }>
+  deletedShowControllerCodes: string[]
+  currentCode: string
+  currentStep: SurveyStep
+  timestamp: number
+}
 
 const surveyInit: IQuestionSheet = {
   id: '',
@@ -72,6 +91,107 @@ export const surveyStore = makeObservable(
       }
     },
 
+    // 保存到 localStorage
+    saveToLocalStorage() {
+      try {
+        // 使用 JSON.parse(JSON.stringify()) 深拷贝，确保 MobX observable 被正确序列化
+        const data: PersistedSurveyData = {
+          version: STORAGE_VERSION,
+          id: this.id || '',
+          title: this.title,
+          desc: this.desc,
+          img_url: this.img_url,
+          questions: JSON.parse(JSON.stringify(this.questions)),
+          showControllers: JSON.parse(JSON.stringify(this.showControllers)),
+          deletedShowControllerCodes: [...this.deletedShowControllerCodes],
+          currentCode: this.currentCode,
+          currentStep: this.currentStep,
+          timestamp: Date.now()
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+        console.log('已保存到 localStorage, 题目数:', data.questions.length)
+      } catch (error) {
+        console.error('保存到 localStorage 失败:', error)
+      }
+    },
+
+    // 从 localStorage 加载
+    loadFromLocalStorage() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY)
+        if (stored) {
+          const data: PersistedSurveyData = JSON.parse(stored)
+          // 检查版本号
+          if (data.version === STORAGE_VERSION) {
+            this.id = data.id
+            this.title = data.title
+            this.desc = data.desc
+            this.img_url = data.img_url
+            this.questions = data.questions || []
+            this.showControllers = data.showControllers || []
+            this.deletedShowControllerCodes = data.deletedShowControllerCodes || []
+            this.currentCode = data.currentCode
+            this.currentStep = data.currentStep
+            console.log('从 localStorage 恢复数据:', {
+              timestamp: new Date(data.timestamp),
+              questionCount: data.questions?.length || 0,
+              firstQuestion: data.questions?.[0]
+            })
+            // 验证数据完整性
+            if (this.questions.length > 0) {
+              const firstQ = this.questions[0] as any
+              console.log('第一个题目:', {
+                type: firstQ.type,
+                title: firstQ.title,
+                hasOptions: !!firstQ.options,
+                optionCount: firstQ.options?.length || 0
+              })
+            }
+            return true
+          }
+        }
+      } catch (error) {
+        console.error('从 localStorage 加载失败:', error)
+      }
+      return false
+    },
+
+    // 清除 localStorage
+    clearLocalStorage() {
+      try {
+        localStorage.removeItem(STORAGE_KEY)
+      } catch (error) {
+        console.error('清除 localStorage 失败:', error)
+      }
+    },
+
+    // 调试：查看 localStorage 内容
+    debugLocalStorage() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY)
+        if (stored) {
+          const data = JSON.parse(stored)
+          console.log('=== localStorage 数据 ===')
+          console.log('ID:', data.id)
+          console.log('标题:', data.title)
+          console.log('题目数量:', data.questions?.length || 0)
+          console.log('显隐规则数量:', data.showControllers?.length || 0)
+          console.log('当前步骤:', data.currentStep)
+          console.log('保存时间:', new Date(data.timestamp))
+          if (data.questions?.length > 0) {
+            console.log('第一个题目:', data.questions[0])
+          }
+          return data
+        } else {
+          console.log('localStorage 中没有数据')
+          return null
+        }
+      } catch (error) {
+        console.error('读取 localStorage 失败:', error)
+        return null
+      }
+    },
+
     // 初始化
     initSurvey() {
       this.id = surveyInit.id
@@ -83,6 +203,7 @@ export const surveyStore = makeObservable(
       this.deletedShowControllerCodes = []
       this.currentCode = ''
       this.currentStep = 'create'
+      this.clearLocalStorage()
     },
 
     // 设置当前步骤
@@ -370,10 +491,23 @@ export const surveyStore = makeObservable(
      */
     async initEditor(questionsheetid: string) {
       if (!questionsheetid || questionsheetid === 'new') {
-        // 新建模式：初始化空白问卷
-        this.initSurvey()
+        // 新建模式：尝试从 localStorage 恢复或初始化空白问卷
+        const restored = this.loadFromLocalStorage()
+        if (!restored) {
+          this.initSurvey()
+        }
         return
       }
+
+      // 编辑模式：优先从 localStorage 恢复
+      const restored = this.loadFromLocalStorage()
+      if (restored && this.id === questionsheetid) {
+        console.log('从 localStorage 恢复数据成功')
+        return
+      }
+
+      // localStorage 没有数据或 ID 不匹配，从服务器加载
+      console.log('从服务器加载数据')
 
       // 编辑模式：加载问卷和题目
       const [qe, qr] = await api.getSurvey(questionsheetid)
@@ -538,6 +672,9 @@ export const surveyStore = makeObservable(
       runInAction(() => {
         this.currentStep = 'publish'
       })
+
+      // 发布成功后清除 localStorage 缓存
+      this.clearLocalStorage()
     },
 
     /**
@@ -589,6 +726,10 @@ export const surveyStore = makeObservable(
     isStepCompleted: computed,
     
     // 方法
+    saveToLocalStorage: action,
+    loadFromLocalStorage: action,
+    clearLocalStorage: action,
+    debugLocalStorage: action,
     initSurvey: action,
     setCurrentStep: action,
     nextStep: action,
@@ -613,5 +754,41 @@ export const surveyStore = makeObservable(
     unpublish: action,
     fetchSurveyInfo: action,
     syncShowControllers: action
+  }
+)
+
+// 自动保存到 localStorage（使用 reaction 并添加防抖）
+let saveTimer: NodeJS.Timeout | null = null
+reaction(
+  // 追踪这些字段的变化
+  () => ({
+    id: surveyStore.id,
+    title: surveyStore.title,
+    desc: surveyStore.desc,
+    img_url: surveyStore.img_url,
+    questionsLength: surveyStore.questions.length,
+    questionsData: JSON.stringify(surveyStore.questions),
+    showControllersLength: surveyStore.showControllers.length,
+    showControllersData: JSON.stringify(surveyStore.showControllers),
+    currentStep: surveyStore.currentStep
+  }),
+  // 当这些字段变化时执行保存
+  (data) => {
+    // 清除之前的定时器
+    if (saveTimer) {
+      clearTimeout(saveTimer)
+    }
+    
+    // 防抖：500ms 后保存
+    saveTimer = setTimeout(() => {
+      const hasData = data.id || data.title || data.questionsLength > 0 || data.showControllersLength > 0
+      if (hasData) {
+        surveyStore.saveToLocalStorage()
+      }
+    }, 500)
+  },
+  {
+    // 首次运行时不触发
+    fireImmediately: false
   }
 )

@@ -121,7 +121,7 @@ const QsEdit: React.FC = () => {
       beforeSubmit={handleVerifyQuestionSheet}
       submitFn={handleSaveQuestionSheet}
       afterSubmit={handleAfterSubmit}
-      footerButtons={['break', 'breakToQsList', 'saveToQsList', 'saveToNext']}
+      footerButtons={['break', 'saveToNext']}
       nextUrl={`/qs/showController/${questionsheetid}`}
     >
       <div className="qs-question-edit-container">

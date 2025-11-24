@@ -1,13 +1,24 @@
 import React from 'react'
 import PropType from 'prop-types'
 import './baseLayout.scss'
-import { Button, Popconfirm } from 'antd'
+import { Button } from 'antd'
 import { useHistory } from 'react-router-dom'
-import { RollbackOutlined, SaveOutlined, VerticalRightOutlined } from '@ant-design/icons'
+import { RollbackOutlined, SaveOutlined } from '@ant-design/icons'
 import { voidFunc } from '@/types/base'
 import useSubmit from '../useSubmit'
 
-const BaseLayout: React.FC<BaseLayoutProps> = ({ children, header, footer, footerButtons, nextUrl, submitFn, beforeSubmit, afterSubmit }) => {
+const BaseLayout: React.FC<BaseLayoutProps> = ({
+  children,
+  header,
+  footer,
+  footerButtons,
+  nextUrl,
+  submitFn,
+  beforeSubmit,
+  afterSubmit,
+  saveDraftFn,
+  publishFn
+}) => {
   const history = useHistory()
 
   const [loading, handleSubmit] = useSubmit({
@@ -27,20 +38,24 @@ const BaseLayout: React.FC<BaseLayoutProps> = ({ children, header, footer, foote
     }
   })
 
-  const [haveBackLoading, handleBackSubmit] = useSubmit({
-    beforeSubmit,
+  const [draftLoading, handleSaveDraft] = useSubmit({
     submit: async () => {
-      if (submitFn) await submitFn(() => void 0)
+      if (saveDraftFn) await saveDraftFn(() => void 0)
     },
     options: {
       needGobalLoading: false,
-      gobalLoadingTips: '提交中...'
+      gobalLoadingTips: '保存中...'
+    }
+  })
+
+  const [publishLoading, handlePublish] = useSubmit({
+    beforeSubmit,
+    submit: async () => {
+      if (publishFn) await publishFn(() => void 0)
     },
-    afterSubmit: (status, error) => {
-      afterSubmit?.(status, error)
-      if (status === 'success') {
-        history.push('/qs/list')
-      }
+    options: {
+      needGobalLoading: false,
+      gobalLoadingTips: '发布中...'
     }
   })
 
@@ -58,45 +73,23 @@ const BaseLayout: React.FC<BaseLayoutProps> = ({ children, header, footer, foote
         ) : (
           <>
             {footerButtons?.includes('break') ? (
-              <Popconfirm
-                placement="topLeft"
-                title="返回上页后，本次修改的内容将全部丢失，是否确认返回！"
-                onConfirm={() => {
-                  history.goBack()
-                }}
-                okText="确定"
-                cancelText="取消"
-              >
-                <Button>
-                  <RollbackOutlined />
-                  上一步
-                </Button>
-              </Popconfirm>
+              <Button onClick={() => history.goBack()}>
+                <RollbackOutlined />
+                上一步
+              </Button>
             ) : null}
-            {footerButtons?.includes('breakToQsList') ? (
-              <Popconfirm
-                className="s-ml-md"
-                placement="topLeft"
-                title="返回列表页后，本次修改的内容将全部丢失，是否确认返回！"
-                onConfirm={() => {
-                  history.push('/qs/list')
-                }}
-                okText="确定"
-                cancelText="取消"
-              >
-                <Button>
-                  <VerticalRightOutlined />
-                  不保存并返回列表页
-                </Button>
-              </Popconfirm>
-            ) : null}
-
             <div style={{ flexGrow: 1 }}></div>
 
-            {footerButtons?.includes('saveToQsList') ? (
-              <Button type="primary" loading={haveBackLoading} onClick={handleBackSubmit}>
+            {footerButtons?.includes('saveDraft') ? (
+              <Button onClick={handleSaveDraft} loading={draftLoading}>
                 <SaveOutlined />
-                保存并返回列表页
+                存草稿
+              </Button>
+            ) : null}
+            {footerButtons?.includes('publish') ? (
+              <Button className="s-ml-md" type="primary" onClick={handlePublish} loading={publishLoading}>
+                <SaveOutlined />
+                发布
               </Button>
             ) : null}
             {footerButtons?.includes('saveToNext') ? (
@@ -119,7 +112,9 @@ interface BaseLayoutProps {
   beforeSubmit?: () => boolean
   submitFn?: (next: voidFunc) => void
   afterSubmit?: (status: 'success' | 'fail', error: any) => any
-  footerButtons?: Array<'break' | 'breakToQsList' | 'saveToQsList' | 'saveToNext'>
+  saveDraftFn?: (next: voidFunc) => void
+  publishFn?: (next: voidFunc) => void
+  footerButtons?: Array<'break' | 'saveToNext' | 'saveDraft' | 'publish'>
   nextUrl?: string
 }
 
@@ -130,6 +125,8 @@ BaseLayout.propTypes = {
   submitFn: PropType.any,
   beforeSubmit: PropType.any,
   afterSubmit: PropType.any,
+  saveDraftFn: PropType.any,
+  publishFn: PropType.any,
   footerButtons: PropType.any,
   nextUrl: PropType.any
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Card, Button, Space, message, Descriptions, Tag, Input } from 'antd'
+import { Card, Button, message, Tag, Input } from 'antd'
 import { useParams, useHistory } from 'react-router'
 import { observer } from 'mobx-react-lite'
 import { 
@@ -14,6 +14,7 @@ import {
 import './publish.scss'
 import { surveyStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
+import { MobilePreview } from '@/components/preview'
 
 const SurveyPublish: React.FC = observer(() => {
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
@@ -28,6 +29,32 @@ const SurveyPublish: React.FC = observer(() => {
   }, [questionsheetid])
 
   const initData = async () => {
+    // 先尝试从 localStorage 恢复
+    const restored = surveyStore.loadFromLocalStorage()
+    
+    if (restored && surveyStore.id === questionsheetid && surveyStore.questions.length > 0) {
+      console.log('publish 页面从 localStorage 恢复数据成功')
+      
+      // 生成链接和分享码
+      const baseUrl = window.location.origin
+      const url = `${baseUrl}/answer/${questionsheetid}`
+      setSurveyUrl(url)
+      setShareCode(questionsheetid)
+      
+      // 仍需从服务器获取发布状态
+      try {
+        const questionsheet = await surveyStore.fetchSurveyInfo(questionsheetid)
+        if (questionsheet) {
+          setIsPublished((questionsheet as any).published === true)
+        }
+      } catch (error) {
+        console.error('获取发布状态失败:', error)
+      }
+      return
+    }
+    
+    // 从服务器加载完整数据
+    console.log('publish 页面从服务器加载数据')
     message.loading({ content: '加载中', duration: 0, key: 'fetch' })
     
     try {
@@ -97,10 +124,6 @@ const SurveyPublish: React.FC = observer(() => {
     window.open(surveyUrl, '_blank')
   }
 
-  const handleBackToList = () => {
-    history.push('/survey/list')
-  }
-
   const handleEditQuestions = () => {
     history.push(`/survey/create/${questionsheetid}/0`)
   }
@@ -111,151 +134,179 @@ const SurveyPublish: React.FC = observer(() => {
 
   return (
     <BaseLayout
-      header='发布问卷'
       footerButtons={[]}
     >
       <div className='survey-publish-container'>
-        {/* 发布状态卡片 */}
-        <Card className='status-card'>
-          <div className='status-content'>
-            <div className='status-icon'>
-              {isPublished ? (
-                <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />
-              ) : (
-                <SettingOutlined style={{ fontSize: 48, color: '#1890ff' }} />
-              )}
-            </div>
-            <div className='status-info'>
-              <h2>{isPublished ? '问卷已发布' : '问卷未发布'}</h2>
-              <p>
-                {isPublished 
-                  ? '问卷已成功发布，用户可以通过链接或二维码访问填写' 
-                  : '完成所有配置后，点击发布按钮即可让用户填写问卷'}
-              </p>
-              <Space size='large' style={{ marginTop: 16 }}>
+        {/* 主内容区 - 左右两栏布局 */}
+        <div className='content-layout'>
+          {/* 左侧栏 */}
+          <div className='left-column'>
+            {/* 发布状态栏 */}
+            <Card bordered={false} className='status-card'>
+              <div className='status-header'>
+                <div className='status-badge'>
+                  {isPublished ? (
+                    <>
+                      <CheckCircleOutlined className='badge-icon published' />
+                      <span className='badge-text'>已发布</span>
+                    </>
+                  ) : (
+                    <>
+                      <SettingOutlined className='badge-icon draft' />
+                      <span className='badge-text'>未发布</span>
+                    </>
+                  )}
+                </div>
+                <div className='status-info'>
+                  <h1 className='status-title'>{surveyStore.title}</h1>
+                  <div className='status-meta'>
+                    <span className='meta-item'>
+                      <strong>{surveyStore.questions.length}</strong> 道题目
+                    </span>
+                    <span className='meta-divider'>•</span>
+                    <span className='meta-item'>
+                      <strong>{surveyStore.showControllers.length}</strong> 条显隐规则
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className='status-actions'>
                 {isPublished ? (
                   <>
-                    <Button type='primary' danger onClick={handleUnpublish}>
-                      取消发布
-                    </Button>
-                    <Button icon={<EyeOutlined />} onClick={handlePreview}>
+                    <Button icon={<EyeOutlined />} onClick={handlePreview} size='large' block>
                       预览问卷
+                    </Button>
+                    <Button onClick={() => history.push(`/as/list/${questionsheetid}`)} size='large' block>
+                      查看答卷
+                    </Button>
+                    <Button type='primary' danger onClick={handleUnpublish} size='large' block>
+                      取消发布
                     </Button>
                   </>
                 ) : (
                   <>
-                    <Button type='primary' size='large' onClick={handlePublish}>
+                    <Button onClick={handleEditQuestions} size='large' block>
+                      编辑题目
+                    </Button>
+                    <Button onClick={handleEditRouting} size='large' block>
+                      配置显隐规则
+                    </Button>
+                    <Button type='primary' size='large' onClick={handlePublish} block>
                       立即发布
-                    </Button>
-                    <Button onClick={handleEditQuestions}>
-                      编辑问题
-                    </Button>
-                    <Button onClick={handleEditRouting}>
-                      设置路由
                     </Button>
                   </>
                 )}
-              </Space>
+              </div>
+            </Card>
+
+            {/* 问卷信息 */}
+            <Card title='问卷信息' bordered={false} className='info-card'>
+              <div className='info-grid'>
+                <div className='info-item'>
+                  <span className='info-label'>问卷 ID</span>
+                  <span className='info-value'>{questionsheetid}</span>
+                </div>
+                <div className='info-item'>
+                  <span className='info-label'>题目数量</span>
+                  <span className='info-value highlight'>{surveyStore.questions.length} 题</span>
+                </div>
+                <div className='info-item'>
+                  <span className='info-label'>显隐规则</span>
+                  <span className='info-value highlight'>{surveyStore.showControllers.length} 条</span>
+                </div>
+                <div className='info-item'>
+                  <span className='info-label'>发布状态</span>
+                  <Tag color={isPublished ? 'success' : 'default'} className='status-tag'>
+                    {isPublished ? '已发布' : '未发布'}
+                  </Tag>
+                </div>
+                {surveyStore.desc && (
+                  <div className='info-item full-width'>
+                    <span className='info-label'>问卷描述</span>
+                    <p className='info-desc'>{surveyStore.desc}</p>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* 分享设置 */}
+            {isPublished && (
+              <Card title='分享设置' bordered={false} className='share-card'>
+                <div className='share-section'>
+                  {/* 问卷链接 */}
+                  <div className='share-item'>
+                    <div className='share-label'>
+                      <LinkOutlined /> 问卷链接
+                    </div>
+                    <Input.Group compact>
+                      <Input 
+                        className='share-input'
+                        value={surveyUrl} 
+                        readOnly 
+                      />
+                      <Button 
+                        icon={<CopyOutlined />} 
+                        onClick={handleCopyLink}
+                        size='large'
+                      >
+                        复制
+                      </Button>
+                    </Input.Group>
+                  </div>
+
+                  {/* 分享码 */}
+                  <div className='share-item'>
+                    <div className='share-label'>
+                      分享码
+                    </div>
+                    <Input.Group compact>
+                      <Input 
+                        className='share-input'
+                        value={shareCode} 
+                        readOnly 
+                      />
+                      <Button 
+                        icon={<CopyOutlined />} 
+                        onClick={handleCopyShareCode}
+                        size='large'
+                      >
+                        复制
+                      </Button>
+                    </Input.Group>
+                  </div>
+
+                  {/* 二维码 */}
+                  <div className='share-item'>
+                    <div className='share-label'>
+                      <QrcodeOutlined /> 问卷二维码
+                    </div>
+                    <div className='qrcode-wrapper'>
+                      <canvas 
+                        id="qrcode-canvas" 
+                        className='qrcode-canvas'
+                      />
+                    </div>
+                    <div className='qrcode-tip'>
+                      扫描二维码即可填写问卷（需要安装二维码库）
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+          </div>
+
+          {/* 右侧栏 - 问卷预览 */}
+          <div className='right-column'>
+            <div className='preview-sticky'>
+              <MobilePreview 
+                questionnaire={{
+                  title: surveyStore.title,
+                  desc: surveyStore.desc,
+                  questions: surveyStore.questions as any
+                }}
+              />
             </div>
           </div>
-        </Card>
-
-        {/* 问卷信息 */}
-        <Card title='问卷信息' style={{ marginTop: 16 }}>
-          <Descriptions column={2}>
-            <Descriptions.Item label='问卷标题'>{surveyStore.title}</Descriptions.Item>
-            <Descriptions.Item label='问卷ID'>{questionsheetid}</Descriptions.Item>
-            <Descriptions.Item label='问题数量'>{surveyStore.questions.length} 题</Descriptions.Item>
-            <Descriptions.Item label='状态'>
-              <Tag color={isPublished ? 'success' : 'default'}>
-                {isPublished ? '已发布' : '未发布'}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label='描述' span={2}>
-              {surveyStore.desc || '暂无描述'}
-            </Descriptions.Item>
-          </Descriptions>
-        </Card>
-
-        {/* 分享设置 */}
-        {isPublished && (
-          <Card title='分享设置' style={{ marginTop: 16 }}>
-            <Space direction='vertical' size='large' style={{ width: '100%' }}>
-              {/* 问卷链接 */}
-              <div>
-                <div style={{ marginBottom: 8, fontWeight: 500 }}>
-                  <LinkOutlined /> 问卷链接
-                </div>
-                <Input.Group compact>
-                  <Input 
-                    style={{ width: 'calc(100% - 100px)' }} 
-                    value={surveyUrl} 
-                    readOnly 
-                  />
-                  <Button 
-                    icon={<CopyOutlined />} 
-                    onClick={handleCopyLink}
-                  >
-                    复制
-                  </Button>
-                </Input.Group>
-              </div>
-
-              {/* 分享码 */}
-              <div>
-                <div style={{ marginBottom: 8, fontWeight: 500 }}>
-                  分享码
-                </div>
-                <Input.Group compact>
-                  <Input 
-                    style={{ width: 'calc(100% - 100px)' }} 
-                    value={shareCode} 
-                    readOnly 
-                  />
-                  <Button 
-                    icon={<CopyOutlined />} 
-                    onClick={handleCopyShareCode}
-                  >
-                    复制
-                  </Button>
-                </Input.Group>
-              </div>
-
-              {/* 二维码 */}
-              <div>
-                <div style={{ marginBottom: 8, fontWeight: 500 }}>
-                  <QrcodeOutlined /> 问卷二维码
-                </div>
-                <div style={{ padding: 16, background: '#fafafa', display: 'inline-block', borderRadius: 4 }}>
-                  <canvas 
-                    id="qrcode-canvas" 
-                    style={{ width: 200, height: 200 }}
-                  />
-                </div>
-                <div style={{ marginTop: 8, color: '#666', fontSize: 12 }}>
-                  扫描二维码即可填写问卷（需要安装二维码库）
-                </div>
-              </div>
-            </Space>
-          </Card>
-        )}
-
-        {/* 操作按钮 */}
-        <div style={{ marginTop: 24, textAlign: 'center' }}>
-          <Space size='large'>
-            <Button size='large' onClick={handleBackToList}>
-              返回列表
-            </Button>
-            {isPublished && (
-              <Button 
-                type='primary' 
-                size='large' 
-                onClick={() => history.push(`/as/list/${questionsheetid}`)}
-              >
-                查看答卷
-              </Button>
-            )}
-          </Space>
         </div>
       </div>
     </BaseLayout>

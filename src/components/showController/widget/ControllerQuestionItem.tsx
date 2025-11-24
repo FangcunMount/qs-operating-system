@@ -66,21 +66,8 @@ const ControllerQuestionItem: React.FC<ControllerQuestionItemProps> = (props) =>
 
   return (
     <>
-      <div className="s-mb-xs s-mt-xl">关联题目</div>
-      <div className="s-row" style={{ alignItems: 'center' }}>
-        <Select
-          defaultValue={value.code}
-          style={{ width: 300 }}
-          onChange={handleChangeQuestion}
-          showSearch
-          filterOption={(input, option) => (option?.children as unknown as string).toLowerCase().includes(input.toLowerCase())}
-        >
-          {questions.map((v) => (
-            <Option key={v.code} value={v.code}>
-              {v.title}
-            </Option>
-          ))}
-        </Select>
+      <div className="item-header">
+        <span className="header-label">关联题目 #{index + 1}</span>
         <Popconfirm
           placement="topLeft"
           title="确认要删除该关联题目吗？"
@@ -90,37 +77,59 @@ const ControllerQuestionItem: React.FC<ControllerQuestionItemProps> = (props) =>
           okText="确定"
           cancelText="取消"
         >
-          <DeleteOutlined className="s-my-sm" style={{ fontSize: '20px', flexGrow: 0 }}></DeleteOutlined>
+          <DeleteOutlined className="delete-btn" />
         </Popconfirm>
       </div>
-      <div style={{ fontWeight: 700 }}>该题目选择了</div>
-      <div>
-        <Checkbox.Group value={value.option_controller.select_option_codes} onChange={handleChangeOptions}>
-          <Space direction="vertical">
-            {currentQuestion?.options.map((v) => (
-              <Checkbox key={v.code} value={v.code}>
-                {v.content}
-              </Checkbox>
-            ))}
-          </Space>
-        </Checkbox.Group>
-      </div>
-      <div className="s-row">
-        {currentQuestion?.type === 'CheckBox' ? (
-          <Select style={{ width: 100 }} defaultValue={value.option_controller.rule} onChange={handleChangeRule}>
-            <Option key="or" value="or">
-              其中之一
+      
+      <div className="question-select">
+        <Select
+          value={value.code}
+          onChange={handleChangeQuestion}
+          showSearch
+          placeholder="请选择题目"
+          filterOption={(input, option) => (option?.children as unknown as string).toLowerCase().includes(input.toLowerCase())}
+        >
+          {questions.map((v) => (
+            <Option key={v.code} value={v.code}>
+              {v.title}
             </Option>
-            <Option key="and" value="and">
-              全部选中
-            </Option>
-          </Select>
-        ) : (
-          <div style={{ fontWeight: 700 }}>其中之一 &nbsp;</div>
-        )}
-
-        <div style={{ fontWeight: 700 }}>时，显示受控题目</div>
+          ))}
+        </Select>
       </div>
+      
+      {currentQuestion && (
+        <>
+          <div className="options-section">
+            <div className="section-title">选中的选项</div>
+            <Checkbox.Group value={value.option_controller.select_option_codes} onChange={handleChangeOptions}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                {currentQuestion?.options.map((v) => (
+                  <Checkbox key={v.code} value={v.code}>
+                    {v.content}
+                  </Checkbox>
+                ))}
+              </Space>
+            </Checkbox.Group>
+          </div>
+          
+          <div className="rule-section">
+            <span className="rule-text">当该题目选择了</span>
+            {currentQuestion?.type === 'CheckBox' ? (
+              <Select style={{ width: 110 }} value={value.option_controller.rule} onChange={handleChangeRule}>
+                <Option key="or" value="or">
+                  其中之一
+                </Option>
+                <Option key="and" value="and">
+                  全部选中
+                </Option>
+              </Select>
+            ) : (
+              <span className="rule-text bold">其中之一</span>
+            )}
+            <span className="rule-text">时，显示受控题目</span>
+          </div>
+        </>
+      )}
     </>
   )
 }

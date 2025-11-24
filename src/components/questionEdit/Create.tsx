@@ -1,6 +1,18 @@
 import React from 'react'
 import { Divider } from 'antd'
-import { createFromIconfontCN } from '@ant-design/icons'
+import { 
+  createFromIconfontCN,
+  CheckCircleOutlined,
+  CheckSquareOutlined,
+  CaretDownOutlined,
+  StarOutlined,
+  TableOutlined,
+  EnvironmentOutlined,
+  ApartmentOutlined,
+  PictureOutlined,
+  FileImageOutlined,
+  UploadOutlined
+} from '@ant-design/icons'
 import PropTypes from 'prop-types'
 
 import CreateRadio from './widget/radio/Create'
@@ -58,19 +70,19 @@ const QuestionCreate: React.FC<{
 
       <div className="s-px-md">
         <div style={{ marginLeft: '2%', marginTop: '16px', marginBottom: '8px', fontSize: '13px', fontWeight: 500, color: '#646a73' }}>结构化题型</div>
-        <CreateRadio class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
-        <CreateCheckbox class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
-        <CreateSelect class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
-        <CreateScore class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
+        <CreateRadio class="qs-edit-add-question" icon={<CheckCircleOutlined />} onClick={handleAddQuestion} />
+        <CreateCheckbox class="qs-edit-add-question" icon={<CheckSquareOutlined />} onClick={handleAddQuestion} />
+        <CreateSelect class="qs-edit-add-question" icon={<CaretDownOutlined />} onClick={handleAddQuestion} />
+        <CreateScore class="qs-edit-add-question" icon={<StarOutlined />} onClick={handleAddQuestion} />
 
-        <CreateMatrixRadio class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
-        <CreateMatrixCheckBox class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
-        <CreateAddressSelect class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
-        <CreateCascaderSelect class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
-        <CreateImageRadio class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
-        <CreateImageCheckBox class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
-        <CreateImageMatrixCheckBox class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
-        <CreateImageMatrixRadio class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
+        <CreateMatrixRadio class="qs-edit-add-question" icon={<TableOutlined />} onClick={handleAddQuestion} />
+        <CreateMatrixCheckBox class="qs-edit-add-question" icon={<TableOutlined />} onClick={handleAddQuestion} />
+        <CreateAddressSelect class="qs-edit-add-question" icon={<EnvironmentOutlined />} onClick={handleAddQuestion} />
+        <CreateCascaderSelect class="qs-edit-add-question" icon={<ApartmentOutlined />} onClick={handleAddQuestion} />
+        <CreateImageRadio class="qs-edit-add-question" icon={<PictureOutlined />} onClick={handleAddQuestion} />
+        <CreateImageCheckBox class="qs-edit-add-question" icon={<PictureOutlined />} onClick={handleAddQuestion} />
+        <CreateImageMatrixCheckBox class="qs-edit-add-question" icon={<FileImageOutlined />} onClick={handleAddQuestion} />
+        <CreateImageMatrixRadio class="qs-edit-add-question" icon={<FileImageOutlined />} onClick={handleAddQuestion} />
 
         <div style={{ marginLeft: '2%', marginTop: '24px', marginBottom: '8px', fontSize: '13px', fontWeight: 500, color: '#646a73' }}>非结构化题型</div>
         <CreateSection class="qs-edit-add-question" icon={<IconFont type="icon-duanla" />} onClick={handleAddQuestion} />
@@ -78,7 +90,7 @@ const QuestionCreate: React.FC<{
         <CreateTextarea class="qs-edit-add-question" icon={<IconFont type="icon-duanlashuoming" />} onClick={handleAddQuestion} />
         <CreateNumber class="qs-edit-add-question" icon={<IconFont type="icon-shuzi" />} onClick={handleAddQuestion} />
         <CreateDate class="qs-edit-add-question" icon={<IconFont type="icon-24gl-calendar" />} onClick={handleAddQuestion} />
-        <CreateUpload class="qs-edit-add-question" icon={<IconFont type="icon-radio" />} onClick={handleAddQuestion} />
+        <CreateUpload class="qs-edit-add-question" icon={<UploadOutlined />} onClick={handleAddQuestion} />
       </div>
     </div>
   )

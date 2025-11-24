@@ -6,26 +6,35 @@
   
   .s-px-sm {
     flex-shrink: 0;
-    padding: 20px 16px 16px;
+    padding: 24px 20px 20px;
+    background: linear-gradient(135deg, #fafafa 0%, #ffffff 100%);
+    border-bottom: 2px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
   
   .s-text-h6 {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
-    color: #1f2329;
+    color: #262626;
+    letter-spacing: 0.5px;
   }
   
   .ant-divider {
-    flex-shrink: 0;
+    display: none;
   }
   
   .anticon {
-    color: #5f6368;
-    transition: color 0.2s ease;
+    color: #8c8c8c;
+    transition: all 0.3s ease;
     cursor: pointer;
+    font-size: 18px;
+    padding: 4px;
     
     &:hover {
-      color: #1677ff;
+      color: #1890ff;
+      transform: scale(1.1);
     }
   }
   
@@ -34,6 +43,7 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+    padding: 24px 20px;
     
     // 美化滚动条
     &::-webkit-scrollbar {
@@ -42,14 +52,78 @@
     
     &::-webkit-scrollbar-track {
       background: #f5f5f5;
+      border-radius: 3px;
     }
     
     &::-webkit-scrollbar-thumb {
-      background: #c1c1c1;
+      background: #d9d9d9;
       border-radius: 3px;
       
       &:hover {
-        background: #a8a8a8;
+        background: #bfbfbf;
+      }
+    }
+    
+    // 优化表单项间距
+    .ant-form-item {
+      margin-bottom: 20px;
+      
+      .ant-form-item-label {
+        padding-bottom: 8px;
+        
+        label {
+          font-size: 14px;
+          font-weight: 500;
+          color: #262626;
+          
+          &::after {
+            content: none;
+          }
+        }
+      }
+      
+      .ant-input,
+      .ant-input-number,
+      .ant-select-selector {
+        border-radius: 8px;
+        border-color: #d9d9d9;
+        
+        &:hover {
+          border-color: #40a9ff;
+        }
+        
+        &:focus,
+        &.ant-input-focused,
+        &.ant-select-focused {
+          border-color: #40a9ff;
+          box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+        }
+      }
+      
+      .ant-input-number {
+        width: 100%;
+      }
+    }
+    
+    .ant-switch {
+      &.ant-switch-checked {
+        background: #1890ff;
+      }
+    }
+    
+    .ant-radio-group,
+    .ant-checkbox-group {
+      width: 100%;
+      
+      .ant-radio-wrapper,
+      .ant-checkbox-wrapper {
+        padding: 8px 12px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        
+        &:hover {
+          background: #f0f7ff;
+        }
       }
     }
   }

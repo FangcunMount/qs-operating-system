@@ -8,7 +8,6 @@ import { observer } from 'mobx-react-lite'
 import './create.scss'
 import '@/components/questionEdit/index.scss'
 import '@/components/editorSteps/index.scss'
-import { getShowControllerList } from '@/api/path/showController'
 import { surveyStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
 import QuestionSetting from '@/components/questionEdit/Setting'
@@ -64,7 +63,9 @@ const SurveyCreate: React.FC = observer(() => {
   const { questionsheetid, answercnt } = useParams<{ questionsheetid: string; answercnt: string }>()
 
   useEffect(() => {
-    surveyStore.initSurvey()
+    // 只在 store 中没有数据或 ID 不匹配时才重新初始化
+    const needInit = !surveyStore.id || surveyStore.id !== questionsheetid
+    
     if (Number(answercnt) > 0) {
       notification['warning']({
         message: '警告：该问卷已有用户填写！',
@@ -73,15 +74,11 @@ const SurveyCreate: React.FC = observer(() => {
         duration: null
       })
     }
+    
     (async () => {
       try {
-        await surveyStore.initEditor(questionsheetid)
-        // 初始化显隐规则（只在首次载入时获取）
-        if (questionsheetid && questionsheetid !== 'new') {
-          const [e, r] = await getShowControllerList(questionsheetid)
-          if (!e && r) {
-            surveyStore.setShowControllers(r.data.list)
-          }
+        if (needInit) {
+          await surveyStore.initEditor(questionsheetid)
         }
       } catch (error) {
         console.error('加载问卷失败:', error)
@@ -133,7 +130,7 @@ const SurveyCreate: React.FC = observer(() => {
       beforeSubmit={handleVerifyQuestionSheet}
       submitFn={handleSaveQuestionSheet}
       afterSubmit={handleAfterSubmit}
-      footerButtons={['saveToNext']}
+      footerButtons={['break', 'saveToNext']}
       nextUrl={`/survey/routing/${questionsheetid}`}
     >
       <div className='qs-question-edit-container'>

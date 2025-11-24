@@ -1,17 +1,18 @@
 .show-container {
   padding: 20px 24px;
   margin: 12px 16px;
-  border-radius: 8px;
-  border: 2px solid transparent;
+  border-radius: 10px;
   background-color: #fff;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  position: relative;
+  box-shadow: 0 0 0 1px transparent;
 
   &:hover {
     background-color: #f9fafb;
-    border-color: #e8eaed;
+    box-shadow: 0 0 0 1px #e8eaed, 0 4px 12px rgba(0, 0, 0, 0.08);
     cursor: grab;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
+    z-index: 10;
   }
 
   &:active {
@@ -21,11 +22,12 @@
 
 .show-container-selected {
   background-color: #f0f7ff;
-  border-color: #1677ff;
-  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.15);
+  box-shadow: 0 0 0 1px #1890ff, 0 4px 16px rgba(24, 144, 255, 0.2);
+  z-index: 100;
 
   &:hover {
     background-color: #e6f4ff;
-    border-color: #1677ff;
+    box-shadow: 0 0 0 1px #1890ff, 0 6px 20px rgba(24, 144, 255, 0.25);
+    z-index: 100;
   }
 }

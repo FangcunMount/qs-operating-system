@@ -111,7 +111,7 @@ const QsFactor: React.FC = () => {
       beforeSubmit={handleVerifyFactor}
       submitFn={handleSaveFactor}
       afterSubmit={handleAfterSubmit}
-      footerButtons={['break', 'breakToQsList', 'saveToNext']}
+      footerButtons={['break', 'saveToNext']}
       nextUrl={`/qs/analysis/${questionsheetid}`}
     >
       <div className="qs-factor--container">

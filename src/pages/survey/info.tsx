@@ -17,25 +17,66 @@ const SurveyInfo: React.FC = observer(() => {
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const [form] = Form.useForm()
 
+  // useEffect() 用于初始化问卷信息，区分编辑模式和创建模式
   useEffect(() => {
-    if (questionsheetid && questionsheetid !== 'new') {
-      // 加载现有问卷信息
-      (async () => {
-        const [e, r] = await api.getQuestionSheet(questionsheetid)
-        if (e) return
-        surveyStore.setSurvey(r?.data.questionsheet)
-        form.setFieldsValue({
-          title: surveyStore.title,
-          desc: surveyStore.desc,
-          img_url: surveyStore.img_url
-        })
-      })()
+    const isEditMode = questionsheetid && questionsheetid !== 'new'
+    
+    if (isEditMode) {
+      initEditMode(questionsheetid)
     } else {
-      // 新建问卷
-      surveyStore.initSurvey()
+      initCreateMode()
     }
+
   }, [questionsheetid])
 
+  // 从 store 同步数据到表单
+  const syncFormFromStore = () => {
+    form.setFieldsValue({
+      title: surveyStore.title,
+      desc: surveyStore.desc,
+      img_url: surveyStore.img_url
+    })
+  }
+
+  // 加载已有问卷信息
+  const loadExistingSurvey = async (id: string) => {
+    const [e, r] = await api.getQuestionSheet(id)
+    if (e) return
+    surveyStore.setSurvey(r?.data.questionsheet)
+    syncFormFromStore()
+  }
+
+  // 初始化编辑模式
+  const initEditMode = (id: string) => {
+    // 如果 store 中已有该问卷的数据，直接使用
+    if (surveyStore.id === id && surveyStore.title) {
+      syncFormFromStore()
+    } else {
+      // 从服务器加载问卷信息
+      loadExistingSurvey(id)
+    }
+  }
+
+  // 初始化新建模式
+  const initCreateMode = () => {
+    // 尝试从 localStorage 恢复数据
+    const restored = surveyStore.loadFromLocalStorage()
+    
+    if (restored && surveyStore.title) {
+      // 成功恢复数据
+      message.success('已恢复上次编辑的内容')
+      syncFormFromStore()
+    } else if (!surveyStore.title) {
+      // 首次创建，初始化空白问卷
+      surveyStore.initSurvey()
+    } else {
+      // 从下一步返回，复用 store 中的数据
+      syncFormFromStore()
+    }
+  }
+
+  
+  // 保存问卷基本信息
   const handleSave = async () => {
     const values = await form.validateFields()
     
@@ -48,6 +89,7 @@ const SurveyInfo: React.FC = observer(() => {
     await surveyStore.saveBasicInfo()
   }
 
+  // 保存后跳转到编辑问题页面
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
     if (status === 'success') {
       message.success('问卷信息保存成功')
@@ -67,7 +109,7 @@ const SurveyInfo: React.FC = observer(() => {
     <BaseLayout
       submitFn={handleSave}
       afterSubmit={handleAfterSubmit}
-      footerButtons={['break', 'breakToQsList', 'saveToNext']}
+      footerButtons={['break', 'saveToNext']}
     >
       <div className='survey-info-container'>
         <Card title='问卷基本信息' bordered={false}>
