@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { message } from 'antd'
 import { useParams } from 'react-router'
 
-import '../survey/routing.scss'
+import '../survey/QuestionRouting.scss'
 import { getShowControllerList } from '@/api/path/showController'
 
 import ModifyShowController from '@/components/showController/ModifyShowController'
