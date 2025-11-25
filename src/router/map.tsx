@@ -15,16 +15,18 @@ const createIcon = (Icon: React.ComponentType) => React.createElement(Icon)
 // 页面组件懒加载
 const Home = lazy(() => import('../pages/home'))
 const SurveyList = lazy(() => import('../pages/survey/List'))
-const ScaleList = lazy(() => import('../pages/scale/list'))
+const ScaleList = lazy(() => import('../pages/scale/List'))
 const QsEdit = lazy(() => import('../components/questionEdit'))
 const SurveyBasicInfo = lazy(() => import('../pages/survey/BasicInfo'))
 const SurveyQuestionEdit = lazy(() => import('../pages/survey/QuestionEdit'))
 const SurveyQuestionRouting = lazy(() => import('../pages/survey/QuestionRouting'))
 const SurveyPublish = lazy(() => import('../pages/survey/Publish'))
-const ScaleCreate = lazy(() => import('../pages/scale/create'))
-const ScaleRouting = lazy(() => import('../pages/scale/routing'))
-const QsFactor = lazy(() => import('../components/factor'))
-const QsAnalysis = lazy(() => import('../components/analysis'))
+const ScaleBasicInfo = lazy(() => import('../pages/scale/BasicInfo'))
+const ScaleQuestionEdit = lazy(() => import('../pages/scale/QuestionEdit'))
+const ScaleQuestionRouting = lazy(() => import('../pages/scale/QuestionRouting'))
+const ScaleFactor = lazy(() => import('../pages/scale/Factor/Factor'))
+const ScaleAnalysis = lazy(() => import('../pages/scale/Analysis/Analysis'))
+const ScalePublish = lazy(() => import('../pages/scale/Publish'))
 const AsList = lazy(() => import('../pages/as/list'))
 const AsDetail = lazy(() => import('../pages/as/detail'))
 const Login = lazy(() => import('../pages/user/login'))
@@ -149,10 +151,17 @@ export const routes: Array<IRoute> = [
     hideInMenu: true
   },
   {
+    title: '量表基本信息',
+    name: 'scale-info',
+    path: '/scale/info/:questionsheetid',
+    component: ScaleBasicInfo,
+    hideInMenu: true
+  },
+  {
     title: '创建量表',
     name: 'scale-create',
     path: '/scale/create/:questionsheetid/:answercnt',
-    component: ScaleCreate,
+    component: ScaleQuestionEdit,
     hideInMenu: true
   },
   {
@@ -170,24 +179,31 @@ export const routes: Array<IRoute> = [
     hideInMenu: true
   },
   {
-    title: '设置题目显隐',
+    title: '量表路由设置',
     name: 'scale-router',
     path: '/scale/routing/:questionsheetid',
-    component: ScaleRouting,
+    component: ScaleQuestionRouting,
     hideInMenu: true
   },
   {
     title: '设置因子',
     name: 'scale-factor',
-    path: '/qs/factor/:questionsheetid',
-    component: QsFactor,
+    path: '/scale/factor/:questionsheetid',
+    component: ScaleFactor,
     hideInMenu: true
   },
   {
     title: '设置解读',
     name: 'scale-analysis',
-    path: '/qs/analysis/:questionsheetid',
-    component: QsAnalysis,
+    path: '/scale/analysis/:questionsheetid',
+    component: ScaleAnalysis,
+    hideInMenu: true
+  },
+  {
+    title: '发布量表',
+    name: 'scale-publish',
+    path: '/scale/publish/:questionsheetid',
+    component: ScalePublish,
     hideInMenu: true
   },
   

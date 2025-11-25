@@ -5,12 +5,9 @@ import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { observer } from 'mobx-react-lite'
 
-import './create.scss'
+import './QuestionEdit.scss'
 import '@/components/questionEdit/index.scss'
 import '@/components/editorSteps/index.scss'
-import EditorSteps from '@/components/editorSteps'
-import { getShowControllerList } from '@/api/path/showController'
-import { api } from '@/api'
 import { scaleStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
 import QuestionSetting from '@/components/questionEdit/Setting'
@@ -53,12 +50,14 @@ const checkMap = {
   Upload: checkUpload
 }
 
-const ScaleCreate: React.FC = observer(() => {
+const QuestionEdit: React.FC = observer(() => {
   const showContainerRef = useRef<HTMLInputElement>(null)
   const { questionsheetid, answercnt } = useParams<{ questionsheetid: string; answercnt: string }>()
 
   useEffect(() => {
-    scaleStore.initScale()  
+    // 只在 store 中没有数据或 ID 不匹配时才重新初始化
+    const needInit = !scaleStore.id || scaleStore.id !== questionsheetid
+    
     if (Number(answercnt) > 0) {
       notification['warning']({
         message: '警告：该量表已有用户测评！',
@@ -67,23 +66,14 @@ const ScaleCreate: React.FC = observer(() => {
         duration: null
       })
     }
+    
     (async () => {
-      const [qe, qr] = await api.getQuestionSheet(questionsheetid)
-      if (qe) return
-      scaleStore.setScale(qr?.data.questionsheet)
-      const [e, r] = await api.getQuestionList(questionsheetid)
-      if (e) return
-      scaleStore.setScaleQuestions(r?.data.list ?? [])
-      if (questionsheetid && questionsheetid !== 'new') {
-        const [ce, cr] = await getShowControllerList(questionsheetid)
-        if (!ce && cr) {
-          scaleStore.setShowControllers(cr.data.list)
+      try {
+        if (needInit) {
+          await scaleStore.initEditor(questionsheetid)
         }
-      }
-      
-      // 根据量表状态设置步骤
-      if (scaleStore.questions.length > 0) {
-        scaleStore.setCurrentStep('edit-questions')
+      } catch (error) {
+        console.error('加载量表失败:', error)
       }
     })()
   }, [questionsheetid])
@@ -93,14 +83,13 @@ const ScaleCreate: React.FC = observer(() => {
   }
 
   const handleSaveQuestionSheet = async () => {
-    const [e] = await api.modifyQuestionSHeetQuestion(scaleStore.id as string, scaleStore.questions)
-    if (e) throw e
+    // 仅本地暂存，不触发后端接口
+    scaleStore.setCurrentStep('set-routing')
   }
 
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
     if (status === 'success') {
-      message.success('问题更新成功')
-      // 保存成功后进入下一步
+      message.success('已保存到本地，稍后统一提交')
       scaleStore.nextStep()
     }
     if (status === 'fail') {
@@ -134,33 +123,13 @@ const ScaleCreate: React.FC = observer(() => {
     }
   }
 
-  const getCurrentStepIndex = () => {
-    const steps = ['create', 'edit-questions', 'set-routing', 'edit-factors', 'set-interpretation', 'publish']
-    return steps.indexOf(scaleStore.currentStep)
-  }
-
   return (
     <BaseLayout
-      header={
-        <div className='qs-editor-header'>
-          <div className='qs-editor-header__title'>创建量表</div>
-          <EditorSteps 
-            current={getCurrentStepIndex()} 
-            steps={[
-              { title: '创建量表' },
-              { title: '编辑问题' },
-              { title: '设置路由' },
-              { title: '编辑因子' },
-              { title: '设置解读' },
-              { title: '发布' }
-            ]} 
-          />
-        </div>
-      }
       beforeSubmit={handleVerifyQuestionSheet}
       submitFn={handleSaveQuestionSheet}
       afterSubmit={handleAfterSubmit}
-      footerButtons={[]}
+      footerButtons={['break', 'saveToNext']}
+      nextUrl={`/scale/routing/${questionsheetid}`}
     >
       <div className='qs-question-edit-container'>
         <DndProvider backend={HTML5Backend}>
@@ -173,4 +142,4 @@ const ScaleCreate: React.FC = observer(() => {
   )
 })
 
-export default ScaleCreate
+export default QuestionEdit

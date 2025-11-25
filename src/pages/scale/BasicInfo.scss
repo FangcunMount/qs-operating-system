@@ -1,0 +1,62 @@
+.scale-info-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 32px 0;
+
+  .ant-card {
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e8e8e8;
+    overflow: hidden;
+    transition: all 0.3s ease;
+
+    &:hover {
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .ant-card-head {
+      background: linear-gradient(135deg, #fafafa 0%, #ffffff 100%);
+      border-bottom: 1px solid #f0f0f0;
+      padding: 20px 24px;
+
+      .ant-card-head-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #262626;
+      }
+    }
+
+    .ant-card-body {
+      padding: 24px;
+    }
+  }
+
+  .ant-form-item-label {
+    font-weight: 500;
+
+    label {
+      font-size: 14px;
+      color: #262626;
+    }
+  }
+
+  .ant-btn {
+    border-radius: 8px;
+    height: 40px;
+    padding: 0 24px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+
+    &.ant-btn-primary {
+      background: linear-gradient(135deg, #1890ff 0%, #0066cc 100%);
+      border: none;
+      box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
+
+      &:hover {
+        background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
+        box-shadow: 0 4px 12px rgba(24, 144, 255, 0.4);
+        transform: translateY(-2px);
+      }
+    }
+  }
+}

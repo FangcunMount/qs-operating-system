@@ -11,14 +11,14 @@ import {
   UserOutlined,
   ClockCircleOutlined
 } from '@ant-design/icons'
-import EditQuestionSheetDialog from './widget/editQuestionSheetDialog'
+import EditQuestionSheetDialog from './EditDialog'
 import { getScaleList } from '@/api/path/template'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
 
 const { Column } = Table
 const { Search } = Input
 
-const ScaleList: React.FC = observer(() => {
+const List: React.FC = observer(() => {
   const [editDialogFlag, setEditDialogFlag] = useState(false)
   const [currentQuestionSheet, setCurrentQuestionSheet] = useState(null)
   const [keyWord, setKeyWord] = useState('')
@@ -97,17 +97,15 @@ const ScaleList: React.FC = observer(() => {
               onSearch={onSearch}
             />
           </div>
-          <Button
-            type="primary"
-            size="large"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setEditDialogFlag(true)
-              setCurrentQuestionSheet(null)
-            }}
-          >
-            新建量表
-          </Button>
+          <Link to="/scale/info/new">
+            <Button
+              type="primary"
+              size="large"
+              icon={<PlusOutlined />}
+            >
+              新建量表
+            </Button>
+          </Link>
         </div>
       </Card>
 
@@ -264,4 +262,4 @@ const ScaleList: React.FC = observer(() => {
   )
 })
 
-export default ScaleList
+export default List
