@@ -5,12 +5,15 @@ import { observer } from 'mobx-react-lite'
 
 import './QuestionRouting.scss'
 import '@/components/editorSteps/index.scss'
+import '@/styles/theme-survey.scss'
 import { getShowControllerList } from '@/api/path/showController'
 import ShowControllerEditor from '@/components/showController/ShowControllerEditor'
 
 import { surveyStore } from '@/store'
 import { IQuestion, IQuestionShowController } from '@/models/question'
 import BaseLayout from '@/components/layout/BaseLayout'
+import { SURVEY_STEPS, getSurveyStepIndex } from '@/utils/steps'
+import { useHistory } from 'react-router-dom'
 
 // 空状态组件
 const EmptyState: React.FC = () => (
@@ -20,8 +23,30 @@ const EmptyState: React.FC = () => (
 )
 
 const QuestionRouting: React.FC = observer(() => {
+  const history = useHistory()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const [editingQuestionCode, setEditingQuestionCode] = useState<string | null>(null)
+
+  // 步骤跳转处理
+  const handleStepChange = (stepIndex: number) => {
+    const step = SURVEY_STEPS[stepIndex]
+    if (!step || !surveyStore.id) return
+
+    switch (step.key) {
+    case 'create':
+      history.push(`/survey/info/${surveyStore.id}`)
+      break
+    case 'edit-questions':
+      history.push(`/survey/create/${surveyStore.id}/0`)
+      break
+    case 'set-routing':
+      history.push(`/survey/routing/${surveyStore.id}`)
+      break
+    case 'publish':
+      history.push(`/survey/publish/${surveyStore.id}`)
+      break
+    }
+  }
 
   // 从服务器加载问卷和显隐规则
   const loadDataFromServer = async () => {
@@ -61,6 +86,9 @@ const QuestionRouting: React.FC = observer(() => {
 
   // 初始化数据
   useEffect(() => {
+    // 设置当前步骤
+    surveyStore.setCurrentStep('set-routing')
+
     const initPageData = async () => {
       // 先尝试从 localStorage 恢复
       const restored = surveyStore.loadFromLocalStorage()
@@ -115,8 +143,12 @@ const QuestionRouting: React.FC = observer(() => {
         afterSubmit={handleAfterSubmit}
         footerButtons={['break', 'saveToNext']}
         nextUrl={`/survey/publish/${questionsheetid}`}
+        steps={SURVEY_STEPS}
+        currentStep={getSurveyStepIndex(surveyStore.currentStep)}
+        onStepChange={handleStepChange}
+        themeClass="survey-page-theme"
       >
-        <div className='qs-router-container'>
+        <div className='qs-router-container survey-page-theme'>
           {surveyStore.questions.length === 0 ? (
             <EmptyState />
           ) : (

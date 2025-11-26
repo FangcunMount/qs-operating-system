@@ -5,12 +5,15 @@ import { observer } from 'mobx-react-lite'
 
 import './QuestionRouting.scss'
 import '@/components/editorSteps/index.scss'
+import '@/styles/theme-scale.scss'
 import { getShowControllerList } from '@/api/path/showController'
 import ShowControllerEditor from '@/components/showController/ShowControllerEditor'
 
 import { scaleStore } from '@/store'
 import { IQuestion, IQuestionShowController } from '@/models/question'
 import BaseLayout from '@/components/layout/BaseLayout'
+import { SCALE_STEPS, getScaleStepIndex } from '@/utils/steps'
+import { useHistory } from 'react-router-dom'
 
 // 空状态组件
 const EmptyState: React.FC = () => (
@@ -20,8 +23,36 @@ const EmptyState: React.FC = () => (
 )
 
 const QuestionRouting: React.FC = observer(() => {
+  const history = useHistory()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const [editingQuestionCode, setEditingQuestionCode] = useState<string | null>(null)
+
+  // 步骤跳转处理
+  const handleStepChange = (stepIndex: number) => {
+    const step = SCALE_STEPS[stepIndex]
+    if (!step || !scaleStore.id) return
+
+    switch (step.key) {
+    case 'create':
+      history.push(`/scale/info/${scaleStore.id}`)
+      break
+    case 'edit-questions':
+      history.push(`/scale/create/${scaleStore.id}/0`)
+      break
+    case 'set-routing':
+      history.push(`/scale/routing/${scaleStore.id}`)
+      break
+    case 'edit-factors':
+      history.push(`/scale/factor/${scaleStore.id}`)
+      break
+    case 'set-interpretation':
+      history.push(`/scale/analysis/${scaleStore.id}`)
+      break
+    case 'publish':
+      history.push(`/scale/publish/${scaleStore.id}`)
+      break
+    }
+  }
 
   // 从服务器加载量表和显隐规则
   const loadDataFromServer = async () => {
@@ -61,6 +92,9 @@ const QuestionRouting: React.FC = observer(() => {
 
   // 初始化数据
   useEffect(() => {
+    // 设置当前步骤
+    scaleStore.setCurrentStep('set-routing')
+
     const initPageData = async () => {
       // 先尝试从 localStorage 恢复
       const restored = scaleStore.loadFromLocalStorage()
@@ -115,8 +149,12 @@ const QuestionRouting: React.FC = observer(() => {
         afterSubmit={handleAfterSubmit}
         footerButtons={['break', 'saveToNext']}
         nextUrl={`/scale/factor/${questionsheetid}`}
+        steps={SCALE_STEPS}
+        currentStep={getScaleStepIndex(scaleStore.currentStep)}
+        onStepChange={handleStepChange}
+        themeClass="scale-page-theme"
       >
-        <div className='qs-router-container'>
+        <div className='qs-router-container scale-page-theme'>
           {scaleStore.questions.length === 0 ? (
             <EmptyState />
           ) : (

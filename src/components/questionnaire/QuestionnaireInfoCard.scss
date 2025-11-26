@@ -1,0 +1,179 @@
+@import './theme-variables.scss';
+
+.info-card {
+  margin-bottom: 24px;
+  border: 1px solid #e8eaed;
+  transition: all 0.3s ease;
+
+  :global {
+    .ant-card-head {
+      background: linear-gradient(to bottom, #ffffff 0%, #fafbfc 100%);
+      border-bottom: 1px solid #e8eaed;
+      padding: 20px 28px;
+
+      .ant-card-head-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #262626;
+        letter-spacing: 0.2px;
+      }
+    }
+
+    .ant-card-body {
+      padding: 28px;
+    }
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 16px;
+      background: #fafbfc;
+      border-radius: 8px;
+      border: 1px solid #f0f0f0;
+      transition: all 0.25s ease;
+
+      &:hover {
+        background: #f5f7fa;
+        border-color: #e0e0e0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      }
+
+      &.full-width {
+        grid-column: 1 / -1;
+      }
+
+      .info-label {
+        font-size: 11px;
+        color: #8c8c8c;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+      }
+
+      .info-value {
+        font-size: 16px;
+        color: #262626;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+
+        &.highlight {
+          font-size: 20px;
+          font-weight: 700;
+        }
+      }
+
+      .info-desc {
+        margin: 0;
+        font-size: 14px;
+        color: #595959;
+        line-height: 1.7;
+        padding: 8px 0;
+      }
+
+      .status-tag {
+        align-self: flex-start;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 5px 14px;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+      }
+    }
+  }
+}
+
+.scale-info-card {
+  .factor-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+
+    .factor-tag {
+      font-size: 13px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      margin: 0;
+      transition: all 0.25s ease;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(24, 144, 255, 0.2);
+      }
+    }
+  }
+}
+
+// ==================== 主题样式 ====================
+
+// 调查问卷主题（蓝色系）
+.info-card.survey-theme {
+  border-color: #d6e4ff;
+
+  :global {
+    .ant-card-head {
+      background: linear-gradient(to bottom, #fafafa 0%, #f0f5ff 100%);
+      border-bottom: 1px solid #d6e4ff;
+    }
+  }
+
+  .info-item {
+    background: #f0f5ff;
+    border-color: #d6e4ff;
+    border-radius: 8px;
+
+    &:hover {
+      background: #e6f7ff;
+      border-color: #91d5ff;
+    }
+
+    .info-value.highlight {
+      color: #1890ff;
+    }
+  }
+}
+
+// 医学量表主题（青绿色系）
+.info-card.scale-theme {
+  border-color: #b5f5ec;
+  border-radius: 12px;
+
+  :global {
+    .ant-card-head {
+      background: linear-gradient(to bottom, #fafafa 0%, #f0faf9 100%);
+      border-bottom: 1px solid #b5f5ec;
+    }
+  }
+
+  .info-item {
+    background: #e6fffb;
+    border-color: #b5f5ec;
+    border-radius: 12px;
+
+    &:hover {
+      background: #d6f5f5;
+      border-color: #87e8de;
+    }
+
+    .info-value.highlight {
+      color: #13c2c2;
+    }
+  }
+
+  .factor-tag {
+    background: #e6fffb;
+    color: #13c2c2;
+    border-color: #87e8de;
+
+    &:hover {
+      box-shadow: 0 4px 8px rgba(19, 194, 194, 0.2);
+    }
+  }
+}

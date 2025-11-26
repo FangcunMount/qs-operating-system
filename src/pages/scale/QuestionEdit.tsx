@@ -8,8 +8,11 @@ import { observer } from 'mobx-react-lite'
 import './QuestionEdit.scss'
 import '@/components/questionEdit/index.scss'
 import '@/components/editorSteps/index.scss'
+import '@/styles/theme-scale.scss'
 import { scaleStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
+import { SCALE_STEPS, getScaleStepIndex } from '@/utils/steps'
+import { useHistory } from 'react-router-dom'
 import QuestionSetting from '@/components/questionEdit/Setting'
 import QuestionShow from '@/components/questionEdit/Show'
 import QuestionCreate from '@/components/questionEdit/Create'
@@ -51,10 +54,41 @@ const checkMap = {
 }
 
 const QuestionEdit: React.FC = observer(() => {
+  const history = useHistory()
   const showContainerRef = useRef<HTMLInputElement>(null)
   const { questionsheetid, answercnt } = useParams<{ questionsheetid: string; answercnt: string }>()
 
+  // 步骤跳转处理
+  const handleStepChange = (stepIndex: number) => {
+    const step = SCALE_STEPS[stepIndex]
+    if (!step || !scaleStore.id) return
+
+    switch (step.key) {
+    case 'create':
+      history.push(`/scale/info/${scaleStore.id}`)
+      break
+    case 'edit-questions':
+      history.push(`/scale/create/${scaleStore.id}/0`)
+      break
+    case 'set-routing':
+      history.push(`/scale/routing/${scaleStore.id}`)
+      break
+    case 'edit-factors':
+      history.push(`/scale/factor/${scaleStore.id}`)
+      break
+    case 'set-interpretation':
+      history.push(`/scale/analysis/${scaleStore.id}`)
+      break
+    case 'publish':
+      history.push(`/scale/publish/${scaleStore.id}`)
+      break
+    }
+  }
+
   useEffect(() => {
+    // 设置当前步骤
+    scaleStore.setCurrentStep('edit-questions')
+
     // 只在 store 中没有数据或 ID 不匹配时才重新初始化
     const needInit = !scaleStore.id || scaleStore.id !== questionsheetid
     
@@ -130,8 +164,12 @@ const QuestionEdit: React.FC = observer(() => {
       afterSubmit={handleAfterSubmit}
       footerButtons={['break', 'saveToNext']}
       nextUrl={`/scale/routing/${questionsheetid}`}
+      steps={SCALE_STEPS}
+      currentStep={getScaleStepIndex(scaleStore.currentStep)}
+      onStepChange={handleStepChange}
+      themeClass="scale-page-theme"
     >
-      <div className='qs-question-edit-container'>
+      <div className='qs-question-edit-container scale-page-theme'>
         <DndProvider backend={HTML5Backend}>
           <QuestionCreate showToBottom={showToBottom} store={scaleStore}></QuestionCreate>
           <QuestionShow showContainerRef={showContainerRef} store={scaleStore}></QuestionShow>

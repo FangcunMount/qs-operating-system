@@ -1,0 +1,262 @@
+// 医学量表全局主题样式 - 青绿色系
+// 用于 scale 相关的所有页面
+// 设计理念：轻量化主题，只在关键元素上使用主题色
+
+.scale-page-theme {
+  // 页面背景 - 保持浅色，更专业
+  background: #fafbfc;
+  min-height: 100vh;
+
+  // 卡片样式 - 轻量化设计，保留医疗感的圆角
+  .ant-card {
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s ease;
+    background: #ffffff;
+
+    &:hover {
+      border-color: #87e8de;
+      box-shadow: 0 2px 8px rgba(19, 194, 194, 0.08);
+    }
+
+    .ant-card-head {
+      background: #ffffff;
+      border-bottom: 1px solid #f0f0f0;
+      border-radius: 8px 8px 0 0;
+      position: relative;
+
+      // 添加左侧青色装饰条
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 20%;
+        bottom: 20%;
+        width: 3px;
+        background: linear-gradient(180deg, #13c2c2 0%, #36cfc9 100%);
+        border-radius: 0 2px 2px 0;
+      }
+
+      .ant-card-head-title {
+        color: #262626;
+        font-weight: 600;
+        padding-left: 12px;
+      }
+    }
+
+    .ant-card-body {
+      background: #ffffff;
+    }
+  }
+
+  // 按钮主题 - 现代扁平设计，保留医疗感的圆角
+  .ant-btn-primary {
+    background: #13c2c2;
+    border-color: #13c2c2;
+    border-radius: 6px;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.045);
+    font-weight: 500;
+
+    &:hover,
+    &:focus {
+      background: #36cfc9;
+      border-color: #36cfc9;
+      box-shadow: 0 3px 6px rgba(19, 194, 194, 0.25);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      background: #08979c;
+      border-color: #08979c;
+      transform: translateY(0);
+    }
+  }
+
+  .ant-btn-default {
+    border-color: #d9d9d9;
+    border-radius: 6px;
+    color: #595959;
+
+    &:hover,
+    &:focus {
+      border-color: #13c2c2;
+      color: #13c2c2;
+    }
+  }
+
+  // 链接按钮
+  .ant-btn-link {
+    color: #13c2c2;
+
+    &:hover,
+    &:focus {
+      color: #36cfc9;
+    }
+  }
+
+  // 输入框主题 - 轻量化设计，保留医疗感圆角
+  .ant-input,
+  .ant-input-number,
+  .ant-select-selector,
+  .ant-picker {
+    border-color: #d9d9d9;
+    border-radius: 6px;
+
+    &:hover {
+      border-color: #36cfc9;
+    }
+
+    &:focus,
+    &.ant-input-focused,
+    &.ant-select-focused .ant-select-selector {
+      border-color: #13c2c2;
+      box-shadow: 0 0 0 2px rgba(19, 194, 194, 0.06);
+    }
+  }
+
+  .ant-select-focused .ant-select-selector {
+    border-color: #13c2c2 !important;
+    box-shadow: 0 0 0 2px rgba(19, 194, 194, 0.06) !important;
+  }
+
+  // 标签主题 - 更清爽的样式
+  .ant-tag {
+    background: #f0ffff;
+    border-color: #b5f5ec;
+    border-radius: 6px;
+    color: #13c2c2;
+
+    &.ant-tag-cyan {
+      background: #e6fffb;
+      border-color: #87e8de;
+      color: #08979c;
+    }
+  }
+
+  // 表格主题 - 轻量表头
+  .ant-table {
+    .ant-table-thead > tr > th {
+      background: #fafafa;
+      color: #262626;
+      border-bottom: 1px solid #e8e8e8;
+      font-weight: 500;
+    }
+
+    .ant-table-tbody > tr {
+      &:hover > td {
+        background: #e6fffb;
+      }
+    }
+  }
+
+  // 选项卡主题
+  .ant-tabs {
+    .ant-tabs-tab {
+      border-radius: 8px 8px 0 0;
+
+      &:hover {
+        color: #36cfc9;
+      }
+
+      &.ant-tabs-tab-active {
+        color: #13c2c2;
+
+        .ant-tabs-tab-btn {
+          color: #13c2c2;
+        }
+      }
+    }
+
+    .ant-tabs-ink-bar {
+      background: #13c2c2;
+      height: 3px;
+    }
+  }
+
+  // 徽章主题
+  .ant-badge-count {
+    background: #13c2c2;
+    box-shadow: 0 2px 4px rgba(19, 194, 194, 0.3);
+  }
+
+  // 开关主题
+  .ant-switch-checked {
+    background: #13c2c2;
+  }
+
+  // 进度条主题
+  .ant-progress-bg {
+    background: #13c2c2;
+  }
+
+  // 自定义高亮色
+  .highlight-text {
+    color: #13c2c2;
+    font-weight: 600;
+  }
+
+  .highlight-bg {
+    background: #e6fffb;
+    border-left: 3px solid #13c2c2;
+    padding: 12px 16px;
+    border-radius: 8px;
+  }
+
+  // 分割线
+  .ant-divider {
+    border-color: #87e8de;
+  }
+
+  // 消息提示
+  .ant-message-notice-content {
+    .anticon {
+      color: #13c2c2;
+    }
+  }
+
+  // 医学量表特有的温和圆角
+  .ant-modal,
+  .ant-popover,
+  .ant-tooltip {
+    border-radius: 12px;
+  }
+
+  // 步骤条主题色
+  .footer-steps {
+    .ant-steps-item-process {
+      .ant-steps-item-icon {
+        border-color: #13c2c2;
+        background: #13c2c2;
+      }
+      
+      .ant-steps-item-title {
+        color: #13c2c2;
+      }
+    }
+
+    .ant-steps-item-finish {
+      .ant-steps-item-icon {
+        border-color: #13c2c2;
+        
+        .ant-steps-icon {
+          color: #13c2c2;
+        }
+      }
+      
+      .ant-steps-item-title {
+        color: #13c2c2;
+      }
+      
+      .ant-steps-item-tail::after {
+        background-color: #13c2c2;
+      }
+    }
+
+    .ant-steps-item:hover {
+      .ant-steps-item-title {
+        color: #36cfc9 !important;
+      }
+    }
+  }
+}

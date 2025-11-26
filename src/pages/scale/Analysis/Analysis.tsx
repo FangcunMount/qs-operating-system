@@ -4,12 +4,15 @@ import { useParams } from 'react-router'
 import { PlusOutlined, DeleteOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
 
 import './Analysis.scss'
+import '@/styles/theme-scale.scss'
 
 import { scaleStore } from '@/store'
 import { IFactorAnalysis, IMacroAnalysis, IInterpretation } from '@/models/analysis'
 import { IFactor, FactorTypeMap } from '@/models/factor'
 import { observer } from 'mobx-react-lite'
 import BaseLayout from '@/components/layout/BaseLayout'
+import { SCALE_STEPS, getScaleStepIndex } from '@/utils/steps'
+import { useHistory } from 'react-router-dom'
 
 // 空状态组件
 const EmptyState: React.FC = () => (
@@ -22,8 +25,36 @@ const EmptyState: React.FC = () => (
 )
 
 const Analysis: React.FC = observer(() => {
+  const history = useHistory()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const [editingFactorCode, setEditingFactorCode] = useState<string | null>(null)
+
+  // 步骤跳转处理
+  const handleStepChange = (stepIndex: number) => {
+    const step = SCALE_STEPS[stepIndex]
+    if (!step || !scaleStore.id) return
+
+    switch (step.key) {
+    case 'create':
+      history.push(`/scale/info/${scaleStore.id}`)
+      break
+    case 'edit-questions':
+      history.push(`/scale/create/${scaleStore.id}/0`)
+      break
+    case 'set-routing':
+      history.push(`/scale/routing/${scaleStore.id}`)
+      break
+    case 'edit-factors':
+      history.push(`/scale/factor/${scaleStore.id}`)
+      break
+    case 'set-interpretation':
+      history.push(`/scale/analysis/${scaleStore.id}`)
+      break
+    case 'publish':
+      history.push(`/scale/publish/${scaleStore.id}`)
+      break
+    }
+  }
 
   // 计算因子的最大分数
   const calculateFactorMaxScore = (factor: IFactor): number => {
@@ -57,6 +88,9 @@ const Analysis: React.FC = observer(() => {
 
   // 初始化数据
   useEffect(() => {
+    // 设置当前步骤
+    scaleStore.setCurrentStep('set-interpretation')
+
     const initPageData = async () => {
       // 先从 localStorage 恢复数据
       const restored = scaleStore.loadFromLocalStorage()
@@ -273,8 +307,12 @@ const Analysis: React.FC = observer(() => {
         afterSubmit={handleAfterSubmit}
         footerButtons={['break', 'saveToNext']}
         nextUrl={`/scale/publish/${questionsheetid}`}
+        steps={SCALE_STEPS}
+        currentStep={getScaleStepIndex(scaleStore.currentStep)}
+        onStepChange={handleStepChange}
+        themeClass="scale-page-theme"
       >
-        <div className="scale-analysis-container">
+        <div className="scale-analysis-container scale-page-theme">
           {scaleStore.factor_rules.length === 0 ? (
             <EmptyState />
           ) : (

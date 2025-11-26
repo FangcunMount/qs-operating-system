@@ -1,11 +1,13 @@
 import React from 'react'
 import PropType from 'prop-types'
 import './baseLayout.scss'
-import { Button } from 'antd'
+import { Button, Steps } from 'antd'
 import { useHistory } from 'react-router-dom'
 import { RollbackOutlined, SaveOutlined } from '@ant-design/icons'
 import { voidFunc } from '@/types/base'
 import useSubmit from '../useSubmit'
+
+const { Step } = Steps
 
 const BaseLayout: React.FC<BaseLayoutProps> = ({
   children,
@@ -17,7 +19,11 @@ const BaseLayout: React.FC<BaseLayoutProps> = ({
   beforeSubmit,
   afterSubmit,
   saveDraftFn,
-  publishFn
+  publishFn,
+  steps,
+  currentStep,
+  onStepChange,
+  themeClass
 }) => {
   const history = useHistory()
 
@@ -60,7 +66,7 @@ const BaseLayout: React.FC<BaseLayoutProps> = ({
   })
 
   return (
-    <div className="qs-base">
+    <div className={`qs-base ${themeClass || ''}`}>
       {header && (
         <div className="qs-base--header">
           <span>{header}</span>
@@ -72,37 +78,66 @@ const BaseLayout: React.FC<BaseLayoutProps> = ({
           footer
         ) : (
           <>
-            {footerButtons?.includes('break') ? (
-              <Button onClick={() => history.goBack()}>
-                <RollbackOutlined />
-                上一步
-              </Button>
-            ) : null}
-            <div style={{ flexGrow: 1 }}></div>
+            {/* 左侧按钮 */}
+            <div className="footer-left">
+              {footerButtons?.includes('break') ? (
+                <Button onClick={() => history.goBack()}>
+                  <RollbackOutlined />
+                  上一步
+                </Button>
+              ) : null}
+            </div>
 
-            {footerButtons?.includes('saveDraft') ? (
-              <Button onClick={handleSaveDraft} loading={draftLoading}>
-                <SaveOutlined />
-                存草稿
-              </Button>
-            ) : null}
-            {footerButtons?.includes('publish') ? (
-              <Button className="s-ml-md" type="primary" onClick={handlePublish} loading={publishLoading}>
-                <SaveOutlined />
-                发布
-              </Button>
-            ) : null}
-            {footerButtons?.includes('saveToNext') ? (
-              <Button className="s-ml-md" type="primary" onClick={handleSubmit} loading={loading}>
-                <SaveOutlined />
-                下一步
-              </Button>
-            ) : null}
+            {/* 中间步骤条 */}
+            {steps && steps.length > 0 && currentStep !== undefined ? (
+              <div className="footer-center">
+                <Steps 
+                  current={currentStep} 
+                  size="small" 
+                  className="footer-steps"
+                  onChange={onStepChange}
+                >
+                  {steps.map((step, index) => (
+                    <Step key={step.key || index} title={step.title} />
+                  ))}
+                </Steps>
+              </div>
+            ) : (
+              <div className="footer-center"></div>
+            )}
+
+            {/* 右侧按钮 */}
+            <div className="footer-right">
+              {footerButtons?.includes('saveDraft') ? (
+                <Button onClick={handleSaveDraft} loading={draftLoading}>
+                  <SaveOutlined />
+                  存草稿
+                </Button>
+              ) : null}
+              {footerButtons?.includes('publish') ? (
+                <Button className="s-ml-md" type="primary" onClick={handlePublish} loading={publishLoading}>
+                  <SaveOutlined />
+                  发布
+                </Button>
+              ) : null}
+              {footerButtons?.includes('saveToNext') ? (
+                <Button className="s-ml-md" type="primary" onClick={handleSubmit} loading={loading}>
+                  <SaveOutlined />
+                  下一步
+                </Button>
+              ) : null}
+            </div>
           </>
         )}
       </div>
     </div>
   )
+}
+
+export interface EditorStep {
+  title: string
+  key?: string
+  url?: string
 }
 
 interface BaseLayoutProps {
@@ -116,6 +151,12 @@ interface BaseLayoutProps {
   publishFn?: (next: voidFunc) => void
   footerButtons?: Array<'break' | 'saveToNext' | 'saveDraft' | 'publish'>
   nextUrl?: string
+  // 步骤条相关
+  steps?: EditorStep[]
+  currentStep?: number
+  onStepChange?: (stepIndex: number) => void
+  // 主题相关
+  themeClass?: string
 }
 
 BaseLayout.propTypes = {
@@ -128,7 +169,11 @@ BaseLayout.propTypes = {
   saveDraftFn: PropType.any,
   publishFn: PropType.any,
   footerButtons: PropType.any,
-  nextUrl: PropType.any
+  nextUrl: PropType.any,
+  steps: PropType.any,
+  currentStep: PropType.any,
+  onStepChange: PropType.any,
+  themeClass: PropType.any
 }
 
 export default BaseLayout

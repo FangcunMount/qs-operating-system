@@ -1,0 +1,166 @@
+// 问卷系统主题变量
+// 用于区分调查问卷（Survey）和医学量表（Scale）
+
+// ==================== 调查问卷主题（蓝色系） ====================
+.survey-theme {
+  // 主色调
+  --primary-color: #1890ff;
+  --primary-hover: #40a9ff;
+  --primary-active: #096dd9;
+  --primary-light: #e6f7ff;
+  --primary-gradient-start: #1890ff;
+  --primary-gradient-end: #0066cc;
+
+  // 状态色
+  --success-color: #52c41a;
+  --warning-color: #faad14;
+  --info-color: #1890ff;
+
+  // 背景色
+  --bg-gradient-start: #f0f5ff;
+  --bg-gradient-end: #f5f7fa;
+  --card-bg: #ffffff;
+  --card-hover-shadow: rgba(24, 144, 255, 0.12);
+
+  // 边框色
+  --border-color: #d9d9d9;
+  --border-hover: #40a9ff;
+
+  // 徽章/标签
+  --badge-bg: linear-gradient(135deg, #e6f7ff 0%, #d6ecff 100%);
+  --tag-color: #1890ff;
+  --tag-bg: #e6f7ff;
+  --tag-border: #91d5ff;
+
+  // 卡片头部
+  --card-head-bg: linear-gradient(to bottom, #fafafa 0%, #f0f5ff 100%);
+  
+  // 圆角风格
+  --border-radius-base: 4px;
+  --border-radius-card: 8px;
+  --border-radius-large: 12px;
+
+  // 阴影
+  --shadow-light: 0 2px 8px rgba(24, 144, 255, 0.08);
+  --shadow-hover: 0 4px 16px rgba(24, 144, 255, 0.15);
+
+  // 图标/装饰
+  --icon-primary: #1890ff;
+  --accent-color: #1890ff;
+}
+
+// ==================== 医学量表主题（绿/青色系） ====================
+.scale-theme {
+  // 主色调 - 使用医疗感的青绿色
+  --primary-color: #13c2c2;
+  --primary-hover: #36cfc9;
+  --primary-active: #08979c;
+  --primary-light: #e6fffb;
+  --primary-gradient-start: #13c2c2;
+  --primary-gradient-end: #08979c;
+
+  // 状态色 - 医疗绿
+  --success-color: #52c41a;
+  --warning-color: #fa8c16;
+  --info-color: #13c2c2;
+
+  // 背景色 - 淡绿/淡青色调
+  --bg-gradient-start: #f0faf9;
+  --bg-gradient-end: #f5fffe;
+  --card-bg: #ffffff;
+  --card-hover-shadow: rgba(19, 194, 194, 0.12);
+
+  // 边框色
+  --border-color: #d9f7f6;
+  --border-hover: #36cfc9;
+
+  // 徽章/标签
+  --badge-bg: linear-gradient(135deg, #e6fffb 0%, #d6f5f5 100%);
+  --tag-color: #13c2c2;
+  --tag-bg: #e6fffb;
+  --tag-border: #87e8de;
+
+  // 卡片头部
+  --card-head-bg: linear-gradient(to bottom, #fafafa 0%, #f0faf9 100%);
+  
+  // 圆角风格 - 医学量表使用更圆润的设计
+  --border-radius-base: 6px;
+  --border-radius-card: 12px;
+  --border-radius-large: 16px;
+
+  // 阴影
+  --shadow-light: 0 2px 8px rgba(19, 194, 194, 0.08);
+  --shadow-hover: 0 4px 16px rgba(19, 194, 194, 0.15);
+
+  // 图标/装饰
+  --icon-primary: #13c2c2;
+  --accent-color: #52c41a;
+}
+
+// ==================== 混合类（Mixin） ====================
+@mixin apply-theme {
+  // 主色
+  .primary-color {
+    color: var(--primary-color);
+  }
+
+  .primary-bg {
+    background: var(--primary-color);
+  }
+
+  .primary-gradient-bg {
+    background: linear-gradient(135deg, var(--primary-gradient-start) 0%, var(--primary-gradient-end) 100%);
+  }
+
+  // 按钮
+  :global {
+    .ant-btn-primary {
+      background: var(--primary-color);
+      border-color: var(--primary-color);
+
+      &:hover {
+        background: var(--primary-hover);
+        border-color: var(--primary-hover);
+      }
+
+      &:active {
+        background: var(--primary-active);
+        border-color: var(--primary-active);
+      }
+    }
+  }
+
+  // 标签
+  .theme-tag {
+    color: var(--tag-color);
+    background: var(--tag-bg);
+    border-color: var(--tag-border);
+  }
+
+  // 卡片
+  .theme-card {
+    border-color: var(--border-color);
+    box-shadow: var(--shadow-light);
+    border-radius: var(--border-radius-card);
+
+    &:hover {
+      box-shadow: var(--shadow-hover);
+      border-color: var(--border-hover);
+    }
+  }
+
+  // 高亮值
+  .highlight-value {
+    color: var(--primary-color);
+  }
+
+  // 图标
+  .theme-icon {
+    color: var(--icon-primary);
+  }
+
+  // 徽章
+  .theme-badge {
+    background: var(--badge-bg);
+  }
+}

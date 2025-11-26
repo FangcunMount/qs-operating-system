@@ -1,0 +1,245 @@
+// 调查问卷全局主题样式 - 蓝色系
+// 用于 survey 相关的所有页面
+// 设计理念：轻量化主题，只在关键元素上使用主题色
+
+.survey-page-theme {
+  // 页面背景 - 保持浅色，更专业
+  background: #fafbfc;
+  min-height: 100vh;
+
+  // 卡片样式 - 轻量化设计
+  .ant-card {
+    border: 1px solid #e8e8e8;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s ease;
+    background: #ffffff;
+
+    &:hover {
+      border-color: #91d5ff;
+      box-shadow: 0 2px 8px rgba(24, 144, 255, 0.08);
+    }
+
+    .ant-card-head {
+      background: #ffffff;
+      border-bottom: 1px solid #f0f0f0;
+      position: relative;
+
+      // 添加左侧蓝色装饰条
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 20%;
+        bottom: 20%;
+        width: 3px;
+        background: linear-gradient(180deg, #1890ff 0%, #40a9ff 100%);
+        border-radius: 0 2px 2px 0;
+      }
+
+      .ant-card-head-title {
+        color: #262626;
+        font-weight: 600;
+        padding-left: 12px;
+      }
+    }
+
+    .ant-card-body {
+      background: #ffffff;
+    }
+  }
+
+  // 按钮主题 - 现代扁平设计
+  .ant-btn-primary {
+    background: #1890ff;
+    border-color: #1890ff;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.045);
+    font-weight: 500;
+
+    &:hover,
+    &:focus {
+      background: #40a9ff;
+      border-color: #40a9ff;
+      box-shadow: 0 3px 6px rgba(24, 144, 255, 0.25);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      background: #096dd9;
+      border-color: #096dd9;
+      transform: translateY(0);
+    }
+  }
+
+  .ant-btn-default {
+    border-color: #d9d9d9;
+    color: #595959;
+
+    &:hover,
+    &:focus {
+      border-color: #1890ff;
+      color: #1890ff;
+    }
+  }
+
+  // 链接按钮
+  .ant-btn-link {
+    color: #1890ff;
+
+    &:hover,
+    &:focus {
+      color: #40a9ff;
+    }
+  }
+
+  // 输入框主题 - 轻量化设计
+  .ant-input,
+  .ant-input-number,
+  .ant-select-selector,
+  .ant-picker {
+    border-color: #d9d9d9;
+
+    &:hover {
+      border-color: #40a9ff;
+    }
+
+    &:focus,
+    &.ant-input-focused,
+    &.ant-select-focused .ant-select-selector {
+      border-color: #1890ff;
+      box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.06);
+    }
+  }
+
+  .ant-select-focused .ant-select-selector {
+    border-color: #1890ff !important;
+    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.06) !important;
+  }
+
+  // 标签主题 - 更清爽的样式
+  .ant-tag {
+    background: #f0f5ff;
+    border-color: #d6e4ff;
+    color: #1890ff;
+
+    &.ant-tag-blue {
+      background: #e6f7ff;
+      border-color: #91d5ff;
+      color: #0050b3;
+    }
+  }
+
+  // 表格主题 - 轻量表头
+  .ant-table {
+    .ant-table-thead > tr > th {
+      background: #fafafa;
+      color: #262626;
+      border-bottom: 1px solid #e8e8e8;
+      font-weight: 500;
+    }
+
+    .ant-table-tbody > tr {
+      &:hover > td {
+        background: #f0f5ff;
+      }
+    }
+  }
+
+  // 选项卡主题
+  .ant-tabs {
+    .ant-tabs-tab {
+      &:hover {
+        color: #40a9ff;
+      }
+
+      &.ant-tabs-tab-active {
+        color: #1890ff;
+
+        .ant-tabs-tab-btn {
+          color: #1890ff;
+        }
+      }
+    }
+
+    .ant-tabs-ink-bar {
+      background: #1890ff;
+    }
+  }
+
+  // 徽章主题
+  .ant-badge-count {
+    background: #1890ff;
+    box-shadow: 0 2px 4px rgba(24, 144, 255, 0.3);
+  }
+
+  // 开关主题
+  .ant-switch-checked {
+    background: #1890ff;
+  }
+
+  // 进度条主题
+  .ant-progress-bg {
+    background: #1890ff;
+  }
+
+  // 自定义高亮色
+  .highlight-text {
+    color: #1890ff;
+    font-weight: 600;
+  }
+
+  .highlight-bg {
+    background: #e6f7ff;
+    border-left: 3px solid #1890ff;
+    padding: 12px 16px;
+  }
+
+  // 分割线
+  .ant-divider {
+    border-color: #91d5ff;
+  }
+
+  // 消息提示
+  .ant-message-notice-content {
+    .anticon {
+      color: #1890ff;
+    }
+  }
+
+  // 步骤条主题色
+  .footer-steps {
+    .ant-steps-item-process {
+      .ant-steps-item-icon {
+        border-color: #1890ff;
+        background: #1890ff;
+      }
+      
+      .ant-steps-item-title {
+        color: #1890ff;
+      }
+    }
+
+    .ant-steps-item-finish {
+      .ant-steps-item-icon {
+        border-color: #1890ff;
+        
+        .ant-steps-icon {
+          color: #1890ff;
+        }
+      }
+      
+      .ant-steps-item-title {
+        color: #1890ff;
+      }
+      
+      .ant-steps-item-tail::after {
+        background-color: #1890ff;
+      }
+    }
+
+    .ant-steps-item:hover {
+      .ant-steps-item-title {
+        color: #40a9ff !important;
+      }
+    }
+  }
+}

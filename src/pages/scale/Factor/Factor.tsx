@@ -6,11 +6,14 @@ import { useDrag, useDrop, DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 
 import './Factor.scss'
+import '@/styles/theme-scale.scss'
 import { IFactor, FactorTypeMap, FormulasMap, IFactorType, IFactorFormula } from '@/models/factor'
 import { useParams } from 'react-router'
 import { api } from '@/api'
 import BaseLayout from '@/components/layout/BaseLayout'
 import { scaleStore } from '@/store'
+import { SCALE_STEPS, getScaleStepIndex } from '@/utils/steps'
+import { useHistory } from 'react-router-dom'
 
 const { Option } = Select
 
@@ -125,8 +128,36 @@ const EmptyState: React.FC<{ onAdd: () => void }> = ({ onAdd }) => (
 )
 
 const Factor: React.FC = observer(() => {
+  const history = useHistory()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const [form] = Form.useForm()
+
+  // 步骤跳转处理
+  const handleStepChange = (stepIndex: number) => {
+    const step = SCALE_STEPS[stepIndex]
+    if (!step || !scaleStore.id) return
+
+    switch (step.key) {
+    case 'create':
+      history.push(`/scale/info/${scaleStore.id}`)
+      break
+    case 'edit-questions':
+      history.push(`/scale/create/${scaleStore.id}/0`)
+      break
+    case 'set-routing':
+      history.push(`/scale/routing/${scaleStore.id}`)
+      break
+    case 'edit-factors':
+      history.push(`/scale/factor/${scaleStore.id}`)
+      break
+    case 'set-interpretation':
+      history.push(`/scale/analysis/${scaleStore.id}`)
+      break
+    case 'publish':
+      history.push(`/scale/publish/${scaleStore.id}`)
+      break
+    }
+  }
   
   // 当前编辑的因子 code，null 表示创建新因子
   const [editingFactorCode, setEditingFactorCode] = useState<string | null>(null)
@@ -136,6 +167,11 @@ const Factor: React.FC = observer(() => {
   const moveFactor = (dragIndex: number, hoverIndex: number) => {
     scaleStore.changeFactorPosition(dragIndex, hoverIndex)
   }
+
+  // 设置当前步骤
+  React.useEffect(() => {
+    scaleStore.setCurrentStep('edit-factors')
+  }, [])
 
   // 从服务器加载数据
   const loadDataFromServer = async () => {
@@ -315,8 +351,12 @@ const Factor: React.FC = observer(() => {
         afterSubmit={handleAfterSubmit}
         footerButtons={['break', 'saveToNext']}
         nextUrl={`/scale/analysis/${questionsheetid}`}
+        steps={SCALE_STEPS}
+        currentStep={getScaleStepIndex(scaleStore.currentStep)}
+        onStepChange={handleStepChange}
+        themeClass="scale-page-theme"
       >
-        <div className="scale-factor-container">
+        <div className="scale-factor-container scale-page-theme">
           <DndProvider backend={HTML5Backend}>
             {scaleStore.factors.length === 0 && !editingFactorCode ? (
               <EmptyState onAdd={handleCreateFactor} />

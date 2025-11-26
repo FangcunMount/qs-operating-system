@@ -4,6 +4,7 @@ import { Modal, Button, Input, message } from 'antd'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
 import { api } from '@/api'
 import useSubmit from '@/components/useSubmit'
+import '@/styles/theme-scale.scss'
 
 const initQSInfo = {
   id: '',
@@ -80,11 +81,12 @@ const EditQuestionSheetDialog: React.FC<{
 
   return (
     <Modal
-      title={`${data ? '编辑问卷' : '新建问卷'}`}
+      title={`${data ? '编辑量表' : '新建量表'}`}
       okText="确认"
       cancelText="取消"
       destroyOnClose
       visible={isModalVisible}
+      wrapClassName="scale-page-theme"
       onCancel={() => handleCancel()}
       footer={[
         <Button key="cancal" onClick={() => handleCancel()}>

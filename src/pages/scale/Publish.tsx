@@ -1,28 +1,55 @@
 import React, { useEffect, useState } from 'react'
-import { Card, Button, message, Tag, Input } from 'antd'
+import { message } from 'antd'
 import { useParams } from 'react-router'
 import { observer } from 'mobx-react-lite'
-import { 
-  CheckCircleOutlined, 
-  LinkOutlined, 
-  QrcodeOutlined, 
-  CopyOutlined,
-  SettingOutlined
-} from '@ant-design/icons'
 
 import './Publish.scss'
+import '@/styles/theme-scale.scss'
 import { scaleStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
+import { SCALE_STEPS, getScaleStepIndex } from '@/utils/steps'
+import { useHistory } from 'react-router-dom'
 import { MobilePreview } from '@/components/preview'
+import { PublishStatusCard, QuestionnaireInfoCard, ShareCard } from '@/components/questionnaire'
 
 const Publish: React.FC = observer(() => {
+  const history = useHistory()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   
   const [isPublished, setIsPublished] = useState(false)
+
+  // 步骤跳转处理
+  const handleStepChange = (stepIndex: number) => {
+    const step = SCALE_STEPS[stepIndex]
+    if (!step || !scaleStore.id) return
+
+    switch (step.key) {
+    case 'create':
+      history.push(`/scale/info/${scaleStore.id}`)
+      break
+    case 'edit-questions':
+      history.push(`/scale/create/${scaleStore.id}/0`)
+      break
+    case 'set-routing':
+      history.push(`/scale/routing/${scaleStore.id}`)
+      break
+    case 'edit-factors':
+      history.push(`/scale/factor/${scaleStore.id}`)
+      break
+    case 'set-interpretation':
+      history.push(`/scale/analysis/${scaleStore.id}`)
+      break
+    case 'publish':
+      history.push(`/scale/publish/${scaleStore.id}`)
+      break
+    }
+  }
   const [surveyUrl, setSurveyUrl] = useState('')
   const [shareCode, setShareCode] = useState('')
 
   useEffect(() => {
+    // 设置当前步骤
+    scaleStore.setCurrentStep('publish')
     initData()
   }, [questionsheetid])
 
@@ -152,218 +179,54 @@ const Publish: React.FC = observer(() => {
 
   return (
     <BaseLayout
-      footerButtons={[]}
+      footerButtons={['break']}
+      steps={SCALE_STEPS}
+      currentStep={getScaleStepIndex(scaleStore.currentStep)}
+      onStepChange={handleStepChange}
+      themeClass="scale-page-theme"
     >
-      <div className='scale-publish-container'>
+      <div className='scale-publish-container scale-page-theme'>
         {/* 主内容区 - 左右两栏布局 */}
         <div className='content-layout'>
           {/* 左侧栏 */}
           <div className='left-column'>
             {/* 发布状态栏 */}
-            <Card bordered={false} className='status-card'>
-              <div className='status-header'>
-                <div className='status-badge'>
-                  {isPublished ? (
-                    <>
-                      <CheckCircleOutlined className='badge-icon published' />
-                      <span className='badge-text'>已发布</span>
-                    </>
-                  ) : (
-                    <>
-                      <SettingOutlined className='badge-icon draft' />
-                      <span className='badge-text'>未发布</span>
-                    </>
-                  )}
-                </div>
-                <div className='status-info'>
-                  <h1 className='status-title'>{scaleStore.title}</h1>
-                  <div className='status-meta'>
-                    <span className='meta-item'>
-                      <strong>{scaleStore.questions.length}</strong> 道题目
-                    </span>
-                    <span className='meta-divider'>•</span>
-                    <span className='meta-item'>
-                      <strong>{scaleStore.showControllers.length}</strong> 条显隐规则
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className='status-actions'>
-                {isPublished ? (
-                  <>
-                    <Button onClick={handleSaveDraftInline} size='large' block>
-                      存草稿
-                    </Button>
-                    <Button danger onClick={handleUnpublish} size='large' block>
-                      取消发布
-                    </Button>
-                    <Button type='primary' size='large' onClick={handleRepublish} block>
-                      重新发布
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button onClick={handleSaveDraftInline} size='large' block>
-                      存草稿
-                    </Button>
-                    <Button type='primary' size='large' onClick={handlePublish} block>
-                      立即发布
-                    </Button>
-                  </>
-                )}
-              </div>
-            </Card>
+            <PublishStatusCard
+              isPublished={isPublished}
+              title={scaleStore.title}
+              questionCount={scaleStore.questions.length}
+              showControllerCount={scaleStore.showControllers.length}
+              type='scale'
+              onSaveDraft={handleSaveDraftInline}
+              onPublish={handlePublish}
+              onUnpublish={handleUnpublish}
+              onRepublish={handleRepublish}
+            />
 
-            {/* 问卷信息 */}
-            <Card title='问卷信息' bordered={false} className='info-card'>
-              <div className='info-grid'>
-                <div className='info-item'>
-                  <span className='info-label'>问卷 ID</span>
-                  <span className='info-value'>{questionsheetid}</span>
-                </div>
-                <div className='info-item'>
-                  <span className='info-label'>题目数量</span>
-                  <span className='info-value highlight'>{scaleStore.questions.length} 题</span>
-                </div>
-                <div className='info-item'>
-                  <span className='info-label'>显隐规则</span>
-                  <span className='info-value highlight'>{scaleStore.showControllers.length} 条</span>
-                </div>
-                <div className='info-item'>
-                  <span className='info-label'>发布状态</span>
-                  <Tag color={isPublished ? 'success' : 'default'} className='status-tag'>
-                    {isPublished ? '已发布' : '未发布'}
-                  </Tag>
-                </div>
-                {scaleStore.desc && (
-                  <div className='info-item full-width'>
-                    <span className='info-label'>问卷描述</span>
-                    <p className='info-desc'>{scaleStore.desc}</p>
-                  </div>
-                )}
-              </div>
-            </Card>
-
-            {/* 量表信息 */}
-            <Card title='量表信息' bordered={false} className='info-card scale-info-card'>
-              <div className='info-grid'>
-                <div className='info-item'>
-                  <span className='info-label'>因子数量</span>
-                  <span className='info-value highlight'>{scaleStore.factors.length} 个</span>
-                </div>
-                <div className='info-item'>
-                  <span className='info-label'>总分设置</span>
-                  <span className='info-value'>
-                    {scaleStore.factors.some(f => f.is_total_score === '1') ? (
-                      <Tag color='success'>已设置</Tag>
-                    ) : (
-                      <Tag color='default'>未设置</Tag>
-                    )}
-                  </span>
-                </div>
-                <div className='info-item'>
-                  <span className='info-label'>因子解释</span>
-                  <span className='info-value'>
-                    {scaleStore.factor_rules.length > 0 ? (
-                      <Tag color='success'>{scaleStore.factor_rules.length} 个</Tag>
-                    ) : (
-                      <Tag color='default'>未配置</Tag>
-                    )}
-                  </span>
-                </div>
-                <div className='info-item'>
-                  <span className='info-label'>总分解释</span>
-                  <span className='info-value'>
-                    {scaleStore.macro_rule && scaleStore.macro_rule.interpretation.length > 0 ? (
-                      <Tag color='success'>{scaleStore.macro_rule.interpretation.length} 条</Tag>
-                    ) : (
-                      <Tag color='default'>未配置</Tag>
-                    )}
-                  </span>
-                </div>
-                {scaleStore.factors.length > 0 && (
-                  <div className='info-item full-width'>
-                    <span className='info-label'>因子列表</span>
-                    <div className='factor-list'>
-                      {scaleStore.factors.map((factor, index) => (
-                        <Tag 
-                          key={factor.code} 
-                          color={factor.is_total_score === '1' ? 'blue' : 'default'}
-                          className='factor-tag'
-                        >
-                          {index + 1}. {factor.title}
-                          {factor.is_total_score === '1' && ' (总分)'}
-                        </Tag>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Card>
+            {/* 问卷信息和量表信息 */}
+            <QuestionnaireInfoCard
+              questionsheetid={questionsheetid}
+              questionCount={scaleStore.questions.length}
+              showControllerCount={scaleStore.showControllers.length}
+              isPublished={isPublished}
+              desc={scaleStore.desc}
+              type='scale'
+              factorCount={scaleStore.factors.length}
+              hasTotalScore={scaleStore.factors.some(f => f.is_total_score === '1')}
+              factorRulesCount={scaleStore.factor_rules.length}
+              macroInterpretationCount={scaleStore.macro_rule?.interpretation.length || 0}
+              factors={scaleStore.factors}
+            />
 
             {/* 分享设置 */}
             {isPublished && (
-              <Card title='分享设置' bordered={false} className='share-card'>
-                <div className='share-section'>
-                  {/* 问卷链接 */}
-                  <div className='share-item'>
-                    <div className='share-label'>
-                      <LinkOutlined /> 问卷链接
-                    </div>
-                    <Input.Group compact>
-                      <Input 
-                        className='share-input'
-                        value={surveyUrl} 
-                        readOnly 
-                      />
-                      <Button 
-                        icon={<CopyOutlined />} 
-                        onClick={handleCopyLink}
-                        size='large'
-                      >
-                        复制
-                      </Button>
-                    </Input.Group>
-                  </div>
-
-                  {/* 分享码 */}
-                  <div className='share-item'>
-                    <div className='share-label'>
-                      分享码
-                    </div>
-                    <Input.Group compact>
-                      <Input 
-                        className='share-input'
-                        value={shareCode} 
-                        readOnly 
-                      />
-                      <Button 
-                        icon={<CopyOutlined />} 
-                        onClick={handleCopyShareCode}
-                        size='large'
-                      >
-                        复制
-                      </Button>
-                    </Input.Group>
-                  </div>
-
-                  {/* 二维码 */}
-                  <div className='share-item'>
-                    <div className='share-label'>
-                      <QrcodeOutlined /> 问卷二维码
-                    </div>
-                    <div className='qrcode-wrapper'>
-                      <canvas 
-                        id="qrcode-canvas" 
-                        className='qrcode-canvas'
-                      />
-                    </div>
-                    <div className='qrcode-tip'>
-                      扫描二维码即可填写问卷（需要安装二维码库）
-                    </div>
-                  </div>
-                </div>
-              </Card>
+              <ShareCard
+                surveyUrl={surveyUrl}
+                shareCode={shareCode}
+                type='scale'
+                onCopyLink={handleCopyLink}
+                onCopyShareCode={handleCopyShareCode}
+              />
             )}
           </div>
 

@@ -1,23 +1,32 @@
 .scale-info-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 32px 0;
+  width: 100%;
+  min-height: 100vh;
+  padding: 32px;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  // 医学量表使用青绿色系背景 - 增强色彩
+  background: linear-gradient(135deg, #d6f5f5 0%, #e6fffb 100%);
 
   .ant-card {
+    max-width: 800px;
+    width: 100%;
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    border: 1px solid #e8e8e8;
+    box-shadow: 0 2px 8px rgba(19, 194, 194, 0.08);
+    border: 1px solid #b5f5ec;
     overflow: hidden;
     transition: all 0.3s ease;
 
     &:hover {
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 16px rgba(19, 194, 194, 0.12);
+      border-color: #87e8de;
     }
 
     .ant-card-head {
-      background: linear-gradient(135deg, #fafafa 0%, #ffffff 100%);
-      border-bottom: 1px solid #f0f0f0;
+      background: linear-gradient(to bottom, #fafafa 0%, #f0faf9 100%);
+      border-bottom: 1px solid #b5f5ec;
       padding: 20px 24px;
+      border-radius: 12px 12px 0 0;
 
       .ant-card-head-title {
         font-size: 16px;

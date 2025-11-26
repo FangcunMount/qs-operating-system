@@ -1,93 +1,35 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import { useParams, useHistory } from 'react-router'
-import { Form, Input, Card, message } from 'antd'
+import { Form, message } from 'antd'
 import { observer } from 'mobx-react-lite'
 
 import './BasicInfo.scss'
 import '@/components/editorSteps/index.scss'
+import '@/styles/theme-survey.scss'
 import { surveyStore } from '@/store'
 import { api } from '@/api'
 import BaseLayout from '@/components/layout/BaseLayout'
-
-
-const { TextArea } = Input
+import { BasicInfoFormCard, useBasicInfoForm } from '@/components/questionnaire'
+import { SURVEY_STEPS, getSurveyStepIndex } from '@/utils/steps'
 
 const BasicInfo: React.FC = observer(() => {
   const history = useHistory()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const [form] = Form.useForm()
 
-  // useEffect() 用于初始化问卷信息，区分编辑模式和创建模式
-  useEffect(() => {
-    const isEditMode = questionsheetid && questionsheetid !== 'new'
-    
-    if (isEditMode) {
-      initEditMode(questionsheetid)
-    } else {
-      initCreateMode()
-    }
+  // 设置当前步骤
+  React.useEffect(() => {
+    surveyStore.setCurrentStep('create')
+  }, [])
 
-  }, [questionsheetid])
-
-  // 从 store 同步数据到表单
-  const syncFormFromStore = () => {
-    form.setFieldsValue({
-      title: surveyStore.title,
-      desc: surveyStore.desc,
-      img_url: surveyStore.img_url
-    })
-  }
-
-  // 加载已有问卷信息
-  const loadExistingSurvey = async (id: string) => {
-    const [e, r] = await api.getQuestionSheet(id)
-    if (e) return
-    surveyStore.setSurvey(r?.data.questionsheet)
-    syncFormFromStore()
-  }
-
-  // 初始化编辑模式
-  const initEditMode = (id: string) => {
-    // 如果 store 中已有该问卷的数据，直接使用
-    if (surveyStore.id === id && surveyStore.title) {
-      syncFormFromStore()
-    } else {
-      // 从服务器加载问卷信息
-      loadExistingSurvey(id)
-    }
-  }
-
-  // 初始化新建模式
-  const initCreateMode = () => {
-    // 尝试从 localStorage 恢复数据
-    const restored = surveyStore.loadFromLocalStorage()
-    
-    if (restored && surveyStore.title) {
-      // 成功恢复数据
-      message.success('已恢复上次编辑的内容')
-      syncFormFromStore()
-    } else if (!surveyStore.title) {
-      // 首次创建，初始化空白问卷
-      surveyStore.initSurvey()
-    } else {
-      // 从下一步返回，复用 store 中的数据
-      syncFormFromStore()
-    }
-  }
-
-  
-  // 保存问卷基本信息
-  const handleSave = async () => {
-    const values = await form.validateFields()
-    
-    // 更新 store 中的数据
-    surveyStore.title = values.title
-    surveyStore.desc = values.desc
-    surveyStore.img_url = values.img_url
-    
-    // 保存基本信息
-    await surveyStore.saveBasicInfo()
-  }
+  // 使用通用的基本信息表单 Hook
+  const { handleSave } = useBasicInfoForm({
+    questionsheetid,
+    store: surveyStore,
+    api,
+    form,
+    type: 'survey'
+  })
 
   // 保存后跳转到编辑问题页面
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
@@ -105,51 +47,40 @@ const BasicInfo: React.FC = observer(() => {
     }
   }
 
+  // 步骤跳转处理
+  const handleStepChange = (stepIndex: number) => {
+    const step = SURVEY_STEPS[stepIndex]
+    if (!step || !surveyStore.id) return
+
+    // 根据步骤跳转到对应页面
+    switch (step.key) {
+    case 'create':
+      history.push(`/survey/info/${surveyStore.id}`)
+      break
+    case 'edit-questions':
+      history.push(`/survey/create/${surveyStore.id}/0`)
+      break
+    case 'set-routing':
+      history.push(`/survey/routing/${surveyStore.id}`)
+      break
+    case 'publish':
+      history.push(`/survey/publish/${surveyStore.id}`)
+      break
+    }
+  }
+
   return (
     <BaseLayout
       submitFn={handleSave}
       afterSubmit={handleAfterSubmit}
       footerButtons={['break', 'saveToNext']}
+      steps={SURVEY_STEPS}
+      currentStep={getSurveyStepIndex(surveyStore.currentStep)}
+      onStepChange={handleStepChange}
+      themeClass="survey-page-theme"
     >
-      <div className='survey-info-container'>
-        <Card title='问卷基本信息' bordered={false}>
-          <Form
-            form={form}
-            layout='vertical'
-            initialValues={{
-              title: '',
-              desc: '',
-              img_url: ''
-            }}
-          >
-            <Form.Item
-              label='问卷标题'
-              name='title'
-              rules={[{ required: true, message: '请输入问卷标题' }]}
-            >
-              <Input placeholder='请输入问卷标题' maxLength={100} />
-            </Form.Item>
-
-            <Form.Item
-              label='问卷描述'
-              name='desc'
-            >
-              <TextArea
-                placeholder='请输入问卷描述'
-                rows={4}
-                maxLength={500}
-                showCount
-              />
-            </Form.Item>
-
-            <Form.Item
-              label='问卷封面'
-              name='img_url'
-            >
-              <Input placeholder="请输入图片URL" />
-            </Form.Item>
-          </Form>
-        </Card>
+      <div className='survey-info-container survey-page-theme'>
+        <BasicInfoFormCard form={form} type='survey' />
       </div>
     </BaseLayout>
   )

@@ -1,93 +1,35 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import { useParams, useHistory } from 'react-router'
-import { Form, Input, Card, message } from 'antd'
+import { Form, message } from 'antd'
 import { observer } from 'mobx-react-lite'
 
 import './BasicInfo.scss'
 import '@/components/editorSteps/index.scss'
+import '@/styles/theme-scale.scss'
 import { scaleStore } from '@/store'
 import { api } from '@/api'
 import BaseLayout from '@/components/layout/BaseLayout'
-
-
-const { TextArea } = Input
+import { BasicInfoFormCard, useBasicInfoForm } from '@/components/questionnaire'
+import { SCALE_STEPS, getScaleStepIndex } from '@/utils/steps'
 
 const BasicInfo: React.FC = observer(() => {
   const history = useHistory()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const [form] = Form.useForm()
 
-  // useEffect() 用于初始化量表信息，区分编辑模式和创建模式
-  useEffect(() => {
-    const isEditMode = questionsheetid && questionsheetid !== 'new'
-    
-    if (isEditMode) {
-      initEditMode(questionsheetid)
-    } else {
-      initCreateMode()
-    }
+  // 设置当前步骤
+  React.useEffect(() => {
+    scaleStore.setCurrentStep('create')
+  }, [])
 
-  }, [questionsheetid])
-
-  // 从 store 同步数据到表单
-  const syncFormFromStore = () => {
-    form.setFieldsValue({
-      title: scaleStore.title,
-      desc: scaleStore.desc,
-      img_url: scaleStore.img_url
-    })
-  }
-
-  // 加载已有量表信息
-  const loadExistingScale = async (id: string) => {
-    const [e, r] = await api.getQuestionSheet(id)
-    if (e) return
-    scaleStore.setScale(r?.data.questionsheet)
-    syncFormFromStore()
-  }
-
-  // 初始化编辑模式
-  const initEditMode = (id: string) => {
-    // 如果 store 中已有该量表的数据，直接使用
-    if (scaleStore.id === id && scaleStore.title) {
-      syncFormFromStore()
-    } else {
-      // 从服务器加载量表信息
-      loadExistingScale(id)
-    }
-  }
-
-  // 初始化新建模式
-  const initCreateMode = () => {
-    // 尝试从 localStorage 恢复数据
-    const restored = scaleStore.loadFromLocalStorage()
-    
-    if (restored && scaleStore.title) {
-      // 成功恢复数据
-      message.success('已恢复上次编辑的内容')
-      syncFormFromStore()
-    } else if (!scaleStore.title) {
-      // 首次创建，初始化空白量表
-      scaleStore.initScale()
-    } else {
-      // 从下一步返回，复用 store 中的数据
-      syncFormFromStore()
-    }
-  }
-
-  
-  // 保存量表基本信息
-  const handleSave = async () => {
-    const values = await form.validateFields()
-    
-    // 更新 store 中的数据
-    scaleStore.title = values.title
-    scaleStore.desc = values.desc
-    scaleStore.img_url = values.img_url
-    
-    // 保存基本信息
-    await scaleStore.saveBasicInfo()
-  }
+  // 使用通用的基本信息表单 Hook
+  const { handleSave } = useBasicInfoForm({
+    questionsheetid,
+    store: scaleStore,
+    api,
+    form,
+    type: 'scale'
+  })
 
   // 保存后跳转到编辑问题页面
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
@@ -105,51 +47,46 @@ const BasicInfo: React.FC = observer(() => {
     }
   }
 
+  // 步骤跳转处理
+  const handleStepChange = (stepIndex: number) => {
+    const step = SCALE_STEPS[stepIndex]
+    if (!step || !scaleStore.id) return
+
+    // 根据步骤跳转到对应页面
+    switch (step.key) {
+    case 'create':
+      history.push(`/scale/info/${scaleStore.id}`)
+      break
+    case 'edit-questions':
+      history.push(`/scale/create/${scaleStore.id}/0`)
+      break
+    case 'set-routing':
+      history.push(`/scale/routing/${scaleStore.id}`)
+      break
+    case 'edit-factors':
+      history.push(`/scale/factor/${scaleStore.id}`)
+      break
+    case 'set-interpretation':
+      history.push(`/scale/analysis/${scaleStore.id}`)
+      break
+    case 'publish':
+      history.push(`/scale/publish/${scaleStore.id}`)
+      break
+    }
+  }
+
   return (
     <BaseLayout
       submitFn={handleSave}
       afterSubmit={handleAfterSubmit}
       footerButtons={['break', 'saveToNext']}
+      steps={SCALE_STEPS}
+      currentStep={getScaleStepIndex(scaleStore.currentStep)}
+      onStepChange={handleStepChange}
+      themeClass="scale-page-theme"
     >
-      <div className='scale-info-container'>
-        <Card title='量表基本信息' bordered={false}>
-          <Form
-            form={form}
-            layout='vertical'
-            initialValues={{
-              title: '',
-              desc: '',
-              img_url: ''
-            }}
-          >
-            <Form.Item
-              label='量表标题'
-              name='title'
-              rules={[{ required: true, message: '请输入量表标题' }]}
-            >
-              <Input placeholder='请输入量表标题' maxLength={100} />
-            </Form.Item>
-
-            <Form.Item
-              label='量表描述'
-              name='desc'
-            >
-              <TextArea
-                placeholder='请输入量表描述'
-                rows={4}
-                maxLength={500}
-                showCount
-              />
-            </Form.Item>
-
-            <Form.Item
-              label='量表封面'
-              name='img_url'
-            >
-              <Input placeholder="请输入图片URL" />
-            </Form.Item>
-          </Form>
-        </Card>
+      <div className='scale-info-container scale-page-theme'>
+        <BasicInfoFormCard form={form} type='scale' />
       </div>
     </BaseLayout>
   )

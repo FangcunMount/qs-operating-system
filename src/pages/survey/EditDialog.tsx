@@ -4,6 +4,7 @@ import { Modal, Button, Input, message } from 'antd'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
 import { api } from '@/api'
 import useSubmit from '@/components/useSubmit'
+import '@/styles/theme-survey.scss'
 
 const initQSInfo = {
   id: '',
@@ -85,6 +86,7 @@ const EditQuestionSheetDialog: React.FC<{
       cancelText="取消"
       destroyOnClose
       visible={isModalVisible}
+      wrapClassName="survey-page-theme"
       onCancel={() => handleCancel()}
       footer={[
         <Button key="cancal" onClick={() => handleCancel()}>

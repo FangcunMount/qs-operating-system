@@ -8,8 +8,11 @@ import { observer } from 'mobx-react-lite'
 import './QuestionEdit.scss'
 import '@/components/questionEdit/index.scss'
 import '@/components/editorSteps/index.scss'
+import '@/styles/theme-survey.scss'
 import { surveyStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
+import { SURVEY_STEPS, getSurveyStepIndex } from '@/utils/steps'
+import { useHistory } from 'react-router-dom'
 import QuestionSetting from '@/components/questionEdit/Setting'
 import QuestionShow from '@/components/questionEdit/Show'
 import QuestionCreate from '@/components/questionEdit/Create'
@@ -51,10 +54,35 @@ const checkMap = {
 }
 
 const QuestionEdit: React.FC = observer(() => {
+  const history = useHistory()
   const showContainerRef = useRef<HTMLInputElement>(null)
   const { questionsheetid, answercnt } = useParams<{ questionsheetid: string; answercnt: string }>()
 
+  // 步骤跳转处理
+  const handleStepChange = (stepIndex: number) => {
+    const step = SURVEY_STEPS[stepIndex]
+    if (!step || !surveyStore.id) return
+
+    switch (step.key) {
+    case 'create':
+      history.push(`/survey/info/${surveyStore.id}`)
+      break
+    case 'edit-questions':
+      history.push(`/survey/create/${surveyStore.id}/0`)
+      break
+    case 'set-routing':
+      history.push(`/survey/routing/${surveyStore.id}`)
+      break
+    case 'publish':
+      history.push(`/survey/publish/${surveyStore.id}`)
+      break
+    }
+  }
+
   useEffect(() => {
+    // 设置当前步骤
+    surveyStore.setCurrentStep('edit-questions')
+
     // 只在 store 中没有数据或 ID 不匹配时才重新初始化
     const needInit = !surveyStore.id || surveyStore.id !== questionsheetid
     
@@ -131,8 +159,12 @@ const QuestionEdit: React.FC = observer(() => {
       afterSubmit={handleAfterSubmit}
       footerButtons={['break', 'saveToNext']}
       nextUrl={`/survey/routing/${questionsheetid}`}
+      steps={SURVEY_STEPS}
+      currentStep={getSurveyStepIndex(surveyStore.currentStep)}
+      onStepChange={handleStepChange}
+      themeClass="survey-page-theme"
     >
-      <div className='qs-question-edit-container'>
+      <div className='qs-question-edit-container survey-page-theme'>
         <DndProvider backend={HTML5Backend}>
           <QuestionCreate showToBottom={showToBottom} store={surveyStore}></QuestionCreate>
           <QuestionShow showContainerRef={showContainerRef} store={surveyStore}></QuestionShow>
