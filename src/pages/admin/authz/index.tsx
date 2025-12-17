@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Card, Tree, Button, Modal, Form, Input, message, Row, Col, Tag, Descriptions } from 'antd'
+import { Card, Button, Modal, Form, Input, Row, Col, Tag, Descriptions, Table, Space } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, SafetyOutlined } from '@ant-design/icons'
 import { observer } from 'mobx-react-lite'
 import { rootStore } from '@/store'
@@ -10,19 +10,16 @@ const AuthzConfig: React.FC = observer(() => {
   const { authStore } = rootStore
   const [modalVisible, setModalVisible] = useState(false)
   const [editingRole, setEditingRole] = useState<IRole | null>(null)
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([])
   const [form] = Form.useForm()
 
   useEffect(() => {
-    authStore.fetchRoleList()
-    authStore.fetchPermissionTree()
+    authStore.fetchRoleList({ limit: 100, offset: 0 })
   }, [])
-
-
 
   const handleRoleSelect = (role: IRole) => {
     authStore.setSelectedRole(role)
-    setSelectedPermissions(role.permissions)
+    // 获取角色的策略列表
+    authStore.fetchRolePolicies(role.id)
   }
 
   const handleAddRole = () => {
@@ -33,27 +30,25 @@ const AuthzConfig: React.FC = observer(() => {
 
   const handleEditRole = (role: IRole) => {
     setEditingRole(role)
-    form.setFieldsValue(role)
-    setSelectedPermissions(role.permissions)
+    form.setFieldsValue({
+      display_name: role.display_name,
+      description: role.description
+    })
     setModalVisible(true)
   }
 
-  const handleDeleteRole = async (id: string) => {
+  const handleDeleteRole = async (id: number) => {
     await authStore.deleteRole(id)
   }
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
-      const roleData = {
-        ...values,
-        permissions: selectedPermissions
-      }
 
       if (editingRole) {
-        await authStore.updateRole(editingRole.id, roleData)
+        await authStore.updateRole(editingRole.id, values)
       } else {
-        await authStore.createRole(roleData)
+        await authStore.createRole(values)
       }
 
       setModalVisible(false)
@@ -62,16 +57,12 @@ const AuthzConfig: React.FC = observer(() => {
     }
   }
 
-  const handlePermissionChange = (checkedKeys: any) => {
-    setSelectedPermissions(checkedKeys)
-  }
-
   return (
     <div className="authz-config-page">
       <Row gutter={24}>
         {/* 角色列表 */}
         <Col xs={24} lg={8}>
-          <Card 
+          <Card
             title={<><SafetyOutlined /> 角色列表</>}
             extra={
               <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleAddRole}>
@@ -87,8 +78,8 @@ const AuthzConfig: React.FC = observer(() => {
                   onClick={() => handleRoleSelect(role)}
                 >
                   <div className="role-header">
-                    <h4>{role.name}</h4>
-                    <Tag color="blue">{role.code}</Tag>
+                    <h4>{role.display_name}</h4>
+                    <Tag color="blue">{role.name}</Tag>
                   </div>
                   <p className="role-desc">{role.description}</p>
                   <div className="role-actions">
@@ -132,33 +123,56 @@ const AuthzConfig: React.FC = observer(() => {
             <>
               <Card title="角色信息" style={{ marginBottom: 24 }}>
                 <Descriptions column={2}>
-                  <Descriptions.Item label="角色名称">{authStore.selectedRole.name}</Descriptions.Item>
-                  <Descriptions.Item label="角色编码">{authStore.selectedRole.code}</Descriptions.Item>
+                  <Descriptions.Item label="角色名称">{authStore.selectedRole.display_name}</Descriptions.Item>
+                  <Descriptions.Item label="角色标识">{authStore.selectedRole.name}</Descriptions.Item>
                   <Descriptions.Item label="角色描述" span={2}>
-                    {authStore.selectedRole.description}
+                    {authStore.selectedRole.description || '-'}
                   </Descriptions.Item>
                   <Descriptions.Item label="创建时间" span={2}>
-                    {authStore.selectedRole.createTime}
+                    {authStore.selectedRole.createdAt}
                   </Descriptions.Item>
                 </Descriptions>
               </Card>
 
-              <Card title="权限配置">
-                <Tree
-                  checkable
-                  defaultExpandAll
-                  checkedKeys={selectedPermissions}
-                  onCheck={handlePermissionChange}
-                  treeData={authStore.permissionTree}
+              <Card title="策略配置">
+                <Table
+                  dataSource={authStore.currentRolePolicies}
+                  rowKey={(record) => `${record.role_id}-${record.resource_id}-${record.action}`}
+                  pagination={false}
+                  loading={authStore.loading}
+                  columns={[
+                    {
+                      title: '资源ID',
+                      dataIndex: 'resource_id',
+                      key: 'resource_id',
+                    },
+                    {
+                      title: '操作',
+                      dataIndex: 'action',
+                      key: 'action',
+                    },
+                    {
+                      title: '管理',
+                      key: 'actions',
+                      render: function ActionCell() {
+                        return (
+                          <Space>
+                            <Button
+                              type="link"
+                              danger
+                              size="small"
+                              onClick={() => {
+                                // TODO: 实现删除策略功能
+                              }}
+                            >
+                              删除
+                            </Button>
+                          </Space>
+                        )
+                      },
+                    },
+                  ]}
                 />
-                <div style={{ marginTop: 16, textAlign: 'right' }}>
-                  <Button type="primary" onClick={() => {
-                    // TODO: 保存权限配置
-                    message.success('权限配置已保存')
-                  }}>
-                    保存权限配置
-                  </Button>
-                </div>
               </Card>
             </>
           ) : (
@@ -181,40 +195,29 @@ const AuthzConfig: React.FC = observer(() => {
       >
         <Form form={form} layout="vertical">
           <Form.Item
-            label="角色名称"
+            label="角色标识"
             name="name"
+            rules={[
+              { required: true, message: '请输入角色标识' },
+              { pattern: /^[a-z_]+$/, message: '角色标识只能包含小写字母和下划线' }
+            ]}
+          >
+            <Input placeholder="请输入角色标识，如: admin" disabled={!!editingRole} />
+          </Form.Item>
+
+          <Form.Item
+            label="角色名称"
+            name="display_name"
             rules={[{ required: true, message: '请输入角色名称' }]}
           >
             <Input placeholder="请输入角色名称" />
           </Form.Item>
 
           <Form.Item
-            label="角色编码"
-            name="code"
-            rules={[
-              { required: true, message: '请输入角色编码' },
-              { pattern: /^[a-z_]+$/, message: '角色编码只能包含小写字母和下划线' }
-            ]}
-          >
-            <Input placeholder="请输入角色编码，如: admin" disabled={!!editingRole} />
-          </Form.Item>
-
-          <Form.Item
             label="角色描述"
             name="description"
-            rules={[{ required: true, message: '请输入角色描述' }]}
           >
             <Input.TextArea placeholder="请输入角色描述" rows={4} />
-          </Form.Item>
-
-          <Form.Item label="权限配置">
-            <Tree
-              checkable
-              defaultExpandAll
-              checkedKeys={selectedPermissions}
-              onCheck={handlePermissionChange}
-              treeData={authStore.permissionTree}
-            />
           </Form.Item>
         </Form>
       </Modal>
@@ -223,3 +226,4 @@ const AuthzConfig: React.FC = observer(() => {
 })
 
 export default AuthzConfig
+

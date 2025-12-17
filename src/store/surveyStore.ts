@@ -1,4 +1,4 @@
-import { makeObservable, observable, computed, action, runInAction, reaction } from 'mobx'
+import { makeObservable, observable, computed, action, runInAction, reaction, toJS } from 'mobx'
 import {
   ICheckBoxQuestion,
   IDateQuestion,
@@ -16,6 +16,8 @@ import { IQuestionSheet } from '../models/questionSheet'
 import { api } from '../api'
 import { delShowController, postShowController } from '@/api/path/showController'
 import { IQuestionShowController } from '@/models/question'
+import type { IQuestionDTO } from '@/api/path/survey'
+import { convertQuestionFromDTO } from '@/api/path/questionConverter'
 
 // 问卷编辑步骤
 export type SurveyStep = 'create' | 'edit-questions' | 'set-routing' | 'publish'
@@ -232,6 +234,8 @@ export const surveyStore = makeObservable(
     // 问题位置调整
     changeQuestionPosition(oldIndex: number, newIndex: number) {
       this.questions.splice(newIndex, 0, this.questions.splice(oldIndex, 1)[0])
+      // 注意：拖拽排序后，顺序会在下次保存时通过批量更新接口统一保存
+      // 如果需要实时保存顺序，可以在这里调用 reorderQuestions API
     },
 
     // 获取问题标题
@@ -431,7 +435,7 @@ export const surveyStore = makeObservable(
 
     updateQuestionValidate(k: keyof IValidateRules, v: any) {
       // 文本类型设置了最小字数，且最小字数 > 0，则打开必填的验证
-      if (k == 'min_words' && v > 0) {
+      if (k == 'min_length' && v > 0) {
         (this.questions[this.currentIndex] as any).validate_rules['required'] = true
       }
       (this.questions[this.currentIndex] as any).validate_rules[k] = v
@@ -526,31 +530,44 @@ export const surveyStore = makeObservable(
         return
       }
 
-      const questionsheet = qr?.data.questionsheet
-      if (questionsheet) {
+      // 新 API 返回格式：IQuestionnaireResponse
+      const questionnaire = qr?.data
+      if (questionnaire) {
         runInAction(() => {
-          this.id = questionsheet.id
-          this.title = questionsheet.title
-          this.desc = questionsheet.desc
-          this.img_url = questionsheet.img_url
+          this.id = questionnaire.code
+          this.title = questionnaire.title
+          this.desc = questionnaire.description || ''
+          this.img_url = questionnaire.img_url || ''
         })
       }
 
-      // 加载题目列表
-      const [le, lr] = await api.getSurveyQuestions(questionsheetid)
-      if (le) {
-        console.warn('加载题目列表失败，使用空列表')
-        runInAction(() => {
-          this.questions = []
-          this.currentCode = ''
-          this.currentStep = 'edit-questions'
-        })
-        return
-      }
-
-      const questions = lr?.data.list || []
+      // 加载题目列表（新 API 中 questions 直接在问卷响应中）
+      // 将 API 返回的 QuestionDTO 转换为前端的 IQuestion
+      const questionDTOs = questionnaire?.questions || []
+      console.log('原始问题数据:', questionDTOs.length, questionDTOs.slice(0, 2))
+      
+      const questions = questionDTOs.map((q: any) => {
+        // API 返回的是 QuestionDTO 格式，需要转换为前端 IQuestion 格式
+        if (q.question_type !== undefined) {
+          return convertQuestionFromDTO(q as IQuestionDTO)
+        }
+        // 如果已经是前端格式（向后兼容），直接使用
+        if (q.type) {
+          return q as IQuestion
+        }
+        // 未知格式，尝试直接使用
+        console.warn('未知的问题数据格式:', q)
+        return q as IQuestion
+      })
+      
+      console.log('转换后的问题列表:', questions.length, questions.slice(0, 2))
+      
       runInAction(() => {
-        this.questions = questions
+        console.log('设置 questions 到 store:', questions.length, questions)
+        // 先清空数组，然后逐个添加，确保 MobX 能正确检测变化
+        this.questions.length = 0
+        this.questions.push(...questions)
+        console.log('store.questions 设置后:', this.questions.length, toJS(this.questions).slice(0, 2))
         if (questions.length > 0) {
           this.currentCode = questions[0].code
           this.currentStep = 'edit-questions'
@@ -558,6 +575,16 @@ export const surveyStore = makeObservable(
           this.currentCode = ''
           this.currentStep = 'edit-questions'
         }
+        console.log('store 状态更新完成:', {
+          questionsCount: this.questions.length,
+          currentCode: this.currentCode,
+          currentStep: this.currentStep,
+          firstQuestion: this.questions.length > 0 ? {
+            code: this.questions[0].code,
+            type: this.questions[0].type,
+            title: this.questions[0].title
+          } : null
+        })
       })
     },
 
@@ -574,15 +601,19 @@ export const surveyStore = makeObservable(
 
       // 新建时需要生成 ID 供后续题目/显隐规则使用
       if (!this.id || this.id === '') {
-        const [e, r] = await api.createSurvey(params)
+        const [e, r] = await api.createSurvey({
+          ...params,
+          type: 'survey'
+        })
         if (e) throw e
 
-        if (r?.data.questionsheetid) {
+        // 新 API 返回格式：IQuestionnaireResponse，code 字段是问卷编码
+        if (r?.data?.code) {
           runInAction(() => {
-            this.id = r.data.questionsheetid
+            this.id = r.data.code
             this.currentStep = 'edit-questions'
           })
-          return r.data.questionsheetid
+          return r.data.code
         }
         throw new Error('创建问卷失败')
       }
@@ -601,7 +632,7 @@ export const surveyStore = makeObservable(
       }
 
       if (persist) {
-        const [e] = await api.saveSurveyQuestions(this.id, this.questions)
+        const [e] = await api.saveSurveyQuestions(this.id, this.questions, this.showControllers)
         if (e) throw e
       }
 
@@ -612,17 +643,27 @@ export const surveyStore = makeObservable(
       })
     },
 
-    // 同步显隐规则（发布前统一提交）
+    // 同步显隐规则（通过 API 提交）
     async syncShowControllers() {
-      if (!this.id) return
+      if (!this.id) {
+        throw new Error('问卷 ID 不能为空')
+      }
 
+      // 删除已标记删除的显隐规则
       for (const code of this.deletedShowControllerCodes) {
-        await delShowController(this.id, code)
+        const [error] = await delShowController(this.id, code)
+        if (error) {
+          throw new Error(`删除显隐规则失败: ${code} - ${error}`)
+        }
       }
       this.deletedShowControllerCodes = []
 
+      // 保存/更新显隐规则
       for (const item of this.showControllers) {
-        await postShowController(this.id, item)
+        const [error] = await postShowController(this.id, item)
+        if (error) {
+          throw new Error(`保存显隐规则失败: ${item.code} - ${error}`)
+        }
       }
     },
 
@@ -635,12 +676,14 @@ export const surveyStore = makeObservable(
         const [e, r] = await api.createSurvey({
           title: this.title,
           desc: this.desc,
-          img_url: this.img_url
+          img_url: this.img_url,
+          type: 'survey'
         })
         if (e) throw e
-        if (r?.data.questionsheetid) {
+        // 新 API 返回格式：IQuestionnaireResponse，code 字段是问卷编码
+        if (r?.data?.code) {
           runInAction(() => {
-            this.id = r.data.questionsheetid
+            this.id = r.data.code
           })
         } else {
           throw new Error('创建问卷失败')
@@ -659,19 +702,37 @@ export const surveyStore = makeObservable(
       })
       if (infoErr) throw infoErr
 
-      // 保存题目列表
-      const [qsErr] = await api.saveSurveyQuestions(surveyId, this.questions)
-      if (qsErr) throw qsErr
+      // 保存题目列表（批量更新，包含显隐规则）
+      if (this.questions.length > 0) {
+        const [qsErr, qsRes] = await api.saveSurveyQuestions(surveyId, this.questions, this.showControllers)
+        if (qsErr) throw qsErr
+        // 如果返回了更新后的问题列表，可以选择更新本地状态
+        if (qsRes?.data?.questions) {
+          console.log('发布时保存问题成功，返回的问题数量:', qsRes.data.questions.length)
+        }
+      }
 
-      // 同步本地暂存的题目显隐规则
-      await this.syncShowControllers()
+      // 注意：显隐规则已经在 saveSurveyQuestions 中通过 show_controller 字段提交了
+      // 这里不需要再单独调用 syncShowControllers
 
-      const [e] = await api.publishSurvey(surveyId)
+      // 发布问卷
+      const [e, publishRes] = await api.publishSurvey(surveyId)
       if (e) throw e
 
-      runInAction(() => {
-        this.currentStep = 'publish'
-      })
+      // 如果发布成功，更新本地状态
+      if (publishRes?.data) {
+        runInAction(() => {
+          this.id = publishRes.data.code
+          this.title = publishRes.data.title
+          this.desc = publishRes.data.description || ''
+          this.img_url = publishRes.data.img_url || ''
+          this.currentStep = 'publish'
+        })
+      } else {
+        runInAction(() => {
+          this.currentStep = 'publish'
+        })
+      }
 
       // 发布成功后清除 localStorage 缓存
       this.clearLocalStorage()
@@ -686,8 +747,18 @@ export const surveyStore = makeObservable(
       }
 
       const surveyId = this.id as string
-      const [e] = await api.unpublishSurvey(surveyId)
+      const [e, unpublishRes] = await api.unpublishSurvey(surveyId)
       if (e) throw e
+
+      // 如果取消发布成功，更新本地状态
+      if (unpublishRes?.data) {
+        runInAction(() => {
+          this.id = unpublishRes.data.code
+          this.title = unpublishRes.data.title
+          this.desc = unpublishRes.data.description || ''
+          this.img_url = unpublishRes.data.img_url || ''
+        })
+      }
     },
 
     /**
@@ -697,17 +768,18 @@ export const surveyStore = makeObservable(
       const [e, r] = await api.getSurvey(questionsheetid)
       if (e) throw e
 
-      const questionsheet = r?.data.questionsheet
-      if (questionsheet) {
+      const questionnaire = r?.data
+      if (questionnaire) {
         runInAction(() => {
-          this.id = questionsheet.id
-          this.title = questionsheet.title
-          this.desc = questionsheet.desc
-          this.img_url = questionsheet.img_url
+          this.id = questionnaire.code
+          this.title = questionnaire.title
+          this.desc = questionnaire.description || ''
+          this.img_url = questionnaire.img_url || ''
         })
       }
-      return questionsheet
-    }
+      return questionnaire
+    },
+
   },
   {
     // 基本信息

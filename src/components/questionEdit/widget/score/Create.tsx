@@ -26,6 +26,7 @@ const CreateScore: React.FC<CreateScoreProps> = (props) => {
       typeStr={'打分单选'}
       question={scoreRadioQuestion}
       onClick={props.onClick}
+      disabled  // 后端暂不支持
     ></CreateContainer>
   )
 }

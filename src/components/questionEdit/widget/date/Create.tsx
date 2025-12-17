@@ -22,6 +22,7 @@ const CreateDate: React.FC<CreateDateProps> = (props) => {
       typeStr={'日 期'}
       question={dateQuestion}
       onClick={props.onClick}
+      disabled  // 后端暂不支持
     ></CreateContainer>
   )
 }

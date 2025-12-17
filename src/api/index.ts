@@ -12,6 +12,10 @@ import { statisticsApi } from './path/statistics'
 import { templateApi } from './path/template'
 import { surveyApi } from './path/survey'
 
+// 导出新的 API
+export { testeeApi } from './path/subject'
+export { assessmentApi } from './path/assessment'
+
 export const api = {
   ...answerSheetApi,
   ...questionSheetApi,

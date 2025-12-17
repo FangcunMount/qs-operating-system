@@ -6,12 +6,12 @@ import CreateContainer from '../components/CreateContainer'
 import { GLOBAL_CONSTANT } from '@/utils/variables'
 
 const checkBoxQuestion: ICheckBoxQuestion = {
-  type: 'CheckBox',
+  type: 'Checkbox',
   code: '',
   options: [],
   title: '多选题',
   tips: '',
-  validate_rules: { required: false, min_select: GLOBAL_CONSTANT.min.select, max_select: GLOBAL_CONSTANT.max.select },
+  validate_rules: { required: false, min_selections: GLOBAL_CONSTANT.min.select, max_selections: GLOBAL_CONSTANT.max.select },
   calc_rule: {
     formula: 'sum'
   }

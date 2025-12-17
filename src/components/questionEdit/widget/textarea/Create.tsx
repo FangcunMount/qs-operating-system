@@ -13,8 +13,8 @@ const textQuestion: ITextareaQuestion = {
   placeholder: '',
   validate_rules: {
     required: false,
-    min_words: GLOBAL_CONSTANT.min.words,
-    max_words: GLOBAL_CONSTANT.max.words
+    min_length: GLOBAL_CONSTANT.min.words,
+    max_length: GLOBAL_CONSTANT.max.words
   }
 }
 const CreateTextarea: React.FC<CreateTextareaProps> = (props) => {

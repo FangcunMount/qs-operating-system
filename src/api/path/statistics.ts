@@ -1,5 +1,4 @@
 import { get } from '../server'
-import { isMockEnabled, mockDelay } from '../mockConfig'
 import { FcResponse } from '../../types/server'
 
 // ==================== 类型定义 ====================
@@ -10,13 +9,7 @@ export interface IStatistics {
   todayAnswers: number
 }
 
-// ==================== Mock 数据 ====================
-const mockStatistics: IStatistics = {
-  totalQuestionSheets: 128,
-  totalAnswerSheets: 3456,
-  totalUsers: 892,
-  todayAnswers: 67
-}
+// Mock 数据已移除，使用真实后端 API
 
 // ==================== API 方法 ====================
 
@@ -24,15 +17,6 @@ const mockStatistics: IStatistics = {
  * 获取统计数据
  */
 export const getStatistics = async (): Promise<[any, FcResponse<IStatistics> | undefined]> => {
-  if (isMockEnabled('statistics')) {
-    await mockDelay()
-    return [null, {
-      errno: '0',
-      errmsg: 'success',
-      data: mockStatistics
-    }]
-  }
-  
   return get<IStatistics>('/api/statistics/dashboard')
 }
 

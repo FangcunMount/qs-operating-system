@@ -1,20 +1,10 @@
 import { makeAutoObservable, runInAction } from 'mobx'
 import { message } from 'antd'
 import { api } from '../api'
+import type { IUserProfile, IContact } from '../api/path/user'
 
-export interface IUserProfile {
-  id: string
-  username: string
-  nickname: string
-  email: string
-  phone: string
-  avatar: string
-  department: string
-  position: string
-  role: string
-  createTime: string
-  lastLoginTime: string
-}
+// 导出类型供其他模块使用
+export type { IUserProfile, IContact }
 
 class UserStore {
   // 当前用户信息
@@ -54,19 +44,18 @@ class UserStore {
   }
 
   // 更新用户信息
-  async updateUserProfile(data: Partial<IUserProfile>) {
+  async updateUserProfile(data: { nickname?: string; contacts?: IContact[] }) {
     this.loading = true
     try {
-      const [error] = await api.updateUserProfile(data)
+      const [error, resp] = await api.updateUserProfile(data)
       
-      if (error) {
+      if (error || !resp) {
         throw new Error('更新失败')
       }
       
       runInAction(() => {
-        if (this.currentUser) {
-          this.currentUser = { ...this.currentUser, ...data }
-        }
+        // 使用服务器返回的最新数据
+        this.currentUser = resp.data
         this.loading = false
       })
       message.success('更新成功')
@@ -76,6 +65,11 @@ class UserStore {
       })
       message.error('更新失败')
     }
+  }
+
+  // 辅助方法：从 contacts 中获取指定类型的值
+  getContact(type: 'phone' | 'email'): string {
+    return this.currentUser?.contacts?.find(c => c.type === type)?.value || ''
   }
 
   // 修改密码
@@ -102,7 +96,7 @@ class UserStore {
     }
   }
 
-  // 上传头像
+  // 上传头像（新 API 不支持 avatar 字段，暂时保留方法但不更新状态）
   async uploadAvatar(file: File) {
     this.loading = true
     try {
@@ -113,9 +107,8 @@ class UserStore {
       }
       
       runInAction(() => {
-        if (this.currentUser) {
-          this.currentUser.avatar = data.data.url
-        }
+        // 新的 identity/me API 不包含 avatar 字段
+        // 如果需要头像功能，需要后端支持
         this.loading = false
       })
       message.success('头像上传成功')
@@ -131,14 +124,18 @@ class UserStore {
   async login(username: string, password: string) {
     this.loading = true
     try {
-      const [error, data] = await api.login(username, password)
+      const [error, resp] = await api.login(username, password)
       
-      if (error || !data) {
-        throw new Error('登录失败')
+      if (error || !resp || !resp.data) {
+        throw new Error(resp?.errmsg || '登录失败')
       }
       
       // 保存 token
-      localStorage.setItem('token', data.data.token)
+      localStorage.setItem('access_token', resp.data.access_token)
+      localStorage.setItem('token', resp.data.access_token)
+      if (resp.data.refresh_token) {
+        localStorage.setItem('refresh_token', resp.data.refresh_token)
+      }
       
       runInAction(() => {
         this.isLoggedIn = true
@@ -147,20 +144,34 @@ class UserStore {
       await this.fetchUserProfile()
       message.success('登录成功')
       return true
-    } catch (error) {
+    } catch (error: any) {
       runInAction(() => {
         this.loading = false
       })
-      message.error('登录失败')
+      message.error(error?.message || '登录失败')
       return false
     }
   }
 
   // 登出
-  logout() {
+  async logout() {
+    const accessToken = localStorage.getItem('access_token') || localStorage.getItem('token') || undefined
+    const refreshToken = localStorage.getItem('refresh_token') || undefined
+
+    try {
+      await api.logout(accessToken, refreshToken)
+    } catch (error) {
+      // 后端登出失败不阻塞前端清理
+    }
+
     this.currentUser = null
     this.isLoggedIn = false
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+    localStorage.removeItem('token')
     message.success('已退出登录')
+    // 跳转到登录页面
+    window.location.href = '/user/login'
   }
 
   // 重置状态
@@ -168,6 +179,9 @@ class UserStore {
     this.currentUser = null
     this.loading = false
     this.isLoggedIn = false
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+    localStorage.removeItem('token')
   }
 }
 

@@ -13,6 +13,7 @@ import { surveyStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
 import { SURVEY_STEPS, getSurveyStepIndex } from '@/utils/steps'
 import { useHistory } from 'react-router-dom'
+import { surveyApi } from '@/api/path/survey'
 import QuestionSetting from '@/components/questionEdit/Setting'
 import QuestionShow from '@/components/questionEdit/Show'
 import QuestionCreate from '@/components/questionEdit/Create'
@@ -57,6 +58,15 @@ const QuestionEdit: React.FC = observer(() => {
   const history = useHistory()
   const showContainerRef = useRef<HTMLInputElement>(null)
   const { questionsheetid, answercnt } = useParams<{ questionsheetid: string; answercnt: string }>()
+  
+  // 调试：检查当前路由和 store 状态
+  console.log('QuestionEdit 组件渲染:', {
+    questionsheetid,
+    answercnt,
+    surveyStoreId: surveyStore.id,
+    surveyStoreQuestionsLength: surveyStore.questions.length,
+    currentPath: window.location.pathname
+  })
 
   // 步骤跳转处理
   const handleStepChange = (stepIndex: number) => {
@@ -111,13 +121,39 @@ const QuestionEdit: React.FC = observer(() => {
   }
 
   const handleSaveQuestionSheet = async () => {
-    // 仅本地暂存，不触发后端接口
+    if (!surveyStore.id) {
+      throw new Error('问卷 ID 不能为空')
+    }
+    
+    if (surveyStore.questions.length === 0) {
+      message.warning('请至少添加一个问题')
+      return
+    }
+    
+    // 调用 API 批量保存问题（包含显隐规则）
+    const [e, r] = await surveyApi.saveSurveyQuestions(
+      surveyStore.id, 
+      surveyStore.questions,
+      surveyStore.showControllers
+    )
+    if (e) {
+      throw e
+    }
+    
+    // 保存成功后，如果 API 返回了更新后的问题列表，可以更新本地状态
+    if (r?.data?.questions) {
+      console.log('批量保存成功，返回的问题数量:', r.data.questions.length)
+      // 注意：这里可以选择是否用返回的数据更新本地状态
+      // 通常批量更新接口会返回更新后的完整问卷数据
+    }
+    
+    // 保存成功后更新步骤
     surveyStore.setCurrentStep('set-routing')
   }
 
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
     if (status === 'success') {
-      message.success('已保存到本地，稍后统一提交')
+      message.success('问题保存成功')
       surveyStore.nextStep()
     }
     if (status === 'fail') {
@@ -167,7 +203,7 @@ const QuestionEdit: React.FC = observer(() => {
       <div className='qs-question-edit-container survey-page-theme'>
         <DndProvider backend={HTML5Backend}>
           <QuestionCreate showToBottom={showToBottom} store={surveyStore}></QuestionCreate>
-          <QuestionShow showContainerRef={showContainerRef} store={surveyStore}></QuestionShow>
+          <QuestionShow key="survey-question-show" showContainerRef={showContainerRef} store={surveyStore}></QuestionShow>
           <QuestionSetting store={surveyStore}></QuestionSetting>
         </DndProvider>
       </div>

@@ -48,48 +48,36 @@ const Publish: React.FC = observer(() => {
   }, [questionsheetid])
 
   const initData = async () => {
-    // 先尝试从 localStorage 恢复
-    const restored = surveyStore.loadFromLocalStorage()
-    
-    if (restored && surveyStore.id === questionsheetid && surveyStore.questions.length > 0) {
-      console.log('publish 页面从 localStorage 恢复数据成功')
-      
-      // 生成链接和分享码
-      const baseUrl = window.location.origin
-      const url = `${baseUrl}/answer/${questionsheetid}`
-      setSurveyUrl(url)
-      setShareCode(questionsheetid)
-      
-      // 仍需从服务器获取发布状态
-      try {
-        const questionsheet = await surveyStore.fetchSurveyInfo(questionsheetid)
-        if (questionsheet) {
-          setIsPublished((questionsheet as any).published === true)
-        }
-      } catch (error) {
-        console.error('获取发布状态失败:', error)
-      }
-      return
-    }
-    
-    // 从服务器加载完整数据
-    console.log('publish 页面从服务器加载数据')
     message.loading({ content: '加载中', duration: 0, key: 'fetch' })
     
     try {
-      const questionsheet = await surveyStore.fetchSurveyInfo(questionsheetid)
+      // 从服务器加载问卷信息（包括发布状态）
+      const questionnaire = await surveyStore.fetchSurveyInfo(questionsheetid)
       
-      // 检查发布状态
-      if (questionsheet) {
-        setIsPublished((questionsheet as any).published === true)
+      if (!questionnaire) {
+        message.destroy()
+        message.error('问卷不存在')
+        return
       }
       
-      // 生成问卷链接
+      // 根据 API 返回的 status 字段判断是否已发布
+      // status 可能的值：'draft'（草稿）、'published'（已发布）、'archived'（已归档）
+      const published = questionnaire.status === 'published' || questionnaire.status === '\x01' // '\x01' 可能是已发布的编码
+      setIsPublished(published)
+      
+      // 如果问卷有问题数据，加载到 store
+      if (questionnaire.questions && questionnaire.questions.length > 0) {
+        // 问题数据已经在 initEditor 中加载过了，这里不需要重复加载
+        // 但如果直接从发布页面进入，需要加载问题数据
+        if (surveyStore.questions.length === 0) {
+          await surveyStore.initEditor(questionsheetid)
+        }
+      }
+      
+      // 生成问卷链接和分享码
       const baseUrl = window.location.origin
       const url = `${baseUrl}/answer/${questionsheetid}`
       setSurveyUrl(url)
-      
-      // 生成分享码
       setShareCode(questionsheetid)
       
       message.destroy()
@@ -104,7 +92,15 @@ const Publish: React.FC = observer(() => {
     try {
       message.loading({ content: '发布中...', duration: 0, key: 'publish' })
       await surveyStore.publish()
-      setIsPublished(true)
+      
+      // 发布成功后，重新获取问卷信息以更新状态
+      const questionnaire = await surveyStore.fetchSurveyInfo(questionsheetid)
+      if (questionnaire) {
+        const published = questionnaire.status === 'published' || questionnaire.status === '\x01'
+        setIsPublished(published)
+      } else {
+        setIsPublished(true)
+      }
       
       message.destroy()
       message.success('问卷发布成功！')
@@ -119,7 +115,15 @@ const Publish: React.FC = observer(() => {
       message.loading({ content: '取消发布中...', duration: 0, key: 'unpublish' })
       
       await surveyStore.unpublish()
-      setIsPublished(false)
+      
+      // 取消发布成功后，重新获取问卷信息以更新状态
+      const questionnaire = await surveyStore.fetchSurveyInfo(questionsheetid)
+      if (questionnaire) {
+        const published = questionnaire.status === 'published' || questionnaire.status === '\x01'
+        setIsPublished(published)
+      } else {
+        setIsPublished(false)
+      }
       
       message.destroy()
       message.success('已取消发布')
@@ -143,17 +147,36 @@ const Publish: React.FC = observer(() => {
   const handleSaveDraftInline = async () => {
     try {
       message.loading({ content: '保存中...', duration: 0, key: 'saveDraft' })
-      // 保存到 localStorage
-      surveyStore.saveToLocalStorage()
-      // 如果有 ID，也保存到服务器
-      if (surveyStore.id) {
+      
+      if (!surveyStore.id) {
+        message.destroy()
+        message.error('问卷 ID 不能为空')
+        return
+      }
+      
+      // 1. 保存基本信息
+      await surveyStore.saveBasicInfo()
+      
+      // 2. 保存问题列表（包含显隐规则）
+      if (surveyStore.questions.length > 0) {
         await surveyStore.saveQuestionList({ persist: true })
       }
+      
+      // 3. 调用保存草稿 API
+      const { surveyApi } = await import('@/api/path/survey')
+      const [error] = await surveyApi.saveDraft(surveyStore.id)
+      if (error) {
+        throw error
+      }
+      
+      // 4. 保存到 localStorage（作为备份）
+      surveyStore.saveToLocalStorage()
+      
       message.destroy()
       message.success('草稿保存成功')
     } catch (error: any) {
       message.destroy()
-      message.error(`保存失败: ${error?.errmsg ?? error}`)
+      message.error(`保存失败: ${error?.errmsg ?? error.message ?? error}`)
     }
   }
 
@@ -162,7 +185,16 @@ const Publish: React.FC = observer(() => {
     try {
       message.loading({ content: '重新发布中...', duration: 0, key: 'republish' })
       await surveyStore.publish()
-      setIsPublished(true)
+      
+      // 重新发布成功后，重新获取问卷信息以更新状态
+      const questionnaire = await surveyStore.fetchSurveyInfo(questionsheetid)
+      if (questionnaire) {
+        const published = questionnaire.status === 'published' || questionnaire.status === '\x01'
+        setIsPublished(published)
+      } else {
+        setIsPublished(true)
+      }
+      
       message.destroy()
       message.success('问卷重新发布成功！')
     } catch (error: any) {

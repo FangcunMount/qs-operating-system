@@ -1,0 +1,173 @@
+.subject-list-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  padding: 16px 24px;
+  overflow: hidden;
+
+  .filter-bar {
+    flex-shrink: 0;
+    padding: 16px;
+    background: #fff;
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+    margin-bottom: 16px;
+
+    .filter-label {
+      color: #595959;
+      font-size: 14px;
+    }
+  }
+
+  .table-container {
+    flex: 1;
+    min-height: 0;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+    overflow: hidden;
+
+    .ant-table-wrapper {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+
+      .ant-spin-nested-loading {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+
+        .ant-spin-container {
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+      }
+
+      .ant-table {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+
+        .ant-table-container {
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+
+        .ant-table-body {
+          flex: 1;
+          overflow-y: auto;
+          overflow-x: hidden;
+        }
+
+        .ant-table-thead {
+          flex-shrink: 0;
+        }
+
+        .ant-table-thead > tr > th {
+          background: #fafafa;
+          font-weight: 500;
+          color: #262626;
+          border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .ant-table-tbody > tr {
+          &:hover {
+            background: #fafafa;
+          }
+        }
+      }
+    }
+  }
+
+  .subject-name {
+    font-weight: 500;
+    color: #262626;
+  }
+
+  .gender-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 12px;
+    
+    &.male {
+      background: #e6f7ff;
+      color: #1890ff;
+    }
+    
+    &.female {
+      background: #fff0f6;
+      color: #eb2f96;
+    }
+  }
+
+  .age-badge {
+    color: #595959;
+    font-size: 13px;
+  }
+
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    
+    .ant-tag {
+      margin: 0;
+      font-size: 12px;
+    }
+    
+    .no-tags {
+      color: #bfbfbf;
+      font-size: 12px;
+    }
+  }
+
+  .stats-container {
+    .stats-badge {
+      display: inline-block;
+      color: #595959;
+      font-size: 13px;
+      
+      .count {
+        font-weight: 500;
+        color: #262626;
+      }
+    }
+    
+    .risk-level {
+      margin-top: 4px;
+    }
+  }
+
+  .time-text {
+    color: #8c8c8c;
+    font-size: 13px;
+    
+    &.no-data {
+      color: #bfbfbf;
+    }
+  }
+
+  .ant-pagination {
+    flex-shrink: 0;
+    padding: 16px;
+    margin: 0;
+    border-top: 1px solid #f0f0f0;
+    background: #fff;
+  }
+}

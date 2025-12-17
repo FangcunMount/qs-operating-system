@@ -24,6 +24,7 @@ const CreateSelect: React.FC<CreateSelectProps> = (props) => {
       typeStr={'下拉选择'}
       question={selectQuestion}
       onClick={props.onClick}
+      disabled  // 后端暂不支持
     ></CreateContainer>
   )
 }

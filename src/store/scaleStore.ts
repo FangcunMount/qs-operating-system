@@ -481,16 +481,17 @@ export const scaleStore = makeObservable(
       const [e, r] = await api.getSurvey(questionsheetid)
       if (e) throw e
 
-      const questionsheet = r?.data.questionsheet
-      if (questionsheet) {
+      // 新 API 返回格式：IQuestionnaireResponse
+      const questionnaire = r?.data
+      if (questionnaire) {
         runInAction(() => {
-          this.id = questionsheet.id
-          this.title = questionsheet.title
-          this.desc = questionsheet.desc
-          this.img_url = questionsheet.img_url
+          this.id = questionnaire.code
+          this.title = questionnaire.title
+          this.desc = questionnaire.description || ''
+          this.img_url = questionnaire.img_url || ''
         })
       }
-      return questionsheet
+      return questionnaire
     },
 
     // 同步显隐规则（发布前统一提交）
@@ -516,12 +517,14 @@ export const scaleStore = makeObservable(
         const [e, r] = await api.createSurvey({
           title: this.title,
           desc: this.desc,
-          img_url: this.img_url
+          img_url: this.img_url,
+          type: 'scale'
         })
         if (e) throw e
-        if (r?.data.questionsheetid) {
+        // 新 API 返回格式：IQuestionnaireResponse，code 字段是问卷编码
+        if (r?.data?.code) {
           runInAction(() => {
-            this.id = r.data.questionsheetid
+            this.id = r.data.code
           })
         } else {
           throw new Error('创建量表失败')
@@ -584,15 +587,19 @@ export const scaleStore = makeObservable(
 
       // 新建时需要生成 ID 供后续题目/显隐规则使用
       if (!this.id || this.id === '') {
-        const [e, r] = await api.createSurvey(params)
+        const [e, r] = await api.createSurvey({
+          ...params,
+          type: 'scale'
+        })
         if (e) throw e
 
-        if (r?.data.questionsheetid) {
+        // 新 API 返回格式：IQuestionnaireResponse，code 字段是问卷编码
+        if (r?.data?.code) {
           runInAction(() => {
-            this.id = r.data.questionsheetid
+            this.id = r.data.code
             this.currentStep = 'edit-questions'
           })
-          return r.data.questionsheetid
+          return r.data.code
         }
         throw new Error('创建量表失败')
       }
@@ -663,29 +670,19 @@ export const scaleStore = makeObservable(
         return
       }
 
-      const questionsheet = qr?.data.questionsheet
-      if (questionsheet) {
+      // 新 API 返回格式：IQuestionnaireResponse
+      const questionnaire = qr?.data
+      if (questionnaire) {
         runInAction(() => {
-          this.id = questionsheet.id
-          this.title = questionsheet.title
-          this.desc = questionsheet.desc
-          this.img_url = questionsheet.img_url
+          this.id = questionnaire.code
+          this.title = questionnaire.title
+          this.desc = questionnaire.description || ''
+          this.img_url = questionnaire.img_url || ''
         })
       }
 
-      // 加载题目列表
-      const [le, lr] = await api.getSurveyQuestions(questionsheetid)
-      if (le) {
-        console.warn('加载题目列表失败，使用空列表')
-        runInAction(() => {
-          this.questions = []
-          this.currentCode = ''
-          this.currentStep = 'edit-questions'
-        })
-        return
-      }
-
-      const questions = lr?.data.list || []
+      // 新 API 中 questions 直接在问卷响应中
+      const questions = questionnaire?.questions || []
       runInAction(() => {
         this.questions = questions
         if (questions.length > 0) {
@@ -801,7 +798,7 @@ export const scaleStore = makeObservable(
 
     updateQuestionValidate(k: keyof IValidateRules, v: any) {
       // 文本类型设置了最小字数，且最小字数 > 0，则打开必填的验证
-      if (k == 'min_words' && v > 0) {
+      if (k == 'min_length' && v > 0) {
         (this.questions[this.currentIndex] as any).validate_rules['required'] = true
       }
       (this.questions[this.currentIndex] as any).validate_rules[k] = v
@@ -958,3 +955,4 @@ reaction(
     fireImmediately: false
   }
 )
+

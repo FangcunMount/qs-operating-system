@@ -9,7 +9,7 @@ type QuestionSheetListParams = {
 }
 
 export function getQuestionSheet<T = { questionsheet: IQuestionSheet }>(id: string | number): ApiResponse<T> {
-  return get<T>('/api/questionsheet/one', { questionsheetid: id })
+  return get<T>(`/questionnaires/${id}`, {})
 }
 
 export function getQuestionSheetList<T = { pagesize: string; pagenum: string; total_count: string; list: Array<IQuestionSheetInfo> }>(
@@ -21,19 +21,19 @@ export function getQuestionSheetList<T = { pagesize: string; pagenum: string; to
   if (keyword) {
     params['keyword'] = keyword
   }
-  return get<T>('/api/questionsheet/list', params)
+  return get<T>('/questionnaires', params)
 }
 
 export function delQuestionSheet<T = string>(id: string): ApiResponse<T> {
-  return post<T>('/api/questionsheet/delete', { questionsheetid: id })
+  return post<T>(`/questionnaires/${id}`, {})
 }
 
 export function modifyQuestionSheet<T = { questionsheetid: string }>(data: IQuestionSheetInfo): ApiResponse<T> {
-  return post<T>('/api/questionsheet/modify', { questionsheetid: data.id, title: data.title, img_url: data.img_url, desc: data.desc })
+  return post<T>(`/questionnaires/${data.id}/basic-info`, { title: data.title, img_url: data.img_url, description: data.desc })
 }
 
 export function addQuestionSheet<T = { questionsheetid: string }>(data: IQuestionSheetInfo): ApiResponse<T> {
-  return post<T>('/api/questionsheet/add', { title: data.title, img_url: data.img_url, desc: data.desc })
+  return post<T>('/questionnaires', { title: data.title, img_url: data.img_url, description: data.desc })
 }
 
 export const questionSheetApi = {

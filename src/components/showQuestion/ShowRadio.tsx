@@ -24,9 +24,9 @@ const ShowRadio: React.FC<ShowRadioProps> = ({ item, title, isSelect, onClick })
     <ShowContainer title={title} tips={item.tips} isSelectedQuestion={isSelect} onClick={onClick}>
       <Radio.Group value={value}>
         <Space direction="vertical">
-          {item.options.map((v) => {
+          {item.options.map((v, index) => {
             return (
-              <Radio key={v.code} value={v.code}>
+              <Radio key={v.code || `radio-${index}`} value={v.code}>
                 <div className="s-row">
                   <span className="s-no-wrap" style={{ flexGrow: 1 }}>
                     {v.content}

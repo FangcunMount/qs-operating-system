@@ -121,15 +121,50 @@ const QuestionRouting: React.FC = observer(() => {
     setEditingQuestionCode(null)
   }
 
-  // 保存路由设置
+  // 保存路由设置（通过批量更新接口提交，包含显隐规则）
   const handleSave = async () => {
-    surveyStore.setCurrentStep('publish')
+    if (!surveyStore.id) {
+      throw new Error('问卷 ID 不能为空')
+    }
+    
+    if (surveyStore.questions.length === 0) {
+      throw new Error('请先添加问题')
+    }
+    
+    try {
+      // 显示加载提示
+      message.loading({ content: '正在保存路由设置...', key: 'saveRouting', duration: 0 })
+      
+      // 调用批量更新接口，同时提交问题和显隐规则
+      const { surveyApi } = await import('@/api/path/survey')
+      const [error] = await surveyApi.saveSurveyQuestions(
+        surveyStore.id,
+        surveyStore.questions,
+        surveyStore.showControllers
+      )
+      
+      if (error) {
+        throw error
+      }
+      
+      // 关闭加载提示
+      message.destroy('saveRouting')
+      
+      // 保存成功后更新步骤
+      surveyStore.setCurrentStep('publish')
+    } catch (error: any) {
+      // 关闭加载提示
+      message.destroy('saveRouting')
+      
+      // 抛出错误，让 BaseLayout 的 afterSubmit 处理
+      throw error
+    }
   }
 
   // 保存后的回调
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
     if (status === 'success') {
-      message.success('路由设置已保存到本地，发布时统一提交')
+      message.success('路由设置已保存成功')
       surveyStore.nextStep()
     } else {
       message.error(`路由设置保存失败 -- ${error?.errmsg ?? error}`)

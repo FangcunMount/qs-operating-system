@@ -3,8 +3,6 @@ import { useParams } from 'react-router'
 import { Button, Card, Table, Space, Tag, Tooltip, Progress, Input, DatePicker } from 'antd'
 import { observer } from 'mobx-react'
 import { 
-  ExportOutlined, 
-  FileTextOutlined, 
   EyeOutlined,
   UserOutlined,
   ClockCircleOutlined,
@@ -14,7 +12,6 @@ import {
 import { rootStore } from '@/store'
 import { Link } from 'react-router-dom'
 import BaseLayout from '@/components/layout/BaseLayout'
-import ExportDialog from './weight/exportDialog'
 import moment from 'moment'
 
 const { Column } = Table
@@ -24,8 +21,6 @@ const { RangePicker } = DatePicker
 const AsList: React.FC = observer(() => {
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const { answerSheetStore } = rootStore
-  const [exportDialogFlag, setExportDialogFlag] = useState(false)
-  const [exportType, setExportType] = useState<'answer' | 'factorScore'>('answer')
   const [searchText, setSearchText] = useState('')
   const [dateRange, setDateRange] = useState<[moment.Moment | null, moment.Moment | null] | null>(null)
 
@@ -66,14 +61,6 @@ const AsList: React.FC = observer(() => {
   return (
     <BaseLayout header={'答卷列表'} footer={''}>
       <div style={{ padding: '16px', background: '#f0f2f5', minHeight: '100vh' }}>
-        <ExportDialog
-          isModalVisible={exportDialogFlag}
-          type={exportType}
-          questionsheetid={questionsheetid}
-          close={() => {
-            setExportDialogFlag(false)
-          }}
-        />
 
         {/* 数据统计卡片 */}
         <Card style={{ marginBottom: 16 }}>
@@ -120,31 +107,6 @@ const AsList: React.FC = observer(() => {
                   重置筛选
                 </Button>
               )}
-            </Space>
-
-            {/* 导出操作 */}
-            <Space>
-              <Button
-                type="primary"
-                icon={<ExportOutlined />}
-                onClick={() => {
-                  setExportType('answer')
-                  setExportDialogFlag(true)
-                }}
-              >
-                导出原始答卷
-              </Button>
-              <Button
-                type="primary"
-                icon={<FileTextOutlined />}
-                onClick={() => {
-                  setExportType('factorScore')
-                  setExportDialogFlag(true)
-                }}
-                style={{ background: '#52c41a', borderColor: '#52c41a' }}
-              >
-                导出因子得分
-              </Button>
             </Space>
           </Space>
         </Card>

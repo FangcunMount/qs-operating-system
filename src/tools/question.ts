@@ -53,21 +53,21 @@ import { IAnyObj } from '@/types/base'
 type IAnyReactEl = React.FC<any>
 type deepTraversalCallback = (k: string, v: any) => any
 interface IDefaultField {
-  min_words: number
-  max_words: number
+  min_length: number
+  max_length: number
   min_value: number
   max_value: number
-  min_select: number
-  max_select: number
+  min_selections: number
+  max_selections: number
 }
 const needTransformField = ['allow_extend_text', 'is_other', 'required', 'allow_upload_image', 'allow_upload_video']
 const defaultField: IDefaultField = {
-  min_words: GLOBAL_CONSTANT.min.words,
-  max_words: GLOBAL_CONSTANT.max.words,
+  min_length: GLOBAL_CONSTANT.min.words,
+  max_length: GLOBAL_CONSTANT.max.words,
   min_value: GLOBAL_CONSTANT.min.number,
   max_value: GLOBAL_CONSTANT.max.number,
-  min_select: GLOBAL_CONSTANT.min.select,
-  max_select: GLOBAL_CONSTANT.max.select
+  min_selections: GLOBAL_CONSTANT.min.select,
+  max_selections: GLOBAL_CONSTANT.max.select
 }
 
 function deepTraversal(target: unknown, callback: deepTraversalCallback) {
@@ -138,7 +138,7 @@ class SectionQuestion extends Question {
   }
 }
 
-class CheckBoxQueestion extends Question {
+class CheckBoxQuestion extends Question {
   get settingComponent() {
     return SettingCheckBox as IAnyReactEl
   }
@@ -152,8 +152,8 @@ class CheckBoxQueestion extends Question {
       ...question,
       validate_rules: {
         required: oneZeroToBool(question.validate_rules?.required),
-        min_select: question.validate_rules?.min_select || GLOBAL_CONSTANT.min.select,
-        max_select: question.validate_rules?.max_select || GLOBAL_CONSTANT.max.select
+        min_selections: question.validate_rules?.min_selections || GLOBAL_CONSTANT.min.select,
+        max_selections: question.validate_rules?.max_selections || GLOBAL_CONSTANT.max.select
       }
     }
   }
@@ -207,8 +207,8 @@ class TextQuestion extends Question {
       ...question,
       validate_rules: {
         required: oneZeroToBool(question.validate_rules?.required),
-        min_words: question.validate_rules?.min_words || GLOBAL_CONSTANT.min.words,
-        max_words: question.validate_rules?.max_words || GLOBAL_CONSTANT.max.words
+        min_length: question.validate_rules?.min_length || GLOBAL_CONSTANT.min.words,
+        max_length: question.validate_rules?.max_length || GLOBAL_CONSTANT.max.words
       }
     }
   }
@@ -228,8 +228,8 @@ class TextareaQuestion extends Question {
       ...question,
       validate_rules: {
         required: oneZeroToBool(question.validate_rules?.required),
-        min_words: question.validate_rules?.min_words ?? GLOBAL_CONSTANT.min.words,
-        max_words: question.validate_rules?.max_words ?? GLOBAL_CONSTANT.max.words
+        min_length: question.validate_rules?.min_length ?? GLOBAL_CONSTANT.min.words,
+        max_length: question.validate_rules?.max_length ?? GLOBAL_CONSTANT.max.words
       }
     }
   }
@@ -304,8 +304,8 @@ class ImageCheckBoxQuestion extends Question {
       ...question,
       validate_rules: { 
         required: oneZeroToBool(question.validate_rules?.required),
-        min_select: question.validate_rules?.min_select || GLOBAL_CONSTANT.min.select,
-        max_select: question.validate_rules?.max_select || GLOBAL_CONSTANT.max.select
+        min_selections: question.validate_rules?.min_selections || GLOBAL_CONSTANT.min.select,
+        max_selections: question.validate_rules?.max_selections || GLOBAL_CONSTANT.max.select
       },
 
     }
@@ -348,8 +348,8 @@ function createQuestion(type: IQuestionType | null | undefined): Question {
     return new DateQuestion()
   case 'Radio':
     return new RadioQuestion()
-  case 'CheckBox':
-    return new CheckBoxQueestion()
+  case 'Checkbox':
+    return new CheckBoxQuestion()
   case 'Select':
     return new SelectQuestion()
   case 'ScoreRadio':
@@ -370,7 +370,7 @@ export function getSettingComponent(question: IQuestion): IAnyReactEl {
 }
 
 export function getShowComponent(question: IQuestion | IAnswer): IAnyReactEl {
-  return createQuestion(question.type).showComponent
+  return createQuestion(question.type as IQuestionType | null | undefined).showComponent
 }
 
 export function apiToData(question: IQuestion): IQuestion {

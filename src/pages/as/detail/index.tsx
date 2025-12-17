@@ -17,10 +17,12 @@ const AsDetail: React.FC = () => {
   useEffect(() => {
     (async () => {
       const [e, r] = await api.getAnswerSheetDetail(answersheetid)
-      if (!e && r) {
-        if (r.data.answersheet.answers) {
+      if (!e && r?.data) {
+        // 新 API 返回格式：IAnswerSheetResponse
+        const answerSheetData = r.data
+        if (answerSheetData.answers) {
           let tmp = 1
-          r.data.answersheet.answers = r.data.answersheet.answers.map((v) => {
+          answerSheetData.answers = answerSheetData.answers.map((v: any) => {
             if (v.type !== 'Section') {
               v.title = `${tmp}. ${v.title}`
               tmp++
@@ -28,7 +30,14 @@ const AsDetail: React.FC = () => {
             return v
           })
         }
-        setAnswerSheet(r.data.answersheet)
+        // 转换为旧格式以兼容 IAnswerSheet 类型
+        setAnswerSheet({
+          id: String(answerSheetData.id),
+          title: answerSheetData.title,
+          user: answerSheetData.filler_name,
+          createtime: answerSheetData.filled_at,
+          answers: answerSheetData.answers || []
+        })
       }
     })()
   }, [])

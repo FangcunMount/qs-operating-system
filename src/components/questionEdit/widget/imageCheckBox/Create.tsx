@@ -11,7 +11,7 @@ const imageCheckBoxQuestion: IImageCheckBoxQuestion = {
   options: [],
   title: '图片多选',
   tips: '',
-  validate_rules: { required: false, min_select: GLOBAL_CONSTANT.min.select, max_select: GLOBAL_CONSTANT.max.select },
+  validate_rules: { required: false, min_selections: GLOBAL_CONSTANT.min.select, max_selections: GLOBAL_CONSTANT.max.select },
   calc_rule: {
     formula: 'sum'
   }
@@ -25,6 +25,7 @@ const CreateImageCheckBox: React.FC<CreateImageCheckBoxProps> = (props) => {
       typeStr={'图片多选'}
       question={imageCheckBoxQuestion}
       onClick={props.onClick}
+      disabled  // 后端暂不支持
     ></CreateContainer>
   )
 }

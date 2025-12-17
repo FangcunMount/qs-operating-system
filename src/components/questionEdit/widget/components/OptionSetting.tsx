@@ -37,7 +37,7 @@ const OptionSetting: React.FC<OptionSettingProps> = ({ options, changeOption, ad
     <div className="s-mb-sm">
       <div className="s-text-h5 s-mb-sm">选项：</div>
       {options.map((v, i) => (
-        <div className="s-row-end s-mb-sm" key={v.code}>
+        <div className="s-row-end s-mb-sm" key={v.code || `option-${i}`}>
           <Input value={v.content} maxLength={128} onChange={(e) => changeOption(i, 'content', e.target.value)} />
           <DeleteOutlined className="s-my-sm" style={{ fontSize: '20px' }} onClick={() => deleteOption(i)}></DeleteOutlined>
           <Checkbox

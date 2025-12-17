@@ -11,9 +11,12 @@ import {
   UserOutlined,
   ClockCircleOutlined
 } from '@ant-design/icons'
+import { Select } from 'antd'
 import EditQuestionSheetDialog from './EditDialog'
-import { getSurveyList } from '@/api/path/template'
+import { surveyApi } from '@/api/path/survey'
+import { answerSheetApi } from '@/api/path/answerSheet'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
+import { message } from 'antd'
 
 const { Column } = Table
 const { Search } = Input
@@ -22,6 +25,7 @@ const List: React.FC = observer(() => {
   const [editDialogFlag, setEditDialogFlag] = useState(false)
   const [currentQuestionSheet, setCurrentQuestionSheet] = useState(null)
   const [keyWord, setKeyWord] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
   const [loading, setLoading] = useState(false)
   const [surveyList, setSurveyList] = useState<IQuestionSheetInfo[]>([])
   const [pageInfo, setPageInfo] = useState({
@@ -34,18 +38,71 @@ const List: React.FC = observer(() => {
     initData(10, 1)
   }, [])
 
-  const initData = async (size: number, num: number, keyWord?: string) => {
+  const initData = async (size: number, num: number) => {
     setLoading(true)
     try {
-      const [err, res] = await getSurveyList(String(size), String(num), keyWord)
-      if (!err && res?.data) {
-        setSurveyList(res.data.list)
-        setPageInfo({
-          pagenum: parseInt(res.data.pagenum, 10),
-          pagesize: parseInt(res.data.pagesize, 10),
-          total: parseInt(res.data.total_count, 10)
-        })
+      // 使用新 API 获取问卷列表
+      const [err, res] = await surveyApi.listQuestionnaires({
+        page: num,
+        page_size: size,
+        title: keyWord || undefined,
+        status: statusFilter
+      })
+
+      if (err || !res?.data) {
+        message.error('获取问卷列表失败')
+        return
       }
+
+      const { questionnaires, page, page_size, total_count } = res.data
+
+      // 先转换基本数据格式
+      const surveyListBasic = questionnaires.map((q: any) => ({
+        id: q.code,
+        title: q.title,
+        desc: q.description || '',
+        img_url: q.img_url || '',
+        question_cnt: String(q.questions?.length || 0),
+        answersheet_cnt: '0', // 先设为0，异步加载
+        status: q.status || 'draft', // 添加状态字段
+        create_user: '系统', // API 没有此字段，使用默认值
+        createtime: '', // API 没有此字段
+        last_update_user: '系统' // API 没有此字段
+      } as IQuestionSheetInfo & { status: string }))
+
+      setSurveyList(surveyListBasic)
+
+      // 异步加载答卷统计（不阻塞列表显示）
+      Promise.all(
+        questionnaires.map(async (q: any, index: number) => {
+          try {
+            const [statErr, statRes] = await answerSheetApi.getAnswerSheetStatistics(q.code)
+            if (!statErr && statRes?.data) {
+              const answerCount = statRes.data.total_count || 0
+              // 更新对应项的答卷数量
+              setSurveyList((prev: IQuestionSheetInfo[]) => {
+                const updated = [...prev]
+                if (updated[index]) {
+                  updated[index] = { ...updated[index], answersheet_cnt: String(answerCount) }
+                }
+                return updated
+              })
+            }
+          } catch (error) {
+            console.warn(`获取问卷 ${q.code} 的答卷统计失败:`, error)
+          }
+        })
+      ).catch(error => {
+        console.error('批量获取答卷统计失败:', error)
+      })
+      setPageInfo({
+        pagenum: page,
+        pagesize: page_size,
+        total: total_count
+      })
+    } catch (error) {
+      console.error('获取问卷列表失败:', error)
+      message.error('获取问卷列表失败')
     } finally {
       setLoading(false)
     }
@@ -53,12 +110,13 @@ const List: React.FC = observer(() => {
 
   const handleChangePagination = (size: number, num: number) => {
     if (size !== pageInfo.pagesize) num = 1
-    initData(size, num, keyWord)
+    initData(size, num)
   }
 
   const onSearch = (value: string) => {
     setKeyWord(value)
-    initData(pageInfo.pagesize, 1, value)
+    setPageInfo(prev => ({ ...prev, pagenum: 1 }))
+    initData(pageInfo.pagesize, 1)
   }
 
   return (
@@ -88,14 +146,33 @@ const List: React.FC = observer(() => {
       {/* 搜索和操作区 */}
       <Card style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
-          <div style={{ flex: 1, maxWidth: 500 }}>
+          <div style={{ display: 'flex', gap: 12, flex: 1, maxWidth: 600 }}>
             <Search 
-              placeholder='搜索问卷名称或描述'
+              placeholder='搜索问卷名称'
               allowClear 
               enterButton={<><SearchOutlined /> 搜索</>}
               size="large" 
+              style={{ flex: 1, maxWidth: 400 }}
+              value={keyWord}
+              onChange={(e) => setKeyWord(e.target.value)}
               onSearch={onSearch}
             />
+            <Select
+              placeholder="状态筛选"
+              allowClear
+              size="large"
+              style={{ width: 150 }}
+              value={statusFilter}
+              onChange={(value) => {
+                setStatusFilter(value)
+                setPageInfo(prev => ({ ...prev, pagenum: 1 }))
+                initData(pageInfo.pagesize, 1)
+              }}
+            >
+              <Select.Option value="draft">草稿</Select.Option>
+              <Select.Option value="published">已发布</Select.Option>
+              <Select.Option value="archived">已归档</Select.Option>
+            </Select>
           </div>
           <Link to="/survey/info/new">
             <Button
@@ -121,7 +198,10 @@ const List: React.FC = observer(() => {
           <div>
             <span style={{ color: '#999', marginRight: 8 }}>总答卷数：</span>
             <span style={{ fontSize: 18, fontWeight: 600, color: '#52c41a' }}>
-              {surveyList.reduce((sum: number, item: any) => sum + (parseInt(item.answersheet_cnt || '0', 10)), 0)}
+              {surveyList.reduce((sum: number, item: IQuestionSheetInfo) => {
+                const count = parseInt(item.answersheet_cnt || '0', 10)
+                return sum + (isNaN(count) ? 0 : count)
+              }, 0)}
             </span>
           </div>
         </Space>
@@ -190,11 +270,27 @@ const List: React.FC = observer(() => {
             align="center"
             render={(v, row: any) => (
               <Link to={`/as/list/${row.id}`} target="_blank">
-                <Tag color={v > 0 ? 'green' : 'default'}>
+                <Tag color={parseInt(v || '0', 10) > 0 ? 'green' : 'default'}>
                   {v} 份
                 </Tag>
               </Link>
             )}
+          />
+          <Column
+            title="状态"
+            dataIndex="status"
+            width={100}
+            align="center"
+            render={(v: string, row: any) => {
+              const status = row.status || v || 'draft'
+              const statusMap: Record<string, { text: string; color: string }> = {
+                draft: { text: '草稿', color: 'default' },
+                published: { text: '已发布', color: 'success' },
+                archived: { text: '已归档', color: 'warning' }
+              }
+              const statusInfo = statusMap[status] || { text: status, color: 'default' }
+              return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>
+            }}
           />
           <Column 
             title="创建信息" 
@@ -243,7 +339,7 @@ const List: React.FC = observer(() => {
                   </Button>
                 </Tooltip>
                 <Tooltip title='编辑问卷问题'>
-                  <Link to={`/qs/edit/${row.id}/${row.answersheet_cnt}`}>
+                  <Link to={`/survey/create/${row.id}/${row.answersheet_cnt}`}>
                     <Button
                       type="link"
                       size="small"

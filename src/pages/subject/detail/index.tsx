@@ -22,7 +22,7 @@ const SubjectDetail: React.FC = observer(() => {
 
   useEffect(() => {
     if (id) {
-      subjectStore.fetchSubjectDetailPage(id)
+      subjectStore.fetchTesteeDetailPage(id)
     }
   }, [id])
 

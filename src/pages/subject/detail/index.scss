@@ -1,7 +1,8 @@
 .subject-detail-page {
+  height: 100%;
   padding: 24px;
   background: #f0f2f5;
-  min-height: calc(100vh - 64px - 70px); // 减去 header 和 footer 高度
+  overflow-y: auto;
 
   .main-tabs {
     background: #fff;

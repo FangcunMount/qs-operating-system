@@ -10,7 +10,7 @@ const CalculationSetting: React.FC<CalculationSettingProps> = ({ options, handle
       <div className="s-text-h5 s-mb-sm">计算：</div>
       {options.map((v, i) => {
         return (
-          <div key={v.code} className="s-row-start s-mt-sm">
+          <div key={v.code || `calc-${i}`} className="s-row-start s-mt-sm">
             <div className="s-no-wrap s-ellipsis s-pr-xs" style={{ maxWidth: '190px' }}>
               {v.content}
             </div>

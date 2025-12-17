@@ -1,293 +1,362 @@
-import { get, post } from '../server'
-import { IQuestionSheet } from '@/models/questionSheet'
-import { IQuestion } from '@/models/question'
-import { ApiResponse } from '@/types/server'
+import { get, post, put, del } from '../qsServer'
+import type { QSResponse } from '@/types/qs'
+import { IQuestion, IQuestionShowController } from '@/models/question'
+import { convertQuestionToDTO } from './questionConverter'
 
-// ============ Mock 数据配置 ============
-const USE_MOCK = true // 设置为 true 使用 mock 数据，false 使用真实接口
+// ============ 类型定义 ============
 
-// Mock 问卷数据
-const mockSurveys: Record<string, IQuestionSheet> = {
-  'survey-001': {
-    id: 'survey-001',
-    title: '用户满意度调查问卷',
-    desc: '针对产品使用情况进行满意度调查',
-    img_url: '',
-    questions: []
-  }
+// 问卷响应数据
+export interface IQuestionnaireResponse {
+  code: string
+  title: string
+  description?: string
+  img_url?: string
+  status: string
+  type: string
+  version: string
+  questions: any[] // QuestionDTO[]
 }
 
-// Mock 问题列表
-const mockQuestions: Record<string, IQuestion[]> = {
-  'survey-001': []
+// 问卷列表响应
+export interface IQuestionnaireListResponse {
+  questionnaires: IQuestionnaireResponse[]
+  page: number
+  page_size: number
+  total_count: number
+}
+
+// 创建问卷请求
+export interface ICreateQuestionnaireRequest {
+  title: string
+  description?: string
+  img_url?: string
+  type: string
+}
+
+// 更新问卷基本信息请求
+export interface IUpdateQuestionnaireBasicInfoRequest {
+  title?: string
+  description?: string
+  img_url?: string
+  type?: string
+}
+
+// 显示控制器条件 DTO
+export interface IShowControllerConditionDTO {
+  code: string
+  select_option_codes: string[]
+}
+
+// 显示控制器 DTO
+export interface IShowControllerDTO {
+  rule: 'and' | 'or'
+  questions: IShowControllerConditionDTO[]
+}
+
+// 问题 DTO（API 格式）
+export interface IQuestionDTO {
+  code?: string
+  question_type: string
+  stem: string
+  tips?: string
+  placeholder?: string
+  options?: IOptionDTO[]
+  validation_rules?: IValidationRuleDTO[]
+  calculation_rule?: ICalculationRuleDTO
+  show_controller?: IShowControllerDTO
+}
+
+// 选项 DTO
+export interface IOptionDTO {
+  code?: string
+  content: string
+  score?: number
+}
+
+// 验证规则 DTO
+export interface IValidationRuleDTO {
+  rule_type: string
+  target_value: string
+}
+
+// 计算规则 DTO
+export interface ICalculationRuleDTO {
+  formula_type?: string
+}
+
+// 添加问题请求
+export interface IAddQuestionRequest {
+  code?: string
+  type: string
+  stem: string
+  description?: string
+  options?: IOptionDTO[]
+  required?: boolean
+}
+
+// 更新问题请求
+export interface IUpdateQuestionRequest {
+  code?: string
+  type: string
+  stem: string
+  description?: string
+  options?: IOptionDTO[]
+  required?: boolean
+}
+
+// 重排问题请求
+export interface IReorderQuestionsRequest {
+  question_codes: string[]
 }
 
 // ============ API 函数 ============
 
 /**
  * 创建问卷（添加基本信息）
+ * POST /questionnaires
  */
-export function createSurvey(data: {
+export async function createSurvey(data: {
   title: string
   desc?: string
   img_url?: string
-}): ApiResponse<{ questionsheetid: string }> {
-  if (USE_MOCK) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const newId = `survey-${Date.now()}`
-        mockSurveys[newId] = {
-          id: newId,
-          title: data.title,
-          desc: data.desc || '',
-          img_url: data.img_url || '',
-          questions: []
-        }
-        mockQuestions[newId] = []
-        
-        resolve([
-          null,
-          {
-            errno: '0',
-            errmsg: '创建成功',
-            data: { questionsheetid: newId }
-          }
-        ])
-      }, 500)
-    })
+  type?: string
+}): Promise<[any, QSResponse<IQuestionnaireResponse> | undefined]> {
+  const requestData: ICreateQuestionnaireRequest = {
+    title: data.title,
+    description: data.desc,
+    img_url: data.img_url,
+    type: data.type || 'survey'
   }
-
-  return post<{ questionsheetid: string }>('/api/survey/create', data)
+  return post<IQuestionnaireResponse>('/questionnaires', requestData)
 }
 
 /**
  * 更新问卷基本信息
+ * PUT /questionnaires/{code}/basic-info
  */
-export function updateSurvey(data: {
+export async function updateSurvey(data: {
   questionsheetid: string
   title: string
   desc?: string
   img_url?: string
-}): ApiResponse<{ questionsheetid: string }> {
-  if (USE_MOCK) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        if (mockSurveys[data.questionsheetid]) {
-          mockSurveys[data.questionsheetid] = {
-            ...mockSurveys[data.questionsheetid],
-            title: data.title,
-            desc: data.desc || '',
-            img_url: data.img_url || ''
-          }
-          
-          resolve([
-            null,
-            {
-              errno: '0',
-              errmsg: '更新成功',
-              data: { questionsheetid: data.questionsheetid }
-            }
-          ])
-        } else {
-          resolve([
-            { errno: '-1', errmsg: '问卷不存在' } as any,
-            undefined
-          ])
-        }
-      }, 500)
-    })
+  type?: string
+}): Promise<[any, QSResponse<IQuestionnaireResponse> | undefined]> {
+  const requestData: IUpdateQuestionnaireBasicInfoRequest = {
+    title: data.title,
+    description: data.desc,
+    img_url: data.img_url,
+    type: data.type
   }
-
-  return post<{ questionsheetid: string }>('/api/survey/update', data)
+  return put<IQuestionnaireResponse>(`/questionnaires/${data.questionsheetid}/basic-info`, requestData)
 }
 
 /**
  * 获取问卷信息
+ * GET /questionnaires/{code}
  */
-export function getSurvey(
+export async function getSurvey(
   questionsheetid: string
-): ApiResponse<{ questionsheet: IQuestionSheet }> {
-  if (USE_MOCK) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const survey = mockSurveys[questionsheetid]
-        if (survey) {
-          resolve([
-            null,
-            {
-              errno: '0',
-              errmsg: '获取成功',
-              data: { questionsheet: survey }
-            }
-          ])
-        } else {
-          resolve([
-            { errno: '-1', errmsg: '问卷不存在' } as any,
-            undefined
-          ])
-        }
-      }, 300)
-    })
-  }
-
-  return get<{ questionsheet: IQuestionSheet }>('/api/questionsheet/one', { questionsheetid })
+): Promise<[any, QSResponse<IQuestionnaireResponse> | undefined]> {
+  return get<IQuestionnaireResponse>(`/questionnaires/${questionsheetid}`)
 }
 
+
 /**
- * 保存问卷题目
+ * 保存问卷题目（批量更新）
+ * PUT /questionnaires/{code}/questions/batch
+ * 包含显隐规则（show_controller）
  */
-export function saveSurveyQuestions(
+export async function saveSurveyQuestions(
   questionsheetid: string,
-  questions: IQuestion[]
-): ApiResponse<{ success: boolean }> {
-  if (USE_MOCK) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        if (mockSurveys[questionsheetid]) {
-          mockQuestions[questionsheetid] = questions
-          mockSurveys[questionsheetid].questions = questions
-          
-          resolve([
-            null,
-            {
-              errno: '0',
-              errmsg: '保存成功',
-              data: { success: true }
-            }
-          ])
-        } else {
-          resolve([
-            { errno: '-1', errmsg: '问卷不存在' } as any,
-            undefined
-          ])
-        }
-      }, 800)
+  questions: IQuestion[],
+  showControllers?: Array<{ code: string; show_controller: IQuestionShowController }>
+): Promise<[any, QSResponse<IQuestionnaireResponse> | undefined]> {
+  // 创建显隐规则映射，便于快速查找
+  const showControllerMap = new Map<string, IQuestionShowController>()
+  if (showControllers) {
+    showControllers.forEach((item) => {
+      showControllerMap.set(item.code, item.show_controller)
     })
   }
-
-  return post<{ success: boolean }>('/api/questionsheet/question/modify', {
+  
+  // 转换问题数据为 API 格式，并合并显隐规则
+  const questionDTOs = questions.map(q => {
+    try {
+      const showController = showControllerMap.get(q.code)
+      return convertQuestionToDTO(q, showController)
+    } catch (error) {
+      console.error('转换问题数据失败:', q, error)
+      throw error
+    }
+  })
+  
+  console.log('批量保存问题（包含显隐规则）:', {
     questionsheetid,
-    questions
+    questionCount: questionDTOs.length,
+    questionTypes: questionDTOs.map(q => q.question_type),
+    showControllerCount: showControllerMap.size,
+    sampleQuestion: questionDTOs[0]
+  })
+  
+  return put<IQuestionnaireResponse>(`/questionnaires/${questionsheetid}/questions/batch`, {
+    questions: questionDTOs
   })
 }
 
 /**
- * 获取问卷题目列表
+ * 获取问卷题目列表（从问卷详情中获取）
+ * GET /questionnaires/{code}
  */
-export function getSurveyQuestions(
+export async function getSurveyQuestions(
   questionsheetid: string
-): ApiResponse<{ list: IQuestion[] }> {
-  if (USE_MOCK) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const questions = mockQuestions[questionsheetid] || []
-        resolve([
-          null,
-          {
-            errno: '0',
-            errmsg: '获取成功',
-            data: { list: questions }
-          }
-        ])
-      }, 300)
-    })
-  }
-
-  return get<{ list: IQuestion[] }>('/api/questionsheet/question/list', { questionsheetid })
+): Promise<[any, QSResponse<IQuestionnaireResponse> | undefined]> {
+  return get<IQuestionnaireResponse>(`/questionnaires/${questionsheetid}`)
 }
 
 /**
  * 发布问卷
+ * POST /questionnaires/{code}/publish
+ * 注意：此接口不需要请求体，只需要路径参数 code
  */
-export function publishSurvey(
+export async function publishSurvey(
   questionsheetid: string
-): ApiResponse<{ success: boolean }> {
-  if (USE_MOCK) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        if (mockSurveys[questionsheetid]) {
-          // 可以在这里添加发布状态字段
-          console.log(`问卷 ${questionsheetid} 已发布`)
-          
-          resolve([
-            null,
-            {
-              errno: '0',
-              errmsg: '发布成功',
-              data: { success: true }
-            }
-          ])
-        } else {
-          resolve([
-            { errno: '-1', errmsg: '问卷不存在' } as any,
-            undefined
-          ])
-        }
-      }, 500)
-    })
-  }
-
-  return post<{ success: boolean }>('/api/survey/publish', { questionsheetid })
+): Promise<[any, QSResponse<IQuestionnaireResponse> | undefined]> {
+  // POST 请求可以不传请求体（传递 undefined 或 null）
+  return post<IQuestionnaireResponse>(`/questionnaires/${questionsheetid}/publish`, undefined)
 }
 
 /**
- * 取消发布问卷
+ * 下架问卷
+ * POST /questionnaires/{code}/unpublish
+ * 注意：此接口不需要请求体，只需要路径参数 code
  */
-export function unpublishSurvey(
+export async function unpublishSurvey(
   questionsheetid: string
-): ApiResponse<{ success: boolean }> {
-  if (USE_MOCK) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        if (mockSurveys[questionsheetid]) {
-          console.log(`问卷 ${questionsheetid} 已取消发布`)
-          
-          resolve([
-            null,
-            {
-              errno: '0',
-              errmsg: '取消发布成功',
-              data: { success: true }
-            }
-          ])
-        } else {
-          resolve([
-            { errno: '-1', errmsg: '问卷不存在' } as any,
-            undefined
-          ])
-        }
-      }, 500)
-    })
-  }
-
-  return post<{ success: boolean }>('/api/survey/unpublish', { questionsheetid })
+): Promise<[any, QSResponse<IQuestionnaireResponse> | undefined]> {
+  // POST 请求可以不传请求体（传递 undefined 或 null）
+  return post<IQuestionnaireResponse>(`/questionnaires/${questionsheetid}/unpublish`, undefined)
 }
 
 /**
- * 保存问卷路由配置
+ * 保存草稿
+ * POST /questionnaires/{code}/draft
+ * 注意：此接口不需要请求体，只需要路径参数 code
  */
-export function saveSurveyRouting(
+export async function saveDraft(
+  questionsheetid: string
+): Promise<[any, QSResponse<IQuestionnaireResponse> | undefined]> {
+  // POST 请求可以不传请求体（传递 undefined 或 null）
+  return post<IQuestionnaireResponse>(`/questionnaires/${questionsheetid}/draft`, undefined)
+}
+
+/**
+ * 删除问卷
+ * DELETE /questionnaires/{code}
+ */
+export async function deleteSurvey(
+  questionsheetid: string
+): Promise<[any, QSResponse<void> | undefined]> {
+  return del<void>(`/questionnaires/${questionsheetid}`)
+}
+
+/**
+ * 归档问卷
+ * POST /questionnaires/{code}/archive
+ */
+export async function archiveSurvey(
+  questionsheetid: string
+): Promise<[any, QSResponse<IQuestionnaireResponse> | undefined]> {
+  return post<IQuestionnaireResponse>(`/questionnaires/${questionsheetid}/archive`, {})
+}
+
+/**
+ * 查询问卷列表
+ * GET /questionnaires
+ */
+export async function listQuestionnaires(params: {
+  page?: number
+  page_size?: number
+  status?: string
+  title?: string
+}): Promise<[any, QSResponse<IQuestionnaireListResponse> | undefined]> {
+  return get<IQuestionnaireListResponse>('/questionnaires', params)
+}
+
+/**
+ * 添加问题
+ * POST /questionnaires/{code}/questions
+ */
+export async function addQuestion(
+  questionsheetid: string,
+  question: IQuestion
+): Promise<[any, QSResponse<IQuestionnaireResponse> | undefined]> {
+  const questionDTO = convertQuestionToDTO(question)
+  const requestData: IAddQuestionRequest = {
+    code: questionDTO.code,
+    type: questionDTO.question_type,
+    stem: questionDTO.stem,
+    description: questionDTO.tips,
+    options: questionDTO.options,
+    required: questionDTO.validation_rules?.some(r => r.rule_type === 'required') || false
+  }
+  return post<IQuestionnaireResponse>(`/questionnaires/${questionsheetid}/questions`, requestData)
+}
+
+/**
+ * 更新问题
+ * PUT /questionnaires/{code}/questions/{questionCode}
+ */
+export async function updateQuestion(
+  questionsheetid: string,
+  questionCode: string,
+  question: IQuestion
+): Promise<[any, QSResponse<IQuestionnaireResponse> | undefined]> {
+  const questionDTO = convertQuestionToDTO(question)
+  const requestData: IUpdateQuestionRequest = {
+    code: questionDTO.code,
+    type: questionDTO.question_type,
+    stem: questionDTO.stem,
+    description: questionDTO.tips,
+    options: questionDTO.options,
+    required: questionDTO.validation_rules?.some(r => r.rule_type === 'required') || false
+  }
+  return put<IQuestionnaireResponse>(`/questionnaires/${questionsheetid}/questions/${questionCode}`, requestData)
+}
+
+/**
+ * 删除问题
+ * DELETE /questionnaires/{code}/questions/{questionCode}
+ */
+export async function deleteQuestion(
+  questionsheetid: string,
+  questionCode: string
+): Promise<[any, QSResponse<IQuestionnaireResponse> | undefined]> {
+  return del<IQuestionnaireResponse>(`/questionnaires/${questionsheetid}/questions/${questionCode}`)
+}
+
+/**
+ * 重排问题顺序
+ * POST /questionnaires/{code}/questions/reorder
+ */
+export async function reorderQuestions(
+  questionsheetid: string,
+  questionCodes: string[]
+): Promise<[any, QSResponse<IQuestionnaireResponse> | undefined]> {
+  const requestData: IReorderQuestionsRequest = {
+    question_codes: questionCodes
+  }
+  return post<IQuestionnaireResponse>(`/questionnaires/${questionsheetid}/questions/reorder`, requestData)
+}
+
+/**
+ * 保存问卷路由配置（保留旧接口兼容性）
+ */
+export async function saveSurveyRouting(
   questionsheetid: string,
   routingConfig: IQuestion[]
-): ApiResponse<{ success: boolean }> {
-  if (USE_MOCK) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log(`问卷 ${questionsheetid} 路由配置已保存`, routingConfig)
-        
-        resolve([
-          null,
-          {
-            errno: '0',
-            errmsg: '保存成功',
-            data: { success: true }
-          }
-        ])
-      }, 500)
-    })
-  }
-
-  return post<{ success: boolean }>('/api/survey/routing/save', {
+): Promise<[any, QSResponse<any> | undefined]> {
+  // 此接口不在新 API 文档中，保留兼容性
+  return post<any>('/api/survey/routing/save', {
     questionsheetid,
     routing: routingConfig
   })
@@ -301,5 +370,13 @@ export const surveyApi = {
   getSurveyQuestions,
   publishSurvey,
   unpublishSurvey,
-  saveSurveyRouting
+  saveDraft,
+  deleteSurvey,
+  archiveSurvey,
+  listQuestionnaires,
+  saveSurveyRouting,
+  addQuestion,
+  updateQuestion,
+  deleteQuestion,
+  reorderQuestions
 }

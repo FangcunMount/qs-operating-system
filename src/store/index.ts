@@ -12,6 +12,7 @@ import { screeningStore } from './screening'
 import { pushStore } from './push'
 import { surveyStore } from './surveyStore'
 import { scaleStore } from './scaleStore'
+import { staffStore } from './staffStore'
 
 // 单独导出各个 store（方便直接引用）
 export {
@@ -27,7 +28,8 @@ export {
   screeningStore,
   pushStore,
   surveyStore,
-  scaleStore
+  scaleStore,
+  staffStore
 }
 
 // 统一导出所有 store（用于新代码）
@@ -51,7 +53,10 @@ export const rootStore = {
   
   // 问卷和量表的 store
   surveyStore,
-  scaleStore
+  scaleStore,
+  
+  // 员工管理
+  staffStore
 }
 
 // 开发环境下暴露到 window 对象方便调试

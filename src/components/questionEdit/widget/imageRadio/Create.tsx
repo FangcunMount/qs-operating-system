@@ -24,6 +24,7 @@ const CreateImageRadio: React.FC<CreateImageRadioProps> = (props) => {
       typeStr={'图片单选'}
       question={imageRadioQuestion}
       onClick={props.onClick}
+      disabled  // 后端暂不支持
     ></CreateContainer>
   )
 }

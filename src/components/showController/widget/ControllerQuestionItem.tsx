@@ -114,7 +114,7 @@ const ControllerQuestionItem: React.FC<ControllerQuestionItemProps> = (props) =>
           
           <div className="rule-section">
             <span className="rule-text">当该题目选择了</span>
-            {currentQuestion?.type === 'CheckBox' ? (
+            {currentQuestion?.type === 'Checkbox' ? (
               <Select style={{ width: 110 }} value={value.option_controller.rule} onChange={handleChangeRule}>
                 <Option key="or" value="or">
                   其中之一

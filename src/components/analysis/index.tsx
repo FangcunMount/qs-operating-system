@@ -81,7 +81,7 @@ const QsAnalysis: React.FC = () => {
   }
 
   const handleSaveAnalysis = async () => {
-    const [e] = await api.modifyAnalysis(questionsheetid, analysisStore.macro_rule, analysisStore.factor_rules)
+    const [e] = await api.modifyAnalysis(questionsheetid, analysisStore.factor_rules)
     if (e) throw e
   }
 

@@ -13,17 +13,30 @@ type StoreType = typeof questionSheetStore | typeof surveyStore | typeof scaleSt
 const QuestionShow: React.FC<{ 
   showContainerRef: any
   store?: StoreType
-}> = ({ showContainerRef, store = questionSheetStore }) => {
+}> = ({ showContainerRef, store }) => {
+  // 如果没有传入 store，使用默认值
+  const actualStore = store || questionSheetStore
+  
   const onSortEnd = (e: any) => {
-    store.changeQuestionPosition(e.oldIndex, e.newIndex)
+    actualStore.changeQuestionPosition(e.oldIndex, e.newIndex)
   }
+
+  // 调试：检查 store 状态
+  console.log('QuestionShow 渲染:', {
+    storeType: actualStore === surveyStore ? 'surveyStore' : actualStore === questionSheetStore ? 'questionSheetStore' : 'scaleStore',
+    questionsLength: actualStore.questions.length,
+    questions: actualStore.questions.slice(0, 2),
+    title: actualStore.title,
+    hasStoreProp: store !== undefined,
+    storeIdentity: actualStore === surveyStore ? 'surveyStore' : actualStore === questionSheetStore ? 'questionSheetStore' : 'scaleStore'
+  })
 
   return (
     <div className="qs-edit-show">
       <div className="qs-edit-show-list s-mx-lg s-bg-white" ref={showContainerRef}>
-        <ShowQuestionShowHeader title={store.title}></ShowQuestionShowHeader>
+        <ShowQuestionShowHeader title={actualStore.title}></ShowQuestionShowHeader>
         <Divider className="s-ma-none"></Divider>
-        {store.questions.length === 0 ? (
+        {actualStore.questions.length === 0 ? (
           <div className="qs-edit-empty-state">
             <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="60" cy="60" r="50" fill="#f0f7ff" />
@@ -38,8 +51,8 @@ const QuestionShow: React.FC<{
           </div>
         ) : (
           <SortableGifsContainer axis="y" onSortEnd={onSortEnd}>
-            {store.questions.map((v, i) => (
-              <ShowQuestionItem key={v.code} item={v} index={i} currentIndex={i} store={store} />
+            {actualStore.questions.map((v, i) => (
+              <ShowQuestionItem key={v.code} item={v} index={i} currentIndex={i} store={actualStore} />
             ))}
           </SortableGifsContainer>
         )}

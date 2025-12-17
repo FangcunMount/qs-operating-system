@@ -13,7 +13,6 @@ import {
   FileTextOutlined
 } from '@ant-design/icons'
 import { useHistory, useLocation } from 'react-router-dom'
-import { authorizationHandler } from 'fc-tools-pc/dist/bundle'
 import { routes } from '../../router/map'
 import { IRoute } from '../../types/router'
 import './mainLayout.scss'
@@ -121,6 +120,12 @@ const MainLayout: React.FC<IMainLayoutProps> = ({ children }) => {
     })
   }
 
+  // 退出登录
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    history.push('/user/login')
+  }
+
   // 用户菜单
   const userMenu = (
     <Menu>
@@ -142,7 +147,7 @@ const MainLayout: React.FC<IMainLayoutProps> = ({ children }) => {
       <Menu.Item 
         key="logout" 
         icon={<LogoutOutlined />}
-        onClick={() => authorizationHandler.logout()}
+        onClick={handleLogout}
       >
         退出登录
       </Menu.Item>

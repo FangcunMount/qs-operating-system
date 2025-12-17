@@ -218,7 +218,7 @@ export const questionSheetStore = makeObservable(
     updateQuestionValidate(k: keyof IValidateRules, v: any) {
       if (this.currentIndex < 0) return
       // 文本类型设置了最小字数，且最小字数 > 0，则打开必填的验证
-      if (k == 'min_words' && v > 0) {
+      if (k == 'min_length' && v > 0) {
         (this.questions[this.currentIndex] as any).validate_rules['required'] = true
       }
       (this.questions[this.currentIndex] as any).validate_rules[k] = v

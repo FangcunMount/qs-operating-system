@@ -1,26 +1,29 @@
 import { makeAutoObservable, runInAction } from 'mobx'
 import { message } from 'antd'
 import { api } from '../api'
-import type { DataNode } from 'antd/es/tree'
+import type { IRole, IResource, IPolicyRule, IAssignment } from '../api/path/authz'
 
-export interface IRole {
-  id: string
-  name: string
-  code: string
-  description: string
-  permissions: string[]
-  createTime: string
-}
+// 导出类型供其他模块使用
+export type { IRole, IResource, IPolicyRule, IAssignment }
 
 class AuthStore {
   // 角色列表
   roleList: IRole[] = []
+  total = 0
   
-  // 权限树
-  permissionTree: DataNode[] = []
+  // 资源列表
+  resourceList: IResource[] = []
+  resourceTotal = 0
   
   // 当前选中的角色
   selectedRole: IRole | null = null
+  
+  // 当前角色的策略列表
+  currentRolePolicies: IPolicyRule[] = []
+  
+  // 当前角色的分配列表
+  currentRoleAssignments: IAssignment[] = []
+  assignmentTotal = 0
   
   // 加载状态
   loading = false
@@ -29,85 +32,76 @@ class AuthStore {
     makeAutoObservable(this)
   }
 
+  // ===== 角色管理 =====
+
   // 获取角色列表
-  async fetchRoleList() {
+  async fetchRoleList(params?: { offset?: number; limit?: number }) {
+    this.loading = true
     try {
-      const [error, data] = await api.getRoleList()
+      const [error, resp] = await api.listRoles(params)
       
-      if (error || !data) {
+      if (error || !resp) {
         throw new Error('获取角色列表失败')
       }
 
       runInAction(() => {
-        this.roleList = data.data
-        if (data.data.length > 0 && !this.selectedRole) {
-          this.selectedRole = data.data[0]
+        this.roleList = resp.data
+        this.total = resp.total || resp.data.length
+        if (resp.data.length > 0 && !this.selectedRole) {
+          this.selectedRole = resp.data[0]
         }
+        this.loading = false
       })
     } catch (error) {
+      runInAction(() => {
+        this.loading = false
+      })
       message.error('获取角色列表失败')
     }
   }
 
-  // 获取权限树
-  async fetchPermissionTree() {
-    try {
-      const [error, data] = await api.getPermissionTree()
-      
-      if (error || !data) {
-        throw new Error('获取权限树失败')
-      }
-
-      runInAction(() => {
-        this.permissionTree = data.data
-      })
-    } catch (error) {
-      message.error('获取权限树失败')
-    }
-  }
-
   // 创建角色
-  async createRole(data: Omit<IRole, 'id' | 'createTime'>) {
+  async createRole(data: { name: string; display_name: string; description?: string }) {
     this.loading = true
     try {
       const [error] = await api.createRole(data)
       
       if (error) {
-        throw new Error('添加失败')
+        throw new Error('创建失败')
       }
       
       runInAction(() => {
         this.loading = false
       })
-      message.success('添加成功')
-      await this.fetchRoleList()
+      message.success('创建成功')
+      await this.fetchRoleList({ limit: 100, offset: 0 })
       return true
     } catch (error) {
       runInAction(() => {
         this.loading = false
       })
-      message.error('添加失败')
+      message.error('创建失败')
       return false
     }
   }
 
   // 更新角色
-  async updateRole(id: string, data: Partial<IRole>) {
+  async updateRole(id: number, data: { display_name?: string; description?: string }) {
     this.loading = true
     try {
-      const [error] = await api.updateRole(id, data)
+      const [error, resp] = await api.updateRole(id, data)
       
-      if (error) {
+      if (error || !resp) {
         throw new Error('更新失败')
       }
       
       runInAction(() => {
         const index = this.roleList.findIndex(item => item.id === id)
         if (index !== -1) {
-          this.roleList[index] = { ...this.roleList[index], ...data }
+          this.roleList[index] = resp.data
         }
         if (this.selectedRole && this.selectedRole.id === id) {
-          this.selectedRole = { ...this.selectedRole, ...data }
+          this.selectedRole = resp.data
         }
         this.loading = false
       })
@@ -123,7 +117,7 @@ class AuthStore {
   }
 
   // 删除角色
-  async deleteRole(id: string) {
+  async deleteRole(id: number) {
     this.loading = true
     try {
       const [error] = await api.deleteRole(id)
@@ -134,6 +128,7 @@ class AuthStore {
       
       runInAction(() => {
         this.roleList = this.roleList.filter(item => item.id !== id)
+        this.total = Math.max(0, this.total - 1)
         if (this.selectedRole && this.selectedRole.id === id) {
           this.selectedRole = this.roleList.length > 0 ? this.roleList[0] : null
         }
@@ -150,6 +145,128 @@ class AuthStore {
     }
   }
 
+  // 获取角色的策略列表
+  async fetchRolePolicies(roleId: number) {
+    this.loading = true
+    try {
+      const [error, resp] = await api.getPoliciesByRole(roleId)
+      
+      if (error || !resp) {
+        throw new Error('获取策略失败')
+      }
+
+      runInAction(() => {
+        this.currentRolePolicies = resp.data.items
+        this.loading = false
+      })
+    } catch (error) {
+      runInAction(() => {
+        this.loading = false
+      })
+      message.error('获取策略失败')
+    }
+  }
+
+  // 获取角色的分配记录
+  async fetchRoleAssignments(roleId: number, params?: { offset?: number; limit?: number }) {
+    this.loading = true
+    try {
+      const [error, resp] = await api.listAssignmentsByRole(roleId, params)
+      
+      if (error || !resp) {
+        throw new Error('获取分配记录失败')
+      }
+
+      runInAction(() => {
+        this.currentRoleAssignments = resp.data.data
+        this.assignmentTotal = resp.data.total
+        this.loading = false
+      })
+    } catch (error) {
+      runInAction(() => {
+        this.loading = false
+      })
+      message.error('获取分配记录失败')
+    }
+  }
+
+  // ===== 策略管理 =====
+
+  // 添加策略规则
+  async addPolicyRule(data: { role_id: number; resource_id: number; action: string; changed_by: string; reason?: string }) {
+    this.loading = true
+    try {
+      const [error] = await api.addPolicyRule(data)
+      
+      if (error) {
+        throw new Error('添加策略失败')
+      }
+      
+      runInAction(() => {
+        this.loading = false
+      })
+      message.success('添加策略成功')
+      await this.fetchRolePolicies(data.role_id)
+      return true
+    } catch (error) {
+      runInAction(() => {
+        this.loading = false
+      })
+      message.error('添加策略失败')
+      return false
+    }
+  }
+
+  // 移除策略规则
+  async removePolicyRule(data: { role_id: number; resource_id: number; action: string; changed_by: string; reason?: string }) {
+    this.loading = true
+    try {
+      const [error] = await api.removePolicyRule(data)
+      
+      if (error) {
+        throw new Error('移除策略失败')
+      }
+      
+      runInAction(() => {
+        this.loading = false
+      })
+      message.success('移除策略成功')
+      await this.fetchRolePolicies(data.role_id)
+      return true
+    } catch (error) {
+      runInAction(() => {
+        this.loading = false
+      })
+      message.error('移除策略失败')
+      return false
+    }
+  }
+
+  // ===== 资源管理 =====
+
+  // 获取资源列表
+  async fetchResourceList(params?: { app_name?: string; domain?: string; type?: string; offset?: number; limit?: number }) {
+    this.loading = true
+    try {
+      const [error, resp] = await api.listResources(params)
+      
+      if (error || !resp) {
+        throw new Error('获取资源列表失败')
+      }
+
+      runInAction(() => {
+        this.resourceList = resp.data.data
+        this.resourceTotal = resp.data.total
+        this.loading = false
+      })
+    } catch (error) {
+      runInAction(() => {
+        this.loading = false
+      })
+      message.error('获取资源列表失败')
+    }
+  }
+
   // 设置选中的角色
   setSelectedRole(role: IRole) {
     this.selectedRole = role
@@ -158,10 +275,16 @@ class AuthStore {
   // 重置状态
   reset() {
     this.roleList = []
-    this.permissionTree = []
+    this.total = 0
+    this.resourceList = []
+    this.resourceTotal = 0
     this.selectedRole = null
+    this.currentRolePolicies = []
+    this.currentRoleAssignments = []
+    this.assignmentTotal = 0
     this.loading = false
   }
 }
 
 export const authStore = new AuthStore()
+

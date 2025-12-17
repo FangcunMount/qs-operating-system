@@ -33,6 +33,7 @@ const Login = lazy(() => import('../pages/user/login'))
 const UserProfile = lazy(() => import('../pages/user/profile'))
 const AdminList = lazy(() => import('../pages/admin/list'))
 const AdminAuthz = lazy(() => import('../pages/admin/authz'))
+const AdminStaff = lazy(() => import('../pages/admin/staff'))
 
 // 新增页面组件
 const SubjectList = lazy(() => import('../pages/subject/list'))
@@ -261,6 +262,12 @@ export const routes: Array<IRoute> = [
         name: 'admin-list',
         path: '/admin/list',
         component: AdminList
+      },
+      {
+        title: '员工管理',
+        name: 'admin-staff',
+        path: '/admin/staff',
+        component: AdminStaff
       },
       {
         title: '权限配置',

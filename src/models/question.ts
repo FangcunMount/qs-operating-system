@@ -20,10 +20,10 @@ interface IOption {
 
 export interface IValidateRules {
   required?: boolean | string
-  min_select?: number | null
-  max_select?: number | null
-  min_words?: number | null
-  max_words?: number | null
+  min_selections?: number | null
+  max_selections?: number | null
+  min_length?: number | null
+  max_length?: number | null
   min_value?: number | null
   max_value?: number | null
   allow_upload_image?: boolean | string
@@ -105,7 +105,7 @@ export interface ICheckBoxOption extends IOption {
 }
 
 export interface ICheckBoxQuestion extends IQuestionBase {
-  type: 'CheckBox'
+  type: 'Checkbox'  // 规范格式：Checkbox（替代 CheckBox）
   options: Array<ICheckBoxOption>
   validate_rules: IValidateRules
   calc_rule: {
@@ -224,25 +224,27 @@ export type IQuestion =
   | IUploadQuestion
 
 export type IQuestionType =
-  | 'Radio'
-  | 'Section'
+  | 'Radio'           // ✅ 规范支持
+  | 'Checkbox'        // ✅ 规范支持（规范格式：Checkbox）
+  | 'Text'            // ✅ 规范支持
+  | 'Textarea'        // ✅ 规范支持
+  | 'Number'          // ✅ 规范支持
+  | 'Section'         // ✅ 规范支持
   | 'Default'
-  | 'Text'
-  | 'Textarea'
-  | 'Number'
-  | 'Date'
-  | 'CheckBox'
-  | 'ScoreRadio'
-  | 'Select'
-  | 'AddressSelect'
-  | 'CascaderSelect'
-  | 'ImageCheckBox'
-  | 'ImageMatrixCheckBox'
-  | 'ImageMatrixRadio'
-  | 'ImageRadio'
-  | 'MatrixCheckBox'
-  | 'MatrixRadio'
-  | 'Upload'
+  // ⚠️ 以下题型后端暂不支持，前端标记为暂不支持
+  | 'ScoreRadio'      // ❌ 暂不支持（打分单元）
+  | 'Select'          // ❌ 暂不支持（下拉选择）
+  | 'AddressSelect'   // ❌ 暂不支持（地址选择）
+  | 'CascaderSelect'  // ❌ 暂不支持（级联选择）
+  | 'ImageCheckBox'   // ❌ 暂不支持（图片多选）
+  | 'ImageRadio'      // ❌ 暂不支持（图片单选）
+  | 'Date'            // ❌ 暂不支持（日期）
+  | 'Upload'          // ❌ 暂不支持（上传）
+  // 已废弃的题型
+  | 'ImageMatrixCheckBox'  // 已废弃
+  | 'ImageMatrixRadio'     // 已废弃
+  | 'MatrixCheckBox'      // 已废弃
+  | 'MatrixRadio'         // 已废弃
 
 export type IQuestionKeys = 'title' | 'tips' | 'placeholder' | 'format' | 'left_desc' | 'right_desc' | 'option' | 'options' | 'validate' | 'formula'
 export type IOptionKeys = 'allow_extend_text' | 'extend_content' | 'extend_placeholder' | 'score' | 'content' | 'add' | 'delete' | 'image'

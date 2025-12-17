@@ -53,19 +53,19 @@ const ValidateRulesSetting: React.FC<ValidateRulesSettingProps> = ({ validateRul
                 </Checkbox>
               </div>
             )
-          } else if (['min_select', 'max_select', 'min_words', 'max_words', 'min_value', 'max_value'].includes(k)) {
+          } else if (['min_selections', 'max_selections', 'min_length', 'max_length', 'min_value', 'max_value'].includes(k)) {
             let label = ''
             switch (k) {
-            case 'min_select':
+            case 'min_selections':
               label = '最少选择'
               break
-            case 'max_select':
+            case 'max_selections':
               label = '最多选择'
               break
-            case 'min_words':
+            case 'min_length':
               label = '最少字数'
               break
-            case 'max_words':
+            case 'max_length':
               label = '最大字数'
               break
             case 'min_value':

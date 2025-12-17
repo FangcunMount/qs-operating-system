@@ -18,7 +18,14 @@ const sectionQuestion: IUploadQuestion = {
 
 const CreateUpload: React.FC<CreateUploadProps> = (props) => {
   return (
-    <CreateContainer icon={props.icon} class={props.class} typeStr={'上 传'} question={sectionQuestion} onClick={props.onClick}></CreateContainer>
+    <CreateContainer 
+      icon={props.icon} 
+      class={props.class} 
+      typeStr={'上 传'} 
+      question={sectionQuestion} 
+      onClick={props.onClick}
+      disabled  // 后端暂不支持
+    ></CreateContainer>
   )
 }
 
