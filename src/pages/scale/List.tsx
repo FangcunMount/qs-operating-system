@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Table, Card, Input, Button, Tag, Space, Tooltip } from 'antd'
+import { Table, Card, Input, Button, Tag, Space, Tooltip, message } from 'antd'
 import { Link } from 'react-router-dom'
 import { observer } from 'mobx-react'
 import { 
@@ -14,6 +14,7 @@ import {
 import EditQuestionSheetDialog from './EditDialog'
 import { getScaleList } from '@/api/path/template'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
+import { answerSheetApi } from '@/api/path/answerSheet'
 
 const { Column } = Table
 const { Search } = Input
@@ -38,14 +39,52 @@ const List: React.FC = observer(() => {
     setLoading(true)
     try {
       const [err, res] = await getScaleList(String(size), String(num), keyWord)
-      if (!err && res?.data) {
-        setScaleList(res.data.list)
+      if (err) {
+        console.error('获取量表列表失败:', err)
+        message.error('获取量表列表失败，请稍后重试')
+        return
+      }
+      if (res?.data) {
+        const list = res.data.list
+        setScaleList(list)
         setPageInfo({
           pagenum: parseInt(res.data.pagenum, 10),
           pagesize: parseInt(res.data.pagesize, 10),
           total: parseInt(res.data.total_count, 10)
         })
+
+        // 异步加载测评数量（不阻塞列表显示）
+        // 注意：问题数量不在列表页面加载，只在编辑页面需要时加载
+        Promise.all(
+          list.map(async (item: IQuestionSheetInfo) => {
+            if (!item.id) return
+
+            try {
+              // 获取答卷统计（包含测评数量）
+              const [statErr, statRes] = await answerSheetApi.getAnswerSheetStatistics(item.id)
+              if (!statErr && statRes?.data) {
+                const answerCount = statRes.data.total_count || 0
+                // 更新测评数量
+                setScaleList((prev: IQuestionSheetInfo[]) => {
+                  const updated = [...prev]
+                  const foundIndex = updated.findIndex(p => p.id === item.id)
+                  if (foundIndex >= 0) {
+                    updated[foundIndex] = { ...updated[foundIndex], answersheet_cnt: String(answerCount) }
+                  }
+                  return updated
+                })
+              }
+            } catch (error) {
+              console.warn(`获取量表 ${item.id} 的测评数量失败:`, error)
+            }
+          })
+        ).catch(error => {
+          console.error('批量获取测评统计失败:', error)
+        })
       }
+    } catch (error) {
+      console.error('获取量表列表异常:', error)
+      message.error('获取量表列表异常，请稍后重试')
     } finally {
       setLoading(false)
     }
@@ -152,7 +191,7 @@ const List: React.FC = observer(() => {
             render={(v, row: any) => (
               <div>
                 <Link 
-                  to={`/qs/edit/${row.id}/${row.answersheet_cnt}`}
+                  to={`/scale/create/${row.id}/${row.answersheet_cnt || '0'}${row.scaleCode ? `?scaleCode=${row.scaleCode}` : ''}`}
                   style={{ fontWeight: 500, fontSize: 14 }}
                 >
                   {v}
@@ -179,7 +218,7 @@ const List: React.FC = observer(() => {
             align="center"
             render={(v) => (
               <Tag color="blue" icon={<FileTextOutlined />}>
-                {v} 题
+                {v && v !== '0' ? `${v} 题` : '-'}
               </Tag>
             )}
           />
@@ -243,7 +282,7 @@ const List: React.FC = observer(() => {
                   </Button>
                 </Tooltip>
                 <Tooltip title='编辑量表问题'>
-                  <Link to={`/qs/edit/${row.id}/${row.answersheet_cnt}`}>
+                  <Link to={`/scale/create/${row.id}/${row.answersheet_cnt || '0'}${row.scaleCode ? `?scaleCode=${row.scaleCode}` : ''}`}>
                     <Button
                       type="link"
                       size="small"

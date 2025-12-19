@@ -15,9 +15,11 @@ import {
 import { IQuestionSheet } from '../models/questionSheet'
 import { IFactor } from '../models/factor'
 import { IQuestionShowController } from '@/models/question'
-import { IFactorAnalysis, IMacroAnalysis, IInterpretation, IInterpret_rule } from '../models/analysis'
+import { IFactorAnalysis, IInterpretation, IInterpret_rule } from '../models/analysis'
 import { api } from '../api'
 import { delShowController, postShowController } from '@/api/path/showController'
+import { convertQuestionFromDTO } from '@/api/path/questionConverter'
+import type { IQuestionDTO } from '@/api/path/survey'
 
 // 量表编辑步骤
 export type ScaleStep = 'create' | 'edit-questions' | 'set-routing' | 'edit-factors' | 'set-interpretation' | 'publish'
@@ -30,6 +32,7 @@ const STORAGE_VERSION = 'v1'
 interface PersistedScaleData {
   version: string
   id: string
+  scaleCode?: string // 量表编码（可选，向后兼容）
   title: string
   desc: string
   img_url: string
@@ -37,7 +40,6 @@ interface PersistedScaleData {
   showControllers: Array<{ code: string; show_controller: IQuestionShowController }>
   deletedShowControllerCodes: string[]
   factors: IFactor[]
-  macro_rule: IMacroAnalysis
   factor_rules: Array<IFactorAnalysis>
   currentCode: string
   currentFactorId: string
@@ -53,10 +55,6 @@ const scaleInit: IQuestionSheet = {
   questions: []
 }
 
-const initMacroRule: IMacroAnalysis = {
-  max_score: 0,
-  interpretation: []
-}
 
 /**
  * 量表 Store
@@ -67,6 +65,7 @@ export const scaleStore = makeObservable(
   {
     // 基本信息
     id: scaleInit.id,
+    scaleCode: '', // 量表编码（用于调用量表相关 API）
     title: scaleInit.title,
     desc: scaleInit.desc,
     img_url: scaleInit.img_url,
@@ -79,7 +78,6 @@ export const scaleStore = makeObservable(
     factors: [] as IFactor[],
     
     // 解读规则（量表特有）
-    macro_rule: initMacroRule,
     factor_rules: [] as Array<IFactorAnalysis>,
     
     // 当前编辑的问题
@@ -127,6 +125,7 @@ export const scaleStore = makeObservable(
         const data: PersistedScaleData = {
           version: STORAGE_VERSION,
           id: this.id || '',
+          scaleCode: this.scaleCode || undefined,
           title: this.title,
           desc: this.desc,
           img_url: this.img_url,
@@ -134,7 +133,6 @@ export const scaleStore = makeObservable(
           showControllers: JSON.parse(JSON.stringify(this.showControllers)),
           deletedShowControllerCodes: [...this.deletedShowControllerCodes],
           factors: JSON.parse(JSON.stringify(this.factors)),
-          macro_rule: JSON.parse(JSON.stringify(this.macro_rule)),
           factor_rules: JSON.parse(JSON.stringify(this.factor_rules)),
           currentCode: this.currentCode,
           currentFactorId: this.currentFactorId,
@@ -158,6 +156,7 @@ export const scaleStore = makeObservable(
           if (data.version === STORAGE_VERSION) {
             runInAction(() => {
               this.id = data.id
+              this.scaleCode = data.scaleCode || ''
               this.title = data.title
               this.desc = data.desc
               this.img_url = data.img_url
@@ -165,7 +164,6 @@ export const scaleStore = makeObservable(
               this.showControllers = data.showControllers || []
               this.deletedShowControllerCodes = data.deletedShowControllerCodes || []
               this.factors = data.factors || []
-              this.macro_rule = data.macro_rule || initMacroRule
               this.factor_rules = data.factor_rules || []
               this.currentCode = data.currentCode
               this.currentFactorId = data.currentFactorId
@@ -222,6 +220,7 @@ export const scaleStore = makeObservable(
     // 初始化
     initScale() {
       this.id = scaleInit.id
+      this.scaleCode = ''
       this.title = scaleInit.title
       this.desc = scaleInit.desc
       this.img_url = scaleInit.img_url
@@ -229,7 +228,6 @@ export const scaleStore = makeObservable(
       this.showControllers = []
       this.deletedShowControllerCodes = []
       this.factors = []
-      this.macro_rule = initMacroRule
       this.factor_rules = []
       this.currentCode = ''
       this.currentFactorId = ''
@@ -399,7 +397,28 @@ export const scaleStore = makeObservable(
 
     // 因子位置调整
     changeFactorPosition(oldIndex: number, newIndex: number) {
+      // 如果移动的是总分因子，确保它始终在第一位
+      const factor = this.factors[oldIndex]
+      if (factor.is_total_score === '1' && newIndex !== 0) {
+        // 如果总分因子不在第一位，将其移到第一位
+        const totalFactor = this.factors.splice(oldIndex, 1)[0]
+        this.factors.unshift(totalFactor)
+        return
+      }
+      
+      // 如果目标位置是第一位，但第一位已经是总分因子，不允许移动
+      if (newIndex === 0 && this.factors[0]?.is_total_score === '1' && oldIndex !== 0) {
+        return
+      }
+      
       this.factors.splice(newIndex, 0, this.factors.splice(oldIndex, 1)[0])
+      
+      // 移动后，确保总分因子在第一位
+      const totalFactorIndex = this.factors.findIndex(f => f.is_total_score === '1')
+      if (totalFactorIndex > 0) {
+        const totalFactor = this.factors.splice(totalFactorIndex, 1)[0]
+        this.factors.unshift(totalFactor)
+      }
     },
 
     // 获取因子
@@ -410,16 +429,12 @@ export const scaleStore = makeObservable(
     // ⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇ 解读规则相关方法 ⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇
     
     // 初始化解读规则数据
-    initAnalysisData(m: IMacroAnalysis | undefined, fs: Array<IFactorAnalysis>) {
-      if (m) {
-        this.macro_rule = m ?? initMacroRule
-      }
+    initAnalysisData(fs: Array<IFactorAnalysis>) {
       this.factor_rules = fs ?? []
     },
 
     // 设置解读规则数据
-    setAnalysisData(macro: IMacroAnalysis, factors: Array<IFactorAnalysis>) {
-      this.macro_rule = macro
+    setAnalysisData(factors: Array<IFactorAnalysis>) {
       this.factor_rules = factors
     },
 
@@ -428,25 +443,6 @@ export const scaleStore = makeObservable(
       return this.factor_rules.findIndex((v) => v.code === code)
     },
 
-    // 修改宏观规则属性
-    changeMacroRule(k: keyof IMacroAnalysis, v: any) {
-      (this.macro_rule[k] as any) = v
-    },
-
-    // 修改宏观规则解读项
-    changeMacroRuleInterpretation(i: number, v: IInterpretation) {
-      this.macro_rule.interpretation[i] = v
-    },
-
-    // 添加宏观规则解读项
-    addMacroRuleInterpretation() {
-      this.macro_rule.interpretation.push({ start: '', end: '', content: '' })
-    },
-
-    // 删除宏观规则解读项
-    delMacroRuleInterpretation(i: number) {
-      this.macro_rule.interpretation.splice(i, 1)
-    },
 
     // 修改因子规则属性
     changeFactorRulesItem(code: string, k: keyof IInterpret_rule, v: any) {
@@ -534,15 +530,6 @@ export const scaleStore = makeObservable(
       // 此时 this.id 一定存在，使用类型断言
       const scaleId = this.id as string
 
-      // 更新基本信息
-      const [infoErr] = await api.updateSurvey({
-        questionsheetid: scaleId,
-        title: this.title,
-        desc: this.desc,
-        img_url: this.img_url
-      })
-      if (infoErr) throw infoErr
-
       // 保存题目列表
       const [qsErr] = await api.saveSurveyQuestions(scaleId, this.questions)
       if (qsErr) throw qsErr
@@ -550,7 +537,30 @@ export const scaleStore = makeObservable(
       // 同步本地暂存的题目显隐规则
       await this.syncShowControllers()
 
-      const [e] = await api.publishSurvey(scaleId)
+      // 获取量表编码（如果还没有）
+      let scaleCode = this.scaleCode
+      if (!scaleCode) {
+        const { scaleApi } = await import('@/api/path/scale')
+        const [se, sr] = await scaleApi.getScaleByQuestionnaire(scaleId)
+        if (se || !sr?.data?.code) {
+          throw new Error('获取量表编码失败，无法发布')
+        }
+        scaleCode = sr.data.code
+        runInAction(() => {
+          this.scaleCode = scaleCode
+        })
+      }
+
+      // 更新量表基本信息（使用量表的 basic-info 接口）
+      const { scaleApi } = await import('@/api/path/scale')
+      const [infoErr] = await scaleApi.updateScaleBasicInfo(scaleCode, {
+        title: this.title,
+        description: this.desc
+      })
+      if (infoErr) throw infoErr
+
+      // 使用量表编码调用发布接口
+      const [e] = await scaleApi.publishScale(scaleCode)
       if (e) throw e
 
       runInAction(() => {
@@ -570,7 +580,24 @@ export const scaleStore = makeObservable(
       }
 
       const scaleId = this.id as string
-      const [e] = await api.unpublishSurvey(scaleId)
+
+      // 获取量表编码（如果还没有）
+      let scaleCode = this.scaleCode
+      if (!scaleCode) {
+        const { scaleApi } = await import('@/api/path/scale')
+        const [se, sr] = await scaleApi.getScaleByQuestionnaire(scaleId)
+        if (se || !sr?.data?.code) {
+          throw new Error('获取量表编码失败，无法取消发布')
+        }
+        scaleCode = sr.data.code
+        runInAction(() => {
+          this.scaleCode = scaleCode
+        })
+      }
+
+      // 使用量表编码调用取消发布接口
+      const { scaleApi } = await import('@/api/path/scale')
+      const [e] = await scaleApi.unpublishScale(scaleCode)
       if (e) throw e
     },
 
@@ -632,8 +659,9 @@ export const scaleStore = makeObservable(
     /**
      * 初始化编辑器（问题编辑页面）
      * @param questionsheetid 量表 ID，如果是 'new' 则初始化为新建模式
+     * @param scaleCode 量表编码（可选），如果提供则直接使用 getScaleDetail 获取量表详情
      */
-    async initEditor(questionsheetid: string) {
+    async initEditor(questionsheetid: string, scaleCode?: string) {
       if (!questionsheetid || questionsheetid === 'new') {
         // 新建模式：尝试从 localStorage 恢复或初始化空白量表
         const restored = this.loadFromLocalStorage()
@@ -643,18 +671,116 @@ export const scaleStore = makeObservable(
         return
       }
 
-      // 编辑模式：优先从 localStorage 恢复
+      // 编辑模式：优先从 localStorage 恢复（但仅在问题列表不为空时）
       const restored = this.loadFromLocalStorage()
-      if (restored && this.id === questionsheetid) {
-        console.log('从 localStorage 恢复数据成功')
+      console.log('initEditor - localStorage 恢复检查:', {
+        restored,
+        storedId: this.id,
+        questionsheetid,
+        scaleCode,
+        questionsLength: this.questions.length,
+        shouldLoadFromServer: !restored || this.id !== questionsheetid || this.questions.length === 0 || !this.scaleCode
+      })
+      
+      // 只有在 localStorage 有数据、ID 匹配、问题列表不为空且 scaleCode 存在时，才使用缓存数据
+      if (restored && this.id === questionsheetid && this.questions.length > 0 && this.scaleCode) {
+        console.log('从 localStorage 恢复数据成功，问题数量:', this.questions.length, '量表编码:', this.scaleCode)
         return
       }
 
-      // localStorage 没有数据或 ID 不匹配，从服务器加载
-      console.log('从服务器加载数据')
+      // localStorage 没有数据、ID 不匹配或问题列表为空，从服务器加载
+      console.log('从服务器加载数据，questionsheetid:', questionsheetid, 'scaleCode:', scaleCode)
 
+      // 如果提供了 scaleCode，优先使用 getScaleDetail 获取量表详情
+      if (scaleCode) {
+        try {
+          const { scaleApi } = await import('@/api/path/scale')
+          console.log('使用 scaleCode 调用 getScaleDetail，scaleCode:', scaleCode)
+          const [se, sr] = await scaleApi.getScaleDetail(scaleCode)
+          console.log('getScaleDetail 调用结果:', {
+            hasError: !!se,
+            error: se,
+            hasData: !!sr?.data,
+            scaleCode: sr?.data?.code,
+            questionnaireCode: sr?.data?.questionnaire_code
+          })
+          
+          if (!se && sr?.data) {
+            const scale = sr.data
+            runInAction(() => {
+              this.scaleCode = scale.code
+            })
+            
+            // 从量表详情中获取问卷编码，然后加载问卷详情
+            const questionnaireCode = scale.questionnaire_code || questionsheetid
+            console.log('从量表详情获取问卷编码:', questionnaireCode)
+            
+            // 加载问卷详情（包含问题列表）
+            const { surveyApi } = await import('@/api/path/survey')
+            const [qe, qr] = await surveyApi.getSurvey(questionnaireCode)
+            if (qe) {
+              console.warn('加载问卷详情失败:', qe)
+              return
+            }
+            
+            const questionnaire = qr?.data
+            if (questionnaire) {
+              runInAction(() => {
+                this.id = questionnaire.code
+                this.title = questionnaire.title
+                this.desc = questionnaire.description || ''
+                this.img_url = questionnaire.img_url || ''
+              })
+              
+              // 处理问题列表
+              const questionDTOs = questionnaire?.questions || []
+              console.log('原始问题数据 (QuestionDTO):', questionDTOs.length, questionDTOs.slice(0, 2))
+              
+              const questions = questionDTOs.map((q: any) => {
+                if (q.question_type !== undefined) {
+                  try {
+                    const converted = convertQuestionFromDTO(q as IQuestionDTO)
+                    return converted
+                  } catch (error) {
+                    console.warn('转换问题失败:', q, error)
+                    return null
+                  }
+                }
+                return q
+              }).filter((q: any) => q !== null) as IQuestion[]
+              
+              runInAction(() => {
+                this.questions = questions
+                this.currentCode = questions.length > 0 ? questions[questions.length - 1].code : ''
+              })
+              
+              console.log('从量表详情加载完成，问题数量:', this.questions.length)
+              return
+            }
+          } else if (se) {
+            console.warn('获取量表详情失败，降级使用问卷编码:', se)
+            // 降级：使用问卷编码
+          }
+        } catch (error) {
+          console.warn('获取量表详情异常，降级使用问卷编码:', error)
+          // 降级：使用问卷编码
+        }
+      }
+
+      // 如果没有 scaleCode 或获取失败，使用原来的逻辑：通过问卷编码获取
       // 编辑模式：加载量表和题目
-      const [qe, qr] = await api.getSurvey(questionsheetid)
+      // 使用 surveyApi.getSurvey 确保正确调用
+      const { surveyApi } = await import('@/api/path/survey')
+      console.log('准备调用 surveyApi.getSurvey，questionsheetid:', questionsheetid)
+      const [qe, qr] = await surveyApi.getSurvey(questionsheetid)
+      console.log('surveyApi.getSurvey 调用完成:', { 
+        hasError: !!qe, 
+        error: qe, 
+        hasData: !!qr?.data,
+        dataCode: qr?.data?.code,
+        questionsCount: qr?.data?.questions?.length 
+      })
+      console.log('API 调用结果:', { error: qe, hasData: !!qr?.data, questionsCount: qr?.data?.questions?.length })
       if (qe) {
         // 量表不存在时，初始化为新量表但保留 ID
         console.warn('量表不存在，初始化为新量表:', questionsheetid)
@@ -679,19 +805,80 @@ export const scaleStore = makeObservable(
           this.desc = questionnaire.description || ''
           this.img_url = questionnaire.img_url || ''
         })
+        
+        // 获取量表信息以获取量表编码
+        try {
+          const { scaleApi } = await import('@/api/path/scale')
+          const [se, sr] = await scaleApi.getScaleByQuestionnaire(questionnaire.code)
+          console.log('getScaleByQuestionnaire 调用结果:', {
+            hasError: !!se,
+            error: se,
+            hasData: !!sr?.data,
+            scaleCode: sr?.data?.code,
+            fullResponse: sr
+          })
+          if (!se && sr?.data?.code) {
+            runInAction(() => {
+              this.scaleCode = sr.data.code
+            })
+            console.log('获取到量表编码:', sr.data.code)
+          } else if (se) {
+            console.warn('获取量表信息失败:', se)
+          } else if (!sr?.data?.code) {
+            console.warn('量表信息中没有编码字段，返回数据:', sr?.data)
+          }
+        } catch (error) {
+          console.warn('获取量表信息异常（可能量表尚未创建）:', error)
+        }
       }
 
       // 新 API 中 questions 直接在问卷响应中
-      const questions = questionnaire?.questions || []
+      // 将 API 返回的 QuestionDTO 转换为前端的 IQuestion
+      const questionDTOs = questionnaire?.questions || []
+      console.log('原始问题数据 (QuestionDTO):', questionDTOs.length, questionDTOs.slice(0, 2))
+      
+      const questions = questionDTOs.map((q: any) => {
+        // API 返回的是 QuestionDTO 格式，需要转换为前端 IQuestion 格式
+        if (q.question_type !== undefined) {
+          try {
+            const converted = convertQuestionFromDTO(q as IQuestionDTO)
+            console.log('转换问题:', { code: q.code, type: q.question_type, convertedType: converted.type })
+            return converted
+          } catch (error) {
+            console.error('转换问题失败:', q, error)
+            throw error
+          }
+        }
+        // 如果已经是前端格式（向后兼容），直接使用
+        if (q.type) {
+          return q as IQuestion
+        }
+        // 未知格式，尝试直接使用
+        console.warn('未知的问题数据格式:', q)
+        return q as IQuestion
+      })
+      
+      console.log('转换后的问题列表:', questions.length, questions.slice(0, 2))
+      
       runInAction(() => {
-        this.questions = questions
+        // 先清空数组，然后逐个添加，确保 MobX 能正确检测变化
+        this.questions.length = 0
+        this.questions.push(...questions)
+        console.log('设置 questions 到 store:', questions.length)
         if (questions.length > 0) {
           this.currentCode = questions[0].code
           this.currentStep = 'edit-questions'
+          console.log('设置当前问题:', this.currentCode)
         } else {
           this.currentCode = ''
           this.currentStep = 'edit-questions'
+          console.log('问题列表为空')
         }
+        console.log('store 状态更新完成:', {
+          questionsCount: this.questions.length,
+          currentCode: this.currentCode,
+          currentStep: this.currentStep
+        })
       })
     },
 
@@ -852,6 +1039,7 @@ export const scaleStore = makeObservable(
   },
   {
     // 基本信息
+    scaleCode: observable,
     title: observable,
     desc: observable,
     img_url: observable,
@@ -859,7 +1047,6 @@ export const scaleStore = makeObservable(
     factors: observable,
     showControllers: observable,
     deletedShowControllerCodes: observable,
-    macro_rule: observable,
     factor_rules: observable,
     currentCode: observable,
     currentFactorId: observable,
@@ -898,10 +1085,6 @@ export const scaleStore = makeObservable(
     changeFactorPosition: action,
     initAnalysisData: action,
     setAnalysisData: action,
-    changeMacroRule: action,
-    changeMacroRuleInterpretation: action,
-    addMacroRuleInterpretation: action,
-    delMacroRuleInterpretation: action,
     changeFactorRulesItem: action,
     changeFactorRulesInterpretation: action,
     addFactorRulesInterpretation: action,
@@ -931,7 +1114,6 @@ reaction(
     factorsData: JSON.stringify(scaleStore.factors),
     showControllersLength: scaleStore.showControllers.length,
     showControllersData: JSON.stringify(scaleStore.showControllers),
-    macroRuleData: JSON.stringify(scaleStore.macro_rule),
     factorRulesData: JSON.stringify(scaleStore.factor_rules),
     currentStep: scaleStore.currentStep
   }),

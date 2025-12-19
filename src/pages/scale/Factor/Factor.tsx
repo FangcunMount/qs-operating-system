@@ -8,11 +8,11 @@ import { HTML5Backend } from 'react-dnd-html5-backend'
 import './Factor.scss'
 import '@/styles/theme-scale.scss'
 import { IFactor, FactorTypeMap, FormulasMap, IFactorType, IFactorFormula } from '@/models/factor'
-import { useParams } from 'react-router'
+import { useParams, useLocation } from 'react-router'
 import { api } from '@/api'
 import BaseLayout from '@/components/layout/BaseLayout'
 import { scaleStore } from '@/store'
-import { SCALE_STEPS, getScaleStepIndex } from '@/utils/steps'
+import { SCALE_STEPS, getScaleStepIndex, getScaleStepFromPath } from '@/utils/steps'
 import { useHistory } from 'react-router-dom'
 
 const { Option } = Select
@@ -43,6 +43,7 @@ const DraggableFactorCard: React.FC<DraggableFactorCardProps> = observer(({
   const [{ isDragging }, drag] = useDrag({
     type: ItemTypes.FACTOR_CARD,
     item: { index },
+    canDrag: factor.is_total_score !== '1', // 总分因子不允许拖拽
     collect: (monitor) => ({
       isDragging: monitor.isDragging()
     })
@@ -50,10 +51,17 @@ const DraggableFactorCard: React.FC<DraggableFactorCardProps> = observer(({
 
   const [, drop] = useDrop({
     accept: ItemTypes.FACTOR_CARD,
+    canDrop: () => factor.is_total_score !== '1', // 不允许拖拽到总分因子位置
     hover: (item: { index: number }, monitor) => {
       if (!ref.current) {
         return
       }
+      
+      // 如果目标是总分因子位置（第一位），不允许拖拽
+      if (factor.is_total_score === '1') {
+        return
+      }
+      
       const dragIndex = item.index
       const hoverIndex = index
 
@@ -129,8 +137,13 @@ const EmptyState: React.FC<{ onAdd: () => void }> = ({ onAdd }) => (
 
 const Factor: React.FC = observer(() => {
   const history = useHistory()
+  const location = useLocation()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const [form] = Form.useForm()
+  
+  // 从 URL query 参数获取 scaleCode
+  const searchParams = new URLSearchParams(location.search)
+  const scaleCode = searchParams.get('scaleCode') || undefined
 
   // 步骤跳转处理
   const handleStepChange = (stepIndex: number) => {
@@ -163,45 +176,120 @@ const Factor: React.FC = observer(() => {
   const [editingFactorCode, setEditingFactorCode] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
 
-  // 移动因子
-  const moveFactor = (dragIndex: number, hoverIndex: number) => {
-    scaleStore.changeFactorPosition(dragIndex, hoverIndex)
+  // 获取排序后的因子列表（总分因子始终在第一位）
+  const getSortedFactors = () => {
+    const factors = [...scaleStore.factors]
+    const totalFactorIndex = factors.findIndex(f => f.is_total_score === '1')
+    
+    if (totalFactorIndex > 0) {
+      // 如果总分因子不在第一位，将其移到第一位
+      const totalFactor = factors.splice(totalFactorIndex, 1)[0]
+      factors.unshift(totalFactor)
+    }
+    
+    return factors
   }
 
-  // 设置当前步骤
+  // 移动因子（考虑总分因子始终在第一位）
+  const moveFactor = (dragIndex: number, hoverIndex: number) => {
+    const sortedFactors = getSortedFactors()
+    const dragFactor = sortedFactors[dragIndex]
+    const hoverFactor = sortedFactors[hoverIndex]
+    
+    // 如果拖拽的是总分因子，不允许移动
+    if (dragFactor.is_total_score === '1') {
+      return
+    }
+    
+    // 如果目标位置是第一位（总分位置），不允许移动
+    if (hoverIndex === 0 && sortedFactors[0].is_total_score === '1') {
+      return
+    }
+    
+    // 在原始 factors 数组中找到对应的索引
+    const originalDragIndex = scaleStore.factors.findIndex(f => f.code === dragFactor.code)
+    const originalHoverIndex = scaleStore.factors.findIndex(f => f.code === hoverFactor.code)
+    
+    scaleStore.changeFactorPosition(originalDragIndex, originalHoverIndex)
+  }
+
+  // 根据路由自动设置当前步骤
   React.useEffect(() => {
     scaleStore.setCurrentStep('edit-factors')
-  }, [])
+  }, [location.pathname])
 
   // 从服务器加载数据
   const loadDataFromServer = async () => {
+    console.log('开始加载因子列表，questionsheetid:', questionsheetid)
     message.loading({ content: '加载中', duration: 0, key: 'fetch' })
     try {
-      await scaleStore.initEditor(questionsheetid)
+      // 先初始化编辑器，获取量表编码
+      console.log('调用 initEditor 获取量表信息...', 'questionsheetid:', questionsheetid, 'scaleCode:', scaleCode)
+      await scaleStore.initEditor(questionsheetid, scaleCode)
+      console.log('initEditor 完成，scaleCode:', scaleStore.scaleCode)
       
-      const [error, response] = await api.getFactorList(questionsheetid)
-      if (!error && response) {
-        scaleStore.setFactors(response.data.list)
+      // 如果量表编码存在，直接使用；否则使用问卷编码作为备用方案
+      let error: any = null
+      let response: any = undefined
+      
+      if (scaleStore.scaleCode) {
+        // 直接使用量表编码调用 GET /scales/{code}/factors 接口
+        console.log('使用量表编码获取因子列表，scaleCode:', scaleStore.scaleCode)
+        const { getFactorListByScaleCode } = await import('@/api/path/scale')
+        ;[error, response] = await getFactorListByScaleCode(scaleStore.scaleCode)
+      } else {
+        // 备用方案：使用问卷编码获取因子列表
+        console.warn('量表编码不存在，使用问卷编码作为备用方案，questionsheetid:', questionsheetid)
+        const { getFactorListByQuestionnaire } = await import('@/api/path/scale')
+        ;[error, response] = await getFactorListByQuestionnaire(questionsheetid)
+        
+        // 如果通过问卷编码获取成功，尝试从响应中提取量表编码
+        if (!error && response?.data) {
+          // getFactorListByQuestionnaire 内部会调用 getScaleByQuestionnaire
+          // 如果成功，应该能获取到量表编码，但这里无法直接获取
+          // 所以再次尝试获取量表编码
+          try {
+            const { scaleApi } = await import('@/api/path/scale')
+            const [se, sr] = await scaleApi.getScaleByQuestionnaire(questionsheetid)
+            if (!se && sr?.data?.code) {
+              scaleStore.scaleCode = sr.data.code
+              console.log('通过备用方案获取到量表编码:', sr.data.code)
+            }
+          } catch (err) {
+            console.error('备用方案中获取量表编码失败:', err)
+          }
+        }
       }
       
-      message.destroy()
+      if (error) {
+        console.error('获取因子列表失败:', error)
+        message.error('获取因子列表失败')
+        message.destroy('fetch')
+        return
+      }
+      
+      console.log('获取因子列表响应:', response)
+      if (response?.data?.factors) {
+        console.log('获取到因子列表，数量:', response.data.factors.length)
+        scaleStore.setFactors(response.data.factors)
+      } else {
+        console.log('因子列表为空')
+        scaleStore.setFactors([])
+      }
+      
+      message.destroy('fetch')
     } catch (error) {
-      message.destroy()
-      message.error('加载量表失败')
+      console.error('加载因子列表异常:', error)
+      message.destroy('fetch')
+      message.error('加载因子列表失败')
     }
   }
 
   // 初始化数据
   useEffect(() => {
     const initPageData = async () => {
-      const restored = scaleStore.loadFromLocalStorage()
-      
-      if (restored && scaleStore.id === questionsheetid && scaleStore.questions.length > 0) {
-        console.log('factor 页面从 localStorage 恢复数据成功')
-        return
-      }
-      
-      console.log('factor 页面从服务器加载数据')
+      console.log('factor 页面初始化，questionsheetid:', questionsheetid)
+      // 总是从服务器加载最新的因子列表
       await loadDataFromServer()
     }
     
@@ -214,14 +302,46 @@ const Factor: React.FC = observer(() => {
     setIsCreating(false)
     const factor = scaleStore.getFactorById(code)
     if (factor) {
-      form.setFieldsValue(factor)
+      console.log('设置因子表单值:', factor)
+      console.log('cnt_option_contents:', factor.calc_rule?.append_params?.cnt_option_contents)
+      
+      // 使用 setTimeout 确保在下一个渲染周期设置值，让 shouldUpdate 能正确触发
+      setTimeout(() => {
+        form.setFieldsValue({
+          ...factor,
+          // 确保嵌套字段正确设置
+          calc_rule: {
+            formula: factor.calc_rule?.formula,
+            append_params: {
+              cnt_option_contents: factor.calc_rule?.append_params?.cnt_option_contents || []
+            }
+          }
+        })
+        
+        // 验证表单值是否设置成功
+        const formValues = form.getFieldsValue()
+        console.log('表单值设置后的值:', formValues)
+        console.log('cnt_option_contents 表单值:', formValues?.calc_rule?.append_params?.cnt_option_contents)
+      }, 0)
     }
   }
 
   // 创建新因子
   const handleCreateFactor = async () => {
-    const [, r] = await api.getCodeByType('factor', questionsheetid)
-    const newCode = r?.data.code ?? ''
+    // 使用量表编码申请 code，确保在量表内唯一
+    if (!scaleStore.scaleCode) {
+      message.error('量表编码不存在，无法创建因子')
+      return
+    }
+    
+    const [err, res] = await api.applyFactorCode(scaleStore.scaleCode)
+    if (err || !res?.data?.codes || res.data.codes.length === 0) {
+      message.error('申请因子编码失败')
+      console.error('申请因子编码失败:', err)
+      return
+    }
+    
+    const newCode = res.data.codes[0]
     
     setEditingFactorCode(newCode)
     setIsCreating(true)
@@ -278,10 +398,56 @@ const Factor: React.FC = observer(() => {
       }
 
       if (isCreating) {
+        // 如果新因子是总分，取消其他因子的总分设置
+        if (factor.is_total_score === '1') {
+          scaleStore.factors.forEach(f => {
+            if (f.is_total_score === '1') {
+              scaleStore.updateFactor(f.code, { ...f, is_total_score: '0' })
+            }
+          })
+        }
+        
         scaleStore.addFactor(factor)
+        // 如果新因子是总分，将其移到第一位
+        if (factor.is_total_score === '1') {
+          const newFactorIndex = scaleStore.factors.length - 1
+          if (newFactorIndex > 0) {
+            scaleStore.changeFactorPosition(newFactorIndex, 0)
+          }
+        }
         message.success('添加成功')
       } else {
+        const oldFactor = scaleStore.getFactorById(factor.code)
+        const wasTotalScore = oldFactor?.is_total_score === '1'
+        const isNowTotalScore = factor.is_total_score === '1'
+        
+        // 如果因子被设置为总分，取消其他因子的总分设置
+        if (!wasTotalScore && isNowTotalScore) {
+          scaleStore.factors.forEach(f => {
+            if (f.code !== factor.code && f.is_total_score === '1') {
+              scaleStore.updateFactor(f.code, { ...f, is_total_score: '0' })
+            }
+          })
+        }
+        
         scaleStore.updateFactor(factor.code, factor)
+        
+        // 如果因子被设置为总分，将其移到第一位
+        if (!wasTotalScore && isNowTotalScore) {
+          const factorIndex = scaleStore.factors.findIndex(f => f.code === factor.code)
+          if (factorIndex > 0) {
+            scaleStore.changeFactorPosition(factorIndex, 0)
+          }
+        }
+        
+        // 如果因子被取消总分设置，确保其他总分因子在第一位
+        if (wasTotalScore && !isNowTotalScore) {
+          const totalFactorIndex = scaleStore.factors.findIndex(f => f.is_total_score === '1' && f.code !== factor.code)
+          if (totalFactorIndex > 0) {
+            scaleStore.changeFactorPosition(totalFactorIndex, 0)
+          }
+        }
+        
         message.success('更新成功')
       }
       
@@ -320,6 +486,81 @@ const Factor: React.FC = observer(() => {
     }
   }
 
+  // 获取所选题目（source_codes）的所有选项值，用于计数公式
+  const getAvailableOptionValues = () => {
+    const sourceCodes = form.getFieldValue('source_codes') || []
+    const allOptions: Array<{ value: string; label: string }> = []
+    const seenContents = new Set<string>() // 用于根据 content 去重
+    
+    console.log('getAvailableOptionValues - sourceCodes:', sourceCodes)
+    
+    sourceCodes.forEach((questionCode: string) => {
+      const question = scaleStore.questions.find(q => q.code === questionCode)
+      if (!question) {
+        console.warn('未找到题目:', questionCode)
+        return
+      }
+      
+      console.log('找到题目:', question.code, question.title, '类型:', question.type, '选项:', (question as any).options)
+      
+      // 获取题目的选项
+      let options: Array<{ code: string; content: string }> = []
+      if (question.type === 'Radio' && 'options' in question) {
+        const radioQuestion = question as any
+        options = (radioQuestion.options || []).map((opt: any) => ({
+          code: opt.code || opt.key || String(opt.content || ''),
+          content: opt.content || opt.title || opt.label || String(opt.code || opt.key || '')
+        }))
+      } else if (question.type === 'Checkbox' && 'options' in question) {
+        const checkboxQuestion = question as any
+        options = (checkboxQuestion.options || []).map((opt: any) => ({
+          code: opt.code || opt.key || String(opt.content || ''),
+          content: opt.content || opt.title || opt.label || String(opt.code || opt.key || '')
+        }))
+      } else if (question.type === 'ScoreRadio' && 'options' in question) {
+        const scoreRadioQuestion = question as any
+        options = (scoreRadioQuestion.options || []).map((opt: any) => ({
+          code: opt.code || opt.key || String(opt.score || opt.content || ''),
+          content: opt.content || opt.title || opt.label || String(opt.score || opt.code || opt.key || '')
+        }))
+      } else if (question.type === 'ImageRadio' && 'options' in question) {
+        const imageRadioQuestion = question as any
+        options = (imageRadioQuestion.options || []).map((opt: any) => ({
+          code: opt.code || opt.key || String(opt.content || ''),
+          content: opt.content || opt.title || opt.label || String(opt.code || opt.key || '')
+        }))
+      } else if (question.type === 'ImageCheckBox' && 'options' in question) {
+        const imageCheckboxQuestion = question as any
+        options = (imageCheckboxQuestion.options || []).map((opt: any) => ({
+          code: opt.code || opt.key || String(opt.content || ''),
+          content: opt.content || opt.title || opt.label || String(opt.code || opt.key || '')
+        }))
+      }
+      
+      console.log('提取的选项:', options)
+      
+      // 将选项添加到列表中，只显示选项文本值，并根据 content 去重
+      // 注意：value 使用 content（文案），而不是 code
+      options.forEach(opt => {
+        const optionText = opt.content
+        
+        // 如果选项文本值（content）已存在，跳过（去重）
+        if (seenContents.has(optionText)) {
+          return
+        }
+        seenContents.add(optionText)
+        
+        allOptions.push({
+          value: optionText, // 使用文案作为值，而不是 code
+          label: optionText // 显示文案
+        })
+      })
+    })
+    
+    console.log('最终返回的选项列表:', allOptions)
+    return allOptions
+  }
+
   const handleVerifyFactor = () => {
     if (scaleStore.factors.length < 1) {
       message.error('无因子可保存！')
@@ -329,13 +570,15 @@ const Factor: React.FC = observer(() => {
   }
 
   const handleSaveFactor = async () => {
-    // 只保存到 localStorage，不调用 API
-    scaleStore.setCurrentStep('set-interpretation')
+    // 只保存到 store 和 localStorage，不调用 API
+    // API 调用将在"解读规则"页面的"下一步"时统一提交
+    scaleStore.saveToLocalStorage()
+    return { status: 'success' as const }
   }
 
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
     if (status === 'success') {
-      message.success('因子已保存到本地，发布时统一提交')
+      message.success('因子已保存到本地')
       scaleStore.nextStep()
     }
     if (status === 'fail') {
@@ -350,9 +593,9 @@ const Factor: React.FC = observer(() => {
         submitFn={handleSaveFactor}
         afterSubmit={handleAfterSubmit}
         footerButtons={['break', 'saveToNext']}
-        nextUrl={`/scale/analysis/${questionsheetid}`}
+        nextUrl={`/scale/analysis/${questionsheetid}${scaleStore.scaleCode ? `?scaleCode=${scaleStore.scaleCode}` : ''}`}
         steps={SCALE_STEPS}
-        currentStep={getScaleStepIndex(scaleStore.currentStep)}
+        currentStep={getScaleStepIndex(getScaleStepFromPath(location.pathname) || 'edit-factors')}
         onStepChange={handleStepChange}
         themeClass="scale-page-theme"
       >
@@ -377,7 +620,7 @@ const Factor: React.FC = observer(() => {
                   </div>
 
                   <div className="factor-list">
-                    {scaleStore.factors.map((factor, index) => (
+                    {getSortedFactors().map((factor, index) => (
                       <DraggableFactorCard
                         key={factor.code}
                         factor={factor}
@@ -458,6 +701,74 @@ const Factor: React.FC = observer(() => {
                             <Option value="avg">平均值</Option>
                             <Option value="cnt">计数</Option>
                           </Select>
+                        </Form.Item>
+
+                        {/* 当计算公式为"计数"时，显示选项值选择器 */}
+                        <Form.Item
+                          noStyle
+                          shouldUpdate={(prevValues, currentValues) => {
+                            const prevFormula = prevValues?.calc_rule?.formula
+                            const currentFormula = currentValues?.calc_rule?.formula
+                            const prevSourceCodes = prevValues?.source_codes
+                            const currentSourceCodes = currentValues?.source_codes
+                            const prevCntOptions = prevValues?.calc_rule?.append_params?.cnt_option_contents
+                            const currentCntOptions = currentValues?.calc_rule?.append_params?.cnt_option_contents
+                            return prevFormula !== currentFormula || 
+                                   JSON.stringify(prevSourceCodes) !== JSON.stringify(currentSourceCodes) ||
+                                   JSON.stringify(prevCntOptions) !== JSON.stringify(currentCntOptions)
+                          }}
+                        >
+                          {({ getFieldValue }) => {
+                            const formula = getFieldValue(['calc_rule', 'formula'])
+                            const sourceCodes = getFieldValue('source_codes') || []
+                            const currentCntOptions = getFieldValue(['calc_rule', 'append_params', 'cnt_option_contents']) || []
+                            
+                            console.log('计数选项值选择器渲染:', {
+                              formula,
+                              sourceCodes,
+                              currentCntOptions,
+                              availableOptionsCount: sourceCodes.length > 0 ? getAvailableOptionValues().length : 0
+                            })
+                            
+                            if (formula === 'cnt' && sourceCodes.length > 0) {
+                              const availableOptions = getAvailableOptionValues()
+                              
+                              return (
+                                <Form.Item
+                                  label="计数选项值"
+                                  name={['calc_rule', 'append_params', 'cnt_option_contents']}
+                                  rules={[{ required: true, message: '请选择至少一个选项值用于计数' }]}
+                                  tooltip="选择要计数的选项值，系统将统计选择这些选项的题目数量"
+                                >
+                                  <Select
+                                    mode="multiple"
+                                    placeholder="请选择要计数的选项值"
+                                    style={{ width: '100%' }}
+                                    showSearch
+                                    filterOption={(input, option) => {
+                                      const label = option?.label as string | undefined
+                                      return (label ?? '').toLowerCase().includes(input.toLowerCase())
+                                    }}
+                                    options={availableOptions.map(opt => ({
+                                      value: opt.value,
+                                      label: opt.label
+                                    }))}
+                                  />
+                                </Form.Item>
+                              )
+                            }
+                            
+                            return null
+                          }}
+                        </Form.Item>
+
+                        <Form.Item
+                          name="is_total_score"
+                          valuePropName="checked"
+                          getValueFromEvent={(e) => e.target.checked ? '1' : '0'}
+                          getValueProps={(value) => ({ checked: value === '1' })}
+                        >
+                          <Checkbox>设置为总分</Checkbox>
                         </Form.Item>
 
                         <div className="editor-actions">

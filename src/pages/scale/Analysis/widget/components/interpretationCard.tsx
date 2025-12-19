@@ -1,10 +1,25 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import { Input, InputNumber, Divider, Popconfirm } from 'antd'
+import { Input, Divider, Popconfirm } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
 import { IInterpretation } from '@/models/analysis'
+import ScoreRangeInput from './ScoreRangeInput'
 
-const InterpretationCard: React.FC<InterpretationCardProps> = ({ index, item, handleChange, handleDelete }) => {
+interface InterpretationCardProps {
+  index: number
+  item: IInterpretation
+  handleChange: (index: number, item: IInterpretation) => void
+  handleDelete: (index: number) => void
+  maxScore?: number // 添加 maxScore 属性
+}
+
+const InterpretationCard: React.FC<InterpretationCardProps> = ({ 
+  index, 
+  item, 
+  handleChange, 
+  handleDelete,
+  maxScore = 100 
+}) => {
   return (
     <div className="s-pa-xs s-pl-md" style={{ position: 'relative' }}>
       <Popconfirm placement="topLeft" title="确认要删除该解读吗？" onConfirm={() => handleDelete(index)} okText="确定" cancelText="取消">
@@ -13,21 +28,19 @@ const InterpretationCard: React.FC<InterpretationCardProps> = ({ index, item, ha
 
       <div className="s-mb-sm">当 <span style={{fontWeight: 600}}>得分</span> 在：</div>
       <div className="s-mb-sm">
-        <InputNumber
-          style={{ width: '100px' }}
-          value={item.start}
-          onChange={(e) => {
-            handleChange(index, { ...item, start: e })
+        <ScoreRangeInput
+          min={0}
+          max={maxScore}
+          start={item.start}
+          end={item.end}
+          onChange={(start, end) => {
+            handleChange(index, {
+              ...item,
+              start: start !== undefined ? String(start) : '',
+              end: end !== undefined ? String(end) : ''
+            })
           }}
-        ></InputNumber>
-        <span> ~ </span>
-        <InputNumber
-          style={{ width: '100px' }}
-          value={item.end}
-          onChange={(e) => {
-            handleChange(index, { ...item, end: e })
-          }}
-        ></InputNumber>
+        />
       </div>
       <div className="s-mb-sm">之间，则显示</div>
       <Input.TextArea
@@ -42,16 +55,11 @@ const InterpretationCard: React.FC<InterpretationCardProps> = ({ index, item, ha
   )
 }
 
-interface InterpretationCardProps {
-  index: number
-  item: IInterpretation
-  handleChange: (index: number, item: IInterpretation) => void
-  handleDelete: (index: number) => void
-}
 InterpretationCard.propTypes = {
   index: PropTypes.any,
   item: PropTypes.any,
   handleChange: PropTypes.any,
-  handleDelete: PropTypes.any
+  handleDelete: PropTypes.any,
+  maxScore: PropTypes.any
 }
 export default InterpretationCard

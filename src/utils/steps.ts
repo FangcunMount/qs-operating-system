@@ -42,3 +42,51 @@ export const getSurveyStepIndex = (stepKey: string): number => {
 export const getScaleStepIndex = (stepKey: string): number => {
   return getStepIndex(SCALE_STEPS, stepKey)
 }
+
+/**
+ * 根据路由路径获取量表编辑步骤 key
+ * @param pathname 当前路由路径
+ * @returns 步骤 key，如果无法匹配则返回 undefined
+ */
+export const getScaleStepFromPath = (pathname: string): string | undefined => {
+  if (pathname.includes('/scale/info/')) {
+    return 'create'
+  }
+  if (pathname.includes('/scale/create/')) {
+    return 'edit-questions'
+  }
+  if (pathname.includes('/scale/routing/')) {
+    return 'set-routing'
+  }
+  if (pathname.includes('/scale/factor/')) {
+    return 'edit-factors'
+  }
+  if (pathname.includes('/scale/analysis/')) {
+    return 'set-interpretation'
+  }
+  if (pathname.includes('/scale/publish/')) {
+    return 'publish'
+  }
+  return undefined
+}
+
+/**
+ * 根据路由路径获取调查问卷编辑步骤 key
+ * @param pathname 当前路由路径
+ * @returns 步骤 key，如果无法匹配则返回 undefined
+ */
+export const getSurveyStepFromPath = (pathname: string): string | undefined => {
+  if (pathname.includes('/survey/info/')) {
+    return 'create'
+  }
+  if (pathname.includes('/survey/create/')) {
+    return 'edit-questions'
+  }
+  if (pathname.includes('/survey/routing/')) {
+    return 'set-routing'
+  }
+  if (pathname.includes('/survey/publish/')) {
+    return 'publish'
+  }
+  return undefined
+}

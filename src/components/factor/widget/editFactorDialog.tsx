@@ -41,6 +41,23 @@ const EditFactorDialog: React.FC<EditFactorDialogProps> = (props) => {
           }
         })
       } else {
+        // 尝试获取量表编码，使用新的申请 code 接口
+        try {
+          const { getScaleByQuestionnaire } = await import('@/api/path/scale')
+          const [err, res] = await getScaleByQuestionnaire(questionsheetid)
+          if (!err && res?.data?.code) {
+            // 有量表编码，使用新接口
+            const [codeErr, codeRes] = await api.applyFactorCode(res.data.code)
+            if (!codeErr && codeRes?.data?.codes && codeRes.data.codes.length > 0) {
+              setFactor({ ...initFactor, code: codeRes.data.codes[0] })
+              return
+            }
+          }
+        } catch (error) {
+          console.warn('获取量表编码失败，使用旧接口:', error)
+        }
+        
+        // 回退到旧接口
         const [, r] = await api.getCodeByType('factor', questionsheetid)
         setFactor({ ...initFactor, code: r?.data.code ?? '' })
       }

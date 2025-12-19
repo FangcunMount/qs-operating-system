@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { useParams } from 'react-router'
+import { useParams, useLocation } from 'react-router'
 import { message, notification } from 'antd'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
@@ -11,7 +11,7 @@ import '@/components/editorSteps/index.scss'
 import '@/styles/theme-survey.scss'
 import { surveyStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
-import { SURVEY_STEPS, getSurveyStepIndex } from '@/utils/steps'
+import { SURVEY_STEPS, getSurveyStepIndex, getSurveyStepFromPath } from '@/utils/steps'
 import { useHistory } from 'react-router-dom'
 import { surveyApi } from '@/api/path/survey'
 import QuestionSetting from '@/components/questionEdit/Setting'
@@ -56,6 +56,7 @@ const checkMap = {
 
 const QuestionEdit: React.FC = observer(() => {
   const history = useHistory()
+  const location = useLocation()
   const showContainerRef = useRef<HTMLInputElement>(null)
   const { questionsheetid, answercnt } = useParams<{ questionsheetid: string; answercnt: string }>()
   
@@ -90,7 +91,7 @@ const QuestionEdit: React.FC = observer(() => {
   }
 
   useEffect(() => {
-    // 设置当前步骤
+    // 根据路由自动设置当前步骤
     surveyStore.setCurrentStep('edit-questions')
 
     // 只在 store 中没有数据或 ID 不匹配时才重新初始化
@@ -114,7 +115,7 @@ const QuestionEdit: React.FC = observer(() => {
         console.error('加载问卷失败:', error)
       }
     })()
-  }, [questionsheetid])
+  }, [questionsheetid, location.pathname])
 
   const handleVerifyQuestionSheet = () => {
     return verifyQuestionSheet(surveyStore.questions)
@@ -196,7 +197,7 @@ const QuestionEdit: React.FC = observer(() => {
       footerButtons={['break', 'saveToNext']}
       nextUrl={`/survey/routing/${questionsheetid}`}
       steps={SURVEY_STEPS}
-      currentStep={getSurveyStepIndex(surveyStore.currentStep)}
+      currentStep={getSurveyStepIndex(getSurveyStepFromPath(location.pathname) || 'edit-questions')}
       onStepChange={handleStepChange}
       themeClass="survey-page-theme"
     >

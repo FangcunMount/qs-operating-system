@@ -1,19 +1,20 @@
 import React, { useEffect, useState } from 'react'
 import { message } from 'antd'
-import { useParams } from 'react-router'
+import { useParams, useLocation } from 'react-router'
 import { observer } from 'mobx-react-lite'
 
 import './Publish.scss'
 import '@/styles/theme-survey.scss'
 import { surveyStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
-import { SURVEY_STEPS, getSurveyStepIndex } from '@/utils/steps'
+import { SURVEY_STEPS, getSurveyStepIndex, getSurveyStepFromPath } from '@/utils/steps'
 import { useHistory } from 'react-router-dom'
 import { MobilePreview } from '@/components/preview'
 import { PublishStatusCard, QuestionnaireInfoCard, ShareCard } from '@/components/questionnaire'
 
 const Publish: React.FC = observer(() => {
   const history = useHistory()
+  const location = useLocation()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   
   const [isPublished, setIsPublished] = useState(false)
@@ -42,10 +43,10 @@ const Publish: React.FC = observer(() => {
   const [shareCode, setShareCode] = useState('')
 
   useEffect(() => {
-    // 设置当前步骤
+    // 根据路由自动设置当前步骤
     surveyStore.setCurrentStep('publish')
     initData()
-  }, [questionsheetid])
+  }, [questionsheetid, location.pathname])
 
   const initData = async () => {
     message.loading({ content: '加载中', duration: 0, key: 'fetch' })
@@ -207,7 +208,7 @@ const Publish: React.FC = observer(() => {
     <BaseLayout
       footerButtons={['break']}
       steps={SURVEY_STEPS}
-      currentStep={getSurveyStepIndex(surveyStore.currentStep)}
+      currentStep={getSurveyStepIndex(getSurveyStepFromPath(location.pathname) || 'publish')}
       onStepChange={handleStepChange}
       themeClass="survey-page-theme"
     >

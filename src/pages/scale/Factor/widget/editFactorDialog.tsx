@@ -4,6 +4,7 @@ import { Modal, Button, Popconfirm, message } from 'antd'
 import { IFactor } from '@/models/factor'
 import { api } from '@/api'
 import { IQuestion } from '@/models/question'
+import { scaleStore } from '@/store'
 import FactorInfo from './FactorInfo'
 import FactorQuestionItem from './FactorQuestionItem'
 import FactorType from './FactorType'
@@ -41,6 +42,17 @@ const EditFactorDialog: React.FC<EditFactorDialogProps> = (props) => {
           }
         })
       } else {
+        // 使用量表编码申请 code，确保在量表内唯一
+        if (scaleStore.scaleCode) {
+          const [err, res] = await api.applyFactorCode(scaleStore.scaleCode)
+          if (!err && res?.data?.codes && res.data.codes.length > 0) {
+            setFactor({ ...initFactor, code: res.data.codes[0] })
+            return
+          }
+          message.warning('申请因子编码失败，使用旧接口')
+        }
+        
+        // 回退到旧接口
         const [, r] = await api.getCodeByType('factor', questionsheetid)
         setFactor({ ...initFactor, code: r?.data.code ?? '' })
       }

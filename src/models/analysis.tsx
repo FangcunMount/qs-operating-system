@@ -5,10 +5,13 @@ export enum ScoreTypeMap {
 
 export type ScoreType = 'high_better' | 'less_better'
 
+export type RiskLevel = 'none' | 'low' | 'medium' | 'high' | 'severe'
+
 export interface IInterpretation {
   start: string
   end: string
   content: string
+  risk_level?: RiskLevel // 风险等级
 }
 
 export interface IMacroAnalysis {

@@ -6,16 +6,9 @@ import { scaleStore } from '@/store'
 import { observer } from 'mobx-react'
 import './setting.scss'
 
-const AnalysisSetting: React.FC<{ haveTotal: () => boolean }> = ({ haveTotal }) => {
+const AnalysisSetting: React.FC = () => {
   return (
     <div className="qs-analysis--container__setting">
-      {haveTotal() && (
-        <AnalysisSettingCard
-          title="总分"
-          max_score={scaleStore.macro_rule.max_score}
-          interpretation={scaleStore.macro_rule.interpretation}
-        ></AnalysisSettingCard>
-      )}
       {scaleStore.factor_rules.map((v) => {
         return (
           <AnalysisSettingCard

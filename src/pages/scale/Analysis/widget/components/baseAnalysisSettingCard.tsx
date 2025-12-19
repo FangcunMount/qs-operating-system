@@ -5,41 +5,33 @@ import { Checkbox } from 'antd'
 
 import { scaleStore } from '@/store'
 import InterpretationCard from './interpretationCard'
-import { IInterpretation, IInterpret_rule, IMacroAnalysis } from '@/models/analysis'
+import { IInterpretation, IInterpret_rule } from '@/models/analysis'
 
 const AnalysisSettingCard: React.FC<AnalysisSettingCardProps> = ({ code, is_show, title, max_score, interpretation, is_total_score }) => {
-  // 设置选项，根据是否有 code 判断是否是 factor 的内容
+  if (!code) {
+    console.warn('AnalysisSettingCard: code is required')
+    return null
+  }
+  // 设置选项
   const changeOption = (k: string, v: any) => {
-    if (code) {
-      scaleStore.changeFactorRulesItem(code, k as keyof IInterpret_rule, v)
-    } else {
-      scaleStore.changeMacroRule(k as keyof IMacroAnalysis, v)
-    }
+    if (!code) return
+    scaleStore.changeFactorRulesItem(code, k as keyof IInterpret_rule, v)
   }
 
-  // 设置解读，根据是否有 code 判断是否是 factor 的内容
+  // 设置解读
   const changeInterpretation = (i: number, item: IInterpretation) => {
-    if (code) {
-      scaleStore.changeFactorRulesInterpretation(code, i, item)
-    } else {
-      scaleStore.changeMacroRuleInterpretation(i, item)
-    }
+    if (!code) return
+    scaleStore.changeFactorRulesInterpretation(code, i, item)
   }
 
   const handleAddInterpretation = () => {
-    if (code) {
-      scaleStore.addFactorRulesInterpretation(code)
-    } else {
-      scaleStore.addMacroRuleInterpretation()
-    }
+    if (!code) return
+    scaleStore.addFactorRulesInterpretation(code)
   }
 
   const deleteInterpretation = (i: number) => {
-    if (code) {
-      scaleStore.delFactorRulesInterpretation(code, i)
-    } else {
-      scaleStore.delMacroRuleInterpretation(i)
-    }
+    if (!code) return
+    scaleStore.delFactorRulesInterpretation(code, i)
   }
 
   return (
@@ -50,18 +42,16 @@ const AnalysisSettingCard: React.FC<AnalysisSettingCardProps> = ({ code, is_show
       </div>
       {is_total_score == '1' ? <div style={{ color: '#999', fontSize: '12px' }}>已设置为总分</div> : null}
 
-      {/* 如果是因子解读，那么添加是否在结果中展示的功能 */}
-      {code ? (
-        <Checkbox
-          className="s-mt-md"
-          checked={is_show == '1'}
-          onChange={(e) => {
-            changeOption('is_show', e.target.checked ? '1' : '0')
-          }}
-        >
-          在结果中显示
-        </Checkbox>
-      ) : null}
+      {/* 因子解读：添加是否在结果中展示的功能 */}
+      <Checkbox
+        className="s-mt-md"
+        checked={is_show == '1'}
+        onChange={(e) => {
+          changeOption('is_show', e.target.checked ? '1' : '0')
+        }}
+      >
+        在结果中显示
+      </Checkbox>
 
       {/* 设置解读 */}
       <div className="s-mt-md">解读：</div>
@@ -74,6 +64,7 @@ const AnalysisSettingCard: React.FC<AnalysisSettingCardProps> = ({ code, is_show
               index={i}
               handleChange={changeInterpretation}
               handleDelete={deleteInterpretation}
+              maxScore={max_score}
             ></InterpretationCard>
           )
         })}
@@ -93,7 +84,7 @@ const AnalysisSettingCard: React.FC<AnalysisSettingCardProps> = ({ code, is_show
 }
 
 interface AnalysisSettingCardProps {
-  code?: string
+  code: string
   title: string
   is_show?: string
   is_total_score?: string

@@ -27,7 +27,7 @@ const QsFactor: React.FC = () => {
     (async () => {
       const [e, r] = await api.getFactorList(questionsheetid)
       if (!e && r) {
-        setFactors(r.data.list)
+        setFactors(r.data.factors)
       }
       const [qe, qr] = await api.getQuestionList(questionsheetid)
       if (!qe && qr) {
@@ -92,7 +92,8 @@ const QsFactor: React.FC = () => {
   }
 
   const handleSaveFactor = async () => {
-    const [e] = await api.modifyFactorList(questionsheetid, factors)
+    // 传入问卷编码，函数会自动获取量表编码
+    const [e] = await api.modifyFactorList(questionsheetid, factors, true)
     if (e) throw e
   }
 

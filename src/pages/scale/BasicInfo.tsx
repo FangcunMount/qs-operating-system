@@ -1,5 +1,5 @@
 import React from 'react'
-import { useParams, useHistory } from 'react-router'
+import { useParams, useHistory, useLocation } from 'react-router'
 import { Form, message } from 'antd'
 import { observer } from 'mobx-react-lite'
 
@@ -10,17 +10,18 @@ import { scaleStore } from '@/store'
 import { api } from '@/api'
 import BaseLayout from '@/components/layout/BaseLayout'
 import { BasicInfoFormCard, useBasicInfoForm } from '@/components/questionnaire'
-import { SCALE_STEPS, getScaleStepIndex } from '@/utils/steps'
+import { SCALE_STEPS, getScaleStepIndex, getScaleStepFromPath } from '@/utils/steps'
 
 const BasicInfo: React.FC = observer(() => {
   const history = useHistory()
+  const location = useLocation()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const [form] = Form.useForm()
 
-  // 设置当前步骤
+  // 根据路由自动设置当前步骤
   React.useEffect(() => {
     scaleStore.setCurrentStep('create')
-  }, [])
+  }, [location.pathname])
 
   // 使用通用的基本信息表单 Hook
   const { handleSave } = useBasicInfoForm({
@@ -81,7 +82,7 @@ const BasicInfo: React.FC = observer(() => {
       afterSubmit={handleAfterSubmit}
       footerButtons={['break', 'saveToNext']}
       steps={SCALE_STEPS}
-      currentStep={getScaleStepIndex(scaleStore.currentStep)}
+      currentStep={getScaleStepIndex(getScaleStepFromPath(location.pathname) || 'create')}
       onStepChange={handleStepChange}
       themeClass="scale-page-theme"
     >

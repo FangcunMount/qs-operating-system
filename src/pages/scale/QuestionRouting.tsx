@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { message } from 'antd'
-import { useParams } from 'react-router'
+import { useParams, useLocation } from 'react-router'
 import { observer } from 'mobx-react-lite'
 
 import './QuestionRouting.scss'
@@ -12,7 +12,7 @@ import ShowControllerEditor from '@/components/showController/ShowControllerEdit
 import { scaleStore } from '@/store'
 import { IQuestion, IQuestionShowController } from '@/models/question'
 import BaseLayout from '@/components/layout/BaseLayout'
-import { SCALE_STEPS, getScaleStepIndex } from '@/utils/steps'
+import { SCALE_STEPS, getScaleStepIndex, getScaleStepFromPath } from '@/utils/steps'
 import { useHistory } from 'react-router-dom'
 
 // 空状态组件
@@ -24,6 +24,7 @@ const EmptyState: React.FC = () => (
 
 const QuestionRouting: React.FC = observer(() => {
   const history = useHistory()
+  const location = useLocation()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const [editingQuestionCode, setEditingQuestionCode] = useState<string | null>(null)
 
@@ -92,7 +93,7 @@ const QuestionRouting: React.FC = observer(() => {
 
   // 初始化数据
   useEffect(() => {
-    // 设置当前步骤
+    // 根据路由自动设置当前步骤
     scaleStore.setCurrentStep('set-routing')
 
     const initPageData = async () => {
@@ -115,7 +116,7 @@ const QuestionRouting: React.FC = observer(() => {
     }
     
     initPageData()
-  }, [questionsheetid])
+  }, [questionsheetid, location.pathname])
 
   // 选中题目进行编辑
   const handleSelectQuestion = (code: string) => {
@@ -127,15 +128,50 @@ const QuestionRouting: React.FC = observer(() => {
     setEditingQuestionCode(null)
   }
 
-  // 保存路由设置
+  // 保存路由设置（通过批量更新接口提交，包含显隐规则）
   const handleSave = async () => {
-    scaleStore.setCurrentStep('edit-factors')
+    if (!scaleStore.id) {
+      throw new Error('量表 ID 不能为空')
+    }
+    
+    if (scaleStore.questions.length === 0) {
+      throw new Error('请先添加问题')
+    }
+    
+    try {
+      // 显示加载提示
+      message.loading({ content: '正在保存路由设置...', key: 'saveRouting', duration: 0 })
+      
+      // 调用批量更新接口，同时提交问题和显隐规则
+      const { surveyApi } = await import('@/api/path/survey')
+      const [error] = await surveyApi.saveSurveyQuestions(
+        scaleStore.id,
+        scaleStore.questions,
+        scaleStore.showControllers
+      )
+      
+      if (error) {
+        throw error
+      }
+      
+      // 关闭加载提示
+      message.destroy('saveRouting')
+      
+      // 保存成功后更新步骤
+      scaleStore.nextStep()
+    } catch (error: any) {
+      // 关闭加载提示
+      message.destroy('saveRouting')
+      
+      // 抛出错误，让 BaseLayout 的 afterSubmit 处理
+      throw error
+    }
   }
 
   // 保存后的回调
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
     if (status === 'success') {
-      message.success('路由设置已保存到本地，发布时统一提交')
+      message.success('路由设置已保存成功')
       scaleStore.nextStep()
     } else {
       message.error(`路由设置保存失败 -- ${error?.errmsg ?? error}`)
@@ -150,7 +186,7 @@ const QuestionRouting: React.FC = observer(() => {
         footerButtons={['break', 'saveToNext']}
         nextUrl={`/scale/factor/${questionsheetid}`}
         steps={SCALE_STEPS}
-        currentStep={getScaleStepIndex(scaleStore.currentStep)}
+        currentStep={getScaleStepIndex(getScaleStepFromPath(location.pathname) || 'set-routing')}
         onStepChange={handleStepChange}
         themeClass="scale-page-theme"
       >

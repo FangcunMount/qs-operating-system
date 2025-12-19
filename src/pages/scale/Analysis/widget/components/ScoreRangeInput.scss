@@ -1,0 +1,117 @@
+.score-range-input {
+  width: 100%;
+
+  .score-range-slider {
+    margin-bottom: 16px;
+    padding: 0 12px; // 增加左右内边距，给标记留出空间
+
+    .ant-slider {
+      margin: 12px 0;
+
+      .ant-slider-rail {
+        background-color: #f0f0f0;
+        height: 6px;
+      }
+
+      .ant-slider-track {
+        background: linear-gradient(90deg, #1890ff 0%, #40a9ff 100%);
+        height: 6px;
+      }
+
+      .ant-slider-handle {
+        width: 18px;
+        height: 18px;
+        border: 2px solid #1890ff;
+        background-color: #ffffff;
+        box-shadow: 0 2px 4px rgba(24, 144, 255, 0.3);
+
+        &:hover,
+        &:focus {
+          border-color: #40a9ff;
+          box-shadow: 0 2px 8px rgba(24, 144, 255, 0.4);
+        }
+
+        &.ant-slider-handle-dragging {
+          border-color: #1890ff;
+          box-shadow: 0 4px 12px rgba(24, 144, 255, 0.5);
+        }
+      }
+
+      .ant-slider-mark {
+        .ant-slider-mark-text {
+          color: #8c8c8c;
+          font-size: 12px;
+          margin-top: 8px;
+          white-space: nowrap;
+          
+          // 第一个标记（min）左对齐
+          &:first-child {
+            transform: translateX(-50%);
+            left: 0 !important;
+          }
+          
+          // 最后一个标记（max+1）右对齐，避免拥挤
+          &:last-child {
+            transform: translateX(50%);
+            right: 0 !important;
+            left: auto !important;
+          }
+        }
+      }
+
+      .ant-slider-tooltip {
+        .ant-tooltip-inner {
+          background-color: #1890ff;
+          font-weight: 600;
+        }
+      }
+    }
+  }
+
+  .score-range-inputs {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0;
+
+    .range-label {
+      font-size: 14px;
+      color: #595959;
+      font-weight: 500;
+    }
+
+    .range-separator {
+      font-size: 14px;
+      color: #8c8c8c;
+      font-weight: 600;
+      margin: 0 8px;
+    }
+
+    .range-hint {
+      font-size: 12px;
+      color: #1890ff;
+      background: #e6f7ff;
+      padding: 2px 8px;
+      border-radius: 4px;
+      cursor: help;
+      font-weight: 500;
+      margin-left: 8px;
+    }
+
+    .ant-input-number {
+      border-radius: 6px;
+      transition: all 0.3s;
+
+      &:hover {
+        border-color: #40a9ff;
+      }
+
+      &:focus,
+      &.ant-input-number-focused {
+        border-color: #1890ff;
+        box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+      }
+    }
+  }
+}
+

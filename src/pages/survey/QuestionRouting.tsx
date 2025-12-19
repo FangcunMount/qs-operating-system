@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { message } from 'antd'
-import { useParams } from 'react-router'
+import { useParams, useLocation } from 'react-router'
 import { observer } from 'mobx-react-lite'
 
 import './QuestionRouting.scss'
@@ -12,7 +12,7 @@ import ShowControllerEditor from '@/components/showController/ShowControllerEdit
 import { surveyStore } from '@/store'
 import { IQuestion, IQuestionShowController } from '@/models/question'
 import BaseLayout from '@/components/layout/BaseLayout'
-import { SURVEY_STEPS, getSurveyStepIndex } from '@/utils/steps'
+import { SURVEY_STEPS, getSurveyStepIndex, getSurveyStepFromPath } from '@/utils/steps'
 import { useHistory } from 'react-router-dom'
 
 // 空状态组件
@@ -24,6 +24,7 @@ const EmptyState: React.FC = () => (
 
 const QuestionRouting: React.FC = observer(() => {
   const history = useHistory()
+  const location = useLocation()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const [editingQuestionCode, setEditingQuestionCode] = useState<string | null>(null)
 
@@ -86,7 +87,7 @@ const QuestionRouting: React.FC = observer(() => {
 
   // 初始化数据
   useEffect(() => {
-    // 设置当前步骤
+    // 根据路由自动设置当前步骤
     surveyStore.setCurrentStep('set-routing')
 
     const initPageData = async () => {
@@ -109,7 +110,7 @@ const QuestionRouting: React.FC = observer(() => {
     }
     
     initPageData()
-  }, [questionsheetid])
+  }, [questionsheetid, location.pathname])
 
   // 选中题目进行编辑
   const handleSelectQuestion = (code: string) => {
@@ -179,7 +180,7 @@ const QuestionRouting: React.FC = observer(() => {
         footerButtons={['break', 'saveToNext']}
         nextUrl={`/survey/publish/${questionsheetid}`}
         steps={SURVEY_STEPS}
-        currentStep={getSurveyStepIndex(surveyStore.currentStep)}
+        currentStep={getSurveyStepIndex(getSurveyStepFromPath(location.pathname) || 'set-routing')}
         onStepChange={handleStepChange}
         themeClass="survey-page-theme"
       >

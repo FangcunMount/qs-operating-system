@@ -1,6 +1,7 @@
 import { get } from '../server'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
 import { ApiResponse } from '@/types/server'
+import { getScaleListCompat } from './scale'
 
 type QuestionSheetListParams = {
   pagesize: string
@@ -51,7 +52,7 @@ export function getSurveyList<T = {
 }
 
 /**
- * 获取医学量表列表
+ * 获取医学量表列表（使用新 API）
  */
 export function getScaleList<T = { 
   pagesize: string
@@ -63,7 +64,8 @@ export function getScaleList<T = {
   pagenum: string,
   keyword?: string
 ): ApiResponse<T> {
-  return getQuestionSheetListByType<T>(pagesize, pagenum, 'scale', keyword)
+  // 使用新 API
+  return getScaleListCompat(pagesize, pagenum, keyword) as ApiResponse<T>
 }
 
 export const templateApi = {

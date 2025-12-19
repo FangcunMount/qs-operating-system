@@ -1,19 +1,20 @@
 import React, { useEffect, useState } from 'react'
 import { message } from 'antd'
-import { useParams } from 'react-router'
+import { useParams, useLocation } from 'react-router'
 import { observer } from 'mobx-react-lite'
 
 import './Publish.scss'
 import '@/styles/theme-scale.scss'
 import { scaleStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
-import { SCALE_STEPS, getScaleStepIndex } from '@/utils/steps'
+import { SCALE_STEPS, getScaleStepIndex, getScaleStepFromPath } from '@/utils/steps'
 import { useHistory } from 'react-router-dom'
 import { MobilePreview } from '@/components/preview'
 import { PublishStatusCard, QuestionnaireInfoCard, ShareCard } from '@/components/questionnaire'
 
 const Publish: React.FC = observer(() => {
   const history = useHistory()
+  const location = useLocation()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   
   const [isPublished, setIsPublished] = useState(false)
@@ -48,10 +49,10 @@ const Publish: React.FC = observer(() => {
   const [shareCode, setShareCode] = useState('')
 
   useEffect(() => {
-    // 设置当前步骤
+    // 根据路由自动设置当前步骤
     scaleStore.setCurrentStep('publish')
     initData()
-  }, [questionsheetid])
+  }, [questionsheetid, location.pathname])
 
   const initData = async () => {
     // 先尝试从 localStorage 恢复
@@ -181,7 +182,7 @@ const Publish: React.FC = observer(() => {
     <BaseLayout
       footerButtons={['break']}
       steps={SCALE_STEPS}
-      currentStep={getScaleStepIndex(scaleStore.currentStep)}
+      currentStep={getScaleStepIndex(getScaleStepFromPath(location.pathname) || 'publish')}
       onStepChange={handleStepChange}
       themeClass="scale-page-theme"
     >
@@ -214,7 +215,7 @@ const Publish: React.FC = observer(() => {
               factorCount={scaleStore.factors.length}
               hasTotalScore={scaleStore.factors.some(f => f.is_total_score === '1')}
               factorRulesCount={scaleStore.factor_rules.length}
-              macroInterpretationCount={scaleStore.macro_rule?.interpretation.length || 0}
+              macroInterpretationCount={0}
               factors={scaleStore.factors}
             />
 
