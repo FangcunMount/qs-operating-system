@@ -1,32 +1,25 @@
 .scale-info-container {
   width: 100%;
-  min-height: 100vh;
-  padding: 32px;
+  min-height: calc(100vh - 64px);
+  padding: 24px;
   overflow: auto;
   display: flex;
   justify-content: center;
-  // 医学量表使用青绿色系背景 - 增强色彩
-  background: linear-gradient(135deg, #d6f5f5 0%, #e6fffb 100%);
+  align-items: flex-start;
+  background: #f5f5f5;
 
   .ant-card {
     max-width: 800px;
     width: 100%;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(19, 194, 194, 0.08);
-    border: 1px solid #b5f5ec;
-    overflow: hidden;
-    transition: all 0.3s ease;
-
-    &:hover {
-      box-shadow: 0 4px 16px rgba(19, 194, 194, 0.12);
-      border-color: #87e8de;
-    }
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e8e8e8;
+    background: #ffffff;
 
     .ant-card-head {
-      background: linear-gradient(to bottom, #fafafa 0%, #f0faf9 100%);
-      border-bottom: 1px solid #b5f5ec;
-      padding: 20px 24px;
-      border-radius: 12px 12px 0 0;
+      background: #ffffff;
+      border-bottom: 1px solid #f0f0f0;
+      padding: 16px 24px;
 
       .ant-card-head-title {
         font-size: 16px;
@@ -40,31 +33,214 @@
     }
   }
 
-  .ant-form-item-label {
-    font-weight: 500;
+  // 表单样式优化
+  .ant-form {
+    .ant-form-item {
+      margin-bottom: 20px;
 
-    label {
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    .ant-form-item-label {
+      padding-bottom: 6px;
+
+      > label {
+        font-size: 14px;
+        color: #595959;
+        font-weight: 500;
+        
+        &.ant-form-item-required {
+          &::before {
+            color: #ff4d4f;
+            margin-right: 4px;
+          }
+        }
+      }
+    }
+
+    // 输入框样式
+    .ant-input,
+    .ant-input-affix-wrapper {
+      border-radius: 4px;
       font-size: 14px;
-      color: #262626;
+    }
+
+    .ant-input {
+      height: 36px;
+    }
+
+    // 文本域样式
+    textarea.ant-input {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    // 选择器样式
+    .ant-select {
+      .ant-select-selector {
+        border-radius: 4px;
+        min-height: 36px;
+      }
+    }
+
+    // 标签选择器特殊样式
+    .ant-select-multiple {
+      .ant-select-selection-item {
+        background: #e6fffb;
+        border: 1px solid #87e8de;
+        border-radius: 4px;
+        color: #08979c;
+        padding: 2px 8px;
+        margin: 2px 4px 2px 0;
+      }
+    }
+
+    // 工具提示图标样式
+    .ant-form-item-tooltip {
+      color: #8c8c8c;
+      margin-left: 4px;
+      cursor: help;
+    }
+
+    // Radio.Button 选择器样式 - 简洁标签样式
+    .scale-radio-button-group {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+
+      .ant-radio-button-wrapper {
+        flex: 0 1 auto;
+        min-width: auto;
+        text-align: center;
+        border-radius: 4px;
+        border: 1px solid #d9d9d9 !important;
+        background: #ffffff;
+        transition: all 0.2s ease;
+        padding: 4px 12px;
+        font-size: 14px;
+        margin: 0;
+        height: auto;
+        line-height: 1.5;
+        border-left: 1px solid #d9d9d9 !important;
+        margin-left: 0 !important;
+
+        &::before {
+          display: none !important;
+        }
+
+        &:hover:not(.ant-radio-button-wrapper-disabled) {
+          border-color: #13c2c2 !important;
+          color: #13c2c2;
+        }
+
+        &.ant-radio-button-wrapper-checked {
+          background: #e6fffb;
+          border-color: #13c2c2 !important;
+          color: #08979c;
+          font-weight: 500;
+        }
+      }
+    }
+
+    // Checkbox 多选组样式 - 简洁标签样式
+    .scale-checkbox-group {
+      width: 100%;
+
+      .ant-checkbox-wrapper {
+        margin: 0;
+        padding: 4px 12px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        border: 1px solid #d9d9d9;
+        background: #ffffff;
+        display: inline-flex;
+        align-items: center;
+        height: auto;
+        min-height: 28px;
+
+        &:hover {
+          border-color: #13c2c2;
+        }
+
+        .ant-checkbox {
+          margin-right: 6px;
+          top: 0;
+        }
+
+        .ant-checkbox-checked {
+          .ant-checkbox-inner {
+            background-color: #13c2c2;
+            border-color: #13c2c2;
+          }
+        }
+
+        .ant-checkbox-inner {
+          border-color: #d9d9d9;
+
+          &:hover {
+            border-color: #13c2c2;
+          }
+        }
+
+        span:last-child {
+          font-size: 14px;
+          color: #595959;
+          padding-left: 0;
+        }
+      }
+
+      .ant-checkbox-wrapper-checked {
+        background: #e6fffb;
+        border-color: #13c2c2;
+
+        span:last-child {
+          color: #08979c;
+          font-weight: 500;
+        }
+      }
+    }
+
+    // Space 容器样式
+    .ant-space {
+      &.ant-space-wrap {
+        min-height: 40px;
+        padding: 4px 0;
+        width: 100%;
+      }
     }
   }
 
-  .ant-btn {
-    border-radius: 8px;
-    height: 40px;
-    padding: 0 24px;
-    font-weight: 500;
-    transition: all 0.3s ease;
+  // 分组样式 - 简洁的分组样式
+  .scale-category-group {
+    margin-top: 16px;
+    padding: 16px;
+    background: #fafafa;
+    border-radius: 4px;
+    border: 1px solid #e8e8e8;
 
-    &.ant-btn-primary {
-      background: linear-gradient(135deg, #1890ff 0%, #0066cc 100%);
-      border: none;
-      box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
+    .ant-form-item {
+      margin-bottom: 16px;
 
-      &:hover {
-        background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
-        box-shadow: 0 4px 12px rgba(24, 144, 255, 0.4);
-        transform: translateY(-2px);
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+
+  // 响应式设计
+  @media (max-width: 768px) {
+    padding: 16px;
+
+    .ant-card {
+      .ant-card-head {
+        padding: 20px 16px;
+      }
+
+      .ant-card-body {
+        padding: 24px 16px;
       }
     }
   }

@@ -12,7 +12,6 @@ import {
   ClockCircleOutlined
 } from '@ant-design/icons'
 import { Select } from 'antd'
-import EditQuestionSheetDialog from './EditDialog'
 import { surveyApi } from '@/api/path/survey'
 import { answerSheetApi } from '@/api/path/answerSheet'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
@@ -22,8 +21,6 @@ const { Column } = Table
 const { Search } = Input
 
 const List: React.FC = observer(() => {
-  const [editDialogFlag, setEditDialogFlag] = useState(false)
-  const [currentQuestionSheet, setCurrentQuestionSheet] = useState(null)
   const [keyWord, setKeyWord] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
   const [loading, setLoading] = useState(false)
@@ -121,17 +118,6 @@ const List: React.FC = observer(() => {
 
   return (
     <div style={{ padding: '24px', background: '#f0f2f5', minHeight: '100vh' }}>
-      <EditQuestionSheetDialog
-        isModalVisible={editDialogFlag}
-        data={currentQuestionSheet}
-        close={() => {
-          setEditDialogFlag(false)
-        }}
-        ok={() => {
-          initData(pageInfo.pagesize, 1)
-        }}
-      />
-
       {/* 页面标题 */}
       <div style={{ marginBottom: 16 }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>
@@ -326,17 +312,15 @@ const List: React.FC = observer(() => {
             render={(_v, row: any) => (
               <Space size="small">
                 <Tooltip title='编辑问卷信息'>
-                  <Button
-                    type="link"
-                    size="small"
-                    icon={<EditOutlined />}
-                    onClick={() => {
-                      setEditDialogFlag(true)
-                      setCurrentQuestionSheet(row)
-                    }}
-                  >
-                    编辑信息
-                  </Button>
+                  <Link to={`/survey/info/${row.id}`}>
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<EditOutlined />}
+                    >
+                      编辑信息
+                    </Button>
+                  </Link>
                 </Tooltip>
                 <Tooltip title='编辑问卷问题'>
                   <Link to={`/survey/create/${row.id}/${row.answersheet_cnt}`}>

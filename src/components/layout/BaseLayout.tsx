@@ -3,7 +3,7 @@ import PropType from 'prop-types'
 import './baseLayout.scss'
 import { Button, Steps } from 'antd'
 import { useHistory } from 'react-router-dom'
-import { RollbackOutlined, SaveOutlined } from '@ant-design/icons'
+import { RollbackOutlined, SaveOutlined, UnorderedListOutlined } from '@ant-design/icons'
 import { voidFunc } from '@/types/base'
 import useSubmit from '../useSubmit'
 
@@ -80,6 +80,16 @@ const BaseLayout: React.FC<BaseLayoutProps> = ({
           <>
             {/* 左侧按钮 */}
             <div className="footer-left">
+              {footerButtons?.includes('backToList') ? (
+                <Button onClick={() => {
+                  // 根据主题判断跳转到哪个列表页面
+                  const listUrl = themeClass === 'survey-page-theme' ? '/survey/list' : '/scale/list'
+                  history.push(listUrl)
+                }}>
+                  <UnorderedListOutlined />
+                  返回列表
+                </Button>
+              ) : null}
               {footerButtons?.includes('break') ? (
                 <Button onClick={() => history.goBack()}>
                   <RollbackOutlined />
@@ -149,7 +159,7 @@ interface BaseLayoutProps {
   afterSubmit?: (status: 'success' | 'fail', error: any) => any
   saveDraftFn?: (next: voidFunc) => void
   publishFn?: (next: voidFunc) => void
-  footerButtons?: Array<'break' | 'saveToNext' | 'saveDraft' | 'publish'>
+  footerButtons?: Array<'break' | 'saveToNext' | 'saveDraft' | 'publish' | 'backToList'>
   nextUrl?: string
   // 步骤条相关
   steps?: EditorStep[]

@@ -63,7 +63,7 @@ const Publish: React.FC = observer(() => {
       
       // 根据 API 返回的 status 字段判断是否已发布
       // status 可能的值：'draft'（草稿）、'published'（已发布）、'archived'（已归档）
-      const published = questionnaire.status === 'published' || questionnaire.status === '\x01' // '\x01' 可能是已发布的编码
+      const published = questionnaire.status === 'published'
       setIsPublished(published)
       
       // 如果问卷有问题数据，加载到 store
@@ -97,7 +97,7 @@ const Publish: React.FC = observer(() => {
       // 发布成功后，重新获取问卷信息以更新状态
       const questionnaire = await surveyStore.fetchSurveyInfo(questionsheetid)
       if (questionnaire) {
-        const published = questionnaire.status === 'published' || questionnaire.status === '\x01'
+        const published = questionnaire.status === 'published'
         setIsPublished(published)
       } else {
         setIsPublished(true)
@@ -120,7 +120,7 @@ const Publish: React.FC = observer(() => {
       // 取消发布成功后，重新获取问卷信息以更新状态
       const questionnaire = await surveyStore.fetchSurveyInfo(questionsheetid)
       if (questionnaire) {
-        const published = questionnaire.status === 'published' || questionnaire.status === '\x01'
+        const published = questionnaire.status === 'published'
         setIsPublished(published)
       } else {
         setIsPublished(false)
@@ -190,7 +190,7 @@ const Publish: React.FC = observer(() => {
       // 重新发布成功后，重新获取问卷信息以更新状态
       const questionnaire = await surveyStore.fetchSurveyInfo(questionsheetid)
       if (questionnaire) {
-        const published = questionnaire.status === 'published' || questionnaire.status === '\x01'
+        const published = questionnaire.status === 'published'
         setIsPublished(published)
       } else {
         setIsPublished(true)
@@ -206,7 +206,7 @@ const Publish: React.FC = observer(() => {
 
   return (
     <BaseLayout
-      footerButtons={['break']}
+      footerButtons={['backToList', 'break']}
       steps={SURVEY_STEPS}
       currentStep={getSurveyStepIndex(getSurveyStepFromPath(location.pathname) || 'publish')}
       onStepChange={handleStepChange}

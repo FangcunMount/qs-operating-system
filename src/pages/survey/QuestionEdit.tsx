@@ -194,7 +194,7 @@ const QuestionEdit: React.FC = observer(() => {
       beforeSubmit={handleVerifyQuestionSheet}
       submitFn={handleSaveQuestionSheet}
       afterSubmit={handleAfterSubmit}
-      footerButtons={['break', 'saveToNext']}
+      footerButtons={['backToList', 'break', 'saveToNext']}
       nextUrl={`/survey/routing/${questionsheetid}`}
       steps={SURVEY_STEPS}
       currentStep={getSurveyStepIndex(getSurveyStepFromPath(location.pathname) || 'edit-questions')}

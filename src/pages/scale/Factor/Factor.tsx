@@ -592,7 +592,7 @@ const Factor: React.FC = observer(() => {
         beforeSubmit={handleVerifyFactor}
         submitFn={handleSaveFactor}
         afterSubmit={handleAfterSubmit}
-        footerButtons={['break', 'saveToNext']}
+        footerButtons={['backToList', 'break', 'saveToNext']}
         nextUrl={`/scale/analysis/${questionsheetid}${scaleStore.scaleCode ? `?scaleCode=${scaleStore.scaleCode}` : ''}`}
         steps={SCALE_STEPS}
         currentStep={getScaleStepIndex(getScaleStepFromPath(location.pathname) || 'edit-factors')}

@@ -11,7 +11,6 @@ import {
   UserOutlined,
   ClockCircleOutlined
 } from '@ant-design/icons'
-import EditQuestionSheetDialog from './EditDialog'
 import { getScaleList } from '@/api/path/template'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
 import { answerSheetApi } from '@/api/path/answerSheet'
@@ -20,8 +19,6 @@ const { Column } = Table
 const { Search } = Input
 
 const List: React.FC = observer(() => {
-  const [editDialogFlag, setEditDialogFlag] = useState(false)
-  const [currentQuestionSheet, setCurrentQuestionSheet] = useState(null)
   const [keyWord, setKeyWord] = useState('')
   const [loading, setLoading] = useState(false)
   const [scaleList, setScaleList] = useState<IQuestionSheetInfo[]>([])
@@ -102,17 +99,6 @@ const List: React.FC = observer(() => {
 
   return (
     <div style={{ padding: '24px', background: '#f0f2f5', minHeight: '100vh' }}>
-      <EditQuestionSheetDialog
-        isModalVisible={editDialogFlag}
-        data={currentQuestionSheet}
-        close={() => {
-          setEditDialogFlag(false)
-        }}
-        ok={() => {
-          initData(pageInfo.pagesize, 1)
-        }}
-      />
-
       {/* 页面标题 */}
       <div style={{ marginBottom: 16 }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>
@@ -268,18 +254,16 @@ const List: React.FC = observer(() => {
             fixed="right"
             render={(_v, row: any) => (
               <Space size="small">
-                <Tooltip title='编辑量表信息'>
-                  <Button
-                    type="link"
-                    size="small"
-                    icon={<EditOutlined />}
-                    onClick={() => {
-                      setEditDialogFlag(true)
-                      setCurrentQuestionSheet(row)
-                    }}
-                  >
-                    编辑信息
-                  </Button>
+                <Tooltip title='编辑量表基本信息'>
+                  <Link to={`/scale/info/${row.id}${row.scaleCode ? `?scaleCode=${row.scaleCode}` : ''}`}>
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<EditOutlined />}
+                    >
+                      编辑信息
+                    </Button>
+                  </Link>
                 </Tooltip>
                 <Tooltip title='编辑量表问题'>
                   <Link to={`/scale/create/${row.id}/${row.answersheet_cnt || '0'}${row.scaleCode ? `?scaleCode=${row.scaleCode}` : ''}`}>

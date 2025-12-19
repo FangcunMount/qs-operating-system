@@ -180,7 +180,7 @@ const Publish: React.FC = observer(() => {
 
   return (
     <BaseLayout
-      footerButtons={['break']}
+      footerButtons={['backToList', 'break']}
       steps={SCALE_STEPS}
       currentStep={getScaleStepIndex(getScaleStepFromPath(location.pathname) || 'publish')}
       onStepChange={handleStepChange}

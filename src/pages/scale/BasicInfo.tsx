@@ -24,6 +24,7 @@ const BasicInfo: React.FC = observer(() => {
   }, [location.pathname])
 
   // 使用通用的基本信息表单 Hook
+  // useBasicInfoForm 内部会处理数据加载，包括量表分类信息
   const { handleSave } = useBasicInfoForm({
     questionsheetid,
     store: scaleStore,
@@ -80,7 +81,7 @@ const BasicInfo: React.FC = observer(() => {
     <BaseLayout
       submitFn={handleSave}
       afterSubmit={handleAfterSubmit}
-      footerButtons={['break', 'saveToNext']}
+      footerButtons={['backToList', 'break', 'saveToNext']}
       steps={SCALE_STEPS}
       currentStep={getScaleStepIndex(getScaleStepFromPath(location.pathname) || 'create')}
       onStepChange={handleStepChange}

@@ -183,7 +183,7 @@ const QuestionEdit: React.FC = observer(() => {
       beforeSubmit={handleVerifyQuestionSheet}
       submitFn={handleSaveQuestionSheet}
       afterSubmit={handleAfterSubmit}
-      footerButtons={['break', 'saveToNext']}
+      footerButtons={['backToList', 'break', 'saveToNext']}
       nextUrl={`/scale/routing/${questionsheetid}`}
       steps={SCALE_STEPS}
       currentStep={getScaleStepIndex(getScaleStepFromPath(location.pathname) || 'edit-questions')}

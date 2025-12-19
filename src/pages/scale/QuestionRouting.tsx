@@ -183,7 +183,7 @@ const QuestionRouting: React.FC = observer(() => {
       <BaseLayout
         submitFn={handleSave}
         afterSubmit={handleAfterSubmit}
-        footerButtons={['break', 'saveToNext']}
+        footerButtons={['backToList', 'break', 'saveToNext']}
         nextUrl={`/scale/factor/${questionsheetid}`}
         steps={SCALE_STEPS}
         currentStep={getScaleStepIndex(getScaleStepFromPath(location.pathname) || 'set-routing')}

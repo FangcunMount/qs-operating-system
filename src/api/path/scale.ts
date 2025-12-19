@@ -31,6 +31,11 @@ export interface IScaleResponse {
   status: string
   questionnaire_code: string
   questionnaire_version: string
+  category?: string // 主类：ADHD、抽动障碍、感统、执行功能、心理健康、神经发育筛查、慢性病管理、生活质量
+  stages?: string[] // 阶段列表（数组）：screening(筛查)、deep_assessment(深评)、follow_up(随访)、outcome(结局)
+  applicable_ages?: string[] // 使用年龄列表（数组）：infant(婴幼儿)、preschool(学龄前)、school_child(学龄儿童)、adolescent(青少年)、adult(成人)
+  reporters?: string[] // 填报人列表（数组）：parent(家长评)、teacher(教师评)、self(自评)、clinical(临床评定)
+  tags?: string[] // 标签数组（动态输入）
   factors?: IFactorResponse[]
 }
 
@@ -40,6 +45,42 @@ export interface IScaleListResponse {
   page: number
   page_size: number
   total_count: number
+}
+
+// 分类选项响应
+export interface ICategoryOption {
+  label: string
+  value: string
+}
+
+export interface IStageOption {
+  label: string
+  value: string
+}
+
+export interface IApplicableAgeOption {
+  label: string
+  value: string
+}
+
+export interface IReporterOption {
+  label: string
+  value: string
+}
+
+export interface ITagOption {
+  category: string
+  label: string
+  value: string
+}
+
+// 量表分类响应
+export interface IScaleCategoriesResponse {
+  categories: ICategoryOption[]
+  stages: IStageOption[]
+  applicable_ages: IApplicableAgeOption[]
+  reporters: IReporterOption[]
+  tags: ITagOption[]
 }
 
 // ============ API 函数 ============
@@ -246,6 +287,36 @@ export async function getFactorListByQuestionnaire(
 }
 
 /**
+ * 创建量表
+ * POST /scales
+ */
+export async function createScale(
+  data: {
+    title: string
+    description?: string
+    questionnaire_code?: string
+    questionnaire_version?: string
+    category?: string
+    stages?: string[]
+    applicable_ages?: string[]
+    reporters?: string[]
+    tags?: string[]
+  }
+): Promise<[any, QSResponse<IScaleResponse> | undefined]> {
+  return post<IScaleResponse>('/scales', {
+    title: data.title,
+    description: data.description,
+    questionnaire_code: data.questionnaire_code,
+    questionnaire_version: data.questionnaire_version,
+    category: data.category,
+    stages: data.stages || [],
+    applicable_ages: data.applicable_ages || [],
+    reporters: data.reporters || [],
+    tags: data.tags || []
+  })
+}
+
+/**
  * 更新量表基本信息
  * PUT /scales/{code}/basic-info
  */
@@ -254,11 +325,21 @@ export async function updateScaleBasicInfo(
   data: {
     title: string
     description?: string
+    category?: string
+    stages?: string[]
+    applicable_ages?: string[]
+    reporters?: string[]
+    tags?: string[]
   }
 ): Promise<[any, QSResponse<IScaleResponse> | undefined]> {
   return put<IScaleResponse>(`/scales/${scaleCode}/basic-info`, {
     title: data.title,
-    description: data.description
+    description: data.description,
+    category: data.category,
+    stages: data.stages || [],
+    applicable_ages: data.applicable_ages || [],
+    reporters: data.reporters || [],
+    tags: data.tags || []
   })
 }
 
@@ -284,6 +365,14 @@ export async function unpublishScale(
   return post<IScaleResponse>(`/scales/${scaleCode}/unpublish`, { code: scaleCode })
 }
 
+/**
+ * 获取量表分类列表
+ * GET /scales/categories
+ */
+export async function getScaleCategories(): Promise<[any, QSResponse<IScaleCategoriesResponse> | undefined]> {
+  return get<IScaleCategoriesResponse>('/scales/categories')
+}
+
 export const scaleApi = {
   getScaleList,
   getScaleListCompat,
@@ -291,7 +380,9 @@ export const scaleApi = {
   getScaleDetail,
   getFactorListByScaleCode,
   getFactorListByQuestionnaire,
+  createScale,
   updateScaleBasicInfo,
   publishScale,
-  unpublishScale
+  unpublishScale,
+  getScaleCategories
 }

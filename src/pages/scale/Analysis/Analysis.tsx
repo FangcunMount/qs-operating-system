@@ -579,7 +579,7 @@ const Analysis: React.FC = observer(() => {
         beforeSubmit={handleVerifyAnalysis}
         submitFn={handleSaveAnalysis}
         afterSubmit={handleAfterSubmit}
-        footerButtons={['break', 'saveToNext']}
+        footerButtons={['backToList', 'break', 'saveToNext']}
         nextUrl={`/scale/publish/${questionsheetid}`}
         steps={SCALE_STEPS}
         currentStep={getScaleStepIndex(getScaleStepFromPath(location.pathname) || 'set-interpretation')}

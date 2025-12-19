@@ -36,6 +36,11 @@ interface PersistedScaleData {
   title: string
   desc: string
   img_url: string
+  category?: string // 主类
+  stages?: string[] // 阶段列表（数组）
+  applicable_ages?: string[] // 使用年龄列表（数组）
+  reporters?: string[] // 填报人列表（数组）
+  tags?: string[] // 标签
   questions: IQuestion[]
   showControllers: Array<{ code: string; show_controller: IQuestionShowController }>
   deletedShowControllerCodes: string[]
@@ -69,6 +74,11 @@ export const scaleStore = makeObservable(
     title: scaleInit.title,
     desc: scaleInit.desc,
     img_url: scaleInit.img_url,
+    category: '', // 主类：ADHD、抽动障碍、感统、执行功能、心理健康、神经发育筛查、慢性病管理、生活质量
+    stages: [] as string[], // 阶段列表（数组）：screening(筛查)、deep_assessment(深评)、follow_up(随访)、outcome(结局)
+    applicable_ages: [] as string[], // 使用年龄列表（数组）：infant(婴幼儿)、preschool(学龄前)、school_child(学龄儿童)、adolescent(青少年)、adult(成人)
+    reporters: [] as string[], // 填报人列表（数组）：parent(家长评)、teacher(教师评)、self(自评)、clinical(临床评定)
+    tags: [] as string[], // 标签数组（动态输入）
     questions: scaleInit.questions,
     // 题目显隐规则（前端暂存）
     showControllers: [] as { code: string; show_controller: IQuestionShowController }[],
@@ -129,6 +139,11 @@ export const scaleStore = makeObservable(
           title: this.title,
           desc: this.desc,
           img_url: this.img_url,
+          category: this.category,
+          stages: this.stages,
+          applicable_ages: this.applicable_ages,
+          reporters: this.reporters,
+          tags: this.tags,
           questions: JSON.parse(JSON.stringify(this.questions)),
           showControllers: JSON.parse(JSON.stringify(this.showControllers)),
           deletedShowControllerCodes: [...this.deletedShowControllerCodes],
@@ -160,6 +175,11 @@ export const scaleStore = makeObservable(
               this.title = data.title
               this.desc = data.desc
               this.img_url = data.img_url
+              this.category = data.category || ''
+              this.stages = data.stages || []
+              this.applicable_ages = data.applicable_ages || []
+              this.reporters = data.reporters || []
+              this.tags = data.tags || []
               this.questions = data.questions || []
               this.showControllers = data.showControllers || []
               this.deletedShowControllerCodes = data.deletedShowControllerCodes || []
@@ -224,6 +244,11 @@ export const scaleStore = makeObservable(
       this.title = scaleInit.title
       this.desc = scaleInit.desc
       this.img_url = scaleInit.img_url
+      this.category = ''
+      this.stages = []
+      this.applicable_ages = []
+      this.reporters = []
+      this.tags = []
       this.questions = scaleInit.questions
       this.showControllers = []
       this.deletedShowControllerCodes = []
@@ -302,6 +327,21 @@ export const scaleStore = makeObservable(
         this.desc = v.desc
         this.img_url = v.img_url
       }
+    },
+    
+    // 设置量表分类信息（从 API 响应中设置）
+    setScaleCategoryInfo(data: {
+      category?: string
+      stages?: string[]
+      applicable_ages?: string[]
+      reporters?: string[]
+      tags?: string[]
+    }) {
+      if (data.category !== undefined) this.category = data.category
+      if (data.stages !== undefined) this.stages = data.stages
+      if (data.applicable_ages !== undefined) this.applicable_ages = data.applicable_ages
+      if (data.reporters !== undefined) this.reporters = data.reporters
+      if (data.tags !== undefined) this.tags = data.tags
     },
 
     // 设置量表题目列表
@@ -555,7 +595,12 @@ export const scaleStore = makeObservable(
       const { scaleApi } = await import('@/api/path/scale')
       const [infoErr] = await scaleApi.updateScaleBasicInfo(scaleCode, {
         title: this.title,
-        description: this.desc
+        description: this.desc,
+        category: this.category || undefined,
+        stages: this.stages.length > 0 ? this.stages : undefined,
+        applicable_ages: this.applicable_ages.length > 0 ? this.applicable_ages : undefined,
+        reporters: this.reporters.length > 0 ? this.reporters : undefined,
+        tags: this.tags.length > 0 ? this.tags : undefined
       })
       if (infoErr) throw infoErr
 
@@ -606,32 +651,67 @@ export const scaleStore = makeObservable(
      * @returns 返回量表 ID（新建时返回新 ID，编辑时返回原 ID）
      */
     async saveBasicInfo() {
-      const params = {
-        title: this.title,
-        desc: this.desc,
-        img_url: this.img_url
-      }
-
-      // 新建时需要生成 ID 供后续题目/显隐规则使用
+      // 新建量表：先创建问卷，再创建量表
       if (!this.id || this.id === '') {
-        const [e, r] = await api.createSurvey({
-          ...params,
+        // 1. 先创建问卷
+        const [qe, qr] = await api.createSurvey({
+          title: this.title,
+          desc: this.desc,
+          img_url: this.img_url,
           type: 'scale'
         })
-        if (e) throw e
+        if (qe) throw qe
 
         // 新 API 返回格式：IQuestionnaireResponse，code 字段是问卷编码
-        if (r?.data?.code) {
-          runInAction(() => {
-            this.id = r.data.code
-            this.currentStep = 'edit-questions'
-          })
-          return r.data.code
+        if (!qr?.data?.code) {
+          throw new Error('创建问卷失败')
         }
-        throw new Error('创建量表失败')
+
+        const questionnaireCode = qr.data.code
+        const questionnaireVersion = qr.data.version || '1.0'
+
+        // 2. 创建量表（关联问卷）
+        const { scaleApi } = await import('@/api/path/scale')
+        const [se, sr] = await scaleApi.createScale({
+          title: this.title,
+          description: this.desc,
+          questionnaire_code: questionnaireCode,
+          questionnaire_version: questionnaireVersion,
+          category: this.category || undefined,
+          stages: this.stages.length > 0 ? this.stages : undefined,
+          applicable_ages: this.applicable_ages.length > 0 ? this.applicable_ages : undefined,
+          reporters: this.reporters.length > 0 ? this.reporters : undefined,
+          tags: this.tags.length > 0 ? this.tags : undefined
+        })
+        if (se) throw se
+
+        if (!sr?.data?.code) {
+          throw new Error('创建量表失败')
+        }
+
+        runInAction(() => {
+          this.id = questionnaireCode
+          this.scaleCode = sr.data.code
+          this.currentStep = 'edit-questions'
+        })
+        return questionnaireCode
       }
 
-      // 已有 ID 时仅更新本地数据，最终发布时统一更新后端
+      // 编辑模式：更新量表基本信息
+      if (this.scaleCode) {
+        const { scaleApi } = await import('@/api/path/scale')
+        const [e] = await scaleApi.updateScaleBasicInfo(this.scaleCode, {
+          title: this.title,
+          description: this.desc,
+          category: this.category || undefined,
+          stages: this.stages.length > 0 ? this.stages : undefined,
+          applicable_ages: this.applicable_ages.length > 0 ? this.applicable_ages : undefined,
+          reporters: this.reporters.length > 0 ? this.reporters : undefined,
+          tags: this.tags.length > 0 ? this.tags : undefined
+        })
+        if (e) throw e
+      }
+
       return this.id
     },
 
@@ -691,6 +771,22 @@ export const scaleStore = makeObservable(
       // localStorage 没有数据、ID 不匹配或问题列表为空，从服务器加载
       console.log('从服务器加载数据，questionsheetid:', questionsheetid, 'scaleCode:', scaleCode)
 
+      // 如果 ID 不匹配，先清空基本信息字段，避免显示旧数据
+      if (this.id !== questionsheetid) {
+        runInAction(() => {
+          this.id = questionsheetid
+          this.scaleCode = ''
+          this.title = ''
+          this.desc = ''
+          this.img_url = ''
+          this.category = ''
+          this.stages = []
+          this.applicable_ages = []
+          this.reporters = []
+          this.tags = []
+        })
+      }
+
       // 如果提供了 scaleCode，优先使用 getScaleDetail 获取量表详情
       if (scaleCode) {
         try {
@@ -709,6 +805,14 @@ export const scaleStore = makeObservable(
             const scale = sr.data
             runInAction(() => {
               this.scaleCode = scale.code
+              // 设置量表分类信息
+              this.setScaleCategoryInfo({
+                category: scale.category,
+                stages: scale.stages,
+                applicable_ages: scale.applicable_ages,
+                reporters: scale.reporters,
+                tags: scale.tags
+              })
             })
             
             // 从量表详情中获取问卷编码，然后加载问卷详情
@@ -820,6 +924,14 @@ export const scaleStore = makeObservable(
           if (!se && sr?.data?.code) {
             runInAction(() => {
               this.scaleCode = sr.data.code
+              // 设置量表分类信息
+              this.setScaleCategoryInfo({
+                category: sr.data.category,
+                stages: sr.data.stages,
+                applicable_ages: sr.data.applicable_ages,
+                reporters: sr.data.reporters,
+                tags: sr.data.tags
+              })
             })
             console.log('获取到量表编码:', sr.data.code)
           } else if (se) {
@@ -1076,6 +1188,7 @@ export const scaleStore = makeObservable(
     deleteQuestion: action,
     updateQuestionDispatch: action,
     setScale: action,
+    setScaleCategoryInfo: action,
     setScaleQuestions: action,
     setFactors: action,
     addFactor: action,

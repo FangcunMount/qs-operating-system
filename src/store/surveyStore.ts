@@ -513,6 +513,16 @@ export const surveyStore = makeObservable(
       // localStorage 没有数据或 ID 不匹配，从服务器加载
       console.log('从服务器加载数据')
 
+      // 如果 ID 不匹配，先清空基本信息字段，避免显示旧数据
+      if (this.id !== questionsheetid) {
+        runInAction(() => {
+          this.id = questionsheetid
+          this.title = ''
+          this.desc = ''
+          this.img_url = ''
+        })
+      }
+
       // 编辑模式：加载问卷和题目
       const [qe, qr] = await api.getSurvey(questionsheetid)
       if (qe) {

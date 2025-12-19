@@ -74,7 +74,7 @@ const BasicInfo: React.FC = observer(() => {
     <BaseLayout
       submitFn={handleSave}
       afterSubmit={handleAfterSubmit}
-      footerButtons={['break', 'saveToNext']}
+      footerButtons={['backToList', 'break', 'saveToNext']}
       steps={SURVEY_STEPS}
       currentStep={getSurveyStepIndex(getSurveyStepFromPath(location.pathname) || 'create')}
       onStepChange={handleStepChange}
