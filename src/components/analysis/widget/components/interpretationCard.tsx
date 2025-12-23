@@ -30,11 +30,23 @@ const InterpretationCard: React.FC<InterpretationCardProps> = ({ index, item, ha
         ></InputNumber>
       </div>
       <div className="s-mb-sm">之间，则显示</div>
+      <div style={{ marginBottom: 8, fontWeight: 500 }}>结论</div>
       <Input.TextArea
-        value={item.content}
+        value={item.conclusion}
         rows={3}
+        placeholder="请输入结论"
         onChange={(e) => {
-          handleChange(index, { ...item, content: e.target.value })
+          handleChange(index, { ...item, conclusion: e.target.value })
+        }}
+        style={{ marginBottom: 16 }}
+      ></Input.TextArea>
+      <div style={{ marginBottom: 8, fontWeight: 500 }}>建议</div>
+      <Input.TextArea
+        value={item.suggestion}
+        rows={3}
+        placeholder="请输入建议"
+        onChange={(e) => {
+          handleChange(index, { ...item, suggestion: e.target.value })
         }}
       ></Input.TextArea>
       <Divider className="s-mt-md s-mb-none"></Divider>

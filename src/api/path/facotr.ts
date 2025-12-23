@@ -1,6 +1,7 @@
 import { IFactor } from '@/models/factor'
 import { getFactorListByScaleCode, getFactorListByQuestionnaire } from './scale'
 import type { QSResponse } from '@/types/qs'
+import { ensureFactorsHaveMaxScore } from '@/tools/factor'
 
 /**
  * 获取因子列表
@@ -26,11 +27,13 @@ export async function getFactorList(
  * 根据 API 文档：
  * - sum/avg 策略：scoring_params 可为空或省略
  * - cnt 策略：scoring_params 必须包含 cnt_option_contents（选项内容数组）
+ * - max_score：最大分（可选），用于设置因子的最大分数
  */
 export async function modifyFactorList(
   scaleCodeOrQuestionnaireCode: string,
   factors: IFactor[],
-  isQuestionnaireCode?: boolean
+  isQuestionnaireCode?: boolean,
+  questions?: any[] // 可选的题目列表，用于计算 max_score
 ): Promise<[any, QSResponse<any> | undefined]> {
   // 需要将前端的 IFactor 转换为 API 格式
   const { put } = await import('../qsServer')
@@ -47,8 +50,14 @@ export async function modifyFactorList(
     scaleCode = res.data.code
   }
   
+  // 确保所有因子都有 max_score（如果缺失则计算）
+  let factorsWithMaxScore = factors
+  if (questions && questions.length > 0) {
+    factorsWithMaxScore = ensureFactorsHaveMaxScore(factors, questions)
+  }
+  
   // 转换因子数据为 API 格式
-  const apiFactors = factors.map(factor => {
+  const apiFactors = factorsWithMaxScore.map(factor => {
     const formula = factor.calc_rule?.formula || 'sum'
     
     // 根据策略类型处理 scoring_params
@@ -82,6 +91,19 @@ export async function modifyFactorList(
     // 只有当 scoringParams 有值时才添加
     if (scoringParams !== undefined) {
       apiFactor.scoring_params = scoringParams
+    }
+    
+    // 添加 max_score 字段（必须存在，因为已经通过 ensureFactorsHaveMaxScore 确保）
+    if (factor.max_score !== undefined && factor.max_score !== null) {
+      apiFactor.max_score = factor.max_score
+    } else {
+      // 如果仍然没有 max_score，记录警告（不应该发生）
+      console.warn(`因子 ${factor.code} (${factor.title}) 没有 max_score，将不会传递到 API`)
+    }
+    
+    // 添加 is_show 字段（如果存在）
+    if (factor.is_show !== undefined && factor.is_show !== null) {
+      apiFactor.is_show = factor.is_show
     }
     
     // 如果因子包含解读规则（interpret_rules），添加到 API 数据中

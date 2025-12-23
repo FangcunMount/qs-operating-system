@@ -15,6 +15,7 @@ import { surveyApi } from './path/survey'
 // 导出新的 API
 export { testeeApi } from './path/subject'
 export { assessmentApi } from './path/assessment'
+export { planApi, taskApi } from './path/plan'
 
 export const api = {
   ...answerSheetApi,

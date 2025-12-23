@@ -137,7 +137,7 @@ export interface ITaskStatus {
 
 // 单个周期性项目统计
 export interface IPeriodicProject {
-  project_id: number             // 项目ID
+  project_id: string             // 项目ID（使用字符串避免精度问题）
   project_name: string           // 项目名称
   scale_name: string             // 关联的量表名称
   total_weeks: number            // 总周数

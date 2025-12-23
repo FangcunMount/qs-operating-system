@@ -271,7 +271,13 @@ const Factor: React.FC = observer(() => {
       console.log('获取因子列表响应:', response)
       if (response?.data?.factors) {
         console.log('获取到因子列表，数量:', response.data.factors.length)
-        scaleStore.setFactors(response.data.factors)
+        // 确保所有因子都有 max_score
+        const { ensureFactorsHaveMaxScore } = await import('@/tools/factor')
+        const factorsWithMaxScore = ensureFactorsHaveMaxScore(
+          response.data.factors,
+          scaleStore.questions
+        )
+        scaleStore.setFactors(factorsWithMaxScore)
       } else {
         console.log('因子列表为空')
         scaleStore.setFactors([])

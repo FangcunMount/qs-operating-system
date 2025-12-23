@@ -32,7 +32,7 @@ export const analysisStore = makeObservable(
     },
 
     addMacroRuleInterpretation() {
-      this.macro_rule.interpretation.push({ start: '', end: '', content: '' })
+      this.macro_rule.interpretation.push({ start: '', end: '', conclusion: '', suggestion: '' })
     },
 
     delMacroRuleInterpretation(i: number) {
@@ -51,7 +51,7 @@ export const analysisStore = makeObservable(
 
     addFactorRulesInterpretation(code: string) {
       const fi = this.getIndexByCode(code)
-      this.factor_rules[fi].interpret_rule.interpretation.push({ start: '', end: '', content: '' })
+      this.factor_rules[fi].interpret_rule.interpretation.push({ start: '', end: '', conclusion: '', suggestion: '' })
     },
 
     delFactorRulesInterpretation(code: string, i: number) {

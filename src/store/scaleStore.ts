@@ -499,7 +499,7 @@ export const scaleStore = makeObservable(
     // 添加因子规则解读项
     addFactorRulesInterpretation(code: string) {
       const fi = this.getFactorRuleIndexByCode(code)
-      this.factor_rules[fi].interpret_rule.interpretation.push({ start: '', end: '', content: '' })
+      this.factor_rules[fi].interpret_rule.interpretation.push({ start: '', end: '', conclusion: '', suggestion: '' })
     },
 
     // 删除因子规则解读项

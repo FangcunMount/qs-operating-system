@@ -93,7 +93,8 @@ const QsFactor: React.FC = () => {
 
   const handleSaveFactor = async () => {
     // 传入问卷编码，函数会自动获取量表编码
-    const [e] = await api.modifyFactorList(questionsheetid, factors, true)
+    // 传递 questions 用于计算 max_score
+    const [e] = await api.modifyFactorList(questionsheetid, factors, true, questions)
     if (e) throw e
   }
 

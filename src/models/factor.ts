@@ -24,4 +24,6 @@ export interface IFactor {
   }
   is_total_score: string
   source_codes: Array<string>
+  max_score?: number // 因子的最大分（可选）
+  is_show?: boolean // 是否显示（用于报告中的维度展示）
 }

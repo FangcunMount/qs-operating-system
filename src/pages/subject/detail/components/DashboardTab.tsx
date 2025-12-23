@@ -7,12 +7,16 @@ interface DashboardTabProps {
   basicInfo?: any
   periodicStats?: any
   scaleAnalysis?: any
+  testeeId?: string  // 受试者ID
+  onRefresh?: () => void  // 刷新数据的回调
 }
 
 const DashboardTab: React.FC<DashboardTabProps> = ({
   basicInfo,
   periodicStats,
-  scaleAnalysis
+  scaleAnalysis,
+  testeeId,
+  onRefresh
 }) => {
   return (
     <>
@@ -23,7 +27,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({
       <ScaleAnalysis data={scaleAnalysis} />
 
       {/* 周期性测评统计 */}
-      <PeriodicStats data={periodicStats} />
+      <PeriodicStats data={periodicStats} testeeId={testeeId || ''} onRefresh={onRefresh} />
     </>
   )
 }

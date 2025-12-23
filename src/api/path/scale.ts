@@ -14,6 +14,9 @@ export interface IFactorResponse {
   scoring_strategy: string
   is_total_score: boolean
   scoring_params?: Record<string, any> // map[string]interface{}，cnt 策略包含 cnt_option_contents (string[])
+  max_score?: number // 因子的最大分（可选）
+  risk_level?: string // 因子级别的风险等级
+  is_show?: boolean // 是否显示（用于报告中的维度展示）
   interpret_rules?: Array<{
     min_score: number
     max_score: number
@@ -213,7 +216,9 @@ function convertFactorFromAPI(apiFactor: IFactorResponse): IFactor {
         cnt_option_contents: Array.isArray(cntOptionContents) ? cntOptionContents : []
       }
     },
-    is_total_score: apiFactor.is_total_score ? '1' : '0'
+    is_total_score: apiFactor.is_total_score ? '1' : '0',
+    max_score: apiFactor.max_score, // 转换 max_score 字段
+    is_show: apiFactor.is_show // 转换 is_show 字段（是否显示）
   }
 }
 
@@ -234,6 +239,12 @@ export async function getFactorListByScaleCode(
   // API 返回格式：{ factors: IFactorResponse[] }
   const apiFactors = res.data.factors || []
   const factors = apiFactors.map(convertFactorFromAPI)
+  
+  // 确保所有因子都有 max_score（如果 API 没有返回，则计算）
+  // 注意：这里无法获取 questions，所以如果 API 没有返回 max_score，暂时不计算
+  // 在实际使用时（如 Analysis 页面），会在有 questions 的情况下再次确保 max_score
+  // 但为了保持一致性，如果 API 返回了 max_score，就使用它；如果没有，先设置为 undefined
+  // 在实际使用的地方（如 scaleStore.setFactors 后），会再次计算并设置
   
   console.log('获取因子列表（通过量表编码）:', {
     scaleCode,
@@ -272,6 +283,10 @@ export async function getFactorListByQuestionnaire(
   // 否则从量表详情中提取因子列表
   const apiFactors = res.data.factors || []
   const factors = apiFactors.map(convertFactorFromAPI)
+  
+  // 确保所有因子都有 max_score（如果 API 没有返回，则计算）
+  // 注意：这里无法获取 questions，所以如果 API 没有返回 max_score，暂时不计算
+  // 在实际使用时（如 Analysis 页面），会在有 questions 的情况下再次确保 max_score
   
   console.log('获取因子列表（通过问卷编码）:', {
     questionnaireCode,

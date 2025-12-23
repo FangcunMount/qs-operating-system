@@ -20,10 +20,14 @@ const SubjectDetail: React.FC = observer(() => {
   const [surveySearchText, setSurveySearchText] = useState('')
   const [surveyNameFilter, setSurveyNameFilter] = useState<string | undefined>(undefined)
 
-  useEffect(() => {
+  const fetchData = () => {
     if (id) {
       subjectStore.fetchTesteeDetailPage(id)
     }
+  }
+
+  useEffect(() => {
+    fetchData()
   }, [id])
 
   const detail = subjectStore.subjectDetail
@@ -96,6 +100,8 @@ const SubjectDetail: React.FC = observer(() => {
             basicInfo={detail.basicInfo}
             periodicStats={detail.periodicStats}
             scaleAnalysis={detail.scaleAnalysis}
+            testeeId={id}
+            onRefresh={fetchData}
           />
         </TabPane>
 

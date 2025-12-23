@@ -34,8 +34,8 @@ const QsAnalysis: React.FC = () => {
         message.error(`总分的第${i + 1}条解读：请输入该解读的结束分值`)
         return false
       }
-      if (!el.content) {
-        message.error(`总分的第${i + 1}条解读：请输入该解读的显示内容`)
+      if (!el.conclusion && !el.suggestion) {
+        message.error(`总分的第${i + 1}条解读：请输入该解读的结论或建议`)
         return false
       }
     }
@@ -56,8 +56,8 @@ const QsAnalysis: React.FC = () => {
           message.error(`请输入 ${factorRule.title} 的第${i + 1}条解读的结束分值`)
           return false
         }
-        if (!el.content) {
-          message.error(`请输入 ${factorRule.title} 的第${i + 1}条解读的显示内容`)
+        if (!el.conclusion && !el.suggestion) {
+          message.error(`请输入 ${factorRule.title} 的第${i + 1}条解读的结论或建议`)
           return false
         }
       }

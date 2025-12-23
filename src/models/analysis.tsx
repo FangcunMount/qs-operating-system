@@ -10,7 +10,8 @@ export type RiskLevel = 'none' | 'low' | 'medium' | 'high' | 'severe'
 export interface IInterpretation {
   start: string
   end: string
-  content: string
+  conclusion: string // 结论
+  suggestion: string // 建议
   risk_level?: RiskLevel // 风险等级
 }
 

@@ -65,32 +65,98 @@ const Analysis: React.FC = observer(() => {
 
   // 计算因子的最大分数
   const calculateFactorMaxScore = (factor: IFactor): number => {
-    let maxScore = 0
+    const formula = factor.calc_rule?.formula || 'sum'
     
-    // 遍历因子包含的题目/因子
-    factor.source_codes.forEach(sourceCode => {
-      // 先查找是否是题目
-      const question = scaleStore.questions.find(q => q.code === sourceCode)
-      if (question) {
-        // 题目的最大分数是选项中的最大值
-        // 只有带选项的题型才计算分数
-        if ('options' in question && Array.isArray(question.options)) {
-          const questionMaxScore = Math.max(
-            ...question.options.map((opt: any) => Number(opt.score) || 0),
-            0
-          )
-          maxScore += questionMaxScore
-        }
-      } else {
-        // 如果不是题目，可能是子因子
-        const subFactor = scaleStore.factors.find(f => f.code === sourceCode)
-        if (subFactor) {
-          maxScore += calculateFactorMaxScore(subFactor)
-        }
+    // 根据计算公式选择不同的计算方式
+    if (formula === 'cnt') {
+      // 计数公式：统计符合条件的题目数量
+      const cntOptionContents = factor.calc_rule?.append_params?.cnt_option_contents || []
+      if (cntOptionContents.length === 0) {
+        // 如果没有设置计数选项，返回 0
+        return 0
       }
-    })
-    
-    return maxScore
+      
+      let count = 0
+      factor.source_codes.forEach(sourceCode => {
+        // 先查找是否是题目
+        const question = scaleStore.questions.find(q => q.code === sourceCode)
+        if (question) {
+          // 检查题目是否有选项的 content 在 cnt_option_contents 中
+          if ('options' in question && Array.isArray(question.options)) {
+            const hasMatchingOption = question.options.some((opt: any) => 
+              cntOptionContents.includes(opt.content)
+            )
+            if (hasMatchingOption) {
+              count += 1
+            }
+          }
+        } else {
+          // 如果不是题目，可能是子因子
+          const subFactor = scaleStore.factors.find(f => f.code === sourceCode)
+          if (subFactor) {
+            count += calculateFactorMaxScore(subFactor)
+          }
+        }
+      })
+      return count
+    } else if (formula === 'avg') {
+      // 平均分公式：累加所有题目/子因子的最大分数
+      // 注意：平均分的满分显示为总分（因为平均分 = 总分 / 数量）
+      const calculateScore = (sourceCodes: string[]): { score: number; count: number } => {
+        let score = 0
+        let count = 0
+        
+        sourceCodes.forEach(sourceCode => {
+          const question = scaleStore.questions.find(q => q.code === sourceCode)
+          if (question) {
+            if ('options' in question && Array.isArray(question.options)) {
+              const questionMaxScore = Math.max(
+                ...question.options.map((opt: any) => Number(opt.score) || 0),
+                0
+              )
+              score += questionMaxScore
+              count += 1
+            }
+          } else {
+            const subFactor = scaleStore.factors.find(f => f.code === sourceCode)
+            if (subFactor) {
+              const subResult = calculateScore(subFactor.source_codes)
+              score += subResult.score
+              count += subResult.count
+            }
+          }
+        })
+        
+        return { score, count }
+      }
+      
+      const result = calculateScore(factor.source_codes)
+      // 对于平均分，返回总分（满分显示为总分更直观）
+      return result.score
+    } else {
+      // sum（求和）公式：累加所有题目/子因子的最大分数
+      let maxScore = 0
+      
+      factor.source_codes.forEach(sourceCode => {
+        const question = scaleStore.questions.find(q => q.code === sourceCode)
+        if (question) {
+          if ('options' in question && Array.isArray(question.options)) {
+            const questionMaxScore = Math.max(
+              ...question.options.map((opt: any) => Number(opt.score) || 0),
+              0
+            )
+            maxScore += questionMaxScore
+          }
+        } else {
+          const subFactor = scaleStore.factors.find(f => f.code === sourceCode)
+          if (subFactor) {
+            maxScore += calculateFactorMaxScore(subFactor)
+          }
+        }
+      })
+      
+      return maxScore
+    }
   }
 
   // 从 store 加载解读规则数据（不调用 API）
@@ -119,7 +185,13 @@ const Analysis: React.FC = observer(() => {
         }
         
         if (!error && response?.data?.factors) {
-          scaleStore.setFactors(response.data.factors)
+          // 确保所有因子都有 max_score
+          const { ensureFactorsHaveMaxScore } = await import('@/tools/factor')
+          const factorsWithMaxScore = ensureFactorsHaveMaxScore(
+            response.data.factors,
+            scaleStore.questions
+          )
+          scaleStore.setFactors(factorsWithMaxScore)
           // 保存原始 API 数据
           rawFactors = (response.data as any).rawFactors || []
           console.log('从服务器加载因子，原始数据包含解读规则:', rawFactors.map((f: any) => ({
@@ -153,19 +225,29 @@ const Analysis: React.FC = observer(() => {
       
       // 从 store 中的因子数据转换为解读规则格式
       if (scaleStore.factors.length > 0) {
-        const factorRules: IFactorAnalysis[] = scaleStore.factors.map((factor: IFactor) => {
-          const maxScore = calculateFactorMaxScore(factor)
+        // 确保所有因子都有 max_score
+        const { ensureFactorsHaveMaxScore } = await import('@/tools/factor')
+        const factorsWithMaxScore = ensureFactorsHaveMaxScore(
+          scaleStore.factors,
+          scaleStore.questions
+        )
+        
+        const factorRules: IFactorAnalysis[] = factorsWithMaxScore.map((factor: IFactor) => {
+          // 使用因子中的 max_score，如果不存在则计算
+          const maxScore = factor.max_score ?? calculateFactorMaxScore(factor)
           
           // 优先从服务器原始数据中获取解读规则
           const rawFactor = rawFactors.find((f: any) => f.code === factor.code)
           let interpretation: IInterpretation[] = []
+          let is_show = '1' // 默认显示
           
           if (rawFactor?.interpret_rules && Array.isArray(rawFactor.interpret_rules)) {
             // 从 API 的原始数据中获取 interpret_rules
             interpretation = rawFactor.interpret_rules.map((rule: any) => ({
               start: String(rule.min_score ?? ''),
               end: String(rule.max_score ?? ''),
-              content: rule.conclusion || rule.suggestion || '',
+              conclusion: rule.conclusion || '',
+              suggestion: rule.suggestion || '',
               risk_level: (rule.risk_level || 'none') as RiskLevel // 从 API 读取风险等级
             }))
             console.log(`因子 ${factor.code} 从服务器加载解读规则:`, interpretation)
@@ -178,13 +260,28 @@ const Analysis: React.FC = observer(() => {
             }
           }
           
+          // 从 API 响应或因子对象中获取 is_show
+          if (rawFactor?.is_show !== undefined) {
+            // 从 API 响应中读取（boolean 类型）
+            is_show = rawFactor.is_show ? '1' : '0'
+          } else if (factor.is_show !== undefined) {
+            // 从因子对象中读取（boolean 类型）
+            is_show = factor.is_show ? '1' : '0'
+          } else {
+            // 如果都没有，检查 store 中是否已有
+            const existingRule = scaleStore.factor_rules.find(fr => fr.code === factor.code)
+            if (existingRule) {
+              is_show = existingRule.interpret_rule.is_show || '1'
+            }
+          }
+          
           return {
             code: factor.code,
             title: factor.title,
             max_score: maxScore,
             is_total_score: factor.is_total_score || '0',
             interpret_rule: {
-              is_show: scaleStore.factor_rules.find(fr => fr.code === factor.code)?.interpret_rule.is_show || '1',
+              is_show: is_show,
               interpretation: interpretation
             }
           }
@@ -406,8 +503,8 @@ const Analysis: React.FC = observer(() => {
         }
         
         // 验证内容
-        if (!el.content) {
-          message.error(`请输入 ${factorRule.title} 的第${i + 1}条解读的显示内容`)
+        if (!el.conclusion && !el.suggestion) {
+          message.error(`请输入 ${factorRule.title} 的第${i + 1}条解读的结论或建议`)
           return false
         }
       }
@@ -445,13 +542,19 @@ const Analysis: React.FC = observer(() => {
         // 创建新的因子对象，包含解读规则
         const factorWithRules = { ...factor }
         
+        // 设置 is_show 字段（从 factor_rules 中获取）
+        if (factorRule) {
+          // 将字符串 '1'/'0' 转换为 boolean
+          factorWithRules.is_show = factorRule.interpret_rule.is_show === '1'
+        }
+        
         // 如果有解读规则，将其添加到因子对象中（用于 API 调用）
         if (factorRule && factorRule.interpret_rule.interpretation.length > 0) {
           (factorWithRules as any).interpret_rules = factorRule.interpret_rule.interpretation.map(interp => ({
             min_score: Number(interp.start) || 0,
             max_score: Number(interp.end) || 0,
-            conclusion: interp.content || '',
-            suggestion: interp.content || '',
+            conclusion: interp.conclusion || '',
+            suggestion: interp.suggestion || '',
             risk_level: interp.risk_level || 'none' // 使用设置的风险等级，默认为 none
           }))
           
@@ -472,7 +575,8 @@ const Analysis: React.FC = observer(() => {
       const [error] = await factorApi.modifyFactorList(
         scaleStore.scaleCode || questionsheetid,
         factorsWithInterpretRules as any,
-        !scaleStore.scaleCode // 如果没有 scaleCode，说明传入的是问卷编码
+        !scaleStore.scaleCode, // 如果没有 scaleCode，说明传入的是问卷编码
+        scaleStore.questions // 传递题目列表，用于计算 max_score
       )
       
       if (error) {
@@ -561,13 +665,24 @@ const Analysis: React.FC = observer(() => {
               }}
             />
           </div>
-          <Input.TextArea
-            placeholder="请输入解读内容"
-            value={item.content}
-            onChange={(e) => handleUpdateInterpretation(index, { ...item, content: e.target.value }, code)}
-            rows={3}
-            style={{ marginTop: 16 }}
-          />
+          <div style={{ marginTop: 16 }}>
+            <div style={{ marginBottom: 8, fontWeight: 500 }}>结论</div>
+            <Input.TextArea
+              placeholder="请输入结论"
+              value={item.conclusion}
+              onChange={(e) => handleUpdateInterpretation(index, { ...item, conclusion: e.target.value }, code)}
+              rows={3}
+            />
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <div style={{ marginBottom: 8, fontWeight: 500 }}>建议</div>
+            <Input.TextArea
+              placeholder="请输入建议"
+              value={item.suggestion}
+              onChange={(e) => handleUpdateInterpretation(index, { ...item, suggestion: e.target.value }, code)}
+              rows={3}
+            />
+          </div>
         </div>
       </Card>
     )

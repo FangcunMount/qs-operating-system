@@ -6,7 +6,8 @@ import {
   TeamOutlined,
   AuditOutlined,
   ClockCircleOutlined,
-  FolderOutlined
+  FolderOutlined,
+  CalendarOutlined
 } from '@ant-design/icons'
 
 // 图标创建辅助函数，确保 React 被使用
@@ -44,6 +45,10 @@ const ScreeningList = lazy(() => import('../pages/screening/list'))
 const ScreeningDetail = lazy(() => import('../pages/screening/detail'))
 const PushList = lazy(() => import('../pages/push/list'))
 const PushConfig = lazy(() => import('../pages/push/config'))
+const PlanList = lazy(() => import('../pages/plan/list'))
+const PlanDetail = lazy(() => import('../pages/plan/detail'))
+const PlanCreate = lazy(() => import('../pages/plan/create'))
+const TaskDetail = lazy(() => import('../pages/plan/tasks'))
 
 export const routes: Array<IRoute> = [
   {
@@ -236,6 +241,41 @@ export const routes: Array<IRoute> = [
     path: '/push/config/:id',
     component: PushConfig,
     hideInMenu: true
+  },
+  {
+    title: '测评计划',
+    name: 'plan',
+    path: '/plan',
+    icon: createIcon(CalendarOutlined),
+    children: [
+      {
+        title: '计划列表',
+        name: 'plan-list',
+        path: '/plan/list',
+        component: PlanList
+      },
+      {
+        title: '计划详情',
+        name: 'plan-detail',
+        path: '/plan/detail/:id',
+        component: PlanDetail,
+        hideInMenu: true
+      },
+      {
+        title: '创建计划',
+        name: 'plan-create',
+        path: '/plan/create',
+        component: PlanCreate,
+        hideInMenu: true
+      },
+      {
+        title: '任务详情',
+        name: 'task-detail',
+        path: '/plan/tasks/:id',
+        component: TaskDetail,
+        hideInMenu: true
+      }
+    ]
   },
   {
     title: '用户中心',
