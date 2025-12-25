@@ -5,7 +5,6 @@ import {
   SettingOutlined,
   TeamOutlined,
   AuditOutlined,
-  ClockCircleOutlined,
   FolderOutlined,
   CalendarOutlined
 } from '@ant-design/icons'
@@ -43,8 +42,6 @@ const SubjectAnswerDetail = lazy(() => import('../pages/subject/answer-detail'))
 const SubjectScaleDetail = lazy(() => import('../pages/subject/scale-detail'))
 const ScreeningList = lazy(() => import('../pages/screening/list'))
 const ScreeningDetail = lazy(() => import('../pages/screening/detail'))
-const PushList = lazy(() => import('../pages/push/list'))
-const PushConfig = lazy(() => import('../pages/push/config'))
 const PlanList = lazy(() => import('../pages/plan/list'))
 const PlanDetail = lazy(() => import('../pages/plan/detail'))
 const PlanCreate = lazy(() => import('../pages/plan/create'))
@@ -219,27 +216,14 @@ export const routes: Array<IRoute> = [
     name: 'screening',
     path: '/screening/list',
     icon: createIcon(AuditOutlined),
-    component: ScreeningList
+    component: ScreeningList,
+    hideInMenu: true
   },
   {
     title: '筛查项目详情',
     name: 'screening-detail',
     path: '/screening/detail/:id',
     component: ScreeningDetail,
-    hideInMenu: true
-  },
-  {
-    title: '周期性测评',
-    name: 'push',
-    path: '/push/list',
-    icon: createIcon(ClockCircleOutlined),
-    component: PushList
-  },
-  {
-    title: '任务配置',
-    name: 'push-config',
-    path: '/push/config/:id',
-    component: PushConfig,
     hideInMenu: true
   },
   {
