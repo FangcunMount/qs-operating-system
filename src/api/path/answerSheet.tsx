@@ -1,5 +1,6 @@
 import { get, post } from '../qsServer'
 import type { QSResponse } from '@/types/qs'
+import type { IQuestionnaireStatistics } from './statistics'
 
 // ============ 类型定义 ============
 
@@ -80,12 +81,29 @@ export async function getAnswerSheetDetail(
 
 /**
  * 获取答卷统计
- * GET /answersheets/statistics
+ * 已迁移到统计模块：GET /statistic/questionnaires/{code}
+ * 注意：此接口保留用于向后兼容，建议使用 statisticsApi.getQuestionnaireStatistics
  */
 export async function getAnswerSheetStatistics(
   code: string
 ): Promise<[any, QSResponse<IAnswerSheetStatisticsResponse> | undefined]> {
-  return get<IAnswerSheetStatisticsResponse>('/answersheets/statistics', { code })
+  // 使用统计模块的新接口，但返回格式保持兼容
+  const [error, data] = await get<IQuestionnaireStatistics>(`/statistics/questionnaires/${code}`)
+  if (error || !data?.data) {
+    return [error, undefined]
+  }
+  
+  // 转换为旧格式以保持向后兼容
+  const stats = data.data
+  const legacyStats: IAnswerSheetStatisticsResponse = {
+    questionnaire_code: stats.questionnaire_code,
+    total_count: stats.total_submissions,
+    average_score: 0, // 新接口不提供此字段，设为0
+    max_score: 0,     // 新接口不提供此字段，设为0
+    min_score: 0      // 新接口不提供此字段，设为0
+  }
+  
+  return [null, { ...data, data: legacyStats }]
 }
 
 /**

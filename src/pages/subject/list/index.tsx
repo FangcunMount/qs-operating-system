@@ -1,10 +1,17 @@
 import React, { useEffect, useState } from 'react'
-import { Button, Table, Input, Space, Tag, Switch, Tooltip } from 'antd'
+import { Button, Table, Input, Space, Tag, Switch, Tooltip, Spin } from 'antd'
 import { SearchOutlined, StarOutlined, StarFilled } from '@ant-design/icons'
 import { useHistory } from 'react-router-dom'
 import { testeeApi, ITestee } from '@/api/path/subject'
+import { statisticsApi, ITesteeStatistics } from '@/api/path/statistics'
 import { message } from 'antd'
 import './index.scss'
+
+// 扩展受试者数据，包含统计加载状态
+interface ITesteeWithStats extends ITestee {
+  statsLoading?: boolean
+  statsData?: ITesteeStatistics
+}
 
 const SubjectList: React.FC = () => {
   const history = useHistory()
@@ -13,7 +20,7 @@ const SubjectList: React.FC = () => {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [loading, setLoading] = useState(false)
-  const [dataSource, setDataSource] = useState<ITestee[]>([])
+  const [dataSource, setDataSource] = useState<ITesteeWithStats[]>([])
   const [total, setTotal] = useState(0)
 
   // 计算年龄
@@ -33,6 +40,7 @@ const SubjectList: React.FC = () => {
     }
   }
 
+  // 获取受试者列表（不包含统计字段）
   const fetchData = async () => {
     setLoading(true)
     try {
@@ -49,8 +57,18 @@ const SubjectList: React.FC = () => {
         return
       }
 
-      setDataSource(response.data.items)
+      // 初始化数据，标记统计字段为加载中
+      const itemsWithStats: ITesteeWithStats[] = response.data.items.map(item => ({
+        ...item,
+        statsLoading: true,
+        statsData: undefined
+      }))
+
+      setDataSource(itemsWithStats)
       setTotal(response.data.total)
+
+      // 异步加载统计数据（不阻塞列表显示）
+      loadStatisticsForTestees(itemsWithStats)
     } catch (error) {
       console.error('获取受试者列表失败:', error)
       message.error('获取受试者列表失败')
@@ -59,9 +77,86 @@ const SubjectList: React.FC = () => {
     }
   }
 
+  // 异步加载多个受试者的统计数据
+  const loadStatisticsForTestees = async (testees: ITesteeWithStats[]) => {
+    // 并行加载所有受试者的统计数据
+    const statsPromises = testees.map(async (testee) => {
+      try {
+        const [error, data] = await statisticsApi.getTesteeStatistics(testee.id)
+        if (error || !data?.data) {
+          console.warn(`获取受试者 ${testee.id} 的统计数据失败:`, error)
+          return { testeeId: testee.id, stats: null }
+        }
+        return { testeeId: testee.id, stats: data.data }
+      } catch (error) {
+        console.warn(`获取受试者 ${testee.id} 的统计数据异常:`, error)
+        return { testeeId: testee.id, stats: null }
+      }
+    })
+
+    const statsResults = await Promise.all(statsPromises)
+
+    // 更新对应受试者的统计数据
+    setDataSource((prev) => {
+      const updated = [...prev]
+      statsResults.forEach(({ testeeId, stats }) => {
+        const index = updated.findIndex(item => item.id === testeeId)
+        if (index >= 0) {
+          updated[index] = {
+            ...updated[index],
+            statsLoading: false,
+            statsData: stats || undefined,
+            // 将统计数据映射到 assessment_stats 格式以保持兼容
+            assessment_stats: stats ? {
+              total_count: stats.total_assessments,
+              last_assessment_at: stats.last_assessment_date,
+              last_risk_level: getHighestRiskLevel(stats.risk_distribution)
+            } : undefined
+          }
+        }
+      })
+      return updated
+    })
+  }
+
+  // 从风险分布中获取最高风险等级
+  const getHighestRiskLevel = (riskDistribution: Record<string, number>): string | undefined => {
+    const riskOrder = ['severe', 'high', 'medium', 'low', 'none']
+    for (const level of riskOrder) {
+      if (riskDistribution[level] && riskDistribution[level] > 0) {
+        return level
+      }
+    }
+    return undefined
+  }
+
   useEffect(() => {
     fetchData()
   }, [page, pageSize, keyword, isKeyFocusFilter])
+
+  // 辅助函数：获取风险等级颜色
+  const getRiskLevelColor = (level: string): string => {
+    const colorMap: Record<string, string> = {
+      severe: 'red',
+      high: 'red',
+      medium: 'orange',
+      low: 'green',
+      none: 'default'
+    }
+    return colorMap[level] || 'default'
+  }
+
+  // 辅助函数：获取风险等级文本
+  const getRiskLevelText = (level: string): string => {
+    const textMap: Record<string, string> = {
+      severe: '严重风险',
+      high: '高风险',
+      medium: '中风险',
+      low: '低风险',
+      none: '正常'
+    }
+    return textMap[level] || level
+  }
 
   const columns = [
     {
@@ -70,7 +165,7 @@ const SubjectList: React.FC = () => {
       key: 'name',
       width: 120,
       fixed: 'left' as const,
-      render: function renderName(name: string, record: ITestee) {
+      render: function renderName(name: string, record: ITesteeWithStats) {
         return (
           <Space size={8}>
             <span className="subject-name">{name}</span>
@@ -145,21 +240,54 @@ const SubjectList: React.FC = () => {
       title: '测评统计',
       key: 'assessment_stats',
       width: 200,
-      render: function renderStats(_: any, record: ITestee) {
+      render: function renderStats(_: any, record: ITesteeWithStats) {
+        // 如果正在加载统计数据
+        if (record.statsLoading) {
+          return <Spin size="small" />
+        }
+
+        // 优先使用统计数据
+        if (record.statsData) {
+          const stats = record.statsData
+          const totalCount = stats.total_assessments || 0
+          const riskLevel = getHighestRiskLevel(stats.risk_distribution)
+
+          return (
+            <div className="stats-container">
+              <div className="stats-badge">
+                <span className="count">{totalCount}</span>
+                <span>次测评</span>
+              </div>
+              {riskLevel && (
+                <div className="risk-level">
+                  <Tag color={getRiskLevelColor(riskLevel)}>
+                    {getRiskLevelText(riskLevel)}
+                  </Tag>
+                </div>
+              )}
+            </div>
+          )
+        }
+
+        // 兼容旧的 assessment_stats 格式
         const stats = record.assessment_stats
         if (!stats) {
           return <span className="time-text no-data">暂无数据</span>
         }
+
+        const totalCount = stats.total_count || 0
+        const riskLevel = stats.last_risk_level
+
         return (
           <div className="stats-container">
             <div className="stats-badge">
-              <span className="count">{stats.total_count}</span>
+              <span className="count">{totalCount}</span>
               <span>次测评</span>
             </div>
-            {stats.last_risk_level && (
+            {riskLevel && (
               <div className="risk-level">
-                <Tag color={stats.last_risk_level === 'high' ? 'red' : stats.last_risk_level === 'medium' ? 'orange' : 'green'}>
-                  {stats.last_risk_level === 'high' ? '高风险' : stats.last_risk_level === 'medium' ? '中风险' : '正常'}
+                <Tag color={getRiskLevelColor(riskLevel)}>
+                  {getRiskLevelText(riskLevel)}
                 </Tag>
               </div>
             )}
@@ -169,10 +297,16 @@ const SubjectList: React.FC = () => {
     },
     {
       title: '最近测评时间',
-      dataIndex: ['assessment_stats', 'last_assessment_at'],
       key: 'last_assessment_at',
       width: 160,
-      render: function renderLastTime(time?: string) {
+      render: function renderLastTime(_: any, record: ITesteeWithStats) {
+        // 如果正在加载统计数据
+        if (record.statsLoading) {
+          return <Spin size="small" />
+        }
+
+        // 优先使用统计数据中的时间
+        const time = record.statsData?.last_assessment_date || record.assessment_stats?.last_assessment_at
         if (!time) return <span className="time-text no-data">未测评</span>
         return (
           <span className="time-text">
@@ -187,7 +321,7 @@ const SubjectList: React.FC = () => {
       width: 120,
       fixed: 'right' as const,
       align: 'center' as const,
-      render: function renderAction(_: any, record: ITestee) {
+      render: function renderAction(_: any, record: ITesteeWithStats) {
         return (
           <Button 
             type="link" 

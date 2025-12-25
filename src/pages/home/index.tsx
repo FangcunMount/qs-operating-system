@@ -21,7 +21,8 @@ const Home: React.FC = observer(() => {
   const { statisticsStore } = rootStore
 
   useEffect(() => {
-    statisticsStore.fetchStatistics()
+    // 使用新的系统统计接口，同时保持向后兼容
+    statisticsStore.fetchSystemStatistics()
   }, [])
 
   const quickActions = [

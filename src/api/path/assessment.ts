@@ -40,7 +40,19 @@ export interface IAssessmentListResponse {
   total_pages: number
 }
 
-// 因子得分
+// 因子得分项（根据 API 文档 response.FactorScoreItem）
+export interface IFactorScoreItem {
+  factor_code: string
+  factor_name: string
+  raw_score: number
+  max_score?: number
+  risk_level?: string
+  conclusion?: string
+  suggestion?: string
+  is_total_score?: boolean
+}
+
+// 因子得分（向后兼容，保留旧接口）
 export interface IFactorScore {
   factor_code: string
   factor_name: string
@@ -51,14 +63,57 @@ export interface IFactorScore {
   risk_level?: string
 }
 
+// 得分响应（根据 API 文档 response.ScoreResponse）
+export interface IScoreResponse {
+  assessment_id: string
+  factor_scores: IFactorScoreItem[]
+  total_score: number
+  risk_level: string
+}
+
+// 维度项（根据 API 文档 response.DimensionItem）
+export interface IDimensionItem {
+  factor_code: string
+  factor_name: string
+  raw_score: number
+  max_score?: number
+  risk_level: string
+  description?: string
+  suggestion?: string
+}
+
+// 建议项（根据 API 文档 response.SuggestionItem）
+export interface ISuggestionItem {
+  category?: string
+  content: string
+  factor_code?: string
+}
+
+// 报告响应（根据 API 文档 response.ReportResponse）
+export interface IReportResponse {
+  assessment_id: string
+  conclusion?: string
+  created_at?: string
+  dimensions: IDimensionItem[]
+  risk_level: string
+  scale_code: string
+  scale_name: string
+  suggestions: ISuggestionItem[]
+  total_score: number
+}
+
+// 高风险因子响应（根据 API 文档 response.HighRiskFactorsResponse）
+export interface IHighRiskFactorsResponse {
+  assessment_id: string
+  has_high_risk: boolean
+  high_risk_factors: IFactorScoreItem[]
+  needs_urgent_care: boolean
+}
+
 // 测评详情（扩展 IAssessment，包含得分和报告信息）
 export interface IAssessmentDetail extends IAssessment {
-  factor_scores?: IFactorScore[]  // 因子得分列表（从 /scores 接口获取）
-  report?: {
-    summary?: string
-    interpretation?: string
-    suggestions?: string[]
-  }
+  factor_scores?: IFactorScoreItem[]  // 因子得分列表（从 /scores 接口获取）
+  report?: IReportResponse
 }
 
 // 测评 API
@@ -74,16 +129,17 @@ export const assessmentApi = {
   },
   
   // 获取测评得分（根据 API 文档 response.ScoreResponse）
-  getScores: (id: number | string): Promise<
-    [any, QSResponse<{ factor_scores: IFactorScore[]; total_score: number; risk_level: string }> | undefined]
-  > => {
-    return get<{ factor_scores: IFactorScore[]; total_score: number; risk_level: string }>(
-      `/evaluations/assessments/${id}/scores`
-    )
+  getScores: (id: number | string): Promise<[any, QSResponse<IScoreResponse> | undefined]> => {
+    return get<IScoreResponse>(`/evaluations/assessments/${id}/scores`)
   },
   
-  // 获取测评报告
-  getReport: (id: number | string): Promise<[any, QSResponse<any> | undefined]> => {
-    return get<any>(`/evaluations/assessments/${id}/report`)
+  // 获取测评报告（根据 API 文档 response.ReportResponse）
+  getReport: (id: number | string): Promise<[any, QSResponse<IReportResponse> | undefined]> => {
+    return get<IReportResponse>(`/evaluations/assessments/${id}/report`)
+  },
+  
+  // 获取高风险因子（根据 API 文档 response.HighRiskFactorsResponse）
+  getHighRiskFactors: (id: number | string): Promise<[any, QSResponse<IHighRiskFactorsResponse> | undefined]> => {
+    return get<IHighRiskFactorsResponse>(`/evaluations/assessments/${id}/high-risk-factors`)
   }
 }

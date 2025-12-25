@@ -5,29 +5,73 @@
 
   .answer-detail-header {
     margin-bottom: 16px;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .answer-detail-content {
     max-width: 1200px;
+    margin: 0 auto;
 
     .answer-card {
       .ant-card-body {
         padding: 24px;
       }
 
-      .answer-title {
-        font-size: 20px;
-        font-weight: 600;
-        margin-bottom: 24px;
-        color: #262626;
+      .answer-title-section {
         text-align: center;
-        padding-bottom: 16px;
+        margin-bottom: 24px;
+        padding-bottom: 24px;
         border-bottom: 2px solid #e8e8e8;
+
+        .answer-title {
+          font-size: 24px;
+          font-weight: 600;
+          color: #262626;
+          margin-bottom: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .answer-subtitle {
+          font-size: 14px;
+          color: #8c8c8c;
+        }
       }
 
-      .answer-info-section {
-        margin: 24px 0;
-        
+      .statistics-row {
+        margin-bottom: 24px;
+
+        .stat-card {
+          text-align: center;
+          border-radius: 8px;
+          transition: all 0.3s;
+          height: 100%;
+
+          &:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+          }
+
+          .ant-statistic-title {
+            font-size: 14px;
+            color: #8c8c8c;
+            margin-bottom: 8px;
+          }
+
+          .ant-statistic-content {
+            font-size: 20px;
+            font-weight: 600;
+          }
+        }
+      }
+
+      .info-card {
+        margin-bottom: 24px;
+        border-radius: 8px;
+
         .ant-descriptions {
           .ant-descriptions-item-label {
             width: 120px;
@@ -40,53 +84,92 @@
             background: #fff;
             color: #262626;
             font-size: 14px;
-
-            .progress-text {
-              .highlight {
-                color: #1890ff;
-                font-weight: 600;
-                font-size: 16px;
-              }
-            }
           }
         }
       }
 
       .answer-items {
-        .answer-item {
+        .answer-item-card {
           margin-bottom: 16px;
-          padding: 16px;
-          background: #fafafa;
-          border-radius: 4px;
+          border-radius: 8px;
+          transition: all 0.3s;
+
+          &:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          }
 
           &:last-child {
             margin-bottom: 0;
           }
 
-          .s-question-title {
-            font-size: 14px;
-            font-weight: 500;
-            color: #262626;
+          .answer-item-header {
             margin-bottom: 12px;
-            line-height: 1.6;
-          }
+            display: flex;
+            align-items: center;
+            gap: 8px;
 
-          .ant-input,
-          .ant-input-textarea {
-            width: 100% !important;
-            max-width: 800px;
+            .question-number {
+              font-weight: 600;
+              font-size: 13px;
+            }
 
-            textarea {
-              min-height: 100px;
-              font-size: 14px;
-              line-height: 1.6;
-              color: #595959;
+            .question-code {
+              font-size: 12px;
             }
           }
 
-          .ant-input {
-            font-size: 14px;
-            color: #595959;
+          .answer-item {
+            padding: 0;
+
+            .question-title-wrapper {
+              margin-bottom: 12px;
+              display: flex;
+              align-items: flex-start;
+              gap: 8px;
+
+              .question-title {
+                font-size: 15px;
+                font-weight: 500;
+                color: #262626;
+                line-height: 1.6;
+                flex: 1;
+              }
+
+              .question-tips {
+                font-size: 12px;
+                color: #8c8c8c;
+                padding: 2px 8px;
+                background: #f5f5f5;
+                border-radius: 4px;
+                white-space: nowrap;
+              }
+            }
+
+            .s-question-title {
+              font-size: 15px;
+              font-weight: 500;
+              color: #262626;
+              margin-bottom: 12px;
+              line-height: 1.6;
+            }
+
+            .ant-input,
+            .ant-input-textarea {
+              width: 100% !important;
+              max-width: 100%;
+
+              textarea {
+                min-height: 100px;
+                font-size: 14px;
+                line-height: 1.6;
+                color: #595959;
+              }
+            }
+
+            .ant-input {
+              font-size: 14px;
+              color: #595959;
+            }
           }
         }
       }
@@ -94,18 +177,25 @@
   }
 
   @media (max-width: 768px) {
+    padding: 12px;
+
     .answer-detail-content {
       .answer-card {
         .ant-card-body {
           padding: 16px;
         }
 
-        .answer-info {
-          flex-wrap: wrap;
-          gap: 8px;
+        .answer-title-section {
+          .answer-title {
+            font-size: 20px;
+          }
+        }
 
-          .info-divider {
-            display: none;
+        .statistics-row {
+          .stat-card {
+            .ant-statistic-content {
+              font-size: 18px;
+            }
           }
         }
       }

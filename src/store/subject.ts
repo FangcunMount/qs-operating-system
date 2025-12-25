@@ -479,7 +479,7 @@ class SubjectStore {
         try {
           const [scoreErr, scoreRes] = await assessmentApi.getScores(assessment.id)
           if (!scoreErr && scoreRes?.data?.factor_scores) {
-            factors = scoreRes.data.factor_scores.map((factor: any) => ({
+            factors = scoreRes.data.factor_scores.map((factor) => ({
               name: factor.factor_name,
               score: factor.raw_score || 0,
               level: factor.risk_level || '正常',

@@ -6,7 +6,13 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, Tooltip
 } from 'recharts'
-import { assessmentApi, IAssessmentDetail, IFactorScore } from '@/api/path/assessment'
+import { 
+  assessmentApi, 
+  IAssessmentDetail, 
+  IFactorScoreItem,
+  IReportResponse,
+  IHighRiskFactorsResponse
+} from '@/api/path/assessment'
 import { answerSheetApi } from '@/api/path/answerSheet'
 import { getSurvey } from '@/api/path/survey'
 import { convertQuestionFromDTO } from '@/api/path/questionConverter'
@@ -31,8 +37,9 @@ const SubjectScaleDetail: React.FC = () => {
   const history = useHistory()
   const { subjectId, testId } = useParams<{ subjectId: string; testId: string }>()
   const [assessment, setAssessment] = useState<IAssessmentDetail | null>(null)
-  const [factorScores, setFactorScores] = useState<IFactorScore[]>([])
-  const [report, setReport] = useState<any>(null)
+  const [factorScores, setFactorScores] = useState<IFactorScoreItem[]>([])
+  const [report, setReport] = useState<IReportResponse | null>(null)
+  const [highRiskFactors, setHighRiskFactors] = useState<IHighRiskFactorsResponse | null>(null)
   const [mergedAnswers, setMergedAnswers] = useState<IAnswer[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -131,7 +138,13 @@ const SubjectScaleDetail: React.FC = () => {
           setReport(reportRes.data)
         }
 
-        // 4. 如果有答卷ID，获取原始答卷并合并题目信息
+        // 4. 获取高风险因子
+        const [riskErr, riskRes] = await assessmentApi.getHighRiskFactors(testId)
+        if (!riskErr && riskRes?.data) {
+          setHighRiskFactors(riskRes.data)
+        }
+
+        // 5. 如果有答卷ID，获取原始答卷并合并题目信息
         if (res.data.answer_sheet_id) {
           const [answerErr, answerRes] = await answerSheetApi.getAnswerSheetDetail(res.data.answer_sheet_id)
           if (!answerErr && answerRes?.data) {
@@ -203,18 +216,19 @@ const SubjectScaleDetail: React.FC = () => {
       }
     }
     
-    // 回退：优先使用 T 分，如果没有则使用原始分
-    const hasAllTScores = factorScores.every(f => f.t_score !== undefined && f.t_score !== null)
-    
+    // 回退：使用原始分和最大分计算百分比
     return factorScores.map(f => {
-      const score = hasAllTScores && f.t_score !== undefined ? f.t_score : f.raw_score
+      const rawScore = f.raw_score || 0
+      const maxScore = f.max_score
+      const percentage = maxScore && maxScore > 0 ? (rawScore / maxScore) * 100 : undefined
+      
       return {
         factor: f.factor_name,
-        score: score,
-        rawScore: f.raw_score,
-        maxScore: undefined,
-        tScore: f.t_score,
-        percentage: undefined
+        score: percentage !== undefined ? percentage : rawScore,
+        rawScore: rawScore,
+        maxScore: maxScore,
+        tScore: undefined,
+        percentage: percentage
       }
     })
   }
@@ -223,29 +237,23 @@ const SubjectScaleDetail: React.FC = () => {
   
   // 判断是否使用百分比
   const usePercentage = radarData.some((d: RadarDataItem) => d.percentage !== undefined)
-  const hasAllTScores = !usePercentage && factorScores.every(f => f.t_score !== undefined && f.t_score !== null)
   
   // 计算雷达图的范围
   const getRadarDomain = () => {
     if (usePercentage) {
       // 百分比范围：0-100
       return [0, 100]
-    } else if (hasAllTScores) {
-      // T 分范围：从数据中计算最小值和最大值，并留出一些边距
-      const tScores = factorScores
-        .map(f => f.t_score)
-        .filter((s): s is number => s !== undefined && s !== null)
-      if (tScores.length > 0) {
-        const min = Math.min(...tScores)
-        const max = Math.max(...tScores)
+    } else {
+      // 原始分：从数据中计算最小值和最大值，并留出一些边距
+      const rawScores = factorScores.map(f => f.raw_score || 0)
+      if (rawScores.length > 0) {
+        const min = Math.min(...rawScores)
+        const max = Math.max(...rawScores)
         // 留出 10% 的边距
-        const padding = Math.max(10, (max - min) * 0.1)
+        const padding = Math.max(1, (max - min) * 0.1)
         return [Math.max(0, Math.floor(min - padding)), Math.ceil(max + padding)]
       }
-      // 默认 T 分范围 20-80
-      return [20, 80]
-    } else {
-      // 原始分：没有最大值信息，暂时用 0-100（不准确）
+      // 默认范围 0-100
       return [0, 100]
     }
   }
@@ -378,6 +386,47 @@ const SubjectScaleDetail: React.FC = () => {
                   </div>
                 </Card>
 
+                {/* 高风险因子提醒 */}
+                {highRiskFactors?.has_high_risk && (
+                  <Card 
+                    title={
+                      <span style={{ color: '#ff4d4f' }}>
+                        ⚠️ 高风险因子提醒
+                        {highRiskFactors.needs_urgent_care && (
+                          <Tag color="red" style={{ marginLeft: 8 }}>需要紧急关注</Tag>
+                        )}
+                      </span>
+                    }
+                    className="high-risk-card"
+                    style={{ borderColor: '#ff4d4f', backgroundColor: '#fff1f0' }}
+                  >
+                    <div>
+                      {highRiskFactors.high_risk_factors.map((factor, index) => (
+                        <div key={index} style={{ marginBottom: 12, padding: 8, background: '#fff', borderRadius: 4 }}>
+                          <div style={{ fontWeight: 500, marginBottom: 4 }}>
+                            {factor.factor_name}
+                            <Tag color="red" style={{ marginLeft: 8 }}>
+                              {factor.risk_level === 'high' || factor.risk_level === 'severe' ? '高风险' : '中风险'}
+                            </Tag>
+                          </div>
+                          <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 4 }}>
+                            原始分：{factor.raw_score}
+                            {factor.max_score !== undefined && ` / ${factor.max_score}`}
+                          </div>
+                          {factor.conclusion && (
+                            <div style={{ marginTop: 4, fontSize: 13 }}>{factor.conclusion}</div>
+                          )}
+                          {factor.suggestion && (
+                            <div style={{ marginTop: 4, fontSize: 13, color: '#1890ff' }}>
+                              建议：{factor.suggestion}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+
                 {/* 因子得分 */}
                 {factorScores.length > 0 && (
                   <Card title="因子得分" className="factor-scores-card">
@@ -388,18 +437,27 @@ const SubjectScaleDetail: React.FC = () => {
                             <span className="factor-score">
                               原始分：{factor.raw_score}
                             </span>
-                            {factor.t_score !== undefined && (
+                            {factor.max_score !== undefined && (
                               <span style={{ marginLeft: 8, color: '#8c8c8c' }}>
-                                T分：{factor.t_score}
+                                / {factor.max_score}
                               </span>
                             )}
                             {factor.risk_level && (
                               <Tag 
-                                color={factor.risk_level === 'high' ? 'red' : factor.risk_level === 'medium' ? 'orange' : 'green'}
+                                color={
+                                  factor.risk_level === 'high' || factor.risk_level === 'severe' ? 'red' :
+                                    factor.risk_level === 'medium' ? 'orange' : 'green'
+                                }
                                 style={{ marginLeft: 8 }}
                               >
-                                {factor.risk_level === 'high' ? '高风险' : factor.risk_level === 'medium' ? '中风险' : '正常'}
+                                {factor.risk_level === 'high' || factor.risk_level === 'severe' ? '高风险' :
+                                  factor.risk_level === 'medium' ? '中风险' : '正常'}
                               </Tag>
+                            )}
+                            {factor.conclusion && (
+                              <div style={{ marginTop: 4, fontSize: 12, color: '#8c8c8c' }}>
+                                {factor.conclusion}
+                              </div>
                             )}
                           </div>
                         </Descriptions.Item>
@@ -413,8 +471,8 @@ const SubjectScaleDetail: React.FC = () => {
                   title={
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span>因子分布</span>
-                      <Tag color={usePercentage ? 'blue' : hasAllTScores ? 'green' : 'orange'}>
-                        {usePercentage ? '使用百分比' : hasAllTScores ? '使用 T 分（标准分）' : '使用原始分（需改进）'}
+                      <Tag color={usePercentage ? 'blue' : 'orange'}>
+                        {usePercentage ? '使用百分比' : '使用原始分'}
                       </Tag>
                     </div>
                   }
@@ -450,19 +508,12 @@ const SubjectScaleDetail: React.FC = () => {
                                     原始分: {radarItem.rawScore} / {radarItem.maxScore}
                                   </div>
                                 </div>
-                              ) : hasAllTScores && radarItem.tScore !== undefined ? (
-                                <div>
-                                  <div>T分: {radarItem.tScore}</div>
-                                  <div style={{ fontSize: 12, color: '#8c8c8c' }}>
-                                    原始分: {radarItem.rawScore}
-                                  </div>
-                                </div>
                               ) : (
                                 <div>
                                   <div>原始分: {score}</div>
-                                  {radarItem.tScore !== undefined && (
+                                  {radarItem.maxScore !== undefined && (
                                     <div style={{ fontSize: 12, color: '#8c8c8c' }}>
-                                      T分: {radarItem.tScore}
+                                      最大分: {radarItem.maxScore}
                                     </div>
                                   )}
                                 </div>
@@ -472,7 +523,7 @@ const SubjectScaleDetail: React.FC = () => {
                         }}
                       />
                       <Radar
-                        name={usePercentage ? '百分比' : hasAllTScores ? 'T分' : '原始分'}
+                        name={usePercentage ? '百分比' : '原始分'}
                         dataKey="score"
                         stroke="#1890ff"
                         fill="#1890ff"
@@ -480,9 +531,9 @@ const SubjectScaleDetail: React.FC = () => {
                       />
                     </RadarChart>
                   </ResponsiveContainer>
-                  {!usePercentage && !hasAllTScores && (
+                  {!usePercentage && (
                     <div style={{ marginTop: 8, padding: 8, background: '#fffbe6', borderRadius: 4, fontSize: 12, color: '#8c8c8c' }}>
-                      ⚠️ 提示：部分因子缺少 T 分和最大值信息，当前使用原始分绘制。由于各因子最大值不同，雷达图可能不够准确。建议使用百分比或 T 分。
+                      ⚠️ 提示：部分因子缺少最大值信息，当前使用原始分绘制。由于各因子最大值不同，雷达图可能不够准确。建议使用百分比。
                     </div>
                   )}
                 </Card>
@@ -505,22 +556,32 @@ const SubjectScaleDetail: React.FC = () => {
                   {report.dimensions && report.dimensions.length > 0 && (
                     <div className="report-section">
                       <h3>维度解读</h3>
-                      {report.dimensions.map((dimension: any, index: number) => (
+                      {report.dimensions.map((dimension, index: number) => (
                         <div key={index} className="report-detail-item">
                           <h4>{dimension.factor_name}</h4>
                           <p>
                             <strong>原始分：</strong>{dimension.raw_score}
+                            {dimension.max_score !== undefined && ` / ${dimension.max_score}`}
                             {dimension.risk_level && (
                               <Tag 
-                                color={dimension.risk_level === 'high' ? 'red' : dimension.risk_level === 'medium' ? 'orange' : 'green'}
+                                color={
+                                  dimension.risk_level === 'high' || dimension.risk_level === 'severe' ? 'red' :
+                                    dimension.risk_level === 'medium' ? 'orange' : 'green'
+                                }
                                 style={{ marginLeft: 8 }}
                               >
-                                {dimension.risk_level === 'high' ? '高风险' : dimension.risk_level === 'medium' ? '中风险' : '正常'}
+                                {dimension.risk_level === 'high' || dimension.risk_level === 'severe' ? '高风险' :
+                                  dimension.risk_level === 'medium' ? '中风险' : '正常'}
                               </Tag>
                             )}
                           </p>
                           {dimension.description && (
                             <p style={{ marginTop: 8 }}>{dimension.description}</p>
+                          )}
+                          {dimension.suggestion && (
+                            <p style={{ marginTop: 8, color: '#1890ff' }}>
+                              <strong>建议：</strong>{dimension.suggestion}
+                            </p>
                           )}
                         </div>
                       ))}
@@ -532,11 +593,19 @@ const SubjectScaleDetail: React.FC = () => {
                     <div className="report-section">
                       <h3>建议与指导</h3>
                       <div className="report-suggestions">
-                        <ul>
-                          {report.suggestions.map((suggestion: string, index: number) => (
-                            <li key={index}>{suggestion}</li>
-                          ))}
-                        </ul>
+                        {report.suggestions.map((suggestion, index: number) => (
+                          <div key={index} style={{ marginBottom: 12, padding: 8, background: '#f5f5f5', borderRadius: 4 }}>
+                            {suggestion.category && (
+                              <Tag color="blue" style={{ marginBottom: 4 }}>{suggestion.category}</Tag>
+                            )}
+                            <div>{suggestion.content}</div>
+                            {suggestion.factor_code && (
+                              <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 4 }}>
+                                关联因子：{suggestion.factor_code}
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}

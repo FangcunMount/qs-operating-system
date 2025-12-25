@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useHistory, useParams } from 'react-router-dom'
-import { Button, Card, Divider, Spin, Descriptions, message } from 'antd'
-import { RollbackOutlined } from '@ant-design/icons'
+import { Button, Card, Divider, Spin, Descriptions, message, Tag, Statistic, Row, Col } from 'antd'
+import { RollbackOutlined, ClockCircleOutlined, UserOutlined, FileTextOutlined, TrophyOutlined } from '@ant-design/icons'
 import { answerSheetApi, IAnswerSheetResponse } from '@/api/path/answerSheet'
 import { getSurvey } from '@/api/path/survey'
 import { convertQuestionFromDTO } from '@/api/path/questionConverter'
@@ -157,9 +157,26 @@ const SubjectAnswerDetail: React.FC = () => {
     )
   }
 
+  // 格式化时间
+  const formatTime = (timeStr: string) => {
+    if (!timeStr) return '-'
+    try {
+      const date = new Date(timeStr)
+      return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch {
+      return timeStr
+    }
+  }
+
   return (
     <div className="subject-answer-detail-page">
-      {/* 头部 */}
+      {/* 头部操作栏 */}
       <div className="answer-detail-header">
         <Button
           icon={<RollbackOutlined />}
@@ -172,39 +189,120 @@ const SubjectAnswerDetail: React.FC = () => {
       {/* 答卷内容 */}
       <div className="answer-detail-content">
         <Card className="answer-card">
-          {/* 答卷标题 */}
-          <div className="answer-title">{answerDetail.title}</div>
-          
-          {/* 基本信息 */}
-          <div className="answer-info-section">
-            <Descriptions column={2} bordered>
-              <Descriptions.Item label="答卷ID">{answerDetail.id}</Descriptions.Item>
-              <Descriptions.Item label="问卷编码">{answerDetail.questionnaire_code}</Descriptions.Item>
-              <Descriptions.Item label="问卷版本">{answerDetail.questionnaire_ver}</Descriptions.Item>
-              <Descriptions.Item label="填写人ID">{answerDetail.filler_id}</Descriptions.Item>
-              <Descriptions.Item label="填写人姓名">{answerDetail.filler_name}</Descriptions.Item>
-              <Descriptions.Item label="填写时间">{answerDetail.filled_at}</Descriptions.Item>
-              <Descriptions.Item label="得分">{answerDetail.score}</Descriptions.Item>
-              <Descriptions.Item label="答案数量">
-                <span className="progress-text">
-                  {answerDetail.answers?.length || 0} 题
-                </span>
-              </Descriptions.Item>
-            </Descriptions>
+          {/* 答卷标题区域 */}
+          <div className="answer-title-section">
+            <div className="answer-title">
+              <FileTextOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+              {answerDetail.title}
+            </div>
+            <div className="answer-subtitle">答卷详情</div>
           </div>
 
-          <Divider />
+          {/* 统计信息卡片 */}
+          <Row gutter={[16, 16]} className="statistics-row">
+            <Col xs={24} sm={12} md={6}>
+              <Card className="stat-card">
+                <Statistic
+                  title="答卷得分"
+                  value={answerDetail.score ?? 0}
+                  prefix={<TrophyOutlined style={{ color: '#faad14' }} />}
+                  valueStyle={{ color: '#faad14' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card className="stat-card">
+                <Statistic
+                  title="答题数量"
+                  value={answerDetail.answers?.length || 0}
+                  suffix="题"
+                  prefix={<FileTextOutlined style={{ color: '#1890ff' }} />}
+                  valueStyle={{ color: '#1890ff' }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card className="stat-card">
+                <Statistic
+                  title="填写时间"
+                  value={formatTime(answerDetail.filled_at)}
+                  prefix={<ClockCircleOutlined style={{ color: '#52c41a' }} />}
+                  valueStyle={{ fontSize: 14 }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Card className="stat-card">
+                <Statistic
+                  title="填写人"
+                  value={answerDetail.filler_name || '-'}
+                  prefix={<UserOutlined style={{ color: '#722ed1' }} />}
+                  valueStyle={{ fontSize: 14 }}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          {/* 基本信息 */}
+          <Card className="info-card" title="基本信息">
+            <Descriptions column={{ xs: 1, sm: 2, md: 3 }} bordered>
+              <Descriptions.Item label="答卷ID">
+                <Tag color="blue">{answerDetail.id}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="问卷编码">
+                <Tag color="cyan">{answerDetail.questionnaire_code}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="问卷版本">
+                <Tag>{answerDetail.questionnaire_ver || '-'}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="填写人ID">
+                {answerDetail.filler_id}
+              </Descriptions.Item>
+              <Descriptions.Item label="填写人姓名">
+                {answerDetail.filler_name || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="填写时间">
+                {formatTime(answerDetail.filled_at)}
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+
+          <Divider orientation="left">
+            <span style={{ fontSize: 16, fontWeight: 500 }}>答题内容</span>
+            <Tag color="blue" style={{ marginLeft: 8 }}>
+              共 {mergedAnswers.length} 题
+            </Tag>
+          </Divider>
 
           {/* 答题内容 */}
           <div className="answer-items">
             {mergedAnswers.length > 0 ? (
               mergedAnswers.map((answer: IAnswer, index: number) => (
-                <ShowAnswerItem key={answer.question_code || index} item={answer} index={index + 1} />
+                <Card
+                  key={answer.question_code || index}
+                  className="answer-item-card"
+                  size="small"
+                >
+                  <div className="answer-item-header">
+                    <Tag color="blue" className="question-number">
+                      第 {index + 1} 题
+                    </Tag>
+                    {answer.question_code && (
+                      <Tag color="default" className="question-code">
+                        {answer.question_code}
+                      </Tag>
+                    )}
+                  </div>
+                  <ShowAnswerItem item={answer} index={index + 1} />
+                </Card>
               ))
             ) : (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#8c8c8c' }}>
-                暂无答案数据
-              </div>
+              <Card>
+                <div style={{ textAlign: 'center', padding: '40px', color: '#8c8c8c' }}>
+                  <FileTextOutlined style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }} />
+                  <div>暂无答案数据</div>
+                </div>
+              </Card>
             )}
           </div>
         </Card>
