@@ -35,15 +35,15 @@ const List: React.FC = observer(() => {
     initData(10, 1)
   }, [])
 
-  const initData = async (size: number, num: number) => {
+  const initData = async (size: number, num: number, searchKey?: string, status?: string) => {
     setLoading(true)
     try {
       // 使用新 API 获取问卷列表
       const [err, res] = await surveyApi.listQuestionnaires({
         page: num,
         page_size: size,
-        title: keyWord || undefined,
-        status: statusFilter
+        title: searchKey !== undefined ? searchKey : (keyWord || undefined),
+        status: status !== undefined ? status : statusFilter
       })
 
       if (err || !res?.data) {
@@ -51,7 +51,7 @@ const List: React.FC = observer(() => {
         return
       }
 
-      const { questionnaires, page, page_size, total_count } = res.data
+      const { questionnaires, total_count } = res.data
 
       // 先转换基本数据格式
       const surveyListBasic = questionnaires.map((q: any) => ({
@@ -93,8 +93,8 @@ const List: React.FC = observer(() => {
         console.error('批量获取答卷统计失败:', error)
       })
       setPageInfo({
-        pagenum: page,
-        pagesize: page_size,
+        pagenum: num,
+        pagesize: size,
         total: total_count
       })
     } catch (error) {
@@ -107,13 +107,13 @@ const List: React.FC = observer(() => {
 
   const handleChangePagination = (size: number, num: number) => {
     if (size !== pageInfo.pagesize) num = 1
-    initData(size, num)
+    initData(size, num, keyWord, statusFilter)
   }
 
   const onSearch = (value: string) => {
     setKeyWord(value)
     setPageInfo(prev => ({ ...prev, pagenum: 1 }))
-    initData(pageInfo.pagesize, 1)
+    initData(pageInfo.pagesize, 1, value, statusFilter)
   }
 
   return (
@@ -152,7 +152,7 @@ const List: React.FC = observer(() => {
               onChange={(value) => {
                 setStatusFilter(value)
                 setPageInfo(prev => ({ ...prev, pagenum: 1 }))
-                initData(pageInfo.pagesize, 1)
+                initData(pageInfo.pagesize, 1, keyWord, value)
               }}
             >
               <Select.Option value="draft">草稿</Select.Option>

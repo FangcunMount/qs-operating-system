@@ -3,11 +3,42 @@
   min-height: 100%;
 
   .home-header {
-    padding: 32px 24px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 2px;
     margin: 24px 24px 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    overflow: hidden;
+
+    .header-content {
+      padding: 40px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+
+      .header-title {
+        margin: 0 !important;
+        color: #fff;
+        font-size: 32px;
+        font-weight: 600;
+      }
+
+      .header-subtitle {
+        display: block;
+        margin-top: 8px;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 16px;
+      }
+
+      .header-action {
+        height: 48px;
+        padding: 0 24px;
+        font-size: 16px;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
+    }
   }
 }
 
@@ -15,84 +46,350 @@
   padding: 24px;
 }
 
+.stats-row {
+  margin-bottom: 24px;
+}
+
 .stat-card {
-  border-radius: 2px;
-  transition: all 0.3s;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  border: none;
+  overflow: hidden;
   
   &:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
-  }
-
-  .ant-statistic-title {
-    font-size: 14px;
-    color: rgba(0, 0, 0, 0.65);
-    margin-bottom: 4px;
-  }
-
-  .ant-statistic-content {
-    font-size: 30px;
-    font-weight: 500;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   }
 
   .ant-card-body {
-    padding: 20px 24px;
+    padding: 24px;
+  }
+
+  .stat-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .stat-icon {
+    font-size: 40px;
+    opacity: 0.9;
+    flex-shrink: 0;
+  }
+
+  .stat-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .stat-title {
+    font-size: 14px;
+    color: rgba(0, 0, 0, 0.65);
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+
+  .stat-value-wrapper {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.2;
   }
 }
 
-.quick-actions-card {
-  border-radius: 2px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-  
-  .action-card {
-    border-radius: 2px;
-    transition: all 0.3s;
+.quick-links-card {
+  margin-bottom: 24px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  .ant-card-head {
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .ant-card-head-title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .quick-link-card {
+    border-radius: 8px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    border: 1px solid #f0f0f0;
     height: 100%;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-    
+    cursor: pointer;
+
     &:hover {
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border-color: #d9d9d9;
+    }
+
+    &.primary-link {
+      border: 2px solid #1890ff;
+      background: linear-gradient(135deg, #e6f7ff 0%, #ffffff 100%);
+
+      &:hover {
+        border-color: #40a9ff;
+        box-shadow: 0 4px 12px rgba(24, 144, 255, 0.2);
+        transform: translateY(-3px);
+      }
     }
 
     .ant-card-body {
       padding: 24px;
     }
+
+    .link-icon {
+      font-size: 36px;
+      display: block;
+    }
+
+    .link-title {
+      margin: 0 !important;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .link-desc {
+      display: block;
+      margin-top: 4px;
+      font-size: 13px;
+    }
+
+    .link-button {
+      padding: 0;
+      height: auto;
+      margin-top: 8px;
+    }
   }
 }
 
-.features-card {
-  border-radius: 2px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+.overview-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 
-  .feature-item {
-    border-radius: 2px;
-    transition: all 0.3s;
-    text-align: center;
-    height: 100%;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  .ant-card-head {
+    border-bottom: 1px solid #f0f0f0;
+  }
 
-    &:hover {
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+  .ant-card-head-title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+}
+
+.tips-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  height: 100%;
+
+  .ant-card-head {
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .ant-card-head-title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+}
+
+.overview-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  .overview-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+
+    &:last-child {
+      border-bottom: none;
     }
 
-    .ant-card-body {
-      padding: 24px 16px;
+    .ant-typography {
+      margin: 0;
+      font-size: 14px;
+    }
+  }
+}
+
+.tips-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  .tip-item {
+    padding: 20px 24px;
+    background: #ffffff;
+    border-radius: 12px;
+    cursor: pointer;
+    border: 1px solid #e8e8e8;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: #1890ff;
+      transform: scaleY(0);
+      transform-origin: top;
+    }
+
+    &:hover {
+      border-color: #1890ff;
+      box-shadow: 0 4px 12px rgba(24, 144, 255, 0.12);
+
+      &::before {
+        transform: scaleY(1);
+      }
+
+      .tip-expand-icon {
+        color: #1890ff;
+      }
+    }
+
+    &.expanded {
+      background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 100%);
+      border-color: #1890ff;
+      box-shadow: 0 4px 16px rgba(24, 144, 255, 0.15);
+
+      &::before {
+        transform: scaleY(1);
+      }
+
+      .tip-expand-icon {
+        color: #1890ff;
+        transform: rotate(180deg);
+      }
+
+      .tip-title {
+        color: #1890ff;
+        font-weight: 600;
+      }
+    }
+
+    .tip-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: relative;
+    }
+
+    .tip-title {
+      flex: 1;
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.6;
+      font-weight: 500;
+      color: #262626;
+    }
+
+    .tip-expand-icon {
+      color: #8c8c8c;
+      flex-shrink: 0;
+      font-size: 14px;
+      padding: 4px;
+      border-radius: 4px;
+      background: rgba(24, 144, 255, 0.06);
+    }
+
+    .tip-detail {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #e8e8e8;
+      padding-left: 0;
+
+      .ant-typography {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.8;
+        color: rgba(0, 0, 0, 0.75);
+        display: block;
+
+        br {
+          line-height: 2;
+        }
+      }
     }
   }
 }
 
 // 响应式适配
+@media (max-width: 1200px) {
+  .stat-value {
+    font-size: 24px;
+  }
+
+  .stat-icon {
+    font-size: 36px;
+  }
+}
+
 @media (max-width: 768px) {
   .home-container {
     padding: 16px;
   }
 
   .home-header {
-    padding: 24px 16px;
+    margin: 16px 16px 0;
+
+    .header-content {
+      padding: 24px 20px;
+
+      .header-title {
+        font-size: 24px !important;
+      }
+
+      .header-subtitle {
+        font-size: 14px;
+      }
+
+      .header-action {
+        width: 100%;
+        margin-top: 16px;
+      }
+    }
   }
 
-  .stat-card .ant-statistic-content {
-    font-size: 24px;
+  .stat-card {
+    .ant-card-body {
+      padding: 20px;
+    }
+
+    .stat-icon {
+      font-size: 32px;
+    }
+
+    .stat-value {
+      font-size: 22px;
+    }
+  }
+
+  .quick-link-card {
+    .ant-card-body {
+      padding: 20px;
+    }
+
+    .link-icon {
+      font-size: 32px;
+    }
   }
 }
 
@@ -102,14 +399,28 @@
   }
 
   .home-header {
-    padding: 20px 12px;
-    
-    h2 {
-      font-size: 20px !important;
+    margin: 12px 12px 0;
+
+    .header-content {
+      padding: 20px 16px;
+
+      .header-title {
+        font-size: 20px !important;
+      }
     }
   }
 
-  .action-card .ant-card-body {
-    padding: 16px !important;
+  .stat-card {
+    .stat-content {
+      gap: 12px;
+    }
+
+    .stat-icon {
+      font-size: 28px;
+    }
+
+    .stat-value {
+      font-size: 20px;
+    }
   }
 }
