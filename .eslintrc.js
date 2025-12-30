@@ -21,9 +21,16 @@ module.exports = {
     'react',
     '@typescript-eslint'
   ],
+  'settings': {
+    'react': {
+      'version': 'detect'
+    }
+  },
   'rules': {
     '@typescript-eslint/no-explicit-any': ['off'],
     'react/prop-types': ['off'],
+    'react/react-in-jsx-scope': ['off'], // React 17+ 不需要导入 React
+    'react/jsx-uses-react': ['off'], // React 17+ 不需要导入 React
     'indent': [
       'error',
       2
