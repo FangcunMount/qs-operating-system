@@ -200,6 +200,8 @@ jobs:
         run: npm ci
       
       - name: Build project
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
         run: npm run build
       
       - name: Upload build artifact
@@ -210,13 +212,62 @@ jobs:
           retention-days: 7
 
   # ==========================================================================
-  # 3) 部署到生产服务器 —— 通过 SSH 部署静态文件到 ServerB
-  #    根据架构文档，前端只部署到 ServerB 的 /opt/qs-ops/
+  # 2.5) Docker 构建（使用 build/Dockerfile）
+  # ==========================================================================
+
+  docker-build:
+    name: Build Docker Image
+    needs: [test, lint]
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_REPOSITORY }}/qs-operating-system
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: build/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ==========================================================================
+  # 3) 部署到生产服务器 —— Docker 容器部署到 ServerB
+  #    容器加入 infra-network 网络
   # ==========================================================================
 
   deploy-serverb:
-    name: Deploy to ServerB
-    needs: [build]
+    name: Deploy Docker Container to ServerB
+    needs: [docker-build]
     runs-on: ubuntu-latest
     if: |
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
@@ -229,46 +280,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-build
-          path: dist/
-
-      - name: Prepare deployment package
-        run: |
-          mkdir -p deploy-package
-          cp -r dist/* deploy-package/
-          tar -czf deploy-package-serverb.tar.gz -C deploy-package .
-
-      - name: Upload deployment package
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SVRB_HOST }}
-          username: ${{ secrets.SVRB_USERNAME }}
-          key: ${{ secrets.SVRB_SSH_KEY }}
-          port: ${{ secrets.SVRB_SSH_PORT || 22 }}
-          source: "deploy-package-serverb.tar.gz"
-          target: "/tmp"
-
-      - name: Deploy to ServerB
+      - name: Deploy Docker Container to ServerB
         uses: appleboy/ssh-action@v1.0.0
         env:
-          DEPLOY_PATH: ${{ env.DEPLOY_PATH }}
+          DOCKER_REGISTRY: ${{ env.DOCKER_REGISTRY }}
+          DOCKER_REPOSITORY: ${{ env.DOCKER_REPOSITORY }}
           SUDO_PASSWORD: ${{ secrets.SVRB_SUDO_PASSWORD }}
-          WWW_UID: ${{ env.WWW_UID }}
-          WWW_GID: ${{ env.WWW_GID }}
         with:
           host: ${{ secrets.SVRB_HOST }}
           username: ${{ secrets.SVRB_USERNAME }}
           key: ${{ secrets.SVRB_SSH_KEY }}
           port: ${{ secrets.SVRB_SSH_PORT || 22 }}
-          envs: DEPLOY_PATH,SUDO_PASSWORD,WWW_UID,WWW_GID
+          envs: DOCKER_REGISTRY,DOCKER_REPOSITORY,SUDO_PASSWORD
           script: |
             set -Eeuo pipefail
-
-            APP_UID="${WWW_UID:-1000}"
-            APP_GID="${WWW_GID:-1000}"
 
             # SUDO 助手
             if sudo -n true 2>/dev/null; then
@@ -287,59 +312,71 @@ jobs:
             fi
 
             echo "=========================================="
-            echo "Deploying Frontend to ServerB"
+            echo "Deploying Docker Container to ServerB"
             echo "=========================================="
-            echo "Deploy path: ${DEPLOY_PATH}"
 
-            # 目录准备
-            $SUDO mkdir -p "${DEPLOY_PATH}"
-            $SUDO mkdir -p /opt/backups/qs-ops
+            IMAGE_NAME="${DOCKER_REGISTRY}/${DOCKER_REPOSITORY}/qs-operating-system:latest"
+            CONTAINER_NAME="qs-operating-system"
+            NETWORK_NAME="infra-network"
 
-            # 备份当前版本
-            BACKUP_DIR="/opt/backups/qs-ops"
-            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-            if [ -d "${DEPLOY_PATH}" ] && [ "$(ls -A ${DEPLOY_PATH} 2>/dev/null)" != "" ]; then
-              echo "📦 Creating backup..."
-              $SUDO tar -czf "$BACKUP_DIR/backup_${TIMESTAMP}.tar.gz" \
-                -C "${DEPLOY_PATH}" . \
-                2>/dev/null || echo "No previous version to backup"
+            # 登录容器仓库（如果需要）
+            echo "🔐 Checking container registry access..."
+            # 如果镜像仓库需要认证，请配置相应的 credentials
+            # 对于 ghcr.io，可以使用 Personal Access Token
+            # echo "${REGISTRY_TOKEN}" | $SUDO docker login ${DOCKER_REGISTRY} -u ${REGISTRY_USERNAME} --password-stdin || true
+
+            # 拉取最新镜像
+            echo "📥 Pulling latest image: ${IMAGE_NAME}"
+            $SUDO docker pull "${IMAGE_NAME}" || {
+              echo "❌ Failed to pull image. Make sure the image exists and credentials are correct."
+              exit 1
+            }
+
+            # 停止并删除旧容器（如果存在）
+            if $SUDO docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+              echo "🛑 Stopping existing container..."
+              $SUDO docker stop "${CONTAINER_NAME}" || true
+              echo "🗑️ Removing existing container..."
+              $SUDO docker rm "${CONTAINER_NAME}" || true
             fi
 
-            # 解包
-            PKG_PATH="/tmp/deploy-package-serverb.tar.gz"
-            if [ ! -f "$PKG_PATH" ]; then
-              echo "❌ $PKG_PATH not found" >&2
+            # 检查网络是否存在
+            if ! $SUDO docker network ls --format '{{.Name}}' | grep -q "^${NETWORK_NAME}$"; then
+              echo "❌ Network ${NETWORK_NAME} not found. Please create it first."
               exit 1
             fi
 
-            DEPLOY_TMP="/tmp/qs-frontend-deploy-serverb-$$"
-            mkdir -p "$DEPLOY_TMP"
-            tar -xzf "$PKG_PATH" -C "$DEPLOY_TMP"
+            # 启动新容器并加入 infra-network
+            echo "🚀 Starting new container..."
+            $SUDO docker run -d \
+              --name "${CONTAINER_NAME}" \
+              --network "${NETWORK_NAME}" \
+              --restart unless-stopped \
+              -p 3000:3000 \
+              "${IMAGE_NAME}"
 
-            # 部署文件
-            echo "📤 Deploying files..."
-            $SUDO rsync -a --delete "$DEPLOY_TMP/" "${DEPLOY_PATH}/"
-            $SUDO chown -R "$APP_UID:$APP_GID" "${DEPLOY_PATH}"
+            # 等待容器启动
+            echo "⏳ Waiting for container to be healthy..."
+            sleep 5
 
-            # 验证部署
-            if [ -f "${DEPLOY_PATH}/index.html" ]; then
-              echo "✅ Deployment verified: index.html exists"
+            # 验证容器状态
+            if $SUDO docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+              echo "✅ Container ${CONTAINER_NAME} is running"
+              $SUDO docker ps --filter "name=${CONTAINER_NAME}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+              
+              # 显示网络信息
+              echo ""
+              echo "📡 Container network information:"
+              $SUDO docker inspect "${CONTAINER_NAME}" --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' | xargs -I {} echo "  IP Address: {}"
             else
-              echo "❌ Deployment failed: index.html not found"
+              echo "❌ Container ${CONTAINER_NAME} failed to start"
+              $SUDO docker logs "${CONTAINER_NAME}" || true
               exit 1
             fi
 
-            # 清理旧备份（保留最近 5 个）
-            $SUDO bash -c 'ls -t '"$BACKUP_DIR"'/backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f 2>/dev/null || true'
-
-            rm -rf "$DEPLOY_TMP"
-            rm -f /tmp/deploy-package-serverb.tar.gz
-
             echo "=========================================="
-            echo "✅ Frontend deployment to ServerB completed"
+            echo "✅ Docker container deployment completed"
             echo "=========================================="
-            echo "Deployed to: ${DEPLOY_PATH}"
-            $SUDO ls -lah "${DEPLOY_PATH}" | head -10
 
   # ==========================================================================
   # 4) 总体通知
