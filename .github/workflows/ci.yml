@@ -113,30 +113,39 @@ jobs:
 
   # 3) Deploy ServerB（仅 main 分支：push 自动部署；dispatch 需 deploy=true）
   deploy-serverb:
-    name: Deploy to ServerB
-    needs: [docker-build]
     runs-on: ubuntu-latest
-    if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == 'true')
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Deploy via SSH
+      - name: Deploy via SSH (stable)
         env:
           HOST: ${{ secrets.SVRB_HOST }}
           USER: ${{ secrets.SVRB_USERNAME }}
           PORT: ${{ secrets.SVRB_SSH_PORT || 22 }}
           SUDO_PASSWORD: ${{ secrets.SVRB_SUDO_PASSWORD }}
           IMAGE: ghcr.io/fangcunmount/qs-operating-system
+          SSH_KEY: ${{ secrets.SVRB_SSH_KEY }}
         run: |
           set -Eeuo pipefail
 
-          SSH_OPTS="-p ${PORT} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          # 写入私钥（多行原样保留）
+          cat > ~/.ssh/deploy_key <<'KEY'
+          '"$SSH_KEY"'
+          KEY
+          # 上面这种写法在某些 shell 会出坑，下面这个更稳：
+          rm -f ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+
+          chmod 600 ~/.ssh/deploy_key
+
+          # 打印指纹（安全，不泄露私钥）
+          ssh-keygen -lf ~/.ssh/deploy_key
+
+          SSH_OPTS="-i ~/.ssh/deploy_key -p ${PORT} -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
           echo "🔌 Connecting to ${USER}@${HOST}:${PORT}"
 
-          ssh ${SSH_OPTS} "${USER}@${HOST}" 'bash -s' <<'EOF'
+          cat <<'REMOTE_SCRIPT' | sed 's/^    //' | ssh ${SSH_OPTS} "${USER}@${HOST}" "IMAGE=${IMAGE} SUDO_PASSWORD='${SUDO_PASSWORD}' bash -s"
           set -Eeuo pipefail
 
           CONTAINER_NAME="qs-operating-system"
@@ -181,4 +190,4 @@ jobs:
 
           echo "✅ Done. Current status:"
           $SUDO docker ps --filter "name=${CONTAINER_NAME}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-          EOF 
+          REMOTE_SCRIPT
