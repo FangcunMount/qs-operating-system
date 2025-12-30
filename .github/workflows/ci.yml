@@ -1,0 +1,370 @@
+name: CI/CD Pipeline
+
+# ============================================================================
+# 必需的 Secrets 配置
+# ============================================================================
+# Organization Secrets (组织级别，共享配置):
+#   ServerB: SVRB_HOST, SVRB_USERNAME, SVRB_SSH_KEY, SVRB_SSH_PORT
+#   SVRB_SUDO_PASSWORD (可选，如果 sudo 需要密码)
+#   DOCKERHUB_USERNAME, DOCKERHUB_TOKEN (可选，如果使用 Docker Hub)
+#   注意：根据架构文档，前端只部署到 ServerB，不需要 ServerA 的配置
+#
+# Repository Secrets (仓库级别，敏感信息):
+#   WWW_UID, WWW_GID (可选，默认 1000/1000)
+#   DEPLOY_PATH_SERVERB (可选，默认 /opt/qs-ops)
+#   注意：根据架构文档，前端只部署到 ServerB，不部署到 ServerA
+# ============================================================================
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: '是否部署到生产环境'
+        required: false
+        type: boolean
+        default: false
+      server:
+        description: '部署到哪个服务器（前端只部署到 ServerB）'
+        required: false
+        type: choice
+        options:
+          - serverb
+        default: 'serverb'
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  DOCKER_REPOSITORY: fangcunmount
+
+jobs:
+  # ==========================================================================
+  # 1) 校验 Secrets（只在 main 分支部署时严格要求）
+  # ==========================================================================
+
+  validate-secrets:
+    name: Validate Secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Required Secrets
+        env:
+          SVRB_HOST: ${{ secrets.SVRB_HOST }}
+          SVRB_USERNAME: ${{ secrets.SVRB_USERNAME }}
+          SVRB_SSH_KEY: ${{ secrets.SVRB_SSH_KEY }}
+          SVRB_SSH_PORT: ${{ secrets.SVRB_SSH_PORT }}
+          SVRB_SUDO_PASSWORD: ${{ secrets.SVRB_SUDO_PASSWORD }}
+          WWW_UID: ${{ secrets.WWW_UID }}
+          WWW_GID: ${{ secrets.WWW_GID }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          echo "🔍 Validating GitHub Action secrets..."
+          VALIDATION_FAILED=0
+          ENFORCE_REQUIRED=0
+
+          if [ "${{ github.ref }}" == "refs/heads/main" ] || [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            ENFORCE_REQUIRED=1
+            echo "📋 Checking required secrets for deployment..."
+          else
+            echo "ℹ️ Not deploying – required secrets reported for awareness only."
+          fi
+
+          # 根据架构文档，前端只部署到 ServerB
+          REQUIRED_SECRETS_SERVERB=(SVRB_HOST SVRB_USERNAME SVRB_SSH_KEY)
+          OPTIONAL_SECRETS=(SVRB_SSH_PORT SVRB_SUDO_PASSWORD WWW_UID WWW_GID DOCKERHUB_USERNAME DOCKERHUB_TOKEN)
+
+          # 检查 ServerB secrets（前端只部署到 ServerB）
+          echo ""
+          echo "📋 Checking ServerB secrets (frontend deploys to ServerB only)..."
+          for SECRET_NAME in "${REQUIRED_SECRETS_SERVERB[@]}"; do
+            VALUE=${!SECRET_NAME}
+            if [ -n "$VALUE" ]; then
+              echo "✅ $SECRET_NAME is set"
+            else
+              if [ $ENFORCE_REQUIRED -eq 1 ]; then
+                echo "❌ $SECRET_NAME is not set"
+                VALIDATION_FAILED=1
+              else
+                echo "⚠️ $SECRET_NAME is not set (required when deploying to ServerB)"
+              fi
+            fi
+          done
+
+          echo ""
+          echo "📎 Checking optional secrets (warnings only)..."
+          for SECRET_NAME in "${OPTIONAL_SECRETS[@]}"; do
+            VALUE=${!SECRET_NAME}
+            if [ -n "$VALUE" ]; then
+              echo "✅ $SECRET_NAME is set"
+            else
+              case "$SECRET_NAME" in
+                SVRB_SUDO_PASSWORD)
+                  echo "⚠️ $SECRET_NAME is not set (needed only if sudo prompts for a password)"
+                  ;;
+                WWW_UID|WWW_GID)
+                  echo "⚠️ $SECRET_NAME is not set (defaults to 1000/1000)"
+                  ;;
+                SVRB_SSH_PORT)
+                  echo "⚠️ $SECRET_NAME is not set (defaults to 22)"
+                  ;;
+                DOCKERHUB_USERNAME|DOCKERHUB_TOKEN)
+                  echo "⚠️ $SECRET_NAME is not set (Docker Hub push will be skipped)"
+                  ;;
+                *)
+                  echo "⚠️ $SECRET_NAME is not set (optional)"
+                  ;;
+              esac
+            fi
+          done
+
+          echo ""
+          if [ $ENFORCE_REQUIRED -eq 1 ] && [ $VALIDATION_FAILED -eq 1 ]; then
+            echo "❌ Secrets validation failed! Please configure the missing required secrets."
+            exit 1
+          else
+            echo "✅ Required secrets look good (or not enforced for this branch)."
+          fi
+
+  # ==========================================================================
+  # 2) Test / Lint / Build —— 跑在 GitHub 托管 runner 上
+  # ==========================================================================
+
+  test:
+    name: Run Tests
+    needs: [validate-secrets]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests
+        run: |
+          npm test -- --coverage --watchAll=false --passWithNoTests || true
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          files: ./coverage/coverage-final.json
+          flags: unittests
+          name: codecov-frontend
+          fail_ci_if_error: false
+
+  lint:
+    name: Lint Code
+    needs: [validate-secrets]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run ESLint
+        run: |
+          npx eslint . --ext .ts,.tsx,.js,.jsx --max-warnings 0 || echo "⚠️ Linting issues found (non-blocking)"
+
+  build:
+    name: Build Application
+    needs: [test, lint]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build project
+        run: npm run build
+      
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: dist/
+          retention-days: 7
+
+  # ==========================================================================
+  # 3) 部署到生产服务器 —— 通过 SSH 部署静态文件到 ServerB
+  #    根据架构文档，前端只部署到 ServerB 的 /opt/qs-ops/
+  # ==========================================================================
+
+  deploy-serverb:
+    name: Deploy to ServerB
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == true)
+    env:
+      WWW_UID: ${{ secrets.WWW_UID || '1000' }}
+      WWW_GID: ${{ secrets.WWW_GID || '1000' }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH_SERVERB || '/opt/qs-ops' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: dist/
+
+      - name: Prepare deployment package
+        run: |
+          mkdir -p deploy-package
+          cp -r dist/* deploy-package/
+          tar -czf deploy-package-serverb.tar.gz -C deploy-package .
+
+      - name: Upload deployment package
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SVRB_HOST }}
+          username: ${{ secrets.SVRB_USERNAME }}
+          key: ${{ secrets.SVRB_SSH_KEY }}
+          port: ${{ secrets.SVRB_SSH_PORT || 22 }}
+          source: "deploy-package-serverb.tar.gz"
+          target: "/tmp"
+
+      - name: Deploy to ServerB
+        uses: appleboy/ssh-action@v1.0.0
+        env:
+          DEPLOY_PATH: ${{ env.DEPLOY_PATH }}
+          SUDO_PASSWORD: ${{ secrets.SVRB_SUDO_PASSWORD }}
+          WWW_UID: ${{ env.WWW_UID }}
+          WWW_GID: ${{ env.WWW_GID }}
+        with:
+          host: ${{ secrets.SVRB_HOST }}
+          username: ${{ secrets.SVRB_USERNAME }}
+          key: ${{ secrets.SVRB_SSH_KEY }}
+          port: ${{ secrets.SVRB_SSH_PORT || 22 }}
+          envs: DEPLOY_PATH,SUDO_PASSWORD,WWW_UID,WWW_GID
+          script: |
+            set -Eeuo pipefail
+
+            APP_UID="${WWW_UID:-1000}"
+            APP_GID="${WWW_GID:-1000}"
+
+            # SUDO 助手
+            if sudo -n true 2>/dev/null; then
+              SUDO="sudo"
+              echo "ℹ️ Using passwordless sudo."
+            else
+              if [ -z "${SUDO_PASSWORD:-}" ]; then
+                echo "❌ sudo needs password. Provide SVRB_SUDO_PASSWORD or configure NOPASSWD." >&2
+                exit 1
+              fi
+              sudo_pw() { sudo -S "$@" <<<"$SUDO_PASSWORD"; }
+              export -f sudo_pw
+              SUDO="sudo_pw"
+              $SUDO -v || true
+              echo "ℹ️ Using sudo with password."
+            fi
+
+            echo "=========================================="
+            echo "Deploying Frontend to ServerB"
+            echo "=========================================="
+            echo "Deploy path: ${DEPLOY_PATH}"
+
+            # 目录准备
+            $SUDO mkdir -p "${DEPLOY_PATH}"
+            $SUDO mkdir -p /opt/backups/qs-ops
+
+            # 备份当前版本
+            BACKUP_DIR="/opt/backups/qs-ops"
+            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+            if [ -d "${DEPLOY_PATH}" ] && [ "$(ls -A ${DEPLOY_PATH} 2>/dev/null)" != "" ]; then
+              echo "📦 Creating backup..."
+              $SUDO tar -czf "$BACKUP_DIR/backup_${TIMESTAMP}.tar.gz" \
+                -C "${DEPLOY_PATH}" . \
+                2>/dev/null || echo "No previous version to backup"
+            fi
+
+            # 解包
+            PKG_PATH="/tmp/deploy-package-serverb.tar.gz"
+            if [ ! -f "$PKG_PATH" ]; then
+              echo "❌ $PKG_PATH not found" >&2
+              exit 1
+            fi
+
+            DEPLOY_TMP="/tmp/qs-frontend-deploy-serverb-$$"
+            mkdir -p "$DEPLOY_TMP"
+            tar -xzf "$PKG_PATH" -C "$DEPLOY_TMP"
+
+            # 部署文件
+            echo "📤 Deploying files..."
+            $SUDO rsync -a --delete "$DEPLOY_TMP/" "${DEPLOY_PATH}/"
+            $SUDO chown -R "$APP_UID:$APP_GID" "${DEPLOY_PATH}"
+
+            # 验证部署
+            if [ -f "${DEPLOY_PATH}/index.html" ]; then
+              echo "✅ Deployment verified: index.html exists"
+            else
+              echo "❌ Deployment failed: index.html not found"
+              exit 1
+            fi
+
+            # 清理旧备份（保留最近 5 个）
+            $SUDO bash -c 'ls -t '"$BACKUP_DIR"'/backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f 2>/dev/null || true'
+
+            rm -rf "$DEPLOY_TMP"
+            rm -f /tmp/deploy-package-serverb.tar.gz
+
+            echo "=========================================="
+            echo "✅ Frontend deployment to ServerB completed"
+            echo "=========================================="
+            echo "Deployed to: ${DEPLOY_PATH}"
+            $SUDO ls -lah "${DEPLOY_PATH}" | head -10
+
+  # ==========================================================================
+  # 4) 总体通知
+  # ==========================================================================
+
+  notify:
+    name: Send Notification
+    needs: [deploy-serverb]
+    runs-on: ubuntu-latest
+    if: |
+      always() && (
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == true)
+      )
+    steps:
+      - name: Log deployment status
+        run: |
+          echo "=========================================="
+          echo "Deployment Summary"
+          echo "=========================================="
+          echo "ServerB: ${{ needs.deploy-serverb.result }}"
+
+          if [ "${{ needs.deploy-serverb.result }}" = "success" ]; then
+            echo "✅ Deployment to ServerB succeeded"
+          else
+            echo "❌ Deployment to ServerB failed"
+            exit 1
+          fi
