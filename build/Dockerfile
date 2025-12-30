@@ -27,10 +27,22 @@ RUN apk add --no-cache curl && \
 # 复制构建产物
 COPY --from=builder /app/dist ./dist
 
-# 创建非 root 用户
-RUN addgroup -g 1000 -S appuser && \
-    adduser -u 1000 -S appuser -G appuser && \
-    chown -R appuser:appuser /app
+# 可选：支持从 CI 传 UID/GID
+ARG UID=1000
+ARG GID=1000
+
+# 创建非 root 用户（幂等 + 复用已有 GID）
+RUN set -eux; \
+  # 找到是否已有 GID 对应的组名
+  EXISTING_GROUP="$(awk -F: -v gid="$GID" '$3==gid{print $1; exit}' /etc/group || true)"; \
+  if [ -n "$EXISTING_GROUP" ]; then \
+    echo "GID $GID already exists as group: $EXISTING_GROUP"; \
+    adduser -S -u "$UID" -G "$EXISTING_GROUP" appuser || true; \
+  else \
+    addgroup -S -g "$GID" appuser; \
+    adduser -S -u "$UID" -G appuser appuser; \
+  fi; \
+  chown -R "$UID:$GID" /app
 
 USER appuser
 
