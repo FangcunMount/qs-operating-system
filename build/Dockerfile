@@ -1,58 +1,32 @@
 # ============================================================================
-# 多阶段构建：前端静态资源构建与生产服务
+# Multi-stage build: build frontend assets, then serve static files
 # ============================================================================
 
-# 阶段 1: 构建阶段
 FROM node:18.20.8-alpine AS builder
-
 WORKDIR /app
 
-# 安装依赖（利用 Docker 缓存层）
 COPY package*.json ./
-RUN npm ci --only=production=false
+RUN npm ci
 
-# 复制源代码并构建
 COPY . .
+# 如果你项目确实依赖 legacy provider（webpack4 等），保留这句；不需要也不会影响构建
 RUN NODE_OPTIONS=--openssl-legacy-provider npm run build
 
-# 阶段 2: 生产阶段（使用 serve 提供静态文件服务）
-FROM node:18.20.8-alpine AS production
-
+FROM node:18.20.8-alpine AS runner
 WORKDIR /app
 
-# 安装 curl（用于健康检查）和 serve
-RUN apk add --no-cache curl && \
-    npm install -g serve@14.2.1
+# busybox 自带 wget，不需要装 curl；保持镜像更小
+RUN npm i -g serve@14.2.1
 
-# 复制构建产物
 COPY --from=builder /app/dist ./dist
 
-# 可选：支持从 CI 传 UID/GID
-ARG UID=1000
-ARG GID=1000
+# 非 root 运行（避免容器里用 root）
+RUN addgroup -S app && adduser -S app -G app
+USER app
 
-# 创建非 root 用户（幂等 + 复用已有 GID）
-RUN set -eux; \
-  # 找到是否已有 GID 对应的组名
-  EXISTING_GROUP="$(awk -F: -v gid="$GID" '$3==gid{print $1; exit}' /etc/group || true)"; \
-  if [ -n "$EXISTING_GROUP" ]; then \
-    echo "GID $GID already exists as group: $EXISTING_GROUP"; \
-    adduser -S -u "$UID" -G "$EXISTING_GROUP" appuser || true; \
-  else \
-    addgroup -S -g "$GID" appuser; \
-    adduser -S -u "$UID" -G appuser appuser; \
-  fi; \
-  chown -R "$UID:$GID" /app
-
-USER appuser
-
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/ || exit 1
-
-# 暴露端口给宿主机 nginx 反向代理
 EXPOSE 3000
 
-# 启动静态文件服务器
-CMD ["serve", "-s", "dist", "-l", "3000"]
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget -q -O - http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1
 
+CMD ["serve", "-s", "dist", "-l", "3000"]
