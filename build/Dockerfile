@@ -1,32 +1,42 @@
 # ============================================================================
-# Multi-stage build: build frontend assets, then serve static files
+# 多阶段构建：前端静态资源构建与生产服务
 # ============================================================================
 
 FROM node:18.20.8-alpine AS builder
 WORKDIR /app
 
-COPY package*.json ./
+# 只拷贝依赖清单，利用缓存
+COPY package.json package-lock.json ./
 RUN npm ci
 
+# 构建
 COPY . .
-# 如果你项目确实依赖 legacy provider（webpack4 等），保留这句；不需要也不会影响构建
 RUN NODE_OPTIONS=--openssl-legacy-provider npm run build
 
-FROM node:18.20.8-alpine AS runner
+FROM node:18.20.8-alpine AS production
 WORKDIR /app
 
-# busybox 自带 wget，不需要装 curl；保持镜像更小
-RUN npm i -g serve@14.2.1
+RUN apk add --no-cache curl && npm i -g serve@14.2.1
 
 COPY --from=builder /app/dist ./dist
 
-# 非 root 运行（避免容器里用 root）
-RUN addgroup -S app && adduser -S app -G app
-USER app
+ARG UID=1000
+ARG GID=1000
 
-EXPOSE 3000
+RUN set -eux; \
+  EXISTING_GROUP="$(awk -F: -v gid="$GID" '$3==gid{print $1; exit}' /etc/group || true)"; \
+  if [ -n "$EXISTING_GROUP" ]; then \
+    adduser -S -u "$UID" -G "$EXISTING_GROUP" appuser || true; \
+  else \
+    addgroup -S -g "$GID" appuser; \
+    adduser -S -u "$UID" -G appuser appuser; \
+  fi; \
+  chown -R "$UID:$GID" /app
+
+USER appuser
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -q -O - http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1
+  CMD curl -f http://localhost:3000/ || exit 1
 
+EXPOSE 3000
 CMD ["serve", "-s", "dist", "-l", "3000"]

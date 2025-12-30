@@ -23,85 +23,26 @@ on:
   workflow_dispatch:
     inputs:
       deploy:
-        description: '是否部署到生产环境'
+        description: "是否部署到 ServerB（只允许 main 分支）"
         required: false
         type: boolean
         default: false
-      server:
-        description: '部署到哪个服务器（前端只部署到 ServerB）'
-        required: false
-        type: choice
-        options:
-          - serverb
-        default: 'serverb'
 
 # 关键：推 GHCR 需要 packages: write
 permissions:
   contents: read
   packages: write
 
-concurrency:
-  group: frontend-cicd-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
-  DOCKER_REGISTRY: ghcr.io
-  # 这里保持你原来的命名空间（public 镜像也 OK）
-  DOCKER_REPOSITORY: fangcunmount
-  IMAGE_NAME: ghcr.io/fangcunmount/qs-operating-system
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/fangcunmount/qs-operating-system
+  DOCKERFILE: build/Dockerfile
 
 jobs:
-  validate-secrets:
-    name: Validate Secrets
+  # 1) Test + Lint（所有分支/PR 都跑）
+  ci:
+    name: Test & Lint
     runs-on: ubuntu-latest
-    env:
-      DEPLOYING: ${{ (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == 'true') }}
-    steps:
-      - name: Check Required Secrets
-        env:
-          SVRB_HOST: ${{ secrets.SVRB_HOST }}
-          SVRB_USERNAME: ${{ secrets.SVRB_USERNAME }}
-          SVRB_SSH_KEY: ${{ secrets.SVRB_SSH_KEY }}
-          SVRB_SSH_PORT: ${{ secrets.SVRB_SSH_PORT }}
-          SVRB_SUDO_PASSWORD: ${{ secrets.SVRB_SUDO_PASSWORD }}
-        shell: bash
-        run: |
-          echo "🔍 Validating GitHub Action secrets..."
-          echo "DEPLOYING=${DEPLOYING}"
-          VALIDATION_FAILED=0
-
-          REQUIRED_SECRETS=(SVRB_HOST SVRB_USERNAME SVRB_SSH_KEY)
-
-          echo ""
-          echo "📋 Checking required secrets for ServerB..."
-          for SECRET_NAME in "${REQUIRED_SECRETS[@]}"; do
-            VALUE="${!SECRET_NAME:-}"
-            if [ -n "$VALUE" ]; then
-              echo "✅ $SECRET_NAME is set"
-            else
-              if [ "${DEPLOYING}" = "true" ]; then
-                echo "❌ $SECRET_NAME is not set"
-                VALIDATION_FAILED=1
-              else
-                echo "⚠️ $SECRET_NAME is not set (required only when deploying)"
-              fi
-            fi
-          done
-
-          echo ""
-          if [ "${DEPLOYING}" = "true" ] && [ $VALIDATION_FAILED -eq 1 ]; then
-            echo "❌ Secrets validation failed (deployment would run but secrets missing)."
-            exit 1
-          fi
-
-          echo "✅ Secrets validation passed."
-
-  test:
-    name: Run Tests
-    needs: [validate-secrets]
-    runs-on: ubuntu-latest
-    env:
-      DEPLOYING: ${{ (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == 'true') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -109,228 +50,132 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18.x'
-          cache: 'npm'
+          node-version: "18.x"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run tests
-        shell: bash
-        run: |
-          set -e
-          if [ "${DEPLOYING}" = "true" ]; then
-            npm test -- --coverage --watchAll=false --passWithNoTests
-          else
-            npm test -- --coverage --watchAll=false --passWithNoTests || echo "⚠️ Tests failed (non-blocking on non-deploy runs)"
-          fi
-
-  lint:
-    name: Lint Code
-    needs: [validate-secrets]
-    runs-on: ubuntu-latest
-    env:
-      DEPLOYING: ${{ (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == 'true') }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18.x'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
+        run: npm test -- --coverage --watchAll=false --passWithNoTests
 
       - name: Run ESLint
-        shell: bash
-        run: |
-          set -e
-          if [ "${DEPLOYING}" = "true" ]; then
-            npx eslint . --ext .ts,.tsx,.js,.jsx --max-warnings 0
-          else
-            npx eslint . --ext .ts,.tsx,.js,.jsx --max-warnings 0 || echo "⚠️ Lint issues found (non-blocking on non-deploy runs)"
-          fi
+        run: npx eslint . --ext .ts,.tsx,.js,.jsx --max-warnings 0
 
-  build:
-    name: Build Application
-    needs: [test, lint]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18.x'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build project
-        env:
-          NODE_OPTIONS: --openssl-legacy-provider
-        run: npm run build
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-build
-          path: dist/
-          retention-days: 7
-
+  # 2) Docker build & push（仅 main push 或手动触发）
   docker-build:
     name: Build & Push Docker Image (GHCR)
-    needs: [build]
+    needs: [ci]
     runs-on: ubuntu-latest
     if: |
-      (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Sanity check Dockerfile path
+        run: |
+          ls -la build
+          test -f "${DOCKERFILE}" || (echo "Dockerfile not found at ${DOCKERFILE}" && exit 1)
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 推 GHCR 仍然建议登录（public 也不影响 pull）
+      # 推 GHCR：用 GITHUB_TOKEN 就够（配合 packages:write）
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.DOCKER_REGISTRY }}
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
+      - name: Extract metadata (tags/labels)
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_NAME }}
+          images: ${{ env.IMAGE }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,prefix=sha-
             type=ref,event=branch
-            type=ref,event=pr
+            type=sha,format=short
 
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: build/Dockerfile
+          file: ${{ env.DOCKERFILE }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # 3) Deploy ServerB（仅 main 分支：push 自动部署；dispatch 需 deploy=true）
   deploy-serverb:
     name: Deploy to ServerB (Docker run)
     needs: [docker-build]
     runs-on: ubuntu-latest
     if: |
-      (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == 'true')
+      github.ref == 'refs/heads/main' && (
+        (github.event_name == 'push') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == 'true')
+      )
     steps:
-      - name: Deploy Docker Container to ServerB
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
         env:
+          IMAGE: ${{ env.IMAGE }}
           SUDO_PASSWORD: ${{ secrets.SVRB_SUDO_PASSWORD }}
-          IMAGE_NAME: ${{ env.IMAGE_NAME }}
         with:
           host: ${{ secrets.SVRB_HOST }}
           username: ${{ secrets.SVRB_USERNAME }}
           key: ${{ secrets.SVRB_SSH_KEY }}
           port: ${{ secrets.SVRB_SSH_PORT || 22 }}
-          envs: SUDO_PASSWORD,IMAGE_NAME
+          envs: IMAGE,SUDO_PASSWORD
           script: |
-            set -euo pipefail
-            (set -o pipefail) 2>/dev/null || true
+            set -Eeuo pipefail
 
-            # sudo helper（兼容需要密码与 NOPASSWD）
+            CONTAINER_NAME="qs-operating-system"
+            NETWORK_NAME="infra-network"
+            IMAGE_NAME="${IMAGE}:latest"
+
+            # SUDO 助手（兼容需要密码/不需要密码两种）
             if sudo -n true 2>/dev/null; then
               SUDO="sudo"
-              echo "ℹ️ Using passwordless sudo."
             else
               if [ -z "${SUDO_PASSWORD:-}" ]; then
-                echo "❌ sudo needs password. Provide SVRB_SUDO_PASSWORD or configure NOPASSWD." >&2
+                echo "❌ sudo 需要密码，但没有配置 SVRB_SUDO_PASSWORD" >&2
                 exit 1
               fi
               sudo_pw() { sudo -S "$@" <<<"$SUDO_PASSWORD"; }
               export -f sudo_pw
               SUDO="sudo_pw"
               $SUDO -v || true
-              echo "ℹ️ Using sudo with password."
             fi
 
-            CONTAINER_NAME="qs-operating-system"
-            NETWORK_NAME="infra-network"
-            IMAGE="${IMAGE_NAME}:latest"
+            echo "📥 Pull image: ${IMAGE_NAME}"
+            $SUDO docker pull "${IMAGE_NAME}"
 
-            echo "📥 Pulling: ${IMAGE}"
-            $SUDO docker pull "${IMAGE}"
-
-            if $SUDO docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-              echo "🛑 Stopping old container..."
-              $SUDO docker stop "${CONTAINER_NAME}" || true
-              echo "🗑️ Removing old container..."
-              $SUDO docker rm "${CONTAINER_NAME}" || true
-            fi
-
+            # 确认网络存在
             if ! $SUDO docker network ls --format '{{.Name}}' | grep -q "^${NETWORK_NAME}$"; then
-              echo "❌ Network ${NETWORK_NAME} not found. Create it first: docker network create ${NETWORK_NAME}"
+              echo "❌ Network ${NETWORK_NAME} not found. 请先在 ServerB 创建：docker network create ${NETWORK_NAME}"
               exit 1
             fi
 
-            echo "🚀 Starting new container..."
+            # 停旧容器
+            if $SUDO docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+              $SUDO docker stop "${CONTAINER_NAME}" || true
+              $SUDO docker rm "${CONTAINER_NAME}" || true
+            fi
+
+            echo "🚀 Run container: ${CONTAINER_NAME}"
             $SUDO docker run -d \
               --name "${CONTAINER_NAME}" \
               --network "${NETWORK_NAME}" \
               --restart unless-stopped \
               -p 3000:3000 \
-              "${IMAGE}"
+              "${IMAGE_NAME}"
 
-            echo "⏳ Waiting for healthcheck (up to 60s)..."
-            for i in $(seq 1 30); do
-              status="$($SUDO docker inspect -f '{{.State.Health.Status}}' "${CONTAINER_NAME}" 2>/dev/null || echo "unknown")"
-              echo "  health=${status}"
-              if [ "${status}" = "healthy" ]; then
-                break
-              fi
-              if [ "${status}" = "unhealthy" ]; then
-                echo "❌ Container became unhealthy."
-                $SUDO docker logs "${CONTAINER_NAME}" || true
-                exit 1
-              fi
-              sleep 2
-            done
-
-            running="$($SUDO docker ps --filter "name=^/${CONTAINER_NAME}$" --format '{{.Names}}')"
-            if [ "${running}" != "${CONTAINER_NAME}" ]; then
-              echo "❌ Container failed to start."
-              $SUDO docker logs "${CONTAINER_NAME}" || true
-              exit 1
-            fi
-
-            echo "✅ Deployed."
+            echo "✅ Done. Current status:"
             $SUDO docker ps --filter "name=${CONTAINER_NAME}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-
-  notify:
-    name: Notify
-    needs: [deploy-serverb]
-    runs-on: ubuntu-latest
-    if: |
-      always() && (
-        (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) ||
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == 'true')
-      )
-    steps:
-      - name: Log deployment status
-        run: |
-          echo "Deployment result: ${{ needs.deploy-serverb.result }}"
-          if [ "${{ needs.deploy-serverb.result }}" != "success" ]; then
-            exit 1
-          fi
