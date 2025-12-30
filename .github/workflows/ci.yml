@@ -113,69 +113,72 @@ jobs:
 
   # 3) Deploy ServerB（仅 main 分支：push 自动部署；dispatch 需 deploy=true）
   deploy-serverb:
-    name: Deploy to ServerB (Docker run)
+    name: Deploy to ServerB
     needs: [docker-build]
     runs-on: ubuntu-latest
     if: |
-      github.ref == 'refs/heads/main' && (
-        (github.event_name == 'push') ||
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == 'true')
-      )
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == 'true')
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.0
         env:
-          IMAGE: ${{ env.IMAGE }}
+          HOST: ${{ secrets.SVRB_HOST }}
+          USER: ${{ secrets.SVRB_USERNAME }}
+          PORT: ${{ secrets.SVRB_SSH_PORT || 22 }}
           SUDO_PASSWORD: ${{ secrets.SVRB_SUDO_PASSWORD }}
-        with:
-          host: ${{ secrets.SVRB_HOST }}
-          username: ${{ secrets.SVRB_USERNAME }}
-          key: ${{ secrets.SVRB_SSH_KEY }}
-          port: ${{ secrets.SVRB_SSH_PORT || 22 }}
-          envs: IMAGE,SUDO_PASSWORD
-          script: |
-            set -Eeuo pipefail
+          IMAGE: ghcr.io/fangcunmount/qs-operating-system
+        run: |
+          set -Eeuo pipefail
 
-            CONTAINER_NAME="qs-operating-system"
-            NETWORK_NAME="infra-network"
-            IMAGE_NAME="${IMAGE}:latest"
+          SSH_OPTS="-p ${PORT} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          echo "🔌 Connecting to ${USER}@${HOST}:${PORT}"
 
-            # SUDO 助手（兼容需要密码/不需要密码两种）
-            if sudo -n true 2>/dev/null; then
-              SUDO="sudo"
-            else
-              if [ -z "${SUDO_PASSWORD:-}" ]; then
-                echo "❌ sudo 需要密码，但没有配置 SVRB_SUDO_PASSWORD" >&2
-                exit 1
-              fi
-              sudo_pw() { sudo -S "$@" <<<"$SUDO_PASSWORD"; }
-              export -f sudo_pw
-              SUDO="sudo_pw"
-              $SUDO -v || true
-            fi
+          ssh ${SSH_OPTS} "${USER}@${HOST}" 'bash -s' <<'EOF'
+          set -Eeuo pipefail
 
-            echo "📥 Pull image: ${IMAGE_NAME}"
-            $SUDO docker pull "${IMAGE_NAME}"
+          CONTAINER_NAME="qs-operating-system"
+          NETWORK_NAME="infra-network"
+          IMAGE_NAME="${IMAGE}:latest"
 
-            # 确认网络存在
-            if ! $SUDO docker network ls --format '{{.Name}}' | grep -q "^${NETWORK_NAME}$"; then
-              echo "❌ Network ${NETWORK_NAME} not found. 请先在 ServerB 创建：docker network create ${NETWORK_NAME}"
+          # SUDO helper
+          if sudo -n true 2>/dev/null; then
+            SUDO="sudo"
+          else
+            if [ -z "${SUDO_PASSWORD:-}" ]; then
+              echo "❌ sudo needs password but SVRB_SUDO_PASSWORD not set" >&2
               exit 1
             fi
+            sudo_pw() { sudo -S "$@" <<<"$SUDO_PASSWORD"; }
+            export -f sudo_pw
+            SUDO="sudo_pw"
+            $SUDO -v || true
+          fi
 
-            # 停旧容器
-            if $SUDO docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-              $SUDO docker stop "${CONTAINER_NAME}" || true
-              $SUDO docker rm "${CONTAINER_NAME}" || true
-            fi
+          echo "📥 Pull image: ${IMAGE_NAME}"
+          $SUDO docker pull "${IMAGE_NAME}"
 
-            echo "🚀 Run container: ${CONTAINER_NAME}"
-            $SUDO docker run -d \
-              --name "${CONTAINER_NAME}" \
-              --network "${NETWORK_NAME}" \
-              --restart unless-stopped \
-              -p 3000:3000 \
-              "${IMAGE_NAME}"
+          if ! $SUDO docker network ls --format '{{.Name}}' | grep -q "^${NETWORK_NAME}$"; then
+            echo "❌ Network ${NETWORK_NAME} not found. Create it first:"
+            echo "   docker network create ${NETWORK_NAME}"
+            exit 1
+          fi
 
-            echo "✅ Done. Current status:"
-            $SUDO docker ps --filter "name=${CONTAINER_NAME}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+          if $SUDO docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+            $SUDO docker stop "${CONTAINER_NAME}" || true
+            $SUDO docker rm "${CONTAINER_NAME}" || true
+          fi
+
+          echo "🚀 Run container: ${CONTAINER_NAME}"
+          $SUDO docker run -d \
+            --name "${CONTAINER_NAME}" \
+            --network "${NETWORK_NAME}" \
+            --restart unless-stopped \
+            -p 3000:3000 \
+            "${IMAGE_NAME}"
+
+          echo "✅ Done. Current status:"
+          $SUDO docker ps --filter "name=${CONTAINER_NAME}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+          EOF 
