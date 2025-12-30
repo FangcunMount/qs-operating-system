@@ -1,5 +1,5 @@
 import React, { lazy } from 'react'
-import { IRoute } from '@/types/router'
+import { IRoute } from '../types/router'
 import {
   HomeOutlined,
   SettingOutlined,
@@ -13,39 +13,40 @@ import {
 const createIcon = (Icon: React.ComponentType) => React.createElement(Icon)
 
 // 页面组件懒加载
-const Home = lazy(() => import('@/pages/home'))
-const SurveyList = lazy(() => import('@/pages/survey/List'))
-const ScaleList = lazy(() => import('@/pages/scale/List'))
-const QsEdit = lazy(() => import('@/components/questionEdit'))
-const SurveyBasicInfo = lazy(() => import('@/pages/survey/BasicInfo'))
-const SurveyQuestionEdit = lazy(() => import('@/pages/survey/QuestionEdit'))
-const SurveyQuestionRouting = lazy(() => import('@/pages/survey/QuestionRouting'))
-const SurveyPublish = lazy(() => import('@/pages/survey/Publish'))
-const ScaleBasicInfo = lazy(() => import('@/pages/scale/BasicInfo'))
-const ScaleQuestionEdit = lazy(() => import('@/pages/scale/QuestionEdit'))
-const ScaleQuestionRouting = lazy(() => import('@/pages/scale/QuestionRouting'))
-const ScaleFactor = lazy(() => import('@/pages/scale/Factor/Factor'))
-const ScaleAnalysis = lazy(() => import('@/pages/scale/Analysis/Analysis'))
-const ScalePublish = lazy(() => import('@/pages/scale/Publish'))
-const AsList = lazy(() => import('@/pages/as/list'))
-const AsDetail = lazy(() => import('@/pages/as/detail'))
-const Login = lazy(() => import('@/pages/user/login'))
-const UserProfile = lazy(() => import('@/pages/user/profile'))
-const AdminList = lazy(() => import('@/pages/admin/list'))
-const AdminAuthz = lazy(() => import('@/pages/admin/authz'))
-const AdminStaff = lazy(() => import('@/pages/admin/staff'))
+// 注意：lazy import 不支持路径别名，必须使用相对路径
+const Home = lazy(() => import('../pages/home'))
+const SurveyList = lazy(() => import('../pages/survey/List'))
+const ScaleList = lazy(() => import('../pages/scale/List'))
+const QsEdit = lazy(() => import('../components/questionEdit'))
+const SurveyBasicInfo = lazy(() => import('../pages/survey/BasicInfo'))
+const SurveyQuestionEdit = lazy(() => import('../pages/survey/QuestionEdit'))
+const SurveyQuestionRouting = lazy(() => import('../pages/survey/QuestionRouting'))
+const SurveyPublish = lazy(() => import('../pages/survey/Publish'))
+const ScaleBasicInfo = lazy(() => import('../pages/scale/BasicInfo'))
+const ScaleQuestionEdit = lazy(() => import('../pages/scale/QuestionEdit'))
+const ScaleQuestionRouting = lazy(() => import('../pages/scale/QuestionRouting'))
+const ScaleFactor = lazy(() => import('../pages/scale/Factor/Factor'))
+const ScaleAnalysis = lazy(() => import('../pages/scale/Analysis/Analysis'))
+const ScalePublish = lazy(() => import('../pages/scale/Publish'))
+const AsList = lazy(() => import('../pages/as/list'))
+const AsDetail = lazy(() => import('../pages/as/detail'))
+const Login = lazy(() => import('../pages/user/login'))
+const UserProfile = lazy(() => import('../pages/user/profile'))
+const AdminList = lazy(() => import('../pages/admin/list'))
+const AdminAuthz = lazy(() => import('../pages/admin/authz'))
+const AdminStaff = lazy(() => import('../pages/admin/staff'))
 
 // 新增页面组件
-const SubjectList = lazy(() => import('@/pages/subject/list'))
-const SubjectDetail = lazy(() => import('@/pages/subject/detail'))
-const SubjectAnswerDetail = lazy(() => import('@/pages/subject/answer-detail'))
-const SubjectScaleDetail = lazy(() => import('@/pages/subject/scale-detail'))
-const ScreeningList = lazy(() => import('@/pages/screening/list'))
-const ScreeningDetail = lazy(() => import('@/pages/screening/detail'))
-const PlanList = lazy(() => import('@/pages/plan/list'))
-const PlanDetail = lazy(() => import('@/pages/plan/detail'))
-const PlanCreate = lazy(() => import('@/pages/plan/create'))
-const TaskDetail = lazy(() => import('@/pages/plan/tasks'))
+const SubjectList = lazy(() => import('../pages/subject/list'))
+const SubjectDetail = lazy(() => import('../pages/subject/detail'))
+const SubjectAnswerDetail = lazy(() => import('../pages/subject/answer-detail'))
+const SubjectScaleDetail = lazy(() => import('../pages/subject/scale-detail'))
+const ScreeningList = lazy(() => import('../pages/screening/list'))
+const ScreeningDetail = lazy(() => import('../pages/screening/detail'))
+const PlanList = lazy(() => import('../pages/plan/list'))
+const PlanDetail = lazy(() => import('../pages/plan/detail'))
+const PlanCreate = lazy(() => import('../pages/plan/create'))
+const TaskDetail = lazy(() => import('../pages/plan/tasks'))
 
 export const routes: Array<IRoute> = [
   {
