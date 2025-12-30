@@ -1,4 +1,4 @@
-.survey-publish-container {
+.scale-publish-container {
   width: 100%;
   min-height: 100vh;
   
@@ -10,8 +10,8 @@
     gap: 28px;
     padding: 28px;
     overflow: hidden;
-    // 调查问卷使用蓝色系背景 - 增强色彩
-    background: linear-gradient(135deg, #e6f7ff 0%, #f0f5ff 100%);
+    // 医学量表使用青绿色系背景 - 增强色彩
+    background: linear-gradient(135deg, #d6f5f5 0%, #e6fffb 100%);
 
     .left-column {
       overflow-y: auto;
@@ -281,6 +281,29 @@
       }
     }
   }
+
+  // 量表信息卡片
+  .scale-info-card {
+    .factor-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+
+      .factor-tag {
+        font-size: 13px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        margin: 0;
+        transition: all 0.25s ease;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(24, 144, 255, 0.2);
+        }
+      }
+    }
+  }
   
   // 分享卡片
   .share-card {
@@ -534,3 +557,4 @@
     transform: scale(1);
   }
 }
+

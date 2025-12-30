@@ -703,6 +703,22 @@ export const surveyStore = makeObservable(
       // 此时 this.id 一定存在，使用类型断言
       const surveyId = this.id as string
 
+      // 先获取当前问卷状态，如果已发布则先取消发布
+      try {
+        const [statusErr, statusRes] = await api.getSurvey(surveyId)
+        if (!statusErr && statusRes?.data?.status === 1) {
+          // 如果已经是发布状态（status=1），先取消发布
+          console.log('问卷已发布，先取消发布再重新发布')
+          const [unpublishErr] = await api.unpublishSurvey(surveyId)
+          if (unpublishErr) {
+            console.warn('取消发布失败，继续尝试发布:', unpublishErr)
+          }
+        }
+      } catch (error) {
+        // 获取状态失败不影响发布流程，继续执行
+        console.warn('获取问卷状态失败，继续发布流程:', error)
+      }
+
       // 更新基本信息
       const [infoErr] = await api.updateSurvey({
         questionsheetid: surveyId,

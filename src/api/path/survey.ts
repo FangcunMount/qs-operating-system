@@ -11,7 +11,7 @@ export interface IQuestionnaireResponse {
   title: string
   description?: string
   img_url?: string
-  status: string
+  status: number // 0=草稿, 1=已发布, 2=已归档
   type: string
   version: string
   questions: any[] // QuestionDTO[]

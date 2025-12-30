@@ -16,6 +16,7 @@ import { surveyApi } from '@/api/path/survey'
 import { answerSheetApi } from '@/api/path/answerSheet'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
 import { message } from 'antd'
+// 列表页面暂时不使用提取的组件，保持原有实现
 
 const { Column } = Table
 const { Search } = Input
@@ -61,7 +62,7 @@ const List: React.FC = observer(() => {
         img_url: q.img_url || '',
         question_cnt: String(q.questions?.length || 0),
         answersheet_cnt: '0', // 先设为0，异步加载
-        status: q.status || 'draft', // 添加状态字段
+        status: q.status !== undefined ? String(q.status) : '0', // 状态：0=草稿, 1=已发布, 2=已归档
         create_user: '系统', // API 没有此字段，使用默认值
         createtime: '', // API 没有此字段
         last_update_user: '系统' // API 没有此字段
@@ -267,14 +268,15 @@ const List: React.FC = observer(() => {
             dataIndex="status"
             width={100}
             align="center"
-            render={(v: string, row: any) => {
-              const status = row.status || v || 'draft'
-              const statusMap: Record<string, { text: string; color: string }> = {
-                draft: { text: '草稿', color: 'default' },
-                published: { text: '已发布', color: 'success' },
-                archived: { text: '已归档', color: 'warning' }
+            render={(v: string | number) => {
+              // 状态值：0=草稿, 1=已发布, 2=已归档
+              const statusNum = typeof v === 'string' ? parseInt(v, 10) : (v ?? 0)
+              const statusMap: Record<number, { text: string; color: string }> = {
+                0: { text: '草稿', color: 'default' },
+                1: { text: '已发布', color: 'success' },
+                2: { text: '已归档', color: 'warning' }
               }
-              const statusInfo = statusMap[status] || { text: status, color: 'default' }
+              const statusInfo = statusMap[statusNum] || { text: `未知(${statusNum})`, color: 'default' }
               return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>
             }}
           />
@@ -343,3 +345,4 @@ const List: React.FC = observer(() => {
 })
 
 export default List
+

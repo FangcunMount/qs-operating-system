@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react'
 import PropTypes from 'prop-types'
 import { Modal, Button, Input, message } from 'antd'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
-import { api } from '@/api'
+import { surveyApi } from '@/api/path/survey'
 import useSubmit from '@/components/useSubmit'
-import '@/styles/theme-scale.scss'
+import '@/styles/theme-survey.scss'
 
 const initQSInfo = {
   id: '',
@@ -51,11 +51,23 @@ const EditQuestionSheetDialog: React.FC<{
     submit: async () => {
       const isCreate = data && data.id ? false : true
 
-      if (!isCreate) {
-        const [e] = await api.modifyQuestionSheet(questionsheet)
+      if (!isCreate && questionsheet.id) {
+        // 更新问卷基本信息
+        const [e] = await surveyApi.updateSurvey({
+          questionsheetid: questionsheet.id,
+          title: questionsheet.title,
+          desc: questionsheet.desc,
+          img_url: questionsheet.img_url
+        })
         if (e) throw e
       } else {
-        const [e] = await api.addQuestionSheet(questionsheet)
+        // 创建新问卷
+        const [e] = await surveyApi.createSurvey({
+          title: questionsheet.title,
+          desc: questionsheet.desc,
+          img_url: questionsheet.img_url,
+          type: 'survey'
+        })
         if (e) throw e
       }
     },
@@ -81,12 +93,12 @@ const EditQuestionSheetDialog: React.FC<{
 
   return (
     <Modal
-      title={`${data ? '编辑量表' : '新建量表'}`}
+      title={`${data ? '编辑问卷' : '新建问卷'}`}
       okText="确认"
       cancelText="取消"
       destroyOnClose
       visible={isModalVisible}
-      wrapClassName="scale-page-theme"
+      wrapClassName="survey-page-theme"
       onCancel={() => handleCancel()}
       footer={[
         <Button key="cancal" onClick={() => handleCancel()}>
@@ -124,3 +136,4 @@ EditQuestionSheetDialog.propTypes = {
 }
 
 export default EditQuestionSheetDialog
+

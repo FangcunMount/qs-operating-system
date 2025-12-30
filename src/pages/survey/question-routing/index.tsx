@@ -3,17 +3,16 @@ import { message } from 'antd'
 import { useParams, useLocation } from 'react-router'
 import { observer } from 'mobx-react-lite'
 
-import './QuestionRouting.scss'
+import './index.scss'
 import '@/components/editorSteps/index.scss'
-import '@/styles/theme-scale.scss'
-import { getShowControllerList } from '@/api/path/showController'
+import '@/styles/theme-survey.scss'
 import ShowControllerEditor from '@/components/showController/ShowControllerEditor'
 
-import { scaleStore } from '@/store'
+import { surveyStore } from '@/store'
 import { IQuestion, IQuestionShowController } from '@/models/question'
 import BaseLayout from '@/components/layout/BaseLayout'
-import { SCALE_STEPS, getScaleStepIndex, getScaleStepFromPath } from '@/utils/steps'
-import { useHistory } from 'react-router-dom'
+import { SURVEY_STEPS, getSurveyStepIndex, getSurveyStepFromPath } from '@/utils/steps'
+import { useSurveySteps, useSurveyData } from '../hooks'
 
 // 空状态组件
 const EmptyState: React.FC = () => (
@@ -23,66 +22,34 @@ const EmptyState: React.FC = () => (
 )
 
 const QuestionRouting: React.FC = observer(() => {
-  const history = useHistory()
   const location = useLocation()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const [editingQuestionCode, setEditingQuestionCode] = useState<string | null>(null)
+  const { handleStepChange } = useSurveySteps()
+  const { loadFullData } = useSurveyData(questionsheetid || '')
 
-  // 步骤跳转处理
-  const handleStepChange = (stepIndex: number) => {
-    const step = SCALE_STEPS[stepIndex]
-    if (!step || !scaleStore.id) return
-
-    switch (step.key) {
-    case 'create':
-      history.push(`/scale/info/${scaleStore.id}`)
-      break
-    case 'edit-questions':
-      history.push(`/scale/create/${scaleStore.id}/0`)
-      break
-    case 'set-routing':
-      history.push(`/scale/routing/${scaleStore.id}`)
-      break
-    case 'edit-factors':
-      history.push(`/scale/factor/${scaleStore.id}`)
-      break
-    case 'set-interpretation':
-      history.push(`/scale/analysis/${scaleStore.id}`)
-      break
-    case 'publish':
-      history.push(`/scale/publish/${scaleStore.id}`)
-      break
+  // 步骤跳转处理（使用统一的步骤导航）
+  const onStepChange = (stepIndex: number) => {
+    if (surveyStore.id) {
+      handleStepChange(stepIndex, surveyStore.id)
     }
   }
 
-  // 从服务器加载量表和显隐规则
+  // 使用 hooks 加载数据
   const loadDataFromServer = async () => {
-    message.loading({ content: '加载中', duration: 0, key: 'fetch' })
-    try {
-      await scaleStore.initEditor(questionsheetid)
-      
-      const [error, response] = await getShowControllerList(questionsheetid)
-      if (!error && response) {
-        scaleStore.setShowControllers(response.data.list)
-      }
-      
-      message.destroy()
-    } catch (error) {
-      message.destroy()
-      message.error('加载量表失败')
-    }
+    await loadFullData()
   }
 
   // 获取题目的显隐规则
   const getShowController = (code: string): IQuestionShowController | undefined => {
-    return scaleStore.showControllers.find((v) => v.code === code)?.show_controller
+    return surveyStore.showControllers.find((v) => v.code === code)?.show_controller
   }
 
   // 分离已配置和未配置的题目 - 直接计算，不使用 useMemo 以保证 MobX 响应式
   const configuredQuestions: Array<{ question: IQuestion; showController: IQuestionShowController }> = []
   const unconfiguredQuestions: IQuestion[] = []
 
-  scaleStore.questions.forEach((question) => {
+  surveyStore.questions.forEach((question) => {
     const controller = getShowController(question.code)
     if (controller) {
       configuredQuestions.push({ question, showController: controller })
@@ -94,18 +61,18 @@ const QuestionRouting: React.FC = observer(() => {
   // 初始化数据
   useEffect(() => {
     // 根据路由自动设置当前步骤
-    scaleStore.setCurrentStep('set-routing')
+    surveyStore.setCurrentStep('set-routing')
 
     const initPageData = async () => {
       // 先尝试从 localStorage 恢复
-      const restored = scaleStore.loadFromLocalStorage()
+      const restored = surveyStore.loadFromLocalStorage()
       
       // 如果恢复成功且 ID 匹配且有题目数据，直接使用
-      if (restored && scaleStore.id === questionsheetid && scaleStore.questions.length > 0) {
+      if (restored && surveyStore.id === questionsheetid && surveyStore.questions.length > 0) {
         console.log('routing 页面从 localStorage 恢复数据成功', {
-          id: scaleStore.id,
-          questionCount: scaleStore.questions.length,
-          showControllerCount: scaleStore.showControllers.length
+          id: surveyStore.id,
+          questionCount: surveyStore.questions.length,
+          showControllerCount: surveyStore.showControllers.length
         })
         return
       }
@@ -130,11 +97,11 @@ const QuestionRouting: React.FC = observer(() => {
 
   // 保存路由设置（通过批量更新接口提交，包含显隐规则）
   const handleSave = async () => {
-    if (!scaleStore.id) {
-      throw new Error('量表 ID 不能为空')
+    if (!surveyStore.id) {
+      throw new Error('问卷 ID 不能为空')
     }
     
-    if (scaleStore.questions.length === 0) {
+    if (surveyStore.questions.length === 0) {
       throw new Error('请先添加问题')
     }
     
@@ -145,9 +112,9 @@ const QuestionRouting: React.FC = observer(() => {
       // 调用批量更新接口，同时提交问题和显隐规则
       const { surveyApi } = await import('@/api/path/survey')
       const [error] = await surveyApi.saveSurveyQuestions(
-        scaleStore.id,
-        scaleStore.questions,
-        scaleStore.showControllers
+        surveyStore.id,
+        surveyStore.questions,
+        surveyStore.showControllers
       )
       
       if (error) {
@@ -158,7 +125,7 @@ const QuestionRouting: React.FC = observer(() => {
       message.destroy('saveRouting')
       
       // 保存成功后更新步骤
-      scaleStore.nextStep()
+      surveyStore.setCurrentStep('publish')
     } catch (error: any) {
       // 关闭加载提示
       message.destroy('saveRouting')
@@ -172,7 +139,7 @@ const QuestionRouting: React.FC = observer(() => {
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
     if (status === 'success') {
       message.success('路由设置已保存成功')
-      scaleStore.nextStep()
+      surveyStore.nextStep()
     } else {
       message.error(`路由设置保存失败 -- ${error?.errmsg ?? error}`)
     }
@@ -184,14 +151,14 @@ const QuestionRouting: React.FC = observer(() => {
         submitFn={handleSave}
         afterSubmit={handleAfterSubmit}
         footerButtons={['backToList', 'break', 'saveToNext']}
-        nextUrl={`/scale/factor/${questionsheetid}`}
-        steps={SCALE_STEPS}
-        currentStep={getScaleStepIndex(getScaleStepFromPath(location.pathname) || 'set-routing')}
-        onStepChange={handleStepChange}
-        themeClass="scale-page-theme"
+        nextUrl={`/survey/publish/${questionsheetid}`}
+        steps={SURVEY_STEPS}
+        currentStep={getSurveyStepIndex(getSurveyStepFromPath(location.pathname) || 'set-routing')}
+        onStepChange={onStepChange}
+        themeClass="survey-page-theme"
       >
-        <div className='qs-router-container scale-page-theme'>
-          {scaleStore.questions.length === 0 ? (
+        <div className='qs-router-container survey-page-theme'>
+          {surveyStore.questions.length === 0 ? (
             <EmptyState />
           ) : (
             <div className="routing-layout">
@@ -241,7 +208,7 @@ const QuestionRouting: React.FC = observer(() => {
               <div className="editor-panel">
                 <ShowControllerEditor
                   questionCode={editingQuestionCode}
-                  store={scaleStore}
+                  store={surveyStore}
                   onSave={handleCancelEdit}
                   onCancel={handleCancelEdit}
                 />
@@ -255,3 +222,4 @@ const QuestionRouting: React.FC = observer(() => {
 })
 
 export default QuestionRouting
+

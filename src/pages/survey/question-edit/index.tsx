@@ -5,19 +5,19 @@ import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { observer } from 'mobx-react-lite'
 
-import './QuestionEdit.scss'
+import './index.scss'
 import '@/components/questionEdit/index.scss'
 import '@/components/editorSteps/index.scss'
 import '@/styles/theme-survey.scss'
 import { surveyStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
 import { SURVEY_STEPS, getSurveyStepIndex, getSurveyStepFromPath } from '@/utils/steps'
-import { useHistory } from 'react-router-dom'
 import { surveyApi } from '@/api/path/survey'
 import QuestionSetting from '@/components/questionEdit/Setting'
 import QuestionShow from '@/components/questionEdit/Show'
 import QuestionCreate from '@/components/questionEdit/Create'
 import { IQuestion } from '@/models/question'
+import { useSurveySteps } from '../hooks'
 
 // 提交问题的验证函数列表
 import { checkText } from '@/components/questionEdit/widget/text/Setting'
@@ -55,10 +55,10 @@ const checkMap = {
 }
 
 const QuestionEdit: React.FC = observer(() => {
-  const history = useHistory()
   const location = useLocation()
   const showContainerRef = useRef<HTMLInputElement>(null)
   const { questionsheetid, answercnt } = useParams<{ questionsheetid: string; answercnt: string }>()
+  const { handleStepChange } = useSurveySteps()
   
   // 调试：检查当前路由和 store 状态
   console.log('QuestionEdit 组件渲染:', {
@@ -69,24 +69,10 @@ const QuestionEdit: React.FC = observer(() => {
     currentPath: window.location.pathname
   })
 
-  // 步骤跳转处理
-  const handleStepChange = (stepIndex: number) => {
-    const step = SURVEY_STEPS[stepIndex]
-    if (!step || !surveyStore.id) return
-
-    switch (step.key) {
-    case 'create':
-      history.push(`/survey/info/${surveyStore.id}`)
-      break
-    case 'edit-questions':
-      history.push(`/survey/create/${surveyStore.id}/0`)
-      break
-    case 'set-routing':
-      history.push(`/survey/routing/${surveyStore.id}`)
-      break
-    case 'publish':
-      history.push(`/survey/publish/${surveyStore.id}`)
-      break
+  // 步骤跳转处理（使用统一的步骤导航）
+  const onStepChange = (stepIndex: number) => {
+    if (surveyStore.id) {
+      handleStepChange(stepIndex, surveyStore.id)
     }
   }
 
@@ -144,8 +130,6 @@ const QuestionEdit: React.FC = observer(() => {
     // 保存成功后，如果 API 返回了更新后的问题列表，可以更新本地状态
     if (r?.data?.questions) {
       console.log('批量保存成功，返回的问题数量:', r.data.questions.length)
-      // 注意：这里可以选择是否用返回的数据更新本地状态
-      // 通常批量更新接口会返回更新后的完整问卷数据
     }
     
     // 保存成功后更新步骤
@@ -198,7 +182,7 @@ const QuestionEdit: React.FC = observer(() => {
       nextUrl={`/survey/routing/${questionsheetid}`}
       steps={SURVEY_STEPS}
       currentStep={getSurveyStepIndex(getSurveyStepFromPath(location.pathname) || 'edit-questions')}
-      onStepChange={handleStepChange}
+      onStepChange={onStepChange}
       themeClass="survey-page-theme"
     >
       <div className='qs-question-edit-container survey-page-theme'>
@@ -213,3 +197,4 @@ const QuestionEdit: React.FC = observer(() => {
 })
 
 export default QuestionEdit
+

@@ -3,7 +3,7 @@ import { message } from 'antd'
 import { useParams, useLocation } from 'react-router'
 import { observer } from 'mobx-react-lite'
 
-import './Publish.scss'
+import './index.scss'
 import '@/styles/theme-scale.scss'
 import { scaleStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
@@ -71,7 +71,8 @@ const Publish: React.FC = observer(() => {
       try {
         const questionsheet = await scaleStore.fetchScaleInfo(questionsheetid)
         if (questionsheet) {
-          setIsPublished((questionsheet as any).published === true)
+          // status: 0=草稿, 1=已发布, 2=已归档
+          setIsPublished(questionsheet.status === 1)
         }
       } catch (error) {
         console.error('获取发布状态失败:', error)
@@ -86,9 +87,9 @@ const Publish: React.FC = observer(() => {
     try {
       const questionsheet = await scaleStore.fetchScaleInfo(questionsheetid)
       
-      // 检查发布状态
+      // 检查发布状态（status: 0=草稿, 1=已发布, 2=已归档）
       if (questionsheet) {
-        setIsPublished((questionsheet as any).published === true)
+        setIsPublished(questionsheet.status === 1)
       }
       
       // 生成问卷链接
@@ -250,3 +251,4 @@ const Publish: React.FC = observer(() => {
 })
 
 export default Publish
+

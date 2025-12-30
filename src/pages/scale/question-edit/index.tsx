@@ -5,7 +5,7 @@ import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { observer } from 'mobx-react-lite'
 
-import './QuestionEdit.scss'
+import './index.scss'
 import '@/components/questionEdit/index.scss'
 import '@/components/editorSteps/index.scss'
 import '@/styles/theme-scale.scss'
@@ -202,3 +202,4 @@ const QuestionEdit: React.FC = observer(() => {
 })
 
 export default QuestionEdit
+
