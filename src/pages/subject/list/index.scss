@@ -44,34 +44,51 @@
         min-height: 0;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        overflow: auto;
 
         .ant-spin-container {
           flex: 1;
           min-height: 0;
           display: flex;
           flex-direction: column;
-          overflow: hidden;
+          overflow-y: hidden;
         }
       }
 
       .ant-table {
+        flex: 1;
+        min-height: 0;
         display: flex;
         flex-direction: column;
-        height: 100%;
+        overflow: auto;
 
         .ant-table-container {
           flex: 1;
           min-height: 0;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
+          display: block;
+          position: relative;
         }
 
         .ant-table-body {
-          flex: 1;
-          overflow-y: auto;
-          overflow-x: hidden;
+          overflow-y: auto !important;
+          overflow-x: auto !important;
+        }
+        
+        // 固定列的表格体也需要滚动
+        .ant-table-body-inner {
+          overflow-y: auto !important;
+        }
+        
+        // 确保固定列容器也能滚动
+        .ant-table-fixed-left,
+        .ant-table-fixed-right {
+          .ant-table-body-outer {
+            overflow-y: auto !important;
+          }
+          
+          .ant-table-body-inner {
+            overflow-y: auto !important;
+          }
         }
 
         .ant-table-thead {
@@ -163,6 +180,7 @@
     }
   }
 
+  // 分页器样式
   .ant-pagination {
     flex-shrink: 0;
     padding: 16px;
