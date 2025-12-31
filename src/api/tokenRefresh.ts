@@ -56,13 +56,35 @@ async function refreshAccessToken(): Promise<string | null> {
   const refreshTokenValue = localStorage.getItem('refresh_token')
   
   if (!refreshTokenValue) {
+    console.warn('[TokenRefresh] refresh_token 不存在')
     return null
   }
 
   try {
     const [error, response] = await refreshToken(refreshTokenValue)
 
-    if (error || !response?.data) {
+    if (error) {
+      // 检查是否是 CORS 错误
+      if (error.message?.includes('CORS') || error.message?.includes('Network Error') || !error.response) {
+        console.error('[TokenRefresh] CORS 错误或网络错误:', {
+          message: error.message,
+          code: error.code,
+          isAxiosError: error.isAxiosError,
+          baseURL: error.config?.baseURL,
+          url: error.config?.url
+        })
+      } else {
+        console.error('[TokenRefresh] 刷新 token 失败:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data
+        })
+      }
+      return null
+    }
+
+    if (!response?.data) {
+      console.warn('[TokenRefresh] 响应数据为空')
       return null
     }
 
@@ -73,9 +95,14 @@ async function refreshAccessToken(): Promise<string | null> {
       localStorage.setItem('refresh_token', refresh_token)
     }
 
+    console.log('[TokenRefresh] Token 刷新成功')
     return access_token
-  } catch (error) {
-    console.error('刷新 token 失败:', error)
+  } catch (error: any) {
+    console.error('[TokenRefresh] 刷新 token 异常:', {
+      message: error?.message,
+      stack: error?.stack,
+      isAxiosError: error?.isAxiosError
+    })
     return null
   }
 }
