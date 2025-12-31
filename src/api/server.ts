@@ -3,21 +3,7 @@ import { message } from 'antd'
 import { FcResponse } from '../types/server'
 import { config } from '../config/config'
 import { errorHandler } from 'fc-tools-pc/dist/bundle'
-
-// Token 刷新状态管理
-let isRefreshing = false
-let refreshSubscribers: Array<(token: string) => void> = []
-
-// 添加刷新订阅者
-function subscribeTokenRefresh(cb: (token: string) => void): void {
-  refreshSubscribers.push(cb)
-}
-
-// 通知所有订阅者
-function onTokenRefreshed(token: string): void {
-  refreshSubscribers.forEach(cb => cb(token))
-  refreshSubscribers = []
-}
+import { handle401Error } from './tokenRefresh'
 
 const isDev = process.env.NODE_ENV === 'development'
 const apiAxios = axios.create({
@@ -65,70 +51,12 @@ apiAxios.interceptors.response.use(
   async (err: AxiosError) => {
     const originalRequest = err.config as AxiosRequestConfig & { _retry?: boolean }
 
-    // 判断是否是 401 错误且未重试过
-    if (err.response?.status === 401 && originalRequest && !originalRequest._retry) {
-      // 如果已经在刷新 token，将请求加入队列
-      if (isRefreshing) {
-        return new Promise((resolve) => {
-          subscribeTokenRefresh((token: string) => {
-            if (originalRequest.headers) {
-              originalRequest.headers['Authorization'] = `Bearer ${token}`
-            }
-            resolve(apiAxios(originalRequest))
-          })
-        })
-      }
-
-      originalRequest._retry = true
-      isRefreshing = true
-
+    // 处理 401 错误并自动刷新 token
+    if (err.response?.status === 401 && originalRequest) {
       try {
-        const refreshTokenValue = localStorage.getItem('refresh_token')
-        
-        if (!refreshTokenValue) {
-          // 没有 refresh_token，跳转到登录页
-          errorHandler.handleAuthError('401')
-          isRefreshing = false
-          return Promise.reject(err)
-        }
-
-        // 动态导入 auth API 避免循环依赖
-        const { refreshToken: refreshTokenAPI } = await import('./path/auth')
-        const [error, response] = await refreshTokenAPI(refreshTokenValue)
-
-        if (error || !response?.data) {
-          // 刷新失败，清除 token 并跳转登录
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
-          errorHandler.handleAuthError('401')
-          isRefreshing = false
-          return Promise.reject(err)
-        }
-
-        // 存储新的 token
-        const { access_token, refresh_token } = response.data
-        localStorage.setItem('access_token', access_token)
-        if (refresh_token) {
-          localStorage.setItem('refresh_token', refresh_token)
-        }
-
-        // 通知所有等待的请求
-        onTokenRefreshed(access_token)
-
-        // 更新当前请求的 token 并重试
-        if (originalRequest.headers) {
-          originalRequest.headers['Authorization'] = `Bearer ${access_token}`
-        }
-
-        isRefreshing = false
-        return apiAxios(originalRequest)
-      } catch (refreshError) {
-        // 刷新失败
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        errorHandler.handleAuthError('401')
-        isRefreshing = false
-        return Promise.reject(refreshError)
+        return await handle401Error(err, originalRequest, (config) => apiAxios(config))
+      } catch (refreshErr) {
+        return Promise.reject(refreshErr)
       }
     }
 

@@ -3,23 +3,11 @@ import { message } from 'antd'
 import { errorHandler } from 'fc-tools-pc/dist/bundle'
 import { config } from '../config/config'
 import type { QSResponse } from '@/types/qs'
+import { handle401Error } from './tokenRefresh'
 
 const isDev = process.env.NODE_ENV === 'development'
 // 开发环境使用 /api/v1，让代理转发请求以避免 CORS；生产环境使用绝对地址
 const baseURL = isDev ? '/api/v1' : (process.env.REACT_APP_QS_HOST || config.qsHost || `https://qs.${config.domain}/api/v1`)
-
-// Token 刷新状态管理（与 server.ts 共享）
-let isQsRefreshing = false
-let qsRefreshSubscribers: Array<(token: string) => void> = []
-
-function subscribeQsTokenRefresh(cb: (token: string) => void): void {
-  qsRefreshSubscribers.push(cb)
-}
-
-function onQsTokenRefreshed(token: string): void {
-  qsRefreshSubscribers.forEach(cb => cb(token))
-  qsRefreshSubscribers = []
-}
 
 export const qsAxios = axios.create({
   timeout: 50000,
@@ -57,70 +45,12 @@ qsAxios.interceptors.response.use(
   async (err: AxiosError) => {
     const originalRequest = err.config as AxiosRequestConfig & { _retry?: boolean }
 
-    // 判断是否是 401 错误且未重试过
-    if (err.response?.status === 401 && originalRequest && !originalRequest._retry) {
-      // 如果已经在刷新 token，将请求加入队列
-      if (isQsRefreshing) {
-        return new Promise((resolve) => {
-          subscribeQsTokenRefresh((token: string) => {
-            if (originalRequest.headers) {
-              originalRequest.headers['Authorization'] = `Bearer ${token}`
-            }
-            resolve(qsAxios(originalRequest))
-          })
-        })
-      }
-
-      originalRequest._retry = true
-      isQsRefreshing = true
-
+    // 处理 401 错误并自动刷新 token
+    if (err.response?.status === 401 && originalRequest) {
       try {
-        const refreshTokenValue = localStorage.getItem('refresh_token')
-        
-        if (!refreshTokenValue) {
-          // 没有 refresh_token，跳转到登录页
-          errorHandler.handleAuthError('401')
-          isQsRefreshing = false
-          return Promise.reject(err)
-        }
-
-        // 动态导入 auth API 避免循环依赖
-        const { refreshToken: refreshTokenAPI } = await import('./path/auth')
-        const [error, response] = await refreshTokenAPI(refreshTokenValue)
-
-        if (error || !response?.data) {
-          // 刷新失败，清除 token 并跳转登录
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
-          errorHandler.handleAuthError('401')
-          isQsRefreshing = false
-          return Promise.reject(err)
-        }
-
-        // 存储新的 token
-        const { access_token, refresh_token } = response.data
-        localStorage.setItem('access_token', access_token)
-        if (refresh_token) {
-          localStorage.setItem('refresh_token', refresh_token)
-        }
-
-        // 通知所有等待的请求
-        onQsTokenRefreshed(access_token)
-
-        // 更新当前请求的 token 并重试
-        if (originalRequest.headers) {
-          originalRequest.headers['Authorization'] = `Bearer ${access_token}`
-        }
-
-        isQsRefreshing = false
-        return qsAxios(originalRequest)
-      } catch (refreshError) {
-        // 刷新失败
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        errorHandler.handleAuthError('401')
-        isQsRefreshing = false
-        return Promise.reject(refreshError)
+        return await handle401Error(err, originalRequest, (config) => qsAxios(config))
+      } catch (refreshErr) {
+        return Promise.reject(refreshErr)
       }
     }
 
