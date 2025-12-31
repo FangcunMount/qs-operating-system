@@ -388,6 +388,21 @@ export async function getScaleCategories(): Promise<[any, QSResponse<IScaleCateg
   return get<IScaleCategoriesResponse>('/scales/categories')
 }
 
+// 小程序码响应
+export interface IQRCodeResponse {
+  qrcode_url: string
+}
+
+/**
+ * 获取量表小程序码
+ * GET /scales/{code}/qrcode
+ */
+export async function getScaleQRCode(
+  scaleCode: string
+): Promise<[any, QSResponse<IQRCodeResponse> | undefined]> {
+  return get<IQRCodeResponse>(`/scales/${scaleCode}/qrcode`)
+}
+
 export const scaleApi = {
   getScaleList,
   getScaleListCompat,
@@ -399,5 +414,6 @@ export const scaleApi = {
   updateScaleBasicInfo,
   publishScale,
   unpublishScale,
-  getScaleCategories
+  getScaleCategories,
+  getScaleQRCode
 }

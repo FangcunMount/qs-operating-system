@@ -362,6 +362,24 @@ export async function saveSurveyRouting(
   })
 }
 
+// 小程序码响应
+export interface IQRCodeResponse {
+  qrcode_url: string
+}
+
+/**
+ * 获取问卷小程序码
+ * GET /questionnaires/{code}/qrcode?version=v1.0  # 指定版本
+ * GET /questionnaires/{code}/qrcode               # 使用最新版本
+ */
+export async function getQuestionnaireQRCode(
+  code: string,
+  version?: string
+): Promise<[any, QSResponse<IQRCodeResponse> | undefined]> {
+  const params = version ? { version } : undefined
+  return get<IQRCodeResponse>(`/questionnaires/${code}/qrcode`, params)
+}
+
 export const surveyApi = {
   createSurvey,
   updateSurvey,
@@ -378,5 +396,6 @@ export const surveyApi = {
   addQuestion,
   updateQuestion,
   deleteQuestion,
-  reorderQuestions
+  reorderQuestions,
+  getQuestionnaireQRCode
 }

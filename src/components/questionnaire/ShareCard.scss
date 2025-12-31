@@ -86,6 +86,8 @@
       .qrcode-wrapper {
         display: flex;
         justify-content: center;
+        align-items: center;
+        min-height: 200px;
         padding: 24px;
         background: #fafbfc;
         border: 2px dashed #e8eaed;
@@ -95,6 +97,17 @@
         .qrcode-canvas {
           max-width: 200px;
           height: auto;
+        }
+
+        .qrcode-image {
+          max-width: 200px;
+          height: auto;
+          border-radius: 8px;
+        }
+
+        .qrcode-placeholder {
+          color: #8c8c8c;
+          font-size: 14px;
         }
       }
 

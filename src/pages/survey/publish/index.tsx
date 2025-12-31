@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { message } from 'antd'
 import { useParams, useLocation } from 'react-router'
 import { observer } from 'mobx-react-lite'
@@ -17,11 +17,23 @@ const Publish: React.FC = observer(() => {
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const { handleStepChange } = useSurveySteps()
   const { isPublished, surveyUrl, shareCode, togglePublish, refreshData } = useSurveyPublish(questionsheetid || '')
+  const [questionnaireVersion, setQuestionnaireVersion] = useState<string>()
 
   useEffect(() => {
     // 根据路由自动设置当前步骤
     surveyStore.setCurrentStep('publish')
-  }, [location.pathname])
+    
+    // 获取问卷版本号
+    if (questionsheetid) {
+      surveyStore.fetchSurveyInfo(questionsheetid).then((questionnaire) => {
+        if (questionnaire?.version) {
+          setQuestionnaireVersion(questionnaire.version)
+        }
+      }).catch((err) => {
+        console.error('获取问卷版本失败:', err)
+      })
+    }
+  }, [location.pathname, questionsheetid])
 
   // 步骤跳转处理（使用统一的步骤导航）
   const onStepChange = (stepIndex: number) => {
@@ -131,11 +143,13 @@ const Publish: React.FC = observer(() => {
             />
 
             {/* 分享设置 */}
-            {isPublished && (
+            {isPublished && questionsheetid && (
               <ShareCard
                 surveyUrl={surveyUrl}
                 shareCode={shareCode}
                 type='survey'
+                code={questionsheetid}
+                version={questionnaireVersion}
                 onCopyLink={handleCopyLink}
                 onCopyShareCode={handleCopyShareCode}
               />

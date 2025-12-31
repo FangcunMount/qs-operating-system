@@ -67,6 +67,19 @@ const Publish: React.FC = observer(() => {
       setSurveyUrl(url)
       setShareCode(questionsheetid)
       
+      // 如果 scaleCode 还没有，尝试从服务器获取
+      if (!scaleStore.scaleCode && questionsheetid) {
+        try {
+          const { scaleApi } = await import('@/api/path/scale')
+          const [se, sr] = await scaleApi.getScaleByQuestionnaire(questionsheetid)
+          if (!se && sr?.data?.code) {
+            scaleStore.scaleCode = sr.data.code
+          }
+        } catch (error) {
+          console.error('获取量表编码失败:', error)
+        }
+      }
+      
       // 仍需从服务器获取发布状态
       try {
         const questionsheet = await scaleStore.fetchScaleInfo(questionsheetid)
@@ -92,6 +105,19 @@ const Publish: React.FC = observer(() => {
         setIsPublished(questionsheet.status === 1)
       }
       
+      // 如果 scaleCode 还没有，尝试从服务器获取
+      if (!scaleStore.scaleCode && questionsheetid) {
+        try {
+          const { scaleApi } = await import('@/api/path/scale')
+          const [se, sr] = await scaleApi.getScaleByQuestionnaire(questionsheetid)
+          if (!se && sr?.data?.code) {
+            scaleStore.scaleCode = sr.data.code
+          }
+        } catch (error) {
+          console.error('获取量表编码失败:', error)
+        }
+      }
+      
       // 生成问卷链接
       const baseUrl = window.location.origin
       const url = `${baseUrl}/answer/${questionsheetid}`
@@ -113,6 +139,19 @@ const Publish: React.FC = observer(() => {
       message.loading({ content: '发布中...', duration: 0, key: 'publish' })
       await scaleStore.publish()
       setIsPublished(true)
+      
+      // 发布成功后，scaleCode 应该已经设置，确保获取到
+      if (!scaleStore.scaleCode && questionsheetid) {
+        try {
+          const { scaleApi } = await import('@/api/path/scale')
+          const [se, sr] = await scaleApi.getScaleByQuestionnaire(questionsheetid)
+          if (!se && sr?.data?.code) {
+            scaleStore.scaleCode = sr.data.code
+          }
+        } catch (error) {
+          console.error('获取量表编码失败:', error)
+        }
+      }
       
       message.destroy()
       message.success('问卷发布成功！')
@@ -221,11 +260,12 @@ const Publish: React.FC = observer(() => {
             />
 
             {/* 分享设置 */}
-            {isPublished && (
+            {isPublished && scaleStore.scaleCode && (
               <ShareCard
                 surveyUrl={surveyUrl}
                 shareCode={shareCode}
                 type='scale'
+                code={scaleStore.scaleCode}
                 onCopyLink={handleCopyLink}
                 onCopyShareCode={handleCopyShareCode}
               />
