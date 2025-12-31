@@ -122,7 +122,7 @@ const ShareCard: React.FC<ShareCardProps> = ({
                 src={qrcodeUrl} 
                 alt="小程序码" 
                 className='qrcode-image'
-                onError={(e) => {
+                onError={() => {
                   console.error('小程序码图片加载失败')
                   message.error('小程序码加载失败')
                 }}
