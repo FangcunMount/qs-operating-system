@@ -67,48 +67,6 @@ const ShareCard: React.FC<ShareCardProps> = ({
   return (
     <Card title='分享设置' bordered={false} className={`share-card ${themeClass}`}>
       <div className='share-section'>
-        {/* 问卷链接 */}
-        <div className='share-item'>
-          <div className='share-label'>
-            <LinkOutlined /> 问卷链接
-          </div>
-          <Input.Group compact>
-            <Input 
-              className='share-input'
-              value={surveyUrl} 
-              readOnly 
-            />
-            <Button 
-              icon={<CopyOutlined />} 
-              onClick={onCopyLink}
-              size='large'
-            >
-              复制
-            </Button>
-          </Input.Group>
-        </div>
-
-        {/* 分享码 */}
-        <div className='share-item'>
-          <div className='share-label'>
-            分享码
-          </div>
-          <Input.Group compact>
-            <Input 
-              className='share-input'
-              value={shareCode} 
-              readOnly 
-            />
-            <Button 
-              icon={<CopyOutlined />} 
-              onClick={onCopyShareCode}
-              size='large'
-            >
-              复制
-            </Button>
-          </Input.Group>
-        </div>
-
         {/* 小程序码 */}
         <div className='share-item'>
           <div className='share-label'>
