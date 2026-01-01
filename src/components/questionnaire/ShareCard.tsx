@@ -1,29 +1,19 @@
 import React, { useEffect, useState } from 'react'
-import { Card, Input, Button, Spin, message } from 'antd'
-import { LinkOutlined, QrcodeOutlined, CopyOutlined } from '@ant-design/icons'
+import { Card, Spin, message } from 'antd'
+import { QrcodeOutlined } from '@ant-design/icons'
 import './ShareCard.scss'
 
 export interface ShareCardProps {
-  surveyUrl: string
-  shareCode: string
   type?: 'survey' | 'scale'
   code: string // 问卷编码或量表编码
-  version?: string // 问卷版本（可选，仅问卷需要）
-  onCopyLink: () => void
-  onCopyShareCode: () => void
 }
 
 /**
  * 通用的分享设置卡片组件
  */
 const ShareCard: React.FC<ShareCardProps> = ({
-  surveyUrl,
-  shareCode,
   type = 'survey',
   code,
-  version,
-  onCopyLink,
-  onCopyShareCode
 }) => {
   const themeClass = type === 'survey' ? 'survey-theme' : 'scale-theme'
   const [qrcodeUrl, setQrcodeUrl] = useState<string>('')
@@ -38,7 +28,7 @@ const ShareCard: React.FC<ShareCardProps> = ({
       try {
         if (type === 'survey') {
           const { surveyApi } = await import('@/api/path/survey')
-          const [err, res] = await surveyApi.getQuestionnaireQRCode(code, version)
+          const [err, res] = await surveyApi.getQuestionnaireQRCode(code)
           if (err || !res?.data?.qrcode_url) {
             console.error('获取问卷小程序码失败:', err)
             return
@@ -62,7 +52,7 @@ const ShareCard: React.FC<ShareCardProps> = ({
     }
 
     loadQRCode()
-  }, [code, version, type])
+  }, [code, type])
 
   return (
     <Card title='分享设置' bordered={false} className={`share-card ${themeClass}`}>

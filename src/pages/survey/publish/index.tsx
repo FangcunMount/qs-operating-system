@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import { message } from 'antd'
 import { useParams, useLocation } from 'react-router'
 import { observer } from 'mobx-react-lite'
@@ -16,23 +16,11 @@ const Publish: React.FC = observer(() => {
   const location = useLocation()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const { handleStepChange } = useSurveySteps()
-  const { isPublished, surveyUrl, shareCode, togglePublish, refreshData } = useSurveyPublish(questionsheetid || '')
-  const [questionnaireVersion, setQuestionnaireVersion] = useState<string>()
+  const { isPublished, togglePublish, refreshData } = useSurveyPublish(questionsheetid || '')
 
   useEffect(() => {
     // 根据路由自动设置当前步骤
     surveyStore.setCurrentStep('publish')
-    
-    // 获取问卷版本号
-    if (questionsheetid) {
-      surveyStore.fetchSurveyInfo(questionsheetid).then((questionnaire) => {
-        if (questionnaire?.version) {
-          setQuestionnaireVersion(questionnaire.version)
-        }
-      }).catch((err) => {
-        console.error('获取问卷版本失败:', err)
-      })
-    }
   }, [location.pathname, questionsheetid])
 
   // 步骤跳转处理（使用统一的步骤导航）
@@ -49,16 +37,6 @@ const Publish: React.FC = observer(() => {
 
   const handleUnpublish = async () => {
     await togglePublish(false)
-  }
-
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(surveyUrl)
-    message.success('链接已复制到剪贴板')
-  }
-
-  const handleCopyShareCode = () => {
-    navigator.clipboard.writeText(shareCode)
-    message.success('分享码已复制到剪贴板')
   }
 
   // 存草稿（状态栏内使用）
@@ -144,15 +122,7 @@ const Publish: React.FC = observer(() => {
 
             {/* 分享设置 */}
             {isPublished && questionsheetid && (
-              <ShareCard
-                surveyUrl={surveyUrl}
-                shareCode={shareCode}
-                type='survey'
-                code={questionsheetid}
-                version={questionnaireVersion}
-                onCopyLink={handleCopyLink}
-                onCopyShareCode={handleCopyShareCode}
-              />
+              <ShareCard type='survey' code={questionsheetid} />
             )}
           </div>
 

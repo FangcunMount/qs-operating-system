@@ -45,8 +45,6 @@ const Publish: React.FC = observer(() => {
       break
     }
   }
-  const [surveyUrl, setSurveyUrl] = useState('')
-  const [shareCode, setShareCode] = useState('')
 
   useEffect(() => {
     // 根据路由自动设置当前步骤
@@ -60,12 +58,6 @@ const Publish: React.FC = observer(() => {
     
     if (restored && scaleStore.id === questionsheetid && scaleStore.questions.length > 0) {
       console.log('publish 页面从 localStorage 恢复数据成功')
-      
-      // 生成链接和分享码
-      const baseUrl = window.location.origin
-      const url = `${baseUrl}/answer/${questionsheetid}`
-      setSurveyUrl(url)
-      setShareCode(questionsheetid)
       
       // 如果 scaleCode 还没有，尝试从服务器获取
       if (!scaleStore.scaleCode && questionsheetid) {
@@ -118,14 +110,6 @@ const Publish: React.FC = observer(() => {
         }
       }
       
-      // 生成问卷链接
-      const baseUrl = window.location.origin
-      const url = `${baseUrl}/answer/${questionsheetid}`
-      setSurveyUrl(url)
-      
-      // 生成分享码
-      setShareCode(questionsheetid)
-      
       message.destroy()
       message.success({ content: '加载成功!', key: 'fetch', duration: 2 })
     } catch (error: any) {
@@ -174,16 +158,6 @@ const Publish: React.FC = observer(() => {
       message.destroy()
       message.error(`取消发布失败: ${error?.errmsg ?? error}`)
     }
-  }
-
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(surveyUrl)
-    message.success('链接已复制到剪贴板')
-  }
-
-  const handleCopyShareCode = () => {
-    navigator.clipboard.writeText(shareCode)
-    message.success('分享码已复制到剪贴板')
   }
 
   // 存草稿（状态栏内使用）
@@ -261,14 +235,7 @@ const Publish: React.FC = observer(() => {
 
             {/* 分享设置 */}
             {isPublished && scaleStore.scaleCode && (
-              <ShareCard
-                surveyUrl={surveyUrl}
-                shareCode={shareCode}
-                type='scale'
-                code={scaleStore.scaleCode}
-                onCopyLink={handleCopyLink}
-                onCopyShareCode={handleCopyShareCode}
-              />
+              <ShareCard type='scale' code={scaleStore.scaleCode} />
             )}
           </div>
 
