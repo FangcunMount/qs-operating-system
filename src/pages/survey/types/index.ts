@@ -4,7 +4,7 @@
 
 export interface SurveyListFilters {
   keyword: string
-  status?: 'draft' | 'published'
+  status?: number
 }
 
 export interface SurveyPagination {
@@ -18,4 +18,3 @@ export interface SurveyPublishInfo {
   surveyUrl: string
   shareCode: string
 }
-

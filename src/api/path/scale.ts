@@ -31,7 +31,7 @@ export interface IScaleResponse {
   code: string
   title: string
   description?: string
-  status: string
+  status: number
   created_by?: string
   created_at?: string
   updated_by?: string

@@ -281,7 +281,7 @@ export async function listQuestionnaires(params: {
   page?: number
   page_size?: number
   type?: string
-  status?: string
+  status?: number
   title?: string
 }): Promise<[any, QSResponse<IQuestionnaireListResponse> | undefined]> {
   return get<IQuestionnaireListResponse>('/questionnaires', params)

@@ -23,7 +23,7 @@ const { Search } = Input
 
 const List: React.FC = observer(() => {
   const [keyWord, setKeyWord] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
+  const [statusFilter, setStatusFilter] = useState<number | undefined>(undefined)
   const [loading, setLoading] = useState(false)
   const [surveyList, setSurveyList] = useState<IQuestionSheetInfo[]>([])
   const [pageInfo, setPageInfo] = useState({
@@ -36,7 +36,7 @@ const List: React.FC = observer(() => {
     initData(10, 1)
   }, [])
 
-  const initData = async (size: number, num: number, searchKey?: string, status?: string) => {
+  const initData = async (size: number, num: number, searchKey?: string, status?: number) => {
     setLoading(true)
     try {
       // 使用新 API 获取问卷列表
@@ -63,12 +63,12 @@ const List: React.FC = observer(() => {
         img_url: q.img_url || '',
         question_cnt: String(q.questions?.length || 0),
         answersheet_cnt: '0', // 先设为0，异步加载
-        status: q.status !== undefined ? String(q.status) : '0', // 状态：0=草稿, 1=已发布, 2=已归档
+        status: q.status ?? 0, // 状态：0=草稿, 1=已发布, 2=已归档
         create_user: q.created_by || q.create_user || '系统',
         createtime: q.created_at || q.createtime || '',
         last_update_user: q.updated_by || q.last_update_user || '系统',
         last_update_time: q.updated_at || q.last_update_time || ''
-      } as IQuestionSheetInfo & { status: string }))
+      } as IQuestionSheetInfo))
 
       setSurveyList(surveyListBasic)
 
@@ -158,9 +158,9 @@ const List: React.FC = observer(() => {
                 initData(pageInfo.pagesize, 1, keyWord, value)
               }}
             >
-              <Select.Option value="draft">草稿</Select.Option>
-              <Select.Option value="published">已发布</Select.Option>
-              <Select.Option value="archived">已归档</Select.Option>
+              <Select.Option value={0}>草稿</Select.Option>
+              <Select.Option value={1}>已发布</Select.Option>
+              <Select.Option value={2}>已归档</Select.Option>
             </Select>
           </div>
           <Link to="/survey/info/new">
@@ -270,9 +270,9 @@ const List: React.FC = observer(() => {
             dataIndex="status"
             width={100}
             align="center"
-            render={(v: string | number) => {
+            render={(v: number | undefined) => {
               // 状态值：0=草稿, 1=已发布, 2=已归档
-              const statusNum = typeof v === 'string' ? parseInt(v, 10) : (v ?? 0)
+              const statusNum = v ?? 0
               const statusMap: Record<number, { text: string; color: string }> = {
                 0: { text: '草稿', color: 'default' },
                 1: { text: '已发布', color: 'success' },

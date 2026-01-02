@@ -104,25 +104,11 @@ const List: React.FC = observer(() => {
     initData(pageInfo.pagesize, 1, value)
   }
 
-  const renderStatusTag = (value?: string | number) => {
-    if (value === undefined || value === null || value === '') {
+  const renderStatusTag = (value?: number) => {
+    if (value === undefined || value === null || value === undefined) {
       return <span style={{ color: '#999' }}>-</span>
     }
-    const normalized = String(value)
-    const statusMap: Record<string, { text: string; color: string }> = {
-      '0': { text: '草稿', color: 'default' },
-      '1': { text: '已发布', color: 'success' },
-      '2': { text: '已归档', color: 'warning' },
-      draft: { text: '草稿', color: 'default' },
-      published: { text: '已发布', color: 'success' },
-      archived: { text: '已归档', color: 'warning' }
-    }
-    const statusInfo = statusMap[normalized] || { text: normalized, color: 'default' }
-    return (
-      <Tag color={statusInfo.color} style={{  paddingInline: 10, fontSize: 12, marginInlineEnd: 0 }}>
-        {statusInfo.text}
-      </Tag>
-    )
+    return <Tag color={value === 1 ? 'success' : value === 2 ? 'warning' : 'default'}>{value === 1 ? '已发布' : value === 2 ? '已归档' : '草稿'}</Tag>
   }
 
   return (
@@ -306,11 +292,11 @@ const List: React.FC = observer(() => {
             width={120}
             align="center"
             filters={[
-              { text: '草稿', value: '0' },
-              { text: '已发布', value: '1' },
-              { text: '已归档', value: '2' }
+              { text: '草稿', value: 0 },
+              { text: '已发布', value: 1 },
+              { text: '已归档', value: 2 }
             ]}
-            onFilter={(value, record) => String((record as IQuestionSheetInfo).status) === String(value)}
+            onFilter={(value, record) => Number((record as IQuestionSheetInfo).status) === Number(value)}
             sorter={(a, b) =>
               Number((a as IQuestionSheetInfo).status || 0) - Number((b as IQuestionSheetInfo).status || 0)
             }

@@ -19,7 +19,7 @@ export interface IQuestionSheetInfo {
   answersheet_cnt?: string
   create_user?: string
   last_update_user?: string
-  status?: number | string // 问卷状态：0=草稿, 1=已发布, 2=已归档（兼容字符串类型）
+  status?: number // 问卷状态：0=草稿, 1=已发布, 2=已归档
   category?: string
   reporters?: string[]
   stages?: string[]

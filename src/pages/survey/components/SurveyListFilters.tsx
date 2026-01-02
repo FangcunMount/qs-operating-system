@@ -6,9 +6,9 @@ const { Search } = Input
 
 interface SurveyListFiltersProps {
   keyword: string
-  statusFilter?: string
+  statusFilter?: number
   onKeywordChange: (value: string) => void
-  onStatusChange: (value: string | undefined) => void
+  onStatusChange: (value: number | undefined) => void
   onSearch: (value: string) => void
   onCreateClick?: () => void
 }
@@ -45,8 +45,9 @@ export const SurveyListFilters: React.FC<SurveyListFiltersProps> = ({
           value={statusFilter}
           onChange={onStatusChange}
         >
-          <Select.Option value="draft">草稿</Select.Option>
-          <Select.Option value="published">已发布</Select.Option>
+          <Select.Option value={0}>草稿</Select.Option>
+          <Select.Option value={1}>已发布</Select.Option>
+          <Select.Option value={2}>已归档</Select.Option>
         </Select>
       </div>
       <Button 
@@ -60,4 +61,3 @@ export const SurveyListFilters: React.FC<SurveyListFiltersProps> = ({
     </div>
   )
 }
-

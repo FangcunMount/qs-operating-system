@@ -32,9 +32,9 @@ export const SurveyListTable: React.FC<SurveyListTableProps> = ({
   onPageChange,
   onEdit
 }) => {
-  const getStatusTag = (status?: string | number) => {
+  const getStatusTag = (status?: number) => {
     // 状态值：0=草稿, 1=已发布, 2=已归档
-    const statusNum = typeof status === 'string' ? parseInt(status, 10) : (status ?? 0)
+    const statusNum = status ?? 0
     switch (statusNum) {
     case 1:
       return <Tag color="green">已发布</Tag>
@@ -79,7 +79,7 @@ export const SurveyListTable: React.FC<SurveyListTableProps> = ({
         dataIndex="status"
         key="status"
         width={100}
-        render={(status: string) => getStatusTag(status)}
+        render={(status: number) => getStatusTag(status)}
       />
       <Column
         title="题目数"
@@ -135,4 +135,3 @@ export const SurveyListTable: React.FC<SurveyListTableProps> = ({
     </Table>
   )
 }
-
