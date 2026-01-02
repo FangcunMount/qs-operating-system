@@ -99,7 +99,9 @@ export interface IScaleCategoriesResponse {
 export async function getScaleList(
   page = 1,
   page_size = 10,
-  keyword?: string
+  keyword?: string,
+  status?: number,
+  category?: string
 ): Promise<[any, QSResponse<IScaleListResponse> | undefined]> {
   const params: any = {
     page,
@@ -107,6 +109,12 @@ export async function getScaleList(
   }
   if (keyword) {
     params.title = keyword
+  }
+  if (status !== undefined) {
+    params.status = status
+  }
+  if (category) {
+    params.category = category
   }
   return get<IScaleListResponse>('/scales', params)
 }
@@ -143,12 +151,16 @@ function convertScaleToQuestionSheetInfo(scale: IScaleResponse): IQuestionSheetI
 export async function getScaleListCompat(
   pagesize: string,
   pagenum: string,
-  keyword?: string
+  keyword?: string,
+  status?: number,
+  category?: string
 ): Promise<[any, { data: { pagesize: string; pagenum: string; total_count: string; list: IQuestionSheetInfo[] } } | undefined]> {
   const [err, res] = await getScaleList(
     parseInt(pagenum, 10),
     parseInt(pagesize, 10),
-    keyword
+    keyword,
+    status,
+    category
   )
   
   if (err || !res?.data) {

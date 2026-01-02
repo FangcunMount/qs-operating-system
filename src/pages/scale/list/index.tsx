@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Table, Card, Input, Button, Tag, Space, Tooltip, message, Typography } from 'antd'
+import { Table, Card, Input, Button, Tag, Space, Tooltip, message, Typography, Select } from 'antd'
 import { Link } from 'react-router-dom'
 import { observer } from 'mobx-react'
 import { 
@@ -23,6 +23,8 @@ const List: React.FC = observer(() => {
   const [keyWord, setKeyWord] = useState('')
   const [loading, setLoading] = useState(false)
   const [scaleList, setScaleList] = useState<IQuestionSheetInfo[]>([])
+  const [categoryFilter, setCategoryFilter] = useState<string | undefined>()
+  const [statusFilter, setStatusFilter] = useState<number | undefined>()
   const [pageInfo, setPageInfo] = useState({
     pagenum: 1,
     pagesize: 10,
@@ -39,10 +41,16 @@ const List: React.FC = observer(() => {
     })
   }, [])
 
-  const initData = async (size: number, num: number, keyWord?: string) => {
+  const initData = async (
+    size: number,
+    num: number,
+    keyWord?: string,
+    status?: number,
+    category?: string
+  ) => {
     setLoading(true)
     try {
-      const [err, res] = await getScaleList(String(size), String(num), keyWord)
+      const [err, res] = await getScaleList(String(size), String(num), keyWord, status, category)
       if (err) {
         console.error('获取量表列表失败:', err)
         message.error('获取量表列表失败，请稍后重试')
@@ -96,12 +104,24 @@ const List: React.FC = observer(() => {
 
   const handleChangePagination = (size: number, num: number) => {
     if (size !== pageInfo.pagesize) num = 1
-    initData(size, num, keyWord)
+    initData(size, num, keyWord, statusFilter, categoryFilter)
   }
 
   const onSearch = (value: string) => {
     setKeyWord(value)
-    initData(pageInfo.pagesize, 1, value)
+    initData(pageInfo.pagesize, 1, value, statusFilter, categoryFilter)
+  }
+
+  const handleCategoryChange = (value: string | undefined) => {
+    const nextValue = value || undefined
+    setCategoryFilter(nextValue)
+    initData(pageInfo.pagesize, 1, keyWord, statusFilter, nextValue)
+  }
+
+  const handleStatusChange = (value: number | undefined) => {
+    const nextValue = value === undefined ? undefined : value
+    setStatusFilter(nextValue)
+    initData(pageInfo.pagesize, 1, keyWord, nextValue, categoryFilter)
   }
 
   const renderStatusTag = (value?: number) => {
@@ -126,16 +146,42 @@ const List: React.FC = observer(() => {
 
       {/* 搜索和操作区 */}
       <Card style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
-          <div style={{ flex: 1, maxWidth: 500 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <Space size={12} wrap style={{ flex: 1, minWidth: 320 }}>
             <Search 
               placeholder='搜索量表名称或描述'
               allowClear 
               enterButton={<><SearchOutlined /> 搜索</>}
               size="large" 
               onSearch={onSearch}
+              style={{ width: 320 }}
             />
-          </div>
+            <Select
+              placeholder="筛选类别"
+              allowClear
+              size="large"
+              value={categoryFilter}
+              onChange={handleCategoryChange}
+              options={scaleStore.categoryOptions.map((opt) => ({
+                label: opt.label,
+                value: opt.value
+              }))}
+              style={{ width: 200 }}
+            />
+            <Select
+              placeholder="筛选状态"
+              allowClear
+              size="large"
+              value={statusFilter}
+              onChange={handleStatusChange}
+              options={[
+                { label: '草稿', value: 0 },
+                { label: '已发布', value: 1 },
+                { label: '已归档', value: 2 }
+              ]}
+              style={{ width: 160 }}
+            />
+          </Space>
           <Link to="/scale/info/new">
             <Button
               type="primary"

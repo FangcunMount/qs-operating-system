@@ -62,10 +62,12 @@ export function getScaleList<T = {
 }>(
   pagesize: string,
   pagenum: string,
-  keyword?: string
+  keyword?: string,
+  status?: number,
+  category?: string
 ): ApiResponse<T> {
   // 使用新 API
-  return getScaleListCompat(pagesize, pagenum, keyword) as ApiResponse<T>
+  return getScaleListCompat(pagesize, pagenum, keyword, status, category) as ApiResponse<T>
 }
 
 export const templateApi = {
