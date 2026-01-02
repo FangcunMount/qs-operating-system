@@ -11,6 +11,10 @@ export interface IQuestionnaireResponse {
   title: string
   description?: string
   img_url?: string
+  created_by?: string
+  created_at?: string
+  updated_by?: string
+  updated_at?: string
   status: number // 0=草稿, 1=已发布, 2=已归档
   type: string
   version: string
@@ -276,6 +280,7 @@ export async function archiveSurvey(
 export async function listQuestionnaires(params: {
   page?: number
   page_size?: number
+  type?: string
   status?: string
   title?: string
 }): Promise<[any, QSResponse<IQuestionnaireListResponse> | undefined]> {

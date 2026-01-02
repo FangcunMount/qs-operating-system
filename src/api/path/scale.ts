@@ -32,6 +32,10 @@ export interface IScaleResponse {
   title: string
   description?: string
   status: string
+  created_by?: string
+  created_at?: string
+  updated_by?: string
+  updated_at?: string
   questionnaire_code: string
   questionnaire_version: string
   category?: string // 主类：ADHD、抽动障碍、感统、执行功能、心理健康、神经发育筛查、慢性病管理、生活质量
@@ -119,9 +123,15 @@ function convertScaleToQuestionSheetInfo(scale: IScaleResponse): IQuestionSheetI
     img_url: '',
     question_cnt: '0', // 需要从问卷接口获取
     answersheet_cnt: '0', // 需要从统计接口获取
-    create_user: '',
-    last_update_user: '',
-    createtime: '',
+    create_user: scale.created_by || '',
+    last_update_user: scale.updated_by || '',
+    createtime: scale.created_at || '',
+    last_update_time: scale.updated_at || '',
+    status: scale.status,
+    category: scale.category || '',
+    reporters: scale.reporters || [],
+    stages: scale.stages || [],
+    tags: scale.tags || [],
     scaleCode: scale.code // 保存量表编码，用于编辑量表
   } as IQuestionSheetInfo & { scaleCode?: string }
 }

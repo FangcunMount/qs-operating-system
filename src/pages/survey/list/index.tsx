@@ -43,6 +43,7 @@ const List: React.FC = observer(() => {
       const [err, res] = await surveyApi.listQuestionnaires({
         page: num,
         page_size: size,
+        type: 'survey',
         title: searchKey !== undefined ? searchKey : (keyWord || undefined),
         status: status !== undefined ? status : statusFilter
       })
@@ -63,9 +64,10 @@ const List: React.FC = observer(() => {
         question_cnt: String(q.questions?.length || 0),
         answersheet_cnt: '0', // 先设为0，异步加载
         status: q.status !== undefined ? String(q.status) : '0', // 状态：0=草稿, 1=已发布, 2=已归档
-        create_user: '系统', // API 没有此字段，使用默认值
-        createtime: '', // API 没有此字段
-        last_update_user: '系统' // API 没有此字段
+        create_user: q.created_by || q.create_user || '系统',
+        createtime: q.created_at || q.createtime || '',
+        last_update_user: q.updated_by || q.last_update_user || '系统',
+        last_update_time: q.updated_at || q.last_update_time || ''
       } as IQuestionSheetInfo & { status: string }))
 
       setSurveyList(surveyListBasic)
@@ -287,23 +289,28 @@ const List: React.FC = observer(() => {
               <div>
                 <div style={{ fontSize: 13, marginBottom: 4 }}>
                   <UserOutlined style={{ marginRight: 4, color: '#999' }} />
-                  {row.create_user}
+                  {row.create_user || '-'}
                 </div>
                 <div style={{ fontSize: 12, color: '#999' }}>
                   <ClockCircleOutlined style={{ marginRight: 4 }} />
-                  {row.createtime}
+                  {row.createtime || '-'}
                 </div>
               </div>
             )}
           />
           <Column 
             title="最后修改人" 
-            dataIndex="last_update_user"
-            width={120}
-            render={(v) => (
-              <div style={{ fontSize: 13 }}>
-                <UserOutlined style={{ marginRight: 4, color: '#999' }} />
-                {v}
+            width={180}
+            render={(_, row: any) => (
+              <div>
+                <div style={{ fontSize: 13, marginBottom: 4 }}>
+                  <UserOutlined style={{ marginRight: 4, color: '#999' }} />
+                  {row.last_update_user || '-'}
+                </div>
+                <div style={{ fontSize: 12, color: '#999' }}>
+                  <ClockCircleOutlined style={{ marginRight: 4 }} />
+                  {row.last_update_time || '-'}
+                </div>
               </div>
             )}
           />
@@ -345,4 +352,3 @@ const List: React.FC = observer(() => {
 })
 
 export default List
-

@@ -20,6 +20,7 @@ import { api } from '../api'
 import { delShowController, postShowController } from '@/api/path/showController'
 import { convertQuestionFromDTO } from '@/api/path/questionConverter'
 import type { IQuestionDTO } from '@/api/path/survey'
+import { getScaleCategories } from '@/api/path/scale'
 
 // 量表编辑步骤
 export type ScaleStep = 'create' | 'edit-questions' | 'set-routing' | 'edit-factors' | 'set-interpretation' | 'publish'
@@ -80,6 +81,11 @@ export const scaleStore = makeObservable(
     reporters: [] as string[], // 填报人列表（数组）：parent(家长评)、teacher(教师评)、self(自评)、clinical(临床评定)
     tags: [] as string[], // 标签数组（动态输入）
     questions: scaleInit.questions,
+    categoryOptions: [] as Array<{ value: string; label: string }>,
+    stageOptions: [] as Array<{ value: string; label: string }>,
+    applicableAgeOptions: [] as Array<{ value: string; label: string }>,
+    reporterOptions: [] as Array<{ value: string; label: string }>,
+    categoryOptionsLoading: false,
     // 题目显隐规则（前端暂存）
     showControllers: [] as { code: string; show_controller: IQuestionShowController }[],
     deletedShowControllerCodes: [] as string[],
@@ -126,6 +132,58 @@ export const scaleStore = makeObservable(
         'edit-factors': this.factors.length > 0,
         'set-interpretation': true, // 解读规则是可选的
         publish: false // 发布后完成
+      }
+    },
+
+    getOptionLabel(options: Array<{ value: string; label: string }>, value?: string) {
+      if (!value) return ''
+      const matched = options.find((opt) => opt.value === value)
+      return matched ? matched.label : value
+    },
+
+    getCategoryLabel(value?: string) {
+      return this.getOptionLabel(this.categoryOptions, value)
+    },
+
+    getStageLabels(values?: string[]) {
+      if (!values || values.length === 0) return []
+      return values.map((val) => this.getOptionLabel(this.stageOptions, val))
+    },
+
+    getReporterLabels(values?: string[]) {
+      if (!values || values.length === 0) return []
+      return values.map((val) => this.getOptionLabel(this.reporterOptions, val))
+    },
+
+    getApplicableAgeLabels(values?: string[]) {
+      if (!values || values.length === 0) return []
+      return values.map((val) => this.getOptionLabel(this.applicableAgeOptions, val))
+    },
+
+    async ensureCategoryOptions() {
+      if (this.categoryOptionsLoading) return
+      if (
+        this.categoryOptions.length > 0 ||
+        this.stageOptions.length > 0 ||
+        this.applicableAgeOptions.length > 0 ||
+        this.reporterOptions.length > 0
+      ) {
+        return
+      }
+      this.categoryOptionsLoading = true
+      try {
+        const [err, res] = await getScaleCategories()
+        runInAction(() => {
+          if (err || !res?.data) return
+          this.categoryOptions = res.data.categories || []
+          this.stageOptions = res.data.stages || []
+          this.applicableAgeOptions = res.data.applicable_ages || []
+          this.reporterOptions = res.data.reporters || []
+        })
+      } finally {
+        runInAction(() => {
+          this.categoryOptionsLoading = false
+        })
       }
     },
 
@@ -1155,6 +1213,11 @@ export const scaleStore = makeObservable(
     title: observable,
     desc: observable,
     img_url: observable,
+    categoryOptions: observable,
+    stageOptions: observable,
+    applicableAgeOptions: observable,
+    reporterOptions: observable,
+    categoryOptionsLoading: observable,
     questions: observable,
     factors: observable,
     showControllers: observable,
@@ -1208,7 +1271,8 @@ export const scaleStore = makeObservable(
     unpublish: action,
     saveBasicInfo: action,
     saveQuestionList: action,
-    initEditor: action
+    initEditor: action,
+    ensureCategoryOptions: action
   }
 )
 
@@ -1250,4 +1314,3 @@ reaction(
     fireImmediately: false
   }
 )
-

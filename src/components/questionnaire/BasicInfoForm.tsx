@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import { Form, Input, Card, message, Radio, Checkbox, Space, Select } from 'antd'
 import { FormInstance } from 'antd/lib/form'
 import type { CheckboxValueType } from 'antd/es/checkbox/Group'
-import { scaleApi } from '@/api/path/scale'
+import { observer } from 'mobx-react'
+import { scaleStore } from '@/store'
 
 const { TextArea } = Input
 
@@ -170,33 +171,17 @@ export const useBasicInfoForm = ({
 export const BasicInfoFormCard: React.FC<{
   form: FormInstance
   type: 'survey' | 'scale'
-}> = ({ form, type }) => {
+}> = observer(({ form, type }) => {
   const typeText = type === 'survey' ? '问卷' : '量表'
   const themeClass = type === 'survey' ? 'survey-theme' : 'scale-theme'
-
-  // 分类选项状态
-  const [categoryOptions, setCategoryOptions] = useState<Array<{ value: string; label: string }>>([])
-  const [stageOptions, setStageOptions] = useState<Array<{ value: string; label: string }>>([])
-  const [applicableAgeOptions, setApplicableAgeOptions] = useState<Array<{ value: string; label: string }>>([])
-  const [reporterOptions, setReporterOptions] = useState<Array<{ value: string; label: string }>>([])
 
   // 加载分类选项
   useEffect(() => {
     if (type === 'scale') {
-      scaleApi.getScaleCategories()
-        .then(([err, res]) => {
-          if (err) {
-            console.error('获取量表分类失败:', err)
-            message.error('获取分类选项失败，请刷新重试')
-            return
-          }
-          if (res?.data) {
-            setCategoryOptions(res.data.categories || [])
-            setStageOptions(res.data.stages || [])
-            setApplicableAgeOptions(res.data.applicable_ages || [])
-            setReporterOptions(res.data.reporters || [])
-          }
-        })
+      scaleStore.ensureCategoryOptions().catch((error) => {
+        console.error('获取量表分类失败:', error)
+        message.error('获取分类选项失败，请刷新重试')
+      })
     }
   }, [type])
 
@@ -336,7 +321,7 @@ export const BasicInfoFormCard: React.FC<{
               tooltip="选择量表的主要类别"
             >
               <RadioButtonSelect
-                options={categoryOptions}
+                options={scaleStore.categoryOptions}
                 allowClear
               />
             </Form.Item>
@@ -347,8 +332,8 @@ export const BasicInfoFormCard: React.FC<{
               tooltip="选择量表的评估阶段（可多选）"
             >
               <CheckboxMultiSelect
-                options={stageOptions.map(opt => opt.value)}
-                optionLabels={stageOptions}
+                options={scaleStore.stageOptions.map(opt => opt.value)}
+                optionLabels={scaleStore.stageOptions}
                 maxCount={10}
               />
             </Form.Item>
@@ -359,8 +344,8 @@ export const BasicInfoFormCard: React.FC<{
               tooltip="选择量表的适用年龄范围（可多选）"
             >
               <CheckboxMultiSelect
-                options={applicableAgeOptions.map(opt => opt.value)}
-                optionLabels={applicableAgeOptions}
+                options={scaleStore.applicableAgeOptions.map(opt => opt.value)}
+                optionLabels={scaleStore.applicableAgeOptions}
                 maxCount={10}
               />
             </Form.Item>
@@ -371,8 +356,8 @@ export const BasicInfoFormCard: React.FC<{
               tooltip="选择量表的填报人类型（可多选）"
             >
               <CheckboxMultiSelect
-                options={reporterOptions.map(opt => opt.value)}
-                optionLabels={reporterOptions}
+                options={scaleStore.reporterOptions.map(opt => opt.value)}
+                optionLabels={scaleStore.reporterOptions}
                 maxCount={10}
               />
             </Form.Item>
@@ -449,6 +434,6 @@ export const BasicInfoFormCard: React.FC<{
       </Form>
     </Card>
   )
-}
+})
 
 export default BasicInfoFormCard
