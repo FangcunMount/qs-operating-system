@@ -49,6 +49,12 @@ class TokenRefreshManager {
 // 创建全局的 token 刷新管理器
 export const tokenRefreshManager = new TokenRefreshManager()
 
+const redirectToLogin = () => {
+  if (typeof window !== 'undefined' && window.location.pathname !== '/user/login') {
+    window.location.href = '/user/login'
+  }
+}
+
 /**
  * 刷新 token
  */
@@ -150,6 +156,7 @@ export async function handle401Error<T>(
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
       errorHandler.handleAuthError('401')
+      redirectToLogin()
       tokenRefreshManager.setRefreshing(false)
       tokenRefreshManager.clear()
       throw err
@@ -170,9 +177,9 @@ export async function handle401Error<T>(
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     errorHandler.handleAuthError('401')
+    redirectToLogin()
     tokenRefreshManager.setRefreshing(false)
     tokenRefreshManager.clear()
     throw refreshError
   }
 }
-

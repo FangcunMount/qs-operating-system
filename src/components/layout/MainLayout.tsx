@@ -15,6 +15,7 @@ import {
 import { useHistory, useLocation } from 'react-router-dom'
 import { routes } from '../../router/map'
 import { IRoute } from '../../types/router'
+import { rootStore } from '@/store'
 import './mainLayout.scss'
 
 const { Header, Sider, Content } = Layout
@@ -26,6 +27,7 @@ interface IMainLayoutProps {
 const MainLayout: React.FC<IMainLayoutProps> = ({ children }) => {
   const history = useHistory()
   const location = useLocation()
+  const { userStore } = rootStore
   
   // 判断是否为编辑量表相关页面
   const isScaleEditPage = () => {
@@ -224,8 +226,9 @@ const MainLayout: React.FC<IMainLayoutProps> = ({ children }) => {
 
   // 退出登录
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    history.push('/user/login')
+    userStore.logout().catch(() => {
+      history.push('/user/login')
+    })
   }
 
   // 用户菜单

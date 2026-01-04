@@ -1,8 +1,55 @@
 import React, { Suspense } from 'react'
-import { BrowserRouter, Redirect, Route, Switch } from 'react-router-dom'
+import { BrowserRouter, Redirect, Route, Switch, useLocation } from 'react-router-dom'
 import { routes } from './map'
 import { Spin } from 'antd'
 import MainLayout from '@/components/layout/MainLayout'
+
+const AuthenticatedApp: React.FC = () => {
+  const location = useLocation()
+  const hasToken = Boolean(localStorage.getItem('access_token') || localStorage.getItem('token'))
+
+  if (!hasToken) {
+    return <Redirect to={{ pathname: '/user/login', state: { from: location } }} />
+  }
+
+  return (
+    <MainLayout>
+      <Switch>
+        {/* 渲染所有路由（包括子路由） */}
+        {routes
+          .filter(v => v.path !== '/user/login')
+          .flatMap((v) => {
+            const routeElements = []
+            
+            // 如果有子路由，添加所有子路由
+            if (v.children) {
+              v.children.forEach((c) => {
+                if (c.component) {
+                  routeElements.push(
+                    <Route key={c.name} path={c.path} exact={c.exact}>
+                      <c.component />
+                    </Route>
+                  )
+                }
+              })
+            }
+            
+            // 如果父路由有组件，也添加父路由
+            if (v.component) {
+              routeElements.push(
+                <Route key={v.name} path={v.path} exact={v.exact}>
+                  <v.component />
+                </Route>
+              )
+            }
+            
+            return routeElements
+          })}
+        <Redirect to="/" />
+      </Switch>
+    </MainLayout>
+  )
+}
 
 const RouteView: React.FC = () => {
   return (
@@ -25,41 +72,7 @@ const RouteView: React.FC = () => {
 
           {/* 其他页面使用主布局 */}
           <Route path="/">
-            <MainLayout>
-              <Switch>
-                {/* 渲染所有路由（包括子路由） */}
-                {routes
-                  .filter(v => v.path !== '/user/login')
-                  .flatMap((v) => {
-                    const routeElements = []
-                    
-                    // 如果有子路由，添加所有子路由
-                    if (v.children) {
-                      v.children.forEach((c) => {
-                        if (c.component) {
-                          routeElements.push(
-                            <Route key={c.name} path={c.path} exact={c.exact}>
-                              <c.component />
-                            </Route>
-                          )
-                        }
-                      })
-                    }
-                    
-                    // 如果父路由有组件，也添加父路由
-                    if (v.component) {
-                      routeElements.push(
-                        <Route key={v.name} path={v.path} exact={v.exact}>
-                          <v.component />
-                        </Route>
-                      )
-                    }
-                    
-                    return routeElements
-                  })}
-                <Redirect to="/" />
-              </Switch>
-            </MainLayout>
+            <AuthenticatedApp />
           </Route>
         </Switch>
       </Suspense>
