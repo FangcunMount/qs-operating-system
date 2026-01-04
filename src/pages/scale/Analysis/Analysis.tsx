@@ -233,8 +233,8 @@ const Analysis: React.FC = observer(() => {
         )
         
         const factorRules: IFactorAnalysis[] = factorsWithMaxScore.map((factor: IFactor) => {
-          // 使用因子中的 max_score，如果不存在则计算
-          const maxScore = factor.max_score ?? calculateFactorMaxScore(factor)
+          // 满分始终由前端计算，避免依赖后端的 max_score
+          const maxScore = calculateFactorMaxScore(factor)
           
           // 优先从服务器原始数据中获取解读规则
           const rawFactor = rawFactors.find((f: any) => f.code === factor.code)
