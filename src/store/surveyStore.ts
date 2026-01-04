@@ -706,8 +706,8 @@ export const surveyStore = makeObservable(
       // 先获取当前问卷状态，如果已发布则先取消发布
       try {
         const [statusErr, statusRes] = await api.getSurvey(surveyId)
-        if (!statusErr && statusRes?.data?.status === 1) {
-          // 如果已经是发布状态（status=1），先取消发布
+        if (!statusErr && statusRes?.data?.status === 'published') {
+          // 如果已经是发布状态，先取消发布
           console.log('问卷已发布，先取消发布再重新发布')
           const [unpublishErr] = await api.unpublishSurvey(surveyId)
           if (unpublishErr) {

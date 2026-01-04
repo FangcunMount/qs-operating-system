@@ -31,7 +31,7 @@ export interface IScaleResponse {
   code: string
   title: string
   description?: string
-  status: number
+  status: string
   created_by?: string
   created_at?: string
   updated_by?: string
@@ -100,7 +100,7 @@ export async function getScaleList(
   page = 1,
   page_size = 10,
   keyword?: string,
-  status?: number,
+  status?: string,
   category?: string
 ): Promise<[any, QSResponse<IScaleListResponse> | undefined]> {
   const params: any = {
@@ -152,7 +152,7 @@ export async function getScaleListCompat(
   pagesize: string,
   pagenum: string,
   keyword?: string,
-  status?: number,
+  status?: string,
   category?: string
 ): Promise<[any, { data: { pagesize: string; pagenum: string; total_count: string; list: IQuestionSheetInfo[] } } | undefined]> {
   const [err, res] = await getScaleList(

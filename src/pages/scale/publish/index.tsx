@@ -76,8 +76,8 @@ const Publish: React.FC = observer(() => {
       try {
         const questionsheet = await scaleStore.fetchScaleInfo(questionsheetid)
         if (questionsheet) {
-          // status: 0=草稿, 1=已发布, 2=已归档
-          setIsPublished(questionsheet.status === 1)
+          // status: draft/published/archived
+          setIsPublished(questionsheet.status === 'published')
         }
       } catch (error) {
         console.error('获取发布状态失败:', error)
@@ -92,9 +92,9 @@ const Publish: React.FC = observer(() => {
     try {
       const questionsheet = await scaleStore.fetchScaleInfo(questionsheetid)
       
-      // 检查发布状态（status: 0=草稿, 1=已发布, 2=已归档）
+      // 检查发布状态（status: draft/published/archived）
       if (questionsheet) {
-        setIsPublished(questionsheet.status === 1)
+        setIsPublished(questionsheet.status === 'published')
       }
       
       // 如果 scaleCode 还没有，尝试从服务器获取
@@ -258,4 +258,3 @@ const Publish: React.FC = observer(() => {
 })
 
 export default Publish
-

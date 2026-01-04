@@ -40,8 +40,8 @@ export const useSurveyPublish = (questionsheetid: string): {
         return
       }
 
-      // 根据 status 字段判断是否已发布（1=已发布）
-      const published = questionnaire.status === 1
+      // 根据 status 字段判断是否已发布（published）
+      const published = questionnaire.status === 'published'
       setIsPublished(published)
       
       // 生成问卷链接和分享码
@@ -84,7 +84,7 @@ export const useSurveyPublish = (questionsheetid: string): {
       // 重新获取问卷信息以更新状态
       const questionnaire = await surveyStore.fetchSurveyInfo(questionsheetid)
       if (questionnaire) {
-        const published = questionnaire.status === 1 // 1=已发布
+        const published = questionnaire.status === 'published'
         setIsPublished(published)
       } else {
         setIsPublished(publish)
@@ -122,4 +122,3 @@ export const useSurveyPublish = (questionsheetid: string): {
     refreshData: initPublishData
   }
 }
-

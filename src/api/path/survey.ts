@@ -15,7 +15,7 @@ export interface IQuestionnaireResponse {
   created_at?: string
   updated_by?: string
   updated_at?: string
-  status: number // 0=草稿, 1=已发布, 2=已归档
+  status: string // draft/published/archived
   type: string
   version: string
   questions: any[] // QuestionDTO[]
@@ -281,7 +281,7 @@ export async function listQuestionnaires(params: {
   page?: number
   page_size?: number
   type?: string
-  status?: number
+  status?: string
   title?: string
 }): Promise<[any, QSResponse<IQuestionnaireListResponse> | undefined]> {
   return get<IQuestionnaireListResponse>('/questionnaires', params)

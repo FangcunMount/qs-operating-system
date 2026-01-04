@@ -24,7 +24,7 @@ const List: React.FC = observer(() => {
   const [loading, setLoading] = useState(false)
   const [scaleList, setScaleList] = useState<IQuestionSheetInfo[]>([])
   const [categoryFilter, setCategoryFilter] = useState<string | undefined>()
-  const [statusFilter, setStatusFilter] = useState<number | undefined>()
+  const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const [pageInfo, setPageInfo] = useState({
     pagenum: 1,
     pagesize: 10,
@@ -45,7 +45,7 @@ const List: React.FC = observer(() => {
     size: number,
     num: number,
     keyWord?: string,
-    status?: number,
+    status?: string,
     category?: string
   ) => {
     setLoading(true)
@@ -118,17 +118,38 @@ const List: React.FC = observer(() => {
     initData(pageInfo.pagesize, 1, keyWord, statusFilter, nextValue)
   }
 
-  const handleStatusChange = (value: number | undefined) => {
+  const handleStatusChange = (value: string | undefined) => {
     const nextValue = value === undefined ? undefined : value
     setStatusFilter(nextValue)
     initData(pageInfo.pagesize, 1, keyWord, nextValue, categoryFilter)
   }
 
-  const renderStatusTag = (value?: number) => {
-    if (value === undefined || value === null || value === undefined) {
+  const renderStatusTag = (value?: string) => {
+    if (!value) {
       return <span style={{ color: '#999' }}>-</span>
     }
-    return <Tag color={value === 1 ? 'success' : value === 2 ? 'warning' : 'default'}>{value === 1 ? '已发布' : value === 2 ? '已归档' : '草稿'}</Tag>
+    const statusMap: Record<string, { text: string; color: string; order: number }> = {
+      draft: { text: '草稿', color: 'default', order: 0 },
+      published: { text: '已发布', color: 'success', order: 1 },
+      archived: { text: '已归档', color: 'warning', order: 2 }
+    }
+    const statusInfo = statusMap[value]
+    if (!statusInfo) {
+      return <Tag color="default">{value}</Tag>
+    }
+    return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>
+  }
+
+  const getStatusOrder = (value?: string) => {
+    switch (value) {
+    case 'published':
+      return 1
+    case 'archived':
+      return 2
+    case 'draft':
+    default:
+      return 0
+    }
   }
 
   return (
@@ -175,9 +196,9 @@ const List: React.FC = observer(() => {
               value={statusFilter}
               onChange={handleStatusChange}
               options={[
-                { label: '草稿', value: 0 },
-                { label: '已发布', value: 1 },
-                { label: '已归档', value: 2 }
+                { label: '草稿', value: 'draft' },
+                { label: '已发布', value: 'published' },
+                { label: '已归档', value: 'archived' }
               ]}
               style={{ width: 160 }}
             />
@@ -338,13 +359,13 @@ const List: React.FC = observer(() => {
             width={120}
             align="center"
             filters={[
-              { text: '草稿', value: 0 },
-              { text: '已发布', value: 1 },
-              { text: '已归档', value: 2 }
+              { text: '草稿', value: 'draft' },
+              { text: '已发布', value: 'published' },
+              { text: '已归档', value: 'archived' }
             ]}
-            onFilter={(value, record) => Number((record as IQuestionSheetInfo).status) === Number(value)}
+            onFilter={(value, record) => String((record as IQuestionSheetInfo).status || '') === String(value)}
             sorter={(a, b) =>
-              Number((a as IQuestionSheetInfo).status || 0) - Number((b as IQuestionSheetInfo).status || 0)
+              getStatusOrder((a as IQuestionSheetInfo).status) - getStatusOrder((b as IQuestionSheetInfo).status)
             }
             render={(v) => renderStatusTag(v)}
           />

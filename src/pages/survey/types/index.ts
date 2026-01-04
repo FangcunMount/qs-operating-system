@@ -4,7 +4,7 @@
 
 export interface SurveyListFilters {
   keyword: string
-  status?: number
+  status?: string
 }
 
 export interface SurveyPagination {

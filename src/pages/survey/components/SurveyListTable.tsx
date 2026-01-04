@@ -32,16 +32,13 @@ export const SurveyListTable: React.FC<SurveyListTableProps> = ({
   onPageChange,
   onEdit
 }) => {
-  const getStatusTag = (status?: number) => {
-    // 状态值：0=草稿, 1=已发布, 2=已归档
-    const statusNum = status ?? 0
-    switch (statusNum) {
-    case 1:
+  const getStatusTag = (status?: string) => {
+    switch (status) {
+    case 'published':
       return <Tag color="green">已发布</Tag>
-    case 0:
-      return <Tag color="default">草稿</Tag>
-    case 2:
+    case 'archived':
       return <Tag color="orange">已归档</Tag>
+    case 'draft':
     default:
       return <Tag color="default">草稿</Tag>
     }
@@ -79,7 +76,7 @@ export const SurveyListTable: React.FC<SurveyListTableProps> = ({
         dataIndex="status"
         key="status"
         width={100}
-        render={(status: number) => getStatusTag(status)}
+        render={(status: string) => getStatusTag(status)}
       />
       <Column
         title="题目数"

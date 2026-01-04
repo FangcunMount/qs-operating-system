@@ -63,7 +63,7 @@ export function getScaleList<T = {
   pagesize: string,
   pagenum: string,
   keyword?: string,
-  status?: number,
+  status?: string,
   category?: string
 ): ApiResponse<T> {
   // 使用新 API
