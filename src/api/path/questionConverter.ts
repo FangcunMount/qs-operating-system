@@ -122,7 +122,7 @@ export function convertValidationRulesToDTO(rules: IValidateRules): IValidationR
                        (typeof rules.required === 'number' && rules.required === 1)
     result.push({ 
       rule_type: 'required', 
-      target_value: isRequired ? '0' : '1'
+      target_value: isRequired ? "1" : "0"
     })
   }
   
