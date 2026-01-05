@@ -18,7 +18,7 @@ import { IQuestionShowController } from '@/models/question'
 import { IFactorAnalysis, IInterpretation, IInterpret_rule } from '../models/analysis'
 import { api } from '../api'
 import { delShowController, postShowController } from '@/api/path/showController'
-import { convertQuestionFromDTO } from '@/api/path/questionConverter'
+import { convertQuestionFromDTO, ensureDefaultValidateRules } from '@/api/path/questionConverter'
 import type { IQuestionDTO } from '@/api/path/survey'
 import { getScaleCategories } from '@/api/path/scale'
 
@@ -238,7 +238,7 @@ export const scaleStore = makeObservable(
               this.applicable_ages = data.applicable_ages || []
               this.reporters = data.reporters || []
               this.tags = data.tags || []
-              this.questions = data.questions || []
+              this.questions = (data.questions || []).map((q) => ensureDefaultValidateRules(q))
               this.showControllers = data.showControllers || []
               this.deletedShowControllerCodes = data.deletedShowControllerCodes || []
               this.factors = data.factors || []
@@ -908,7 +908,7 @@ export const scaleStore = makeObservable(
                     return null
                   }
                 }
-                return q
+                return ensureDefaultValidateRules(q as IQuestion)
               }).filter((q: any) => q !== null) as IQuestion[]
               
               runInAction(() => {
@@ -1021,7 +1021,7 @@ export const scaleStore = makeObservable(
         }
         // 如果已经是前端格式（向后兼容），直接使用
         if (q.type) {
-          return q as IQuestion
+          return ensureDefaultValidateRules(q as IQuestion)
         }
         // 未知格式，尝试直接使用
         console.warn('未知的问题数据格式:', q)

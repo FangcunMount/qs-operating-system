@@ -5,6 +5,7 @@
 
 import { IQuestion, IQuestionShowController, IValidateRules } from '@/models/question'
 import type { IQuestionDTO, IValidationRuleDTO, IShowControllerDTO } from './survey'
+import { GLOBAL_CONSTANT } from '@/utils/variables'
 
 // ============ 类型映射 ============
 
@@ -69,6 +70,41 @@ export function mapQuestionTypeToAPI(type: string): string {
  */
 export function mapQuestionTypeFromAPI(apiType: string): string {
   return API_TYPE_TO_FRONTEND[apiType] || apiType
+}
+
+export function ensureDefaultValidateRules<T extends IQuestion>(question: T): T {
+  const type = question.type
+  if (!['Radio', 'Checkbox', 'Text', 'Textarea', 'Number', 'Date'].includes(type)) {
+    return question
+  }
+
+  const baseRules = question.validate_rules || {}
+  let defaults: IValidateRules = {}
+
+  if (type === 'Radio') {
+    defaults = { required: false }
+  } else if (type === 'Checkbox') {
+    defaults = { required: false }
+  } else if (type === 'Text' || type === 'Textarea') {
+    defaults = {
+      required: false,
+      min_length: GLOBAL_CONSTANT.min.words,
+      max_length: GLOBAL_CONSTANT.max.words
+    }
+  } else if (type === 'Number') {
+    defaults = {
+      required: false,
+      min_value: GLOBAL_CONSTANT.min.number,
+      max_value: GLOBAL_CONSTANT.max.number
+    }
+  } else if (type === 'Date') {
+    defaults = { required: false }
+  }
+
+  return {
+    ...question,
+    validate_rules: { ...defaults, ...baseRules }
+  } as T
 }
 
 // ============ 验证规则转换 ============
@@ -303,6 +339,5 @@ export function convertQuestionFromDTO(dto: IQuestionDTO): IQuestion {
     }
   }
   
-  return question as IQuestion
+  return ensureDefaultValidateRules(question as IQuestion)
 }
-

@@ -48,7 +48,7 @@ export const SurveyListTable: React.FC<SurveyListTableProps> = ({
     <Table
       dataSource={data}
       loading={loading}
-      rowKey="id"
+      rowKey={(record, index) => record.id || `survey-${index}`}
       pagination={{
         current: pagination.current,
         pageSize: pagination.pageSize,

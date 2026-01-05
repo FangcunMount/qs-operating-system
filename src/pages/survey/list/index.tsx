@@ -208,7 +208,7 @@ const List: React.FC = observer(() => {
             showTotal: (total) => `共 ${total} 条记录`,
             pageSizeOptions: ['10', '20', '50', '100']
           }}
-          rowKey="id"
+          rowKey={(record, index) => record.id || `survey-${index}`}
           loading={loading}
           onChange={(e) => handleChangePagination(e.pageSize as number, e.current as number)}
           scroll={{ x: 1200 }}
