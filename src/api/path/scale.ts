@@ -188,7 +188,7 @@ export async function getScaleByQuestionnaire(
   questionnaireCode: string
 ): Promise<[any, QSResponse<IScaleResponse> | undefined]> {
   console.log('调用 getScaleByQuestionnaire，questionnaireCode:', questionnaireCode)
-  const [err, res] = await get<IScaleResponse>('/scales/by-questionnaire', { questionnaireCode })
+  const [err, res] = await get<IScaleResponse>('/scales/by-questionnaire', { questionnaire_code: questionnaireCode })
   console.log('getScaleByQuestionnaire 返回:', { 
     hasError: !!err, 
     hasData: !!res?.data,

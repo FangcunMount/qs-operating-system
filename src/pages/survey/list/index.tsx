@@ -314,7 +314,7 @@ const List: React.FC = observer(() => {
           />
           <Column
             title="操作"
-            width={200}
+            width={250}
             fixed="right"
             render={(_v, row: any) => (
               <Space size="small">
@@ -336,7 +336,18 @@ const List: React.FC = observer(() => {
                       size="small"
                       icon={<FileTextOutlined />}
                     >
-                      编辑问题
+                      问题
+                    </Button>
+                  </Link>
+                </Tooltip>
+                <Tooltip title='发布'>
+                  <Link to={`/survey/publish/${row.id}`}>
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<FileTextOutlined />}
+                    >
+                      发布
                     </Button>
                   </Link>
                 </Tooltip>

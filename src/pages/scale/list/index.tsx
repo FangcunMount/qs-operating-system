@@ -436,31 +436,42 @@ const List: React.FC = observer(() => {
           />
           <Column
             title="操作"
-            width={200}
+            width={250}
             fixed="right"
             render={(_v, row: any) => (
               <Space size="small">
-                <Tooltip title='编辑量表基本信息'>
+                <Tooltip title='基本信息'>
                   <Link to={`/scale/info/${row.id}${row.scaleCode ? `?scaleCode=${row.scaleCode}` : ''}`}>
                     <Button
                       type="link"
                       size="small"
                       icon={<EditOutlined />}
                     >
-                      编辑信息
+                      基础信息
                     </Button>
                   </Link>
                 </Tooltip>
-                <Tooltip title='编辑量表问题'>
+                <Tooltip title='编辑问题'>
                   <Link to={`/scale/create/${row.id}/${row.answersheet_cnt || '0'}${row.scaleCode ? `?scaleCode=${row.scaleCode}` : ''}`}>
                     <Button
                       type="link"
                       size="small"
                       icon={<FileTextOutlined />}
                     >
-                      编辑问题
+                      问题
                     </Button>
                   </Link>
+                </Tooltip>
+                <Tooltip title="发布">
+                  <Link to={`/scale/publish/${row.id}${row.scaleCode ? `?scaleCode=${row.scaleCode}` : ''}`}>
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<FileTextOutlined />}
+                    >
+                      发布
+                    </Button>
+                  </Link> 
                 </Tooltip>
               </Space>
             )}

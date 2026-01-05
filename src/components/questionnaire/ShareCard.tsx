@@ -21,6 +21,7 @@ const ShareCard: React.FC<ShareCardProps> = ({
 
   // 加载小程序码
   useEffect(() => {
+    console.log('---- load qrcode, code: ', code)
     if (!code) return
 
     const loadQRCode = async () => {
@@ -62,6 +63,11 @@ const ShareCard: React.FC<ShareCardProps> = ({
           <div className='share-label'>
             <QrcodeOutlined /> {type === 'survey' ? '问卷' : '量表'}小程序码
           </div>
+
+          <div>
+            
+          </div>
+
           <div className='qrcode-wrapper'>
             {loading ? (
               <Spin size="large" />

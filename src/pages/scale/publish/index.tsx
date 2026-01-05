@@ -16,6 +16,8 @@ const Publish: React.FC = observer(() => {
   const history = useHistory()
   const location = useLocation()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
+  const searchParams = new URLSearchParams(location.search)
+  const scaleCode = searchParams.get('scaleCode') || undefined
   
   const [isPublished, setIsPublished] = useState(false)
 
@@ -50,11 +52,15 @@ const Publish: React.FC = observer(() => {
     // 根据路由自动设置当前步骤
     scaleStore.setCurrentStep('publish')
     initData()
-  }, [questionsheetid, location.pathname])
+  }, [questionsheetid, location.pathname, scaleCode])
 
   const initData = async () => {
+    if (scaleCode && scaleCode !== scaleStore.scaleCode) {
+      scaleStore.scaleCode = scaleCode
+    }
+
     // 先尝试从 localStorage 恢复
-    const restored = scaleStore.loadFromLocalStorage()
+    const restored = scaleStore.loadFromLocalStorage(questionsheetid)
     
     if (restored && scaleStore.id === questionsheetid && scaleStore.questions.length > 0) {
       console.log('publish 页面从 localStorage 恢复数据成功')

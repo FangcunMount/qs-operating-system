@@ -220,13 +220,19 @@ export const scaleStore = makeObservable(
     },
 
     // 从 localStorage 加载
-    loadFromLocalStorage() {
+    loadFromLocalStorage(expectedId?: string) {
       try {
         const stored = localStorage.getItem(STORAGE_KEY)
         if (stored) {
           const data: PersistedScaleData = JSON.parse(stored)
           // 检查版本号
           if (data.version === STORAGE_VERSION) {
+            if (expectedId && data.id !== expectedId) {
+              runInAction(() => {
+                this.scaleCode = ''
+              })
+              return false
+            }
             runInAction(() => {
               this.id = data.id
               this.scaleCode = data.scaleCode || ''
@@ -810,7 +816,7 @@ export const scaleStore = makeObservable(
       }
 
       // 编辑模式：优先从 localStorage 恢复（但仅在问题列表不为空时）
-      const restored = this.loadFromLocalStorage()
+      const restored = this.loadFromLocalStorage(questionsheetid)
       console.log('initEditor - localStorage 恢复检查:', {
         restored,
         storedId: this.id,

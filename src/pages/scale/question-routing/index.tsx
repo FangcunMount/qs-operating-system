@@ -98,7 +98,7 @@ const QuestionRouting: React.FC = observer(() => {
 
     const initPageData = async () => {
       // 先尝试从 localStorage 恢复
-      const restored = scaleStore.loadFromLocalStorage()
+      const restored = scaleStore.loadFromLocalStorage(questionsheetid)
       
       // 如果恢复成功且 ID 匹配且有题目数据，直接使用
       if (restored && scaleStore.id === questionsheetid && scaleStore.questions.length > 0) {
@@ -255,4 +255,3 @@ const QuestionRouting: React.FC = observer(() => {
 })
 
 export default QuestionRouting
-

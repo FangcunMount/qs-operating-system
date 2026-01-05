@@ -3,7 +3,7 @@ import { ApiResponse } from '@/types/server'
 import { get, post } from '../server'
 
 export function getAnalysis<T = { macro_rule: IMacroAnalysis; factor_rules: Array<IFactorAnalysis> }>(id: string): ApiResponse<T> {
-  return get<T>('/scales/by-questionnaire', { questionnaireCode: id })
+  return get<T>('/scales/by-questionnaire', { questionnaire_code: id })
 }
 
 export function modifyAnalysis<T = string>(id: string, factor_rules: Array<IFactorAnalysis>): ApiResponse<T> {
