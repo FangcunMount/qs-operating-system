@@ -28,8 +28,13 @@ const AsList: React.FC = observer(() => {
     answerSheetStore.fetchAnswerSheetList(questionsheetid, 1, 10)
   }, [questionsheetid, answerSheetStore])
 
-  const initData = (size: number, num: number) => {
-    answerSheetStore.fetchAnswerSheetList(questionsheetid, num, size)
+  const initData = (size: number, num: number, range = dateRange) => {
+    const startTime = range?.[0]?.startOf('day').format('YYYY-MM-DD HH:mm:ss')
+    const endTime = range?.[1]?.endOf('day').format('YYYY-MM-DD HH:mm:ss')
+    answerSheetStore.fetchAnswerSheetList(questionsheetid, num, size, {
+      startTime,
+      endTime
+    })
   }
 
   const handleChangePagination = (size: number, num: number) => {
@@ -37,24 +42,16 @@ const AsList: React.FC = observer(() => {
     initData(size, num)
   }
 
-  // 筛选数据
+  // 筛选数据（搜索仅在当前页内生效）
   const filteredData = answerSheetStore.answerSheetList.filter((item: any) => {
     // 搜索过滤
     if (searchText) {
       const searchLower = searchText.toLowerCase()
-      if (!item.user?.toLowerCase().includes(searchLower) && !item.id?.toLowerCase().includes(searchLower)) {
+      if (!item.user?.toLowerCase().includes(searchLower) && !String(item.id || '').toLowerCase().includes(searchLower)) {
         return false
       }
     }
-    
-    // 日期范围过滤
-    if (dateRange && dateRange[0] && dateRange[1]) {
-      const itemDate = moment(item.createtime)
-      if (!itemDate.isBetween(dateRange[0], dateRange[1], 'day', '[]')) {
-        return false
-      }
-    }
-    
+
     return true
   })
 
@@ -94,7 +91,12 @@ const AsList: React.FC = observer(() => {
               />
               <RangePicker
                 placeholder={['开始日期', '结束日期']}
-                onChange={(dates) => setDateRange(dates as any)}
+                value={dateRange as any}
+                onChange={(dates) => {
+                  const nextRange = dates as [moment.Moment | null, moment.Moment | null] | null
+                  setDateRange(nextRange)
+                  initData(answerSheetStore.pageInfo.pagesize, 1, nextRange)
+                }}
                 style={{ width: 280 }}
               />
               {(searchText || dateRange) && (
@@ -102,6 +104,7 @@ const AsList: React.FC = observer(() => {
                   onClick={() => {
                     setSearchText('')
                     setDateRange(null)
+                    initData(answerSheetStore.pageInfo.pagesize, 1, null)
                   }}
                 >
                   重置筛选
@@ -116,7 +119,7 @@ const AsList: React.FC = observer(() => {
           <Table
             dataSource={filteredData}
             pagination={{ 
-              total: filteredData.length,
+              total: searchText ? filteredData.length : answerSheetStore.pageInfo.total,
               pageSize: answerSheetStore.pageInfo.pagesize, 
               current: answerSheetStore.pageInfo.pagenum,
               showSizeChanger: true,
@@ -167,18 +170,24 @@ const AsList: React.FC = observer(() => {
               title="完成度" 
               width={180}
               render={(_, row: any) => {
-                const percentage = row.question_cnt > 0 
-                  ? Math.round((row.answer_cnt / row.question_cnt) * 100) 
-                  : 0
+                const answerCount = Number(row.answer_cnt)
+                const questionCount = Number(row.question_cnt)
+                const hasCounts = Number.isFinite(answerCount) && Number.isFinite(questionCount) && questionCount > 0
+
+                if (!hasCounts) {
+                  return <span style={{ color: '#999' }}>-</span>
+                }
+
+                const percentage = Math.round((answerCount / questionCount) * 100)
                 const isComplete = percentage === 100
-                
+
                 return (
                   <div>
                     <Progress 
                       percent={percentage} 
                       size="small"
                       status={isComplete ? 'success' : 'active'}
-                      format={() => `${row.answer_cnt}/${row.question_cnt}`}
+                      format={() => `${answerCount}/${questionCount}`}
                     />
                   </div>
                 )
@@ -189,7 +198,13 @@ const AsList: React.FC = observer(() => {
               width={100}
               align="center"
               render={(_, row: any) => {
-                const isComplete = row.answer_cnt === row.question_cnt
+                const answerCount = Number(row.answer_cnt)
+                const questionCount = Number(row.question_cnt)
+                const hasCounts = Number.isFinite(answerCount) && Number.isFinite(questionCount) && questionCount > 0
+                if (!hasCounts) {
+                  return <Tag color="default">未知</Tag>
+                }
+                const isComplete = answerCount === questionCount
                 return (
                   <Tag 
                     icon={isComplete ? <CheckCircleOutlined /> : null} 

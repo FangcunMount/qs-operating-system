@@ -1,5 +1,6 @@
 import { makeAutoObservable, runInAction } from 'mobx'
 import { message } from 'antd'
+import { answerSheetApi, IAnswerSheetSummaryItem } from '@/api/path/answerSheet'
 
 export interface IAnswerSheet {
   id: string
@@ -13,8 +14,14 @@ export interface IAnswerSheet {
 export interface IAnswerSheetListItem {
   id: string
   user: string
-  create_time: string
-  status: 'completed' | 'draft'
+  createtime: string
+  title?: string
+  answer_cnt?: string
+  question_cnt?: string
+  score?: number
+  status?: string
+  questionnaire_code?: string
+  questionnaire_ver?: string
 }
 
 class AnswerSheetStore {
@@ -39,41 +46,66 @@ class AnswerSheetStore {
   }
 
   // 获取答卷列表
-  async fetchAnswerSheetList(questionsheetId: string, pagenum?: number, pagesize?: number) {
+  async fetchAnswerSheetList(
+    questionsheetId: string,
+    pagenum?: number,
+    pagesize?: number,
+    filters?: { startTime?: string; endTime?: string }
+  ) {
     this.loading = true
     try {
-      // TODO: 调用实际API
-      // const [error, data] = await api.getAnswerSheetList(questionsheetId, pagenum, pagesize)
-      console.log('获取答卷列表:', questionsheetId)
-      
-      // 模拟数据
-      const mockData: IAnswerSheetListItem[] = [
-        {
-          id: '1',
-          user: '张三',
-          create_time: '2024-01-10 09:30:00',
-          status: 'completed'
-        },
-        {
-          id: '2',
-          user: '李四',
-          create_time: '2024-01-10 10:15:00',
-          status: 'completed'
-        },
-        {
-          id: '3',
-          user: '王五',
-          create_time: '2024-01-10 11:20:00',
-          status: 'draft'
+      const page = pagenum || 1
+      const pageSize = pagesize || 10
+      const [error, response] = await answerSheetApi.getAnswerSheetList(
+        questionsheetId,
+        page,
+        pageSize,
+        undefined,
+        filters?.startTime,
+        filters?.endTime
+      )
+
+      if (error || !response?.data) {
+        message.error('获取答卷列表失败，请稍后重试')
+        runInAction(() => {
+          this.answerSheetList = []
+          this.pageInfo = {
+            pagenum: page,
+            pagesize: pageSize,
+            total: 0
+          }
+          this.loading = false
+        })
+        return
+      }
+
+      const items = response.data.items || []
+      const mappedList: IAnswerSheetListItem[] = items.map((item: IAnswerSheetSummaryItem & Record<string, any>) => {
+        const rawAnswerCount = item.answer_cnt ?? item.answered_cnt ?? item.answer_count ?? item.answers_count
+        const rawQuestionCount = item.question_cnt ?? item.question_count ?? item.questions_count
+        const answerCount = rawAnswerCount !== undefined && rawAnswerCount !== null ? String(rawAnswerCount) : undefined
+        const questionCount = rawQuestionCount !== undefined && rawQuestionCount !== null ? String(rawQuestionCount) : undefined
+
+        return {
+          id: String(item.id),
+          title: item.title,
+          user: item.filler_name || item.user || '',
+          createtime: item.filled_at || item.create_time || item.created_at || '',
+          answer_cnt: answerCount,
+          question_cnt: questionCount,
+          score: item.score,
+          status: item.status,
+          questionnaire_code: item.questionnaire_code,
+          questionnaire_ver: item.questionnaire_ver
         }
-      ]
+      })
 
       runInAction(() => {
-        this.answerSheetList = mockData
+        this.answerSheetList = mappedList
         this.pageInfo = {
-          pagenum: pagenum || 1,
-          pagesize: pagesize || 10,
-          total: mockData.length
+          pagenum: page,
+          pagesize: pageSize,
+          total: response.data.total || 0
         }
         this.loading = false
       })
