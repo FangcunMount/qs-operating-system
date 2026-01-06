@@ -36,11 +36,20 @@ interface ScaleRecord {
 interface ScaleRecordsProps {
   data: ScaleRecord[]
   onViewDetail?: (record: ScaleRecord) => void
+  onLoadFactors?: (record: ScaleRecord) => void
+  onReloadFactors?: (record: ScaleRecord) => void
+  isFactorLoading?: (id: string) => boolean
 }
 
 const { Panel } = Collapse
 
-const ScaleRecords: React.FC<ScaleRecordsProps> = ({ data, onViewDetail }) => {
+const ScaleRecords: React.FC<ScaleRecordsProps> = ({
+  data,
+  onViewDetail,
+  onLoadFactors,
+  onReloadFactors,
+  isFactorLoading
+}) => {
   const [expandedKeys, setExpandedKeys] = useState<string[]>([])
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 5
@@ -73,6 +82,7 @@ const ScaleRecords: React.FC<ScaleRecordsProps> = ({ data, onViewDetail }) => {
 
   // 渲染因子详情
   const renderFactorDetails = (record: ScaleRecord) => {
+    const loading = isFactorLoading?.(record.id)
     // 获取因子等级对应的颜色（支持中英文）
     const getFactorLevelColor = (level: string) => {
       // 英文格式
@@ -107,7 +117,7 @@ const ScaleRecords: React.FC<ScaleRecordsProps> = ({ data, onViewDetail }) => {
     if (!record.factors || record.factors.length === 0) {
       return (
         <div style={{ textAlign: 'center', padding: '20px', color: '#8c8c8c' }}>
-          暂无因子数据
+          {loading ? '加载中...' : '暂无因子数据'}
         </div>
       )
     }
@@ -275,7 +285,19 @@ const ScaleRecords: React.FC<ScaleRecordsProps> = ({ data, onViewDetail }) => {
       <Collapse
         bordered={false}
         activeKey={expandedKeys}
-        onChange={(keys) => setExpandedKeys(keys as string[])}
+        onChange={(keys) => {
+          const nextKeys = (keys as string[]) || []
+          const addedKeys = nextKeys.filter(key => !expandedKeys.includes(key))
+          setExpandedKeys(nextKeys)
+          if (addedKeys.length && onLoadFactors) {
+            addedKeys.forEach((key) => {
+              const record = data.find(item => item.id === String(key))
+              if (record) {
+                onLoadFactors(record)
+              }
+            })
+          }
+        }}
         expandIcon={({ isActive }) => 
           <div style={{ 
             transition: 'all 0.3s',
@@ -344,13 +366,22 @@ const ScaleRecords: React.FC<ScaleRecordsProps> = ({ data, onViewDetail }) => {
                 </Col>
                 <Col xs={24} sm={8}>
                   <div style={{ textAlign: 'right' }}>
-                    <Button
-                      type="primary"
-                      size="small"
-                      onClick={() => onViewDetail?.(record)}
-                    >
-                      查看详情
-                    </Button>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+                      <Button
+                        size="small"
+                        onClick={() => onReloadFactors?.(record)}
+                        loading={isFactorLoading?.(record.id)}
+                      >
+                        重新加载因子
+                      </Button>
+                      <Button
+                        type="primary"
+                        size="small"
+                        onClick={() => onViewDetail?.(record)}
+                      >
+                        查看详情
+                      </Button>
+                    </div>
                   </div>
                 </Col>
               </Row>

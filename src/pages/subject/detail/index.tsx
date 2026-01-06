@@ -41,6 +41,14 @@ const SubjectDetail: React.FC = observer(() => {
     history.push(`/subject/${id}/scale/${record.id}`)
   }
 
+  const handleLoadScaleFactors = (record: any) => {
+    subjectStore.fetchAssessmentFactors(record.id)
+  }
+
+  const handleReloadScaleFactors = (record: any) => {
+    subjectStore.fetchAssessmentFactors(record.id, true)
+  }
+
   // 过滤量表测评记录
   const filteredScales = detail?.scales?.filter((item: any) => {
     const matchSearch = !scaleSearchText || 
@@ -116,6 +124,9 @@ const SubjectDetail: React.FC = observer(() => {
             onFilterChange={(value) => setScaleNameFilter(value as string | undefined)}
             onReset={handleResetScaleFilter}
             onViewDetail={handleViewScaleDetail}
+            onLoadFactors={handleLoadScaleFactors}
+            onReloadFactors={handleReloadScaleFactors}
+            isFactorLoading={(assessmentId) => !!subjectStore.factorLoading[assessmentId]}
           />
         </TabPane>
 

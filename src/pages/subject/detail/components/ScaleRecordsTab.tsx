@@ -13,6 +13,9 @@ interface ScaleRecordsTabProps {
   onFilterChange: (value: string | undefined) => void
   onReset: () => void
   onViewDetail: (record: any) => void
+  onLoadFactors?: (record: any) => void
+  onReloadFactors?: (record: any) => void
+  isFactorLoading?: (id: string) => boolean
 }
 
 const ScaleRecordsTab: React.FC<ScaleRecordsTabProps> = ({
@@ -23,7 +26,10 @@ const ScaleRecordsTab: React.FC<ScaleRecordsTabProps> = ({
   onSearchChange,
   onFilterChange,
   onReset,
-  onViewDetail
+  onViewDetail,
+  onLoadFactors,
+  onReloadFactors,
+  isFactorLoading
 }) => {
   return (
     <Card>
@@ -37,7 +43,13 @@ const ScaleRecordsTab: React.FC<ScaleRecordsTabProps> = ({
         onSelectChange={onFilterChange}
         onReset={onReset}
       />
-      <ScaleRecords data={data} onViewDetail={onViewDetail} />
+      <ScaleRecords
+        data={data}
+        onViewDetail={onViewDetail}
+        onLoadFactors={onLoadFactors}
+        onReloadFactors={onReloadFactors}
+        isFactorLoading={isFactorLoading}
+      />
     </Card>
   )
 }

@@ -1,16 +1,15 @@
-import React, { useEffect, useState } from 'react'
-import { Button, Table, Input, Space, Tag, Switch, Tooltip, Spin } from 'antd'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { Button, Input, Space, Tag, Switch, Tooltip, Spin, message } from 'antd'
 import { SearchOutlined, StarOutlined, StarFilled } from '@ant-design/icons'
 import { useHistory } from 'react-router-dom'
 import { testeeApi, ITestee } from '@/api/path/subject'
 import { statisticsApi, ITesteeStatistics } from '@/api/path/statistics'
-import { message } from 'antd'
+import { LazyTable } from '@/components/lazyTable'
 import './index.scss'
 
-// 扩展受试者数据，包含统计加载状态
 interface ITesteeWithStats extends ITestee {
   statsLoading?: boolean
-  statsData?: ITesteeStatistics
+  statsData?: ITesteeStatistics | null
 }
 
 const SubjectList: React.FC = () => {
@@ -23,7 +22,6 @@ const SubjectList: React.FC = () => {
   const [dataSource, setDataSource] = useState<ITesteeWithStats[]>([])
   const [total, setTotal] = useState(0)
 
-  // 计算年龄
   const calculateAge = (birthday?: string): number => {
     if (!birthday) return 0
     try {
@@ -40,86 +38,6 @@ const SubjectList: React.FC = () => {
     }
   }
 
-  // 获取受试者列表（不包含统计字段）
-  const fetchData = async () => {
-    setLoading(true)
-    try {
-      const [err, response] = await testeeApi.listTestees({
-        org_id: 1, // TODO: 从用户信息中获取
-        name: keyword || undefined,
-        is_key_focus: isKeyFocusFilter,
-        page,
-        page_size: pageSize
-      })
-
-      if (err || !response?.data) {
-        message.error('获取受试者列表失败')
-        return
-      }
-
-      // 初始化数据，标记统计字段为加载中
-      const itemsWithStats: ITesteeWithStats[] = response.data.items.map(item => ({
-        ...item,
-        statsLoading: true,
-        statsData: undefined
-      }))
-
-      setDataSource(itemsWithStats)
-      setTotal(response.data.total)
-
-      // 异步加载统计数据（不阻塞列表显示）
-      loadStatisticsForTestees(itemsWithStats)
-    } catch (error) {
-      console.error('获取受试者列表失败:', error)
-      message.error('获取受试者列表失败')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // 异步加载多个受试者的统计数据
-  const loadStatisticsForTestees = async (testees: ITesteeWithStats[]) => {
-    // 并行加载所有受试者的统计数据
-    const statsPromises = testees.map(async (testee) => {
-      try {
-        const [error, data] = await statisticsApi.getTesteeStatistics(testee.id)
-        if (error || !data?.data) {
-          console.warn(`获取受试者 ${testee.id} 的统计数据失败:`, error)
-          return { testeeId: testee.id, stats: null }
-        }
-        return { testeeId: testee.id, stats: data.data }
-      } catch (error) {
-        console.warn(`获取受试者 ${testee.id} 的统计数据异常:`, error)
-        return { testeeId: testee.id, stats: null }
-      }
-    })
-
-    const statsResults = await Promise.all(statsPromises)
-
-    // 更新对应受试者的统计数据
-    setDataSource((prev) => {
-      const updated = [...prev]
-      statsResults.forEach(({ testeeId, stats }) => {
-        const index = updated.findIndex(item => item.id === testeeId)
-        if (index >= 0) {
-          updated[index] = {
-            ...updated[index],
-            statsLoading: false,
-            statsData: stats || undefined,
-            // 将统计数据映射到 assessment_stats 格式以保持兼容
-            assessment_stats: stats ? {
-              total_count: stats.total_assessments,
-              last_assessment_at: stats.last_assessment_date,
-              last_risk_level: getHighestRiskLevel(stats.risk_distribution)
-            } : undefined
-          }
-        }
-      })
-      return updated
-    })
-  }
-
-  // 从风险分布中获取最高风险等级
   const getHighestRiskLevel = (riskDistribution: Record<string, number>): string | undefined => {
     const riskOrder = ['severe', 'high', 'medium', 'low', 'none']
     for (const level of riskOrder) {
@@ -130,11 +48,6 @@ const SubjectList: React.FC = () => {
     return undefined
   }
 
-  useEffect(() => {
-    fetchData()
-  }, [page, pageSize, keyword, isKeyFocusFilter])
-
-  // 辅助函数：获取风险等级颜色
   const getRiskLevelColor = (level: string): string => {
     const colorMap: Record<string, string> = {
       severe: 'red',
@@ -146,7 +59,6 @@ const SubjectList: React.FC = () => {
     return colorMap[level] || 'default'
   }
 
-  // 辅助函数：获取风险等级文本
   const getRiskLevelText = (level: string): string => {
     const textMap: Record<string, string> = {
       severe: '严重风险',
@@ -158,7 +70,95 @@ const SubjectList: React.FC = () => {
     return textMap[level] || level
   }
 
-  const columns = [
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [err, response] = await testeeApi.listTestees({
+        org_id: 1,
+        name: keyword || undefined,
+        is_key_focus: isKeyFocusFilter,
+        page,
+        page_size: pageSize
+      })
+
+      if (err || !response?.data) {
+        message.error('获取受试者列表失败')
+        return
+      }
+
+      const itemsWithStats: ITesteeWithStats[] = response.data.items.map(item => ({
+        ...item,
+        statsLoading: false,
+        statsData: undefined
+      }))
+
+      setDataSource(itemsWithStats)
+      setTotal(response.data.total)
+    } catch (error) {
+      console.error('获取受试者列表失败:', error)
+      message.error('获取受试者列表失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [isKeyFocusFilter, keyword, page, pageSize])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  const loadStatisticsForTestee = useCallback(async (testeeId: string | number) => {
+    const targetId = String(testeeId)
+    setDataSource((prev) =>
+      prev.map((item) =>
+        String(item.id) === targetId ? { ...item, statsLoading: true } : item
+      )
+    )
+
+    let stats: ITesteeStatistics | null = null
+    try {
+      const [error, data] = await statisticsApi.getTesteeStatistics(testeeId)
+      if (error || !data?.data) {
+        console.warn(`获取受试者 ${testeeId} 的统计数据失败:`, error)
+        stats = null
+      } else {
+        stats = data.data
+      }
+    } catch (error) {
+      console.warn(`获取受试者 ${testeeId} 的统计数据异常:`, error)
+      stats = null
+    }
+
+    setDataSource((prev) =>
+      prev.map((item) => {
+        if (String(item.id) !== targetId) return item
+        return {
+          ...item,
+          statsLoading: false,
+          statsData: stats,
+          assessment_stats: stats ? {
+            total_count: stats.total_assessments,
+            last_assessment_at: stats.last_assessment_date,
+            last_risk_level: getHighestRiskLevel(stats.risk_distribution)
+          } : undefined
+        }
+      })
+    )
+  }, [getHighestRiskLevel])
+
+  const handlePaginationChange = (newPage: number, newPageSize?: number) => {
+    setPage(newPage)
+    if (newPageSize && newPageSize !== pageSize) {
+      setPageSize(newPageSize)
+      setPage(1)
+    }
+  }
+
+  const handleRowVisible = useCallback((record: ITesteeWithStats) => {
+    if (record.statsLoading || record.statsData !== undefined) return
+    loadStatisticsForTestee(record.id)
+  }, [loadStatisticsForTestee])
+
+  const columns = useMemo(() => ([
     {
       title: '姓名',
       dataIndex: 'name',
@@ -191,7 +191,6 @@ const SubjectList: React.FC = () => {
         }
         const config = genderConfig[gender as keyof typeof genderConfig]
         if (!config) return gender
-        
         return (
           <div className={`gender-badge ${config.class}`}>
             {config.text}
@@ -241,17 +240,14 @@ const SubjectList: React.FC = () => {
       key: 'assessment_stats',
       width: 200,
       render: function renderStats(_: any, record: ITesteeWithStats) {
-        // 如果正在加载统计数据
         if (record.statsLoading) {
           return <Spin size="small" />
         }
 
-        // 优先使用统计数据
         if (record.statsData) {
           const stats = record.statsData
           const totalCount = stats.total_assessments || 0
           const riskLevel = getHighestRiskLevel(stats.risk_distribution)
-
           return (
             <div className="stats-container">
               <div className="stats-badge">
@@ -269,7 +265,21 @@ const SubjectList: React.FC = () => {
           )
         }
 
-        // 兼容旧的 assessment_stats 格式
+        if (record.statsData === null) {
+          return <span className="time-text no-data">暂无数据</span>
+        }
+
+        if (record.statsData === undefined) {
+          return (
+            <Button
+              size="small"
+              onClick={() => loadStatisticsForTestee(record.id)}
+            >
+              加载统计
+            </Button>
+          )
+        }
+
         const stats = record.assessment_stats
         if (!stats) {
           return <span className="time-text no-data">暂无数据</span>
@@ -300,13 +310,13 @@ const SubjectList: React.FC = () => {
       key: 'last_assessment_at',
       width: 160,
       render: function renderLastTime(_: any, record: ITesteeWithStats) {
-        // 如果正在加载统计数据
         if (record.statsLoading) {
           return <Spin size="small" />
         }
 
-        // 优先使用统计数据中的时间
         const time = record.statsData?.last_assessment_date || record.assessment_stats?.last_assessment_at
+        if (record.statsData === undefined) return <span className="time-text no-data">未加载</span>
+        if (record.statsData === null) return <span className="time-text no-data">未测评</span>
         if (!time) return <span className="time-text no-data">未测评</span>
         return (
           <span className="time-text">
@@ -323,8 +333,8 @@ const SubjectList: React.FC = () => {
       align: 'center' as const,
       render: function renderAction(_: any, record: ITesteeWithStats) {
         return (
-          <Button 
-            type="link" 
+          <Button
+            type="link"
             size="small"
             className="action-btn"
             onClick={() => history.push(`/subject/detail/${record.id}`)}
@@ -334,7 +344,7 @@ const SubjectList: React.FC = () => {
         )
       }
     }
-  ]
+  ]), [calculateAge, getHighestRiskLevel, getRiskLevelColor, getRiskLevelText, history, loadStatisticsForTestee])
 
   return (
     <div className="subject-list-page">
@@ -367,11 +377,12 @@ const SubjectList: React.FC = () => {
         </Space>
       </div>
       <div className="table-container">
-        <Table
+        <LazyTable<ITesteeWithStats & Record<string, unknown>>
           columns={columns}
-          dataSource={dataSource}
+          dataSource={dataSource as (ITesteeWithStats & Record<string, unknown>)[]}
           loading={loading}
           rowKey="id"
+          onRowVisible={handleRowVisible as (record: ITesteeWithStats & Record<string, unknown>) => void}
           size="middle"
           scroll={{ x: 1200 }}
           pagination={{
@@ -382,13 +393,7 @@ const SubjectList: React.FC = () => {
             showSizeChanger: true,
             showQuickJumper: true,
             pageSizeOptions: ['10', '20', '50', '100'],
-            onChange: (newPage, newPageSize) => {
-              setPage(newPage)
-              if (newPageSize && newPageSize !== pageSize) {
-                setPageSize(newPageSize)
-                setPage(1)
-              }
-            }
+            onChange: handlePaginationChange
           }}
         />
       </div>

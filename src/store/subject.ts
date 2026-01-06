@@ -1,4 +1,4 @@
-import { makeAutoObservable } from 'mobx'
+import { makeAutoObservable, runInAction } from 'mobx'
 import { message } from 'antd'
 import * as subjectApi from '../api/path/subject'
 import { testeeApi } from '../api/path/subject'
@@ -94,6 +94,7 @@ export interface SubjectDetail {
 class SubjectStore {
   subjectDetail: SubjectDetail | null = null
   loading = false
+  factorLoading: Record<string, boolean> = {}
   
   // 新增：受试者基础信息（完整版）
   testeeInfo: subjectApi.ITesteeDetail | null = null
@@ -136,6 +137,15 @@ class SubjectStore {
   
   setPeriodicStats(data: subjectApi.IPeriodicStatsResponse | null) {
     this.periodicStats = data
+  }
+
+  setFactorLoading(assessmentId: string, loading: boolean) {
+    if (!assessmentId) return
+    if (loading) {
+      this.factorLoading[assessmentId] = true
+    } else {
+      delete this.factorLoading[assessmentId]
+    }
   }
 
   // 使用新 API 获取受试者详情
@@ -196,6 +206,44 @@ class SubjectStore {
     } catch (error) {
       console.error('获取答卷记录失败:', error)
       this.setAnswerSheetList([])
+    }
+  }
+
+  // 按需获取测评因子得分（展开卡片时触发）
+  async fetchAssessmentFactors(assessmentId: string, force = false) {
+    if (!assessmentId) return
+    if (this.factorLoading[assessmentId]) return
+    const target = this.subjectDetail?.scales?.find(item => item.id === String(assessmentId))
+    if (!target || (!force && target.factors)) return
+
+    this.setFactorLoading(String(assessmentId), true)
+    try {
+      const [scoreErr, scoreRes] = await assessmentApi.getScores(assessmentId)
+      if (scoreErr || !scoreRes?.data?.factor_scores) {
+        return
+      }
+
+      const factors: FactorScore[] = scoreRes.data.factor_scores.map((factor) => ({
+        name: factor.factor_name,
+        score: factor.raw_score || 0,
+        level: factor.risk_level || '正常',
+        maxScore: factor.max_score,
+        rawScore: factor.raw_score
+      }))
+
+      runInAction(() => {
+        if (!this.subjectDetail) return
+        const updatedScales = this.subjectDetail.scales.map((item) =>
+          item.id === String(assessmentId) ? { ...item, factors } : item
+        )
+        this.subjectDetail = { ...this.subjectDetail, scales: updatedScales }
+      })
+    } catch (error) {
+      console.warn(`获取测评 ${assessmentId} 的因子得分失败:`, error)
+    } finally {
+      runInAction(() => {
+        this.setFactorLoading(String(assessmentId), false)
+      })
     }
   }
   
@@ -471,38 +519,17 @@ class SubjectStore {
       }))
     }))
 
-    // 转换量表记录（从测评记录中提取，并获取因子得分）
-    const scales: ScaleRecord[] = await Promise.all(
-      (this.assessmentList || []).map(async (assessment) => {
-        // 获取因子得分
-        let factors: FactorScore[] = []
-        try {
-          const [scoreErr, scoreRes] = await assessmentApi.getScores(assessment.id)
-          if (!scoreErr && scoreRes?.data?.factor_scores) {
-            factors = scoreRes.data.factor_scores.map((factor) => ({
-              name: factor.factor_name,
-              score: factor.raw_score || 0,
-              level: factor.risk_level || '正常',
-              maxScore: factor.max_score,
-              rawScore: factor.raw_score
-            }))
-          }
-        } catch (error) {
-          console.warn(`获取测评 ${assessment.id} 的因子得分失败:`, error)
-        }
-
-        return {
-          id: String(assessment.id),
-          scaleName: assessment.medical_scale_name || '未知量表',
-          completedAt: assessment.submitted_at || assessment.interpreted_at || '',
-          totalScore: parseFloat(assessment.total_score || '0'),
-          result: assessment.risk_level || 'normal',
-          riskLevel: assessment.risk_level || 'normal',
-          source: assessment.origin_type || '未知来源',
-          factors: factors.length > 0 ? factors : undefined
-        }
-      })
-    )
+    // 转换量表记录（仅基础数据，因子得分按需加载）
+    const scales: ScaleRecord[] = (this.assessmentList || []).map((assessment) => ({
+      id: String(assessment.id),
+      scaleName: assessment.medical_scale_name || '未知量表',
+      completedAt: assessment.submitted_at || assessment.interpreted_at || '',
+      totalScore: parseFloat(assessment.total_score || '0'),
+      result: assessment.risk_level || 'normal',
+      riskLevel: assessment.risk_level || 'normal',
+      source: assessment.origin_type || '未知来源',
+      factors: undefined
+    }))
 
     // 转换问卷记录（从答卷记录中提取）
     const surveys: SurveyRecord[] = (this.answerSheetList || []).map((answerSheet: any) => ({
