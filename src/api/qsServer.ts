@@ -54,6 +54,13 @@ qsAxios.interceptors.response.use(
       }
     }
 
+    if (err.response?.status === 429) {
+      const rateLimitMessage =
+        err.response?.data?.message || '请求过于频繁，请稍后再试'
+      message.warning(rateLimitMessage)
+      return Promise.reject(err?.response || err)
+    }
+
     const status = err && err.response && err.response.status ? String(err.response.status) : ''
     errorHandler.handleNetworkError(status, message.error)
     return Promise.reject(err?.response || err)
