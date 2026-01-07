@@ -89,6 +89,7 @@ function LazyTable<T extends Record<string, unknown> = Record<string, unknown>>(
     }
 
     if (!scrollContainer) return
+    const viewportContainer = scrollContainer
 
     // 检查所有表格行
     const rows = container.querySelectorAll('tr[data-row-key]')
@@ -96,7 +97,7 @@ function LazyTable<T extends Record<string, unknown> = Record<string, unknown>>(
       const rowKeyAttr = row.getAttribute('data-row-key')
       if (!rowKeyAttr || observedRef.current.has(rowKeyAttr)) return
 
-      if (isElementInViewport(row as HTMLElement, scrollContainer!)) {
+      if (isElementInViewport(row as HTMLElement, viewportContainer)) {
         observedRef.current.add(rowKeyAttr)
         const record = recordMap.get(rowKeyAttr)
         if (record) {
