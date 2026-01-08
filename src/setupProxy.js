@@ -52,9 +52,9 @@ module.exports = function (app) {
       changeOrigin: true
     })
   )
-  // IAM 相关接口（登录、身份、授权等）在开发时代理到 IAM 服务，避免浏览器 CORS
+  // IAM 相关接口（登录、身份、授权、联想搜索等）在开发时代理到 IAM 服务，避免浏览器 CORS
   app.use(
-    ['/authn', '/identity', '/authz'],
+    ['/authn', '/identity', '/authz', '/suggest'],
     createProxyMiddleware({
       target: process.env.REACT_APP_IAM_HOST || 'https://iam.yangshujie.com/api/v1',
       changeOrigin: true,

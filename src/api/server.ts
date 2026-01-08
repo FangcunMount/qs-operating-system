@@ -8,10 +8,15 @@ import { handle401Error } from './tokenRefresh'
 const isDev = process.env.NODE_ENV === 'development'
 const apiAxios = axios.create({
   timeout: 50000,
-  // 开发环境使用相对路径（''），让 webpack dev-server 的 `setupProxy.js` 转发请求以避免 CORS
-  // 生产/非开发环境使用配置或环境变量的绝对地址
-  // 优先级：环境变量 > config.iamHost > config.host（iamHost 包含完整路径，host 只有域名）
-  baseURL: isDev ? '' : (process.env.REACT_APP_IAM_HOST || process.env.REACT_APP_HOST || config.iamHost || config.host)
+  // 开发环境统一走前端代理，避免 CORS；生产/非开发环境才使用完整 IAM Host
+  baseURL: isDev
+    ? ''
+    : (
+      process.env.REACT_APP_IAM_HOST
+      || config.iamHost
+      || process.env.REACT_APP_HOST
+      || config.host
+    )
 })
 
 // 直接使用真实网络请求

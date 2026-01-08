@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button, Input, Space, Tag, Switch, Tooltip, Spin, message } from 'antd'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AutoComplete, Button, Input, Space, Tag, Switch, Tooltip, Spin, message } from 'antd'
 import { SearchOutlined, StarOutlined, StarFilled } from '@ant-design/icons'
 import { useHistory } from 'react-router-dom'
 import { testeeApi, ITestee } from '@/api/path/subject'
 import { statisticsApi, ITesteeStatistics } from '@/api/path/statistics'
+import { identityApi, IChildSuggestItem } from '@/api/path/identity'
 import { LazyTable } from '@/components/lazyTable'
 import './index.scss'
 
@@ -16,11 +17,15 @@ const SubjectList: React.FC = () => {
   const history = useHistory()
   const [keyword, setKeyword] = useState('')
   const [isKeyFocusFilter, setIsKeyFocusFilter] = useState<boolean | undefined>(undefined)
+  const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>(undefined)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [loading, setLoading] = useState(false)
   const [dataSource, setDataSource] = useState<ITesteeWithStats[]>([])
   const [total, setTotal] = useState(0)
+  const [childSuggests, setChildSuggests] = useState<IChildSuggestItem[]>([])
+  const [suggestLoading, setSuggestLoading] = useState(false)
+  const suggestTimer = useRef<number | null>(null)
 
   const calculateAge = (birthday?: string): number => {
     if (!birthday) return 0
@@ -70,16 +75,22 @@ const SubjectList: React.FC = () => {
     return textMap[level] || level
   }
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (override?: { profileId?: string; page?: number; pageSize?: number }) => {
+    const targetProfileId = override?.profileId ?? selectedProfileId
+    const targetPage = override?.page ?? page
+    const targetPageSize = override?.pageSize ?? pageSize
+
     setLoading(true)
     try {
-      const [err, response] = await testeeApi.listTestees({
+      const queryParams = {
         org_id: 1,
-        name: keyword || undefined,
+        profile_id: targetProfileId,
         is_key_focus: isKeyFocusFilter,
-        page,
-        page_size: pageSize
-      })
+        page: targetPage,
+        page_size: targetPageSize
+      }
+
+      const [err, response] = await testeeApi.listTestees(queryParams)
 
       if (err || !response?.data) {
         message.error('获取受试者列表失败')
@@ -100,11 +111,19 @@ const SubjectList: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [isKeyFocusFilter, keyword, page, pageSize])
+  }, [isKeyFocusFilter, page, pageSize, selectedProfileId])
 
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  useEffect(() => {
+    return () => {
+      if (suggestTimer.current) {
+        window.clearTimeout(suggestTimer.current)
+      }
+    }
+  }, [])
 
   const loadStatisticsForTestee = useCallback(async (testeeId: string | number) => {
     const targetId = String(testeeId)
@@ -152,6 +171,49 @@ const SubjectList: React.FC = () => {
       setPage(1)
     }
   }
+
+  const handleSuggestSearch = useCallback((value: string) => {
+    setKeyword(value)
+    setSelectedProfileId(undefined)
+    setPage(1)
+
+    if (suggestTimer.current) {
+      window.clearTimeout(suggestTimer.current)
+    }
+
+    if (!value) {
+      setChildSuggests([])
+      return
+    }
+
+    suggestTimer.current = window.setTimeout(async () => {
+      setSuggestLoading(true)
+      try {
+        const [err, response] = await identityApi.suggestChild(value)
+        if (err || !response?.data) {
+          setChildSuggests([])
+          return
+        }
+        setChildSuggests(response.data || [])
+      } catch (error) {
+        console.warn('儿童联想搜索失败', error)
+        setChildSuggests([])
+      } finally {
+        setSuggestLoading(false)
+      }
+    }, 300)
+  }, [])
+
+  const handleSuggestSelect = useCallback((_: string, option: any) => {
+    const profileId = option?.profileId || option?.value
+    const display = option?.labelText || option?.value || ''
+    const profileIdStr = profileId ? String(profileId) : undefined
+
+    setKeyword(display)
+    setSelectedProfileId(profileIdStr)
+    setPage(1)
+    fetchData({ profileId: profileIdStr, page: 1 })
+  }, [fetchData])
 
   const handleRowVisible = useCallback((record: ITesteeWithStats) => {
     if (record.statsLoading || record.statsData !== undefined) return
@@ -362,18 +424,34 @@ const SubjectList: React.FC = () => {
               unCheckedChildren={<StarOutlined />}
             />
           </Space>
-          <Input
-            placeholder="搜索姓名"
-            prefix={<SearchOutlined />}
-            allowClear
-            style={{ width: 220 }}
+          <AutoComplete
+            style={{ width: 260 }}
+            options={childSuggests.map((item) => ({
+              value: item.name || String(item.id),
+              label: (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span>{item.name}</span>
+                  <span style={{ color: '#8c8c8c', fontSize: 12 }}>
+                    ID: {item.id}{item.mobile ? ` · 手机：${item.mobile}` : ''}
+                  </span>
+                </div>
+              ),
+              profileId: item.id,
+              labelText: item.name
+            }))}
+            onSearch={handleSuggestSearch}
+            onSelect={handleSuggestSelect}
+            notFoundContent={suggestLoading ? <Spin size="small" /> : null}
             value={keyword}
-            onChange={(e) => {
-              setKeyword(e.target.value)
-              setPage(1)
-            }}
-            onPressEnter={fetchData}
-          />
+          >
+            <Input
+              placeholder="搜索姓名 / 儿童ID / 手机号"
+              prefix={<SearchOutlined />}
+              allowClear
+              onChange={(e) => handleSuggestSearch(e.target.value)}
+              onPressEnter={() => fetchData()}
+            />
+          </AutoComplete>
         </Space>
       </div>
       <div className="table-container">

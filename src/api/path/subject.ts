@@ -8,6 +8,7 @@ import type { FcResponse, ListResponse } from '../../types/server'
 export interface IListTesteeRequest {
   org_id: number
   name?: string
+  profile_id?: string
   is_key_focus?: boolean
   page?: number
   page_size?: number
