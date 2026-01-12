@@ -64,5 +64,10 @@ export const staffApi = {
   // 删除员工
   deleteStaff: (id: number) => {
     return del(`/staff/${id}`)
+  },
+
+  // 更新员工
+  updateStaff: (id: number, data: Partial<ICreateStaffRequest>) => {
+    return post<IStaff>(`/staff/${id}`, data)
   }
 }

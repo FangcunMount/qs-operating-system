@@ -105,6 +105,27 @@ export class StaffStore {
     }
   }
 
+  // 更新员工
+  async updateStaff(id: number, data: Partial<ICreateStaffRequest>): Promise<boolean> {
+    this.loading = true
+    try {
+      const [error, response] = await staffApi.updateStaff(id, data)
+      if (error || !response) {
+        throw new Error('更新员工失败')
+      }
+      message.success('更新员工成功')
+      return true
+    } catch (error) {
+      message.error('更新员工失败')
+      console.error('Update staff error:', error)
+      return false
+    } finally {
+      runInAction(() => {
+        this.loading = false
+      })
+    }
+  }
+
   // 重置状态
   reset(): void {
     this.staffList = []

@@ -108,6 +108,19 @@ export const post = <T>(url: string, data: IAnyObj, params: IAnyObj = {}): Promi
   })
 }
 
+export const put = <T>(url: string, data: IAnyObj, params: IAnyObj = {}): Promise<[any, FcResponse<T> | undefined]> => {
+  return new Promise((resolve) => {
+    apiAxios
+      .put(url, data, { params })
+      .then((result) => {
+        resolve([null, result.data as FcResponse<T>])
+      })
+      .catch((err) => {
+        resolve([err, undefined])
+      })
+  })
+}
+
 export const patch = <T>(url: string, data: IAnyObj, params: IAnyObj = {}): Promise<[any, FcResponse<T> | undefined]> => {
   return new Promise((resolve) => {
     apiAxios

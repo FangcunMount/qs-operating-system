@@ -1,20 +1,32 @@
 import React, { useState, useEffect } from 'react'
-import { Card, Button, Modal, Form, Input, Row, Col, Tag, Descriptions, Table, Space } from 'antd'
+import { Card, Button, Modal, Form, Input, Row, Col, Tag, Descriptions, Table, Space, message, Select } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, SafetyOutlined } from '@ant-design/icons'
 import { observer } from 'mobx-react-lite'
 import { rootStore } from '@/store'
-import type { IRole } from '@/api/path/authz'
+import type { IRole, IPolicyRule } from '@/api/path/authz'
 import './index.scss'
+
+const { Option } = Select
 
 const AuthzConfig: React.FC = observer(() => {
   const { authStore } = rootStore
   const [modalVisible, setModalVisible] = useState(false)
   const [editingRole, setEditingRole] = useState<IRole | null>(null)
   const [form] = Form.useForm()
+  const [policyForm] = Form.useForm()
+  const [policyModalVisible, setPolicyModalVisible] = useState(false)
+  const [actionOptions, setActionOptions] = useState<string[]>([])
 
   useEffect(() => {
     authStore.fetchRoleList({ limit: 100, offset: 0 })
+    authStore.fetchResourceList({ limit: 200, offset: 0 })
   }, [])
+
+  useEffect(() => {
+    if (authStore.selectedRole?.id) {
+      authStore.fetchRolePolicies(authStore.selectedRole.id)
+    }
+  }, [authStore.selectedRole?.id])
 
   const handleRoleSelect = (role: IRole) => {
     authStore.setSelectedRole(role)
@@ -37,7 +49,7 @@ const AuthzConfig: React.FC = observer(() => {
     setModalVisible(true)
   }
 
-  const handleDeleteRole = async (id: number) => {
+  const handleDeleteRole = async (id: string) => {
     await authStore.deleteRole(id)
   }
 
@@ -55,6 +67,40 @@ const AuthzConfig: React.FC = observer(() => {
     } catch (error) {
       // 错误已在 store 中处理
     }
+  }
+
+  const handleRemovePolicy = async (rule: IPolicyRule) => {
+    if (!authStore.selectedRole?.id) return
+    if (!rule.resource_id) {
+      message.warning('缺少资源标识，无法删除')
+      return
+    }
+    await authStore.removePolicyRule({
+      role_id: authStore.selectedRole.id,
+      resource_id: rule.resource_id,
+      action: rule.action,
+      changed_by: 'system'
+    })
+    authStore.fetchRolePolicies(authStore.selectedRole.id)
+  }
+
+  const renderPolicyActions = (_: unknown, record: IPolicyRule) => (
+    <Space>
+      <Button
+        type="link"
+        danger
+        size="small"
+        onClick={() => handleRemovePolicy(record)}
+      >
+        删除
+      </Button>
+    </Space>
+  )
+
+  const getResourceLabel = (resourceId?: string) => {
+    const res = authStore.resourceList.find(item => String(item.id) === String(resourceId))
+    if (!res) return resourceId || '-'
+    return `${res.display_name}（${res.key}）`
   }
 
   return (
@@ -128,48 +174,59 @@ const AuthzConfig: React.FC = observer(() => {
                   <Descriptions.Item label="角色描述" span={2}>
                     {authStore.selectedRole.description || '-'}
                   </Descriptions.Item>
-                  <Descriptions.Item label="创建时间" span={2}>
-                    {authStore.selectedRole.createdAt}
-                  </Descriptions.Item>
                 </Descriptions>
               </Card>
 
-              <Card title="策略配置">
+              <Card
+                title="策略配置"
+                extra={
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => {
+                      policyForm.resetFields()
+                      setActionOptions([])
+                      setPolicyModalVisible(true)
+                    }}
+                    disabled={!authStore.selectedRole}
+                  >
+                    添加策略
+                  </Button>
+                }
+              >
                 <Table
                   dataSource={authStore.currentRolePolicies}
-                  rowKey={(record) => `${record.role_id}-${record.resource_id}-${record.action}`}
+                  rowKey={(record, index) => `${record.resource_id || record.object || 'policy'}-${record.action}-${index}`}
                   pagination={false}
                   loading={authStore.loading}
                   columns={[
                     {
-                      title: '资源ID',
-                      dataIndex: 'resource_id',
-                      key: 'resource_id',
+                      title: '主体',
+                      dataIndex: 'subject',
+                      key: 'subject',
+                      render: (text) => text || authStore.selectedRole?.name || '-'
                     },
                     {
-                      title: '操作',
+                      title: '域',
+                      dataIndex: 'domain',
+                      key: 'domain',
+                      render: (text) => text || '-'
+                    },
+                    {
+                      title: '对象/资源',
+                      dataIndex: 'object',
+                      key: 'object',
+                      render: (text, record) => getResourceLabel(record.resource_id || text)
+                    },
+                    {
+                      title: '动作',
                       dataIndex: 'action',
                       key: 'action',
                     },
                     {
                       title: '管理',
                       key: 'actions',
-                      render: function ActionCell() {
-                        return (
-                          <Space>
-                            <Button
-                              type="link"
-                              danger
-                              size="small"
-                              onClick={() => {
-                                // TODO: 实现删除策略功能
-                              }}
-                            >
-                              删除
-                            </Button>
-                          </Space>
-                        )
-                      },
+                      render: renderPolicyActions,
                     },
                   ]}
                 />
@@ -221,9 +278,84 @@ const AuthzConfig: React.FC = observer(() => {
           </Form.Item>
         </Form>
       </Modal>
+
+      <Modal
+        title="添加策略"
+        visible={policyModalVisible}
+        onOk={async () => {
+          try {
+            const values = await policyForm.validateFields()
+            if (!authStore.selectedRole?.id) {
+              message.error('请先选择角色')
+              return
+            }
+            const ok = await authStore.addPolicyRule({
+              role_id: authStore.selectedRole.id,
+              resource_id: values.resource_id,
+              action: values.action,
+              changed_by: 'system',
+              reason: values.reason
+            })
+            if (ok) {
+              setPolicyModalVisible(false)
+              policyForm.resetFields()
+              setActionOptions([])
+              authStore.fetchRolePolicies(authStore.selectedRole.id)
+            }
+          } catch (error) {
+            // 错误已在 store 中处理
+          }
+        }}
+        onCancel={() => {
+          setPolicyModalVisible(false)
+          policyForm.resetFields()
+          setActionOptions([])
+        }}
+        destroyOnClose
+      >
+        <Form form={policyForm} layout="vertical">
+          <Form.Item
+            label="资源"
+            name="resource_id"
+            rules={[{ required: true, message: '请选择资源' }]}
+          >
+            <Select
+              placeholder="请选择资源"
+              showSearch
+              optionFilterProp="children"
+              onChange={(value: string) => {
+                const resource = authStore.resourceList.find(r => String(r.id) === String(value))
+                setActionOptions(resource?.actions || [])
+                policyForm.setFieldsValue({ action: undefined })
+              }}
+            >
+              {authStore.resourceList.map(res => (
+                <Option key={res.id} value={res.id}>
+                  {res.display_name}（{res.key}）
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="动作"
+            name="action"
+            rules={[{ required: true, message: '请选择动作' }]}
+          >
+            <Select placeholder="请选择动作">
+              {actionOptions.map(action => (
+                <Option key={action} value={action}>{action}</Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item label="原因" name="reason">
+            <Input.TextArea rows={3} placeholder="变更原因（可选）" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 })
 
 export default AuthzConfig
-

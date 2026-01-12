@@ -32,9 +32,9 @@ const AsList = lazy(() => import('../pages/as/list'))
 const AsDetail = lazy(() => import('../pages/as/detail'))
 const Login = lazy(() => import('../pages/user/login'))
 const UserProfile = lazy(() => import('../pages/user/profile'))
-const AdminList = lazy(() => import('../pages/admin/list'))
 const AdminAuthz = lazy(() => import('../pages/admin/authz'))
 const AdminStaff = lazy(() => import('../pages/admin/staff'))
+const AdminResource = lazy(() => import('../pages/admin/resource'))
 
 // 新增页面组件
 const SubjectList = lazy(() => import('../pages/subject/list'))
@@ -283,12 +283,6 @@ export const routes: Array<IRoute> = [
     icon: createIcon(SettingOutlined),
     children: [
       {
-        title: '管理员管理',
-        name: 'admin-list',
-        path: '/admin/list',
-        component: AdminList
-      },
-      {
         title: '员工管理',
         name: 'admin-staff',
         path: '/admin/staff',
@@ -299,6 +293,12 @@ export const routes: Array<IRoute> = [
         name: 'admin-authz',
         path: '/admin/authz',
         component: AdminAuthz
+      },
+      {
+        title: '资源管理',
+        name: 'admin-resource',
+        path: '/admin/resource',
+        component: AdminResource
       }
     ]
   }

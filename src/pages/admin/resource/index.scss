@@ -1,0 +1,43 @@
+.resource-management-page {
+  .resource-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+
+      .title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 18px;
+        font-weight: 600;
+      }
+
+      .subtitle {
+        color: rgba(0, 0, 0, 0.45);
+      }
+    }
+  }
+
+  .filter-form {
+    margin-bottom: 16px;
+
+    .ant-form-item {
+      margin-right: 12px;
+      margin-bottom: 12px;
+    }
+  }
+
+  .resource-key {
+    font-size: 12px;
+  }
+
+  .resource-desc {
+    margin: 0;
+  }
+}

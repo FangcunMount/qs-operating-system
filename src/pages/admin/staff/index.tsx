@@ -94,18 +94,13 @@ const StaffManagement: React.FC = observer(() => {
         is_active: values.is_active === 'true' || values.is_active === true
       }
 
-      if (editingStaff) {
-        // TODO: 实现更新员工功能
-        Modal.info({
-          title: '提示',
-          content: '更新功能待实现'
-        })
-      } else {
-        const success = await staffStore.createStaff(data)
-        if (success) {
-          setModalVisible(false)
-          fetchStaffList(staffStore.pageInfo.current, staffStore.pageInfo.pageSize)
-        }
+      const success = editingStaff
+        ? await staffStore.updateStaff(editingStaff.id, data)
+        : await staffStore.createStaff(data)
+
+      if (success) {
+        setModalVisible(false)
+        fetchStaffList(staffStore.pageInfo.current, staffStore.pageInfo.pageSize)
       }
     } catch (error) {
       console.error('Validation failed:', error)
@@ -130,18 +125,6 @@ const StaffManagement: React.FC = observer(() => {
       dataIndex: 'user_id',
       key: 'user_id',
       width: 100,
-    },
-    {
-      title: '邮箱',
-      dataIndex: 'email',
-      key: 'email',
-      width: 180,
-    },
-    {
-      title: '手机号',
-      dataIndex: 'phone',
-      key: 'phone',
-      width: 130,
     },
     {
       title: '角色',
@@ -180,12 +163,6 @@ const StaffManagement: React.FC = observer(() => {
           </Tag>
         )
       }
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      width: 160,
     },
     {
       title: '操作',
@@ -299,23 +276,6 @@ const StaffManagement: React.FC = observer(() => {
               placeholder="请选择角色"
               options={roleOptions}
             />
-          </Form.Item>
-
-          <Form.Item
-            label="手机号"
-            name="phone"
-          >
-            <Input placeholder="请输入手机号" />
-          </Form.Item>
-
-          <Form.Item
-            label="邮箱"
-            name="email"
-            rules={[
-              { type: 'email', message: '请输入有效的邮箱地址' }
-            ]}
-          >
-            <Input placeholder="请输入邮箱" />
           </Form.Item>
 
           <Form.Item

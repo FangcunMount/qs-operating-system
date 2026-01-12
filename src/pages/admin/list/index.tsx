@@ -206,32 +206,15 @@ const AdminManagement: React.FC = observer(() => {
         visible={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
-        width={600}
       >
         <Form form={form} layout="vertical">
           <Form.Item
             label="用户名"
             name="username"
-            rules={[
-              { required: true, message: '请输入用户名' },
-              { pattern: /^[a-zA-Z0-9_]{4,20}$/, message: '用户名为4-20位字母、数字或下划线' }
-            ]}
+            rules={[{ required: true, message: '请输入用户名' }]}
           >
             <Input prefix={<UserOutlined />} placeholder="请输入用户名" disabled={!!editingAdmin} />
           </Form.Item>
-
-          {!editingAdmin && (
-            <Form.Item
-              label="密码"
-              name="password"
-              rules={[
-                { required: true, message: '请输入密码' },
-                { min: 6, message: '密码至少6位' }
-              ]}
-            >
-              <Input.Password prefix={<LockOutlined />} placeholder="请输入密码" />
-            </Form.Item>
-          )}
 
           <Form.Item
             label="昵称"
@@ -244,10 +227,7 @@ const AdminManagement: React.FC = observer(() => {
           <Form.Item
             label="邮箱"
             name="email"
-            rules={[
-              { required: true, message: '请输入邮箱' },
-              { type: 'email', message: '请输入有效的邮箱地址' }
-            ]}
+            rules={[{ required: true, type: 'email', message: '请输入正确的邮箱' }]}
           >
             <Input placeholder="请输入邮箱" />
           </Form.Item>
@@ -257,7 +237,7 @@ const AdminManagement: React.FC = observer(() => {
             name="phone"
             rules={[
               { required: true, message: '请输入手机号' },
-              { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号' }
+              { pattern: /^1\d{10}$/, message: '请输入正确的手机号' }
             ]}
           >
             <Input placeholder="请输入手机号" />
@@ -276,17 +256,15 @@ const AdminManagement: React.FC = observer(() => {
             </Select>
           </Form.Item>
 
-          <Form.Item
-            label="状态"
-            name="status"
-            rules={[{ required: true, message: '请选择状态' }]}
-            initialValue="active"
-          >
-            <Select placeholder="请选择状态">
-              <Option value="active">启用</Option>
-              <Option value="disabled">禁用</Option>
-            </Select>
-          </Form.Item>
+          {!editingAdmin && (
+            <Form.Item
+              label="密码"
+              name="password"
+              rules={[{ required: true, message: '请输入密码' }]}
+            >
+              <Input.Password placeholder="请输入密码" />
+            </Form.Item>
+          )}
         </Form>
       </Modal>
     </div>

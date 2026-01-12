@@ -1,5 +1,9 @@
 .authz-config-page {
   .role-list {
+    max-height: 800px;
+    overflow-y: auto;
+    padding-right: 4px;
+
     .role-item {
       padding: 16px;
       margin-bottom: 12px;
