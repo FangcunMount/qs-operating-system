@@ -11,19 +11,19 @@ interface IConfigBase {
 // 环境映射（参考小程序 develop/trial/release 语义）
 const configMap: Record<EnvVersion, Partial<IConfigBase> & { appID?: string; agentID?: string }> = {
   develop: {
-    domain: 'yangshujie.com',
-    iamHost: 'https://iam.yangshujie.com/api/v1',
-    qsHost: 'https://qs.yangshujie.com/api/v1',
+    domain: 'fangcunmount.cn',
+    iamHost: 'https://iam.fangcunmount.cn/api/v1',
+    qsHost: 'https://qs.fangcunmount.cn/api/v1',
   },
   trial: {
-    domain: 'yangshujie.com',
-    iamHost: 'https://iam.yangshujie.com/api/v1',
-    qsHost: 'https://qs.staging.yangshujie.com/api/v1',
+    domain: 'fangcunmount.cn',
+    iamHost: 'https://iam.fangcunmount.cn/api/v1',
+    qsHost: 'https://qs.staging.fangcunmount.cn/api/v1',
   },
   release: {
-    domain: 'yangshujie.com',
-    iamHost: 'https://iam.yangshujie.com/api/v1',
-    qsHost: 'https://qs.yangshujie.com/api/v1',
+    domain: 'fangcunmount.cn',
+    iamHost: 'https://iam.fangcunmount.cn/api/v1',
+    qsHost: 'https://qs.fangcunmount.cn/api/v1',
   }
 }
 
@@ -49,7 +49,7 @@ const iamHostFromEnv = process.env.REACT_APP_IAM_HOST
 const qsHostFromEnv = process.env.REACT_APP_QS_HOST
 const hostFromEnv = process.env.REACT_APP_HOST
 
-const domain = base.domain || 'yangshujie.com'
+const domain = base.domain || 'fangcunmount.cn'
 const iamHost = iamHostFromEnv || base.iamHost || `https://iam.${domain}/api/v1`
 const qsHost = qsHostFromEnv || base.qsHost || `https://qs.${domain}/api/v1`
 

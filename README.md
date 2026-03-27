@@ -72,8 +72,8 @@ macOS/Linux 用户需要使用：
 
 项目已配置开发环境代理（`src/setupProxy.js`），将以下请求代理到后端服务：
 
-- `/api/*` → `https://yangshujie.com`
-- `/oss/*` → `https://api.yangshujie.com`
+- `/api/*` → `https://fangcunmount.cn`
+- `/oss/*` → `https://api.fangcunmount.cn`
 
 如需修改代理配置，请编辑 `src/setupProxy.js` 文件。
 
@@ -138,13 +138,13 @@ server {
 
     # API 代理（可选）
     location /api/ {
-      proxy_pass https://yangshujie.com;
+      proxy_pass https://fangcunmount.cn;
       proxy_set_header Host $host;
       proxy_set_header X-Real-IP $remote_addr;
     }
 
     location /oss/ {
-        proxy_pass https://api.yangshujie.com;
+        proxy_pass https://api.fangcunmount.cn;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
@@ -195,7 +195,7 @@ docker run -d -p 80:80 qs-operating-system
 - **development**: 开发环境
 - **production**: 生产环境
 
-根据域名自动切换环境配置，生产环境需要部署到 `yangshujie.com` 域名。
+根据域名自动切换环境配置，生产环境需要部署到 `fangcunmount.cn` 域名。
 
 ## 可用脚本
 

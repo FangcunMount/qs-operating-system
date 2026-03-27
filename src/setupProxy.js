@@ -7,7 +7,7 @@ module.exports = function (app) {
   app.use(
     '/api',
     createProxyMiddleware({
-      target: process.env.REACT_APP_QS_HOST || 'https://qs.yangshujie.com',
+      target: process.env.REACT_APP_QS_HOST || 'https://qs.fangcunmount.cn',
       changeOrigin: true,
       pathRewrite: (path) => path, // 保持路径不变
       logLevel: 'debug',
@@ -32,7 +32,7 @@ module.exports = function (app) {
   app.use(
     '/questionnaires',
     createProxyMiddleware({
-      target: process.env.REACT_APP_QS_HOST || 'https://qs.yangshujie.com',
+      target: process.env.REACT_APP_QS_HOST || 'https://qs.fangcunmount.cn',
       changeOrigin: true,
       pathRewrite: (path) => `/api/v1${path}`, // 添加 /api/v1 前缀
       logLevel: 'debug',
@@ -48,7 +48,7 @@ module.exports = function (app) {
   app.use(
     '/oss',
     createProxyMiddleware({
-      target: 'https://api.yangshujie.com',
+      target: 'https://api.fangcunmount.cn',
       changeOrigin: true
     })
   )
@@ -56,7 +56,7 @@ module.exports = function (app) {
   app.use(
     ['/authn', '/identity', '/authz', '/suggest'],
     createProxyMiddleware({
-      target: process.env.REACT_APP_IAM_HOST || 'https://iam.yangshujie.com/api/v1',
+      target: process.env.REACT_APP_IAM_HOST || 'https://iam.fangcunmount.cn/api/v1',
       changeOrigin: true,
       pathRewrite: (path) => path // 保持路径不变（例如 /authn/login, /identity/me, /authz/roles）
     })
