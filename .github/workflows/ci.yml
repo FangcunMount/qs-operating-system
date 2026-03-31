@@ -158,9 +158,18 @@ jobs:
             echo "ℹ️ Docker Hub credentials missing, skip mirror."
             exit 0
           fi
-          echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
-          docker buildx imagetools create -t "${IMAGE_DOCKERHUB}:latest" "${IMAGE}:latest"
-          docker buildx imagetools create -t "${IMAGE_DOCKERHUB}:sha-${GITHUB_SHA}" "${IMAGE}:sha-${GITHUB_SHA}"
+          if ! echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin; then
+            echo "⚠️ Docker Hub login failed, skip mirror."
+            exit 0
+          fi
+          if ! docker buildx imagetools create -t "${IMAGE_DOCKERHUB}:latest" "${IMAGE}:latest"; then
+            echo "⚠️ Mirror latest tag failed, skip Docker Hub mirror."
+            exit 0
+          fi
+          if ! docker buildx imagetools create -t "${IMAGE_DOCKERHUB}:sha-${GITHUB_SHA}" "${IMAGE}:sha-${GITHUB_SHA}"; then
+            echo "⚠️ Mirror sha tag failed, keep GHCR as source of truth."
+            exit 0
+          fi
 
   deploy_serverb:
     needs: [docker_build_push]
