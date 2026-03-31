@@ -263,7 +263,6 @@ jobs:
           IMAGE_NAME="${IMAGE}:latest"
           BUNDLE="/tmp/qs-ops-image.tar.gz"
           APP_PORT="3000"
-          HEALTH_URL="http://127.0.0.1:${APP_PORT}/"
           PREV_IMAGE=""
           USE_IMAGE="${IMAGE_NAME}"
 
@@ -323,14 +322,16 @@ jobs:
             -p ${APP_PORT}:${APP_PORT} \
             "${USE_IMAGE}"
 
-          echo "🩺 Health check: ${HEALTH_URL}"
+          # 与 build/Dockerfile 的 HEALTHCHECK 一致：在容器内 wget（主机常无 curl，且避免端口映射就绪竞态）
+          echo "🩺 Health check (docker exec → http://127.0.0.1:${APP_PORT}/)..."
           HEALTH_OK=0
-          for i in $(seq 1 20); do
-            if $SUDO curl -fsS --max-time 3 "${HEALTH_URL}" >/dev/null 2>&1; then
+          sleep 5
+          for i in $(seq 1 45); do
+            if $SUDO docker exec "${CONTAINER_NAME}" wget -qO- -T 3 "http://127.0.0.1:${APP_PORT}/" >/dev/null 2>&1; then
               HEALTH_OK=1
               break
             fi
-            sleep 3
+            sleep 2
           done
 
           if [ "${HEALTH_OK}" -ne 1 ]; then
