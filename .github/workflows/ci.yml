@@ -286,8 +286,15 @@ jobs:
             exit 1
           fi
           echo "📦 docker load from ${BUNDLE}..."
-          gunzip -c "${BUNDLE}" | $SUDO docker load
-          rm -f "${BUNDLE}"
+          # 勿用 gunzip | sudo docker load：sudo -S 会从同一 stdin 先读密码，挤占 tar 流 → unexpected EOF
+          if ! gzip -t "${BUNDLE}" 2>/dev/null; then
+            echo "❌ 镜像包损坏或未传完整（gzip 校验失败），请检查 scp / 磁盘空间" >&2
+            exit 1
+          fi
+          TEMP_TAR="$(mktemp)"
+          gunzip -c "${BUNDLE}" > "${TEMP_TAR}"
+          $SUDO docker load -i "${TEMP_TAR}"
+          rm -f "${TEMP_TAR}" "${BUNDLE}"
 
           # 网络不存在就创建（比直接失败更“改完就能跑”）
           if ! $SUDO docker network ls --format '{{.Name}}' | grep -q "^${NETWORK_NAME}$"; then
