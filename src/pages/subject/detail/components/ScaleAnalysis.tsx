@@ -6,6 +6,7 @@ import {
   BarChart, Bar
 } from 'recharts'
 import { BarChartOutlined, RiseOutlined, FallOutlined, FullscreenOutlined } from '@ant-design/icons'
+import moment from 'moment'
 import './ScaleAnalysis.scss'
 
 const { Option } = Select
@@ -34,16 +35,81 @@ interface ScaleAnalysisProps {
   data?: ScaleData[]
 }
 
+/** 多个 Option 的 value 相同时，Ant Design 会给每一项加上「选中」样式；重复 scaleId 时用索引区分 */
+const DUP_SEP = '\u0001'
+
+function formatDisplayDate(raw: string | undefined): string {
+  if (raw == null || raw === '') return ''
+  const m = moment(raw)
+  return m.isValid() ? m.format('YYYY-MM-DD') : raw
+}
+
 const ScaleAnalysis: React.FC<ScaleAnalysisProps> = ({ data = [] }) => {
-  const [selectedScale, setSelectedScale] = useState<string | undefined>(
-    data.length > 0 ? data[0].scaleId : undefined
+  function getOptionValue(scale: ScaleData, index: number): string {
+    const hasDup = data.some((s, i) => i !== index && s.scaleId === scale.scaleId)
+    return hasDup ? `${scale.scaleId}${DUP_SEP}${index}` : scale.scaleId
+  }
+
+  function findScaleByOptionValue(value: string | undefined): ScaleData | undefined {
+    if (value === undefined || data.length === 0) return undefined
+    const i = value.indexOf(DUP_SEP)
+    if (i !== -1) {
+      const id = value.slice(0, i)
+      const idx = parseInt(value.slice(i + DUP_SEP.length), 10)
+      if (!Number.isNaN(idx) && data[idx]?.scaleId === id) return data[idx]
+    }
+    return data.find(s => s.scaleId === value)
+  }
+
+  /** 选「最近一次测评」所在量表：比较各量表下测评日期的最大值，取最大的那条；若均无量表则退回第一项 */
+  function getDefaultScaleIndex(): number {
+    if (data.length === 0) return -1
+    let bestIdx = 0
+    let bestTs = -Infinity
+    for (let i = 0; i < data.length; i++) {
+      const tests = data[i].tests || []
+      const times = tests
+        .map(t => new Date(t.testDate).getTime())
+        .filter((ms): ms is number => Number.isFinite(ms))
+      if (times.length === 0) continue
+      const ts = Math.max(...times)
+      if (ts > bestTs) {
+        bestTs = ts
+        bestIdx = i
+      }
+    }
+    if (bestTs === -Infinity) return 0
+    return bestIdx
+  }
+
+  function getDefaultSelectedValue(): string | undefined {
+    if (data.length === 0) return undefined
+    const idx = getDefaultScaleIndex()
+    return getOptionValue(data[idx], idx)
+  }
+
+  const [selectedScale, setSelectedScale] = useState<string | undefined>(() =>
+    getDefaultSelectedValue()
   )
   const [timeRange, setTimeRange] = useState<string>('3m') // 1m, 3m, 6m, 1y, all
   const [visibleFactors, setVisibleFactors] = useState<string[]>([])
   const [trendFullscreen, setTrendFullscreen] = useState(false)
   const [comparisonFullscreen, setComparisonFullscreen] = useState(false)
 
-  const currentScale = data.find(scale => scale.scaleId === selectedScale)
+  React.useEffect(() => {
+    if (data.length === 0) {
+      setSelectedScale(undefined)
+      return
+    }
+    if (!findScaleByOptionValue(selectedScale)) {
+      setSelectedScale(getDefaultSelectedValue())
+    }
+  }, [data, selectedScale])
+
+  const currentScale = useMemo(
+    () => findScaleByOptionValue(selectedScale),
+    [selectedScale, data]
+  )
   
   // 根据时间范围筛选测评记录
   const getFilteredTests = useMemo(() => {
@@ -147,7 +213,7 @@ const ScaleAnalysis: React.FC<ScaleAnalysisProps> = ({ data = [] }) => {
     const sortedTests = [...getFilteredTests].sort((a, b) => a.testDate.localeCompare(b.testDate))
     const firstTest = sortedTests[0]
     const lastTest = sortedTests[sortedTests.length - 1]
-    return `${firstTest?.testDate} → ${lastTest?.testDate}`
+    return `${formatDisplayDate(firstTest?.testDate)} → ${formatDisplayDate(lastTest?.testDate)}`
   }
 
   // 渲染趋势图内容
@@ -202,9 +268,13 @@ const ScaleAnalysis: React.FC<ScaleAnalysisProps> = ({ data = [] }) => {
         <ResponsiveContainer width="100%" height={isFullscreen ? 500 : 350}>
           <LineChart data={trendData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" style={{ fontSize: 12 }} />
+            <XAxis
+              dataKey="date"
+              tickFormatter={formatDisplayDate}
+              style={{ fontSize: 12 }}
+            />
             <YAxis style={{ fontSize: 12 }} />
-            <Tooltip />
+            <Tooltip labelFormatter={label => formatDisplayDate(String(label))} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             {/* 总分线 */}
             <Line
@@ -281,6 +351,7 @@ const ScaleAnalysis: React.FC<ScaleAnalysisProps> = ({ data = [] }) => {
                     {getFilteredTests.map((test, index) => (
                       <Bar
                         key={test.testId}
+                        name={formatDisplayDate(test.testDate)}
                         dataKey={test.testDate}
                         fill={colors[index % colors.length]}
                       />
@@ -354,8 +425,8 @@ const ScaleAnalysis: React.FC<ScaleAnalysisProps> = ({ data = [] }) => {
           style={{ width: 200 }}
           disabled={data.length === 0}
         >
-          {data.map(scale => (
-            <Option key={scale.scaleId} value={scale.scaleId}>
+          {data.map((scale, index) => (
+            <Option key={`${scale.scaleId}-${index}`} value={getOptionValue(scale, index)}>
               {scale.scaleName}
             </Option>
           ))}
