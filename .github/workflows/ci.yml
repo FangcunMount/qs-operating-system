@@ -218,6 +218,7 @@ jobs:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME || github.actor }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           GHCR_ACTIONS_USER: ${{ github.repository_owner }}
+          GHCR_ACTOR: ${{ github.actor }}
           ACTIONS_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -229,7 +230,7 @@ jobs:
           SSH_OPTS="-i ~/.ssh/id_ed25519 -p ${PORT} -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
           echo "🔌 Connecting to ${USER}@${HOST}:${PORT}"
 
-          cat <<'REMOTE_SCRIPT' | ssh ${SSH_OPTS} "${USER}@${HOST}" "IMAGE=${IMAGE} IMAGE_DOCKERHUB=${IMAGE_DOCKERHUB} SUDO_PASSWORD='${SUDO_PASSWORD}' GHCR_USERNAME='${GHCR_USERNAME}' GHCR_TOKEN='${GHCR_TOKEN}' GHCR_ACTIONS_USER='${GHCR_ACTIONS_USER}' ACTIONS_GITHUB_TOKEN='${ACTIONS_GITHUB_TOKEN}' DOCKERHUB_USERNAME='${DOCKERHUB_USERNAME}' DOCKERHUB_TOKEN='${DOCKERHUB_TOKEN}' bash -s"
+          cat <<'REMOTE_SCRIPT' | ssh ${SSH_OPTS} "${USER}@${HOST}" "IMAGE=${IMAGE} IMAGE_DOCKERHUB=${IMAGE_DOCKERHUB} SUDO_PASSWORD='${SUDO_PASSWORD}' GHCR_USERNAME='${GHCR_USERNAME}' GHCR_TOKEN='${GHCR_TOKEN}' GHCR_ACTIONS_USER='${GHCR_ACTIONS_USER}' GHCR_ACTOR='${GHCR_ACTOR}' ACTIONS_GITHUB_TOKEN='${ACTIONS_GITHUB_TOKEN}' DOCKERHUB_USERNAME='${DOCKERHUB_USERNAME}' DOCKERHUB_TOKEN='${DOCKERHUB_TOKEN}' bash -s"
           set -Eeuo pipefail
 
           CONTAINER_NAME="qs-operating-system"
@@ -278,16 +279,29 @@ jobs:
           }
 
           if [ -n "${GHCR_TOKEN:-}" ]; then
-            if ghcr_try_login_pull "${GHCR_USERNAME}" "${GHCR_TOKEN}" "PAT"; then
-              GHCR_PULL_OK=1
-            fi
+            for u in "${GHCR_USERNAME}" "$(printf '%s' "${GHCR_USERNAME}" | tr '[:upper:]' '[:lower:]')"; do
+              [ -n "$u" ] || continue
+              if ghcr_try_login_pull "$u" "${GHCR_TOKEN}" "PAT"; then
+                GHCR_PULL_OK=1
+                break
+              fi
+            done
           fi
 
-          if [ "${GHCR_PULL_OK}" -ne 1 ] && [ -n "${ACTIONS_GITHUB_TOKEN:-}" ] && [ -n "${GHCR_ACTIONS_USER:-}" ]; then
-            echo "⚠️ PAT 未配置或无效，尝试 Actions GITHUB_TOKEN（用户 ${GHCR_ACTIONS_USER}）"
-            if ghcr_try_login_pull "${GHCR_ACTIONS_USER}" "${ACTIONS_GITHUB_TOKEN}" "GITHUB_TOKEN"; then
-              GHCR_PULL_OK=1
-            fi
+          if [ "${GHCR_PULL_OK}" -ne 1 ] && [ -n "${ACTIONS_GITHUB_TOKEN:-}" ]; then
+            echo "⚠️ PAT 无效或未配置，尝试 Actions GITHUB_TOKEN（依次：owner / owner小写 / actor / actor小写）"
+            for u in \
+              "${GHCR_ACTIONS_USER:-}" \
+              "$(printf '%s' "${GHCR_ACTIONS_USER:-}" | tr '[:upper:]' '[:lower:]')" \
+              "${GHCR_ACTOR:-}" \
+              "$(printf '%s' "${GHCR_ACTOR:-}" | tr '[:upper:]' '[:lower:]')"; \
+            do
+              [ -n "$u" ] || continue
+              if ghcr_try_login_pull "$u" "${ACTIONS_GITHUB_TOKEN}" "GITHUB_TOKEN"; then
+                GHCR_PULL_OK=1
+                break
+              fi
+            done
           fi
 
           if [ "${GHCR_PULL_OK}" -ne 1 ]; then
@@ -305,7 +319,10 @@ jobs:
               fi
               USE_IMAGE="${IMAGE_NAME_DOCKERHUB}"
             else
-              echo "❌ GHCR 全部方式失败，且无 Docker Hub 兜底。请检查：① PAT 与 GHCR_USERNAME 是否匹配、read:packages；② Package → Manage Actions access 是否授权本仓库；或 ③ 配置 DOCKERHUB_*" >&2
+              echo "❌ GHCR 全部方式失败，且无 Docker Hub 兜底。" >&2
+              echo "   排查：① ghcr.io 上该 Package → Package settings → Manage Actions access：给本仓库 Read/Write；" >&2
+              echo "   ② 组织若启用 SSO：PAT 须在 SSO 中 Authorize；③ docker login 用户名需与镜像命名空间一致（多已用小写 org 名）；④ PAT 勾选 read:packages（私有再加 repo）。" >&2
+              echo "   ⑤ 仍 denied 时在服务器手动验证：printf '%s' \"\$TOKEN\" | docker login ghcr.io -u \"fangcunmount\" --password-stdin" >&2
               exit 1
             fi
           fi
