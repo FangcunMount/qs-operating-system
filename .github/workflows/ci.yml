@@ -213,6 +213,34 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keygen -lf ~/.ssh/id_ed25519
 
+      # 在 Runner 上拉取 GHCR（GITHUB_TOKEN 在此一定有效），再打成离线包；避免在生产机上 docker login ghcr（易 denied / token 经 SSH 传参损坏）
+      - name: Login GHCR (runner, for image pull)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image on runner and export bundle
+        env:
+          IMAGE_REF: ${{ env.IMAGE }}:latest
+        run: |
+          set -Eeuo pipefail
+          docker pull "${IMAGE_REF}"
+          docker save "${IMAGE_REF}" | gzip -1 > /tmp/qs-ops-image.tar.gz
+          ls -lh /tmp/qs-ops-image.tar.gz
+
+      - name: Upload image bundle to ServerB
+        shell: bash
+        env:
+          HOST: ${{ secrets.SVRB_HOST }}
+          USER: ${{ secrets.SVRB_USERNAME }}
+          PORT: ${{ secrets.SVRB_SSH_PORT || 22 }}
+        run: |
+          set -Eeuo pipefail
+          scp -i ~/.ssh/id_ed25519 -P "${PORT}" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            /tmp/qs-ops-image.tar.gz "${USER}@${HOST}:/tmp/qs-ops-image.tar.gz"
+
       - name: Deploy to ServerB
         shell: bash
         env:
@@ -220,32 +248,24 @@ jobs:
           USER: ${{ secrets.SVRB_USERNAME }}
           PORT: ${{ secrets.SVRB_SSH_PORT || 22 }}
           SUDO_PASSWORD: ${{ secrets.SVRB_SUDO_PASSWORD }}
-          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME || github.actor }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-          GHCR_ACTIONS_USER: ${{ github.repository_owner }}
-          GHCR_ACTOR: ${{ github.actor }}
-          ACTIONS_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           IMAGE: ${{ env.IMAGE }}
-          IMAGE_DOCKERHUB: ${{ env.IMAGE_DOCKERHUB }}
         run: |
           set -Eeuo pipefail
 
           SSH_OPTS="-i ~/.ssh/id_ed25519 -p ${PORT} -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
           echo "🔌 Connecting to ${USER}@${HOST}:${PORT}"
 
-          cat <<'REMOTE_SCRIPT' | ssh ${SSH_OPTS} "${USER}@${HOST}" "IMAGE=${IMAGE} IMAGE_DOCKERHUB=${IMAGE_DOCKERHUB} SUDO_PASSWORD='${SUDO_PASSWORD}' GHCR_USERNAME='${GHCR_USERNAME}' GHCR_TOKEN='${GHCR_TOKEN}' GHCR_ACTIONS_USER='${GHCR_ACTIONS_USER}' GHCR_ACTOR='${GHCR_ACTOR}' ACTIONS_GITHUB_TOKEN='${ACTIONS_GITHUB_TOKEN}' DOCKERHUB_USERNAME='${DOCKERHUB_USERNAME}' DOCKERHUB_TOKEN='${DOCKERHUB_TOKEN}' bash -s"
+          cat <<'REMOTE_SCRIPT' | ssh ${SSH_OPTS} "${USER}@${HOST}" "IMAGE=${IMAGE} SUDO_PASSWORD='${SUDO_PASSWORD}' bash -s"
           set -Eeuo pipefail
 
           CONTAINER_NAME="qs-operating-system"
           NETWORK_NAME="infra-network"
           IMAGE_NAME="${IMAGE}:latest"
-          IMAGE_NAME_DOCKERHUB="${IMAGE_DOCKERHUB}:latest"
-          REGISTRY="ghcr.io"
+          BUNDLE="/tmp/qs-ops-image.tar.gz"
           APP_PORT="3000"
           HEALTH_URL="http://127.0.0.1:${APP_PORT}/"
           PREV_IMAGE=""
+          USE_IMAGE="${IMAGE_NAME}"
 
           # sudo helper（兼容需要密码/不需要密码）
           if sudo -n true 2>/dev/null; then
@@ -261,76 +281,13 @@ jobs:
             $SUDO -v || true
           fi
 
-          USE_IMAGE="${IMAGE_NAME}"
-          GHCR_PULL_OK=0
-
-          ghcr_try_login_pull() {
-            local user="$1"
-            local secret="$2"
-            local label="$3"
-            [ -n "$secret" ] || return 1
-            echo "🔐 GHCR (${label}) login as ${user}..."
-            $SUDO docker logout "${REGISTRY}" 2>/dev/null || true
-            if ! printf '%s' "$secret" | $SUDO docker login "${REGISTRY}" -u "$user" --password-stdin; then
-              echo "⚠️ GHCR login failed (${label})" >&2
-              return 1
-            fi
-            echo "📥 Pull from GHCR: ${IMAGE_NAME}"
-            if ! $SUDO docker pull "${IMAGE_NAME}"; then
-              echo "⚠️ GHCR pull failed (${label})" >&2
-              return 1
-            fi
-            return 0
-          }
-
-          if [ -n "${GHCR_TOKEN:-}" ]; then
-            for u in "${GHCR_USERNAME}" "$(printf '%s' "${GHCR_USERNAME}" | tr '[:upper:]' '[:lower:]')"; do
-              [ -n "$u" ] || continue
-              if ghcr_try_login_pull "$u" "${GHCR_TOKEN}" "PAT"; then
-                GHCR_PULL_OK=1
-                break
-              fi
-            done
+          if [ ! -f "${BUNDLE}" ]; then
+            echo "❌ 未找到镜像包 ${BUNDLE}（上传阶段失败或未执行）" >&2
+            exit 1
           fi
-
-          if [ "${GHCR_PULL_OK}" -ne 1 ] && [ -n "${ACTIONS_GITHUB_TOKEN:-}" ]; then
-            echo "⚠️ PAT 无效或未配置，尝试 Actions GITHUB_TOKEN（依次：owner / owner小写 / actor / actor小写）"
-            for u in \
-              "${GHCR_ACTIONS_USER:-}" \
-              "$(printf '%s' "${GHCR_ACTIONS_USER:-}" | tr '[:upper:]' '[:lower:]')" \
-              "${GHCR_ACTOR:-}" \
-              "$(printf '%s' "${GHCR_ACTOR:-}" | tr '[:upper:]' '[:lower:]')"; \
-            do
-              [ -n "$u" ] || continue
-              if ghcr_try_login_pull "$u" "${ACTIONS_GITHUB_TOKEN}" "GITHUB_TOKEN"; then
-                GHCR_PULL_OK=1
-                break
-              fi
-            done
-          fi
-
-          if [ "${GHCR_PULL_OK}" -ne 1 ]; then
-            if [ -n "${DOCKERHUB_USERNAME:-}" ] && [ -n "${DOCKERHUB_TOKEN:-}" ]; then
-              echo "⚠️ GHCR 不可用，回退 Docker Hub"
-              $SUDO docker logout "${REGISTRY}" 2>/dev/null || true
-              if ! printf '%s' "${DOCKERHUB_TOKEN}" | $SUDO docker login -u "${DOCKERHUB_USERNAME}" --password-stdin; then
-                echo "❌ Docker Hub 登录失败：检查 DOCKERHUB_USERNAME / DOCKERHUB_TOKEN（建议用 Hub Access Token，勿用账户密码）" >&2
-                exit 1
-              fi
-              echo "📥 Pull from Docker Hub: ${IMAGE_NAME_DOCKERHUB}"
-              if ! $SUDO docker pull "${IMAGE_NAME_DOCKERHUB}"; then
-                echo "❌ Docker Hub pull 失败" >&2
-                exit 1
-              fi
-              USE_IMAGE="${IMAGE_NAME_DOCKERHUB}"
-            else
-              echo "❌ GHCR 全部方式失败，且无 Docker Hub 兜底。" >&2
-              echo "   排查：① ghcr.io 上该 Package → Package settings → Manage Actions access：给本仓库 Read/Write；" >&2
-              echo "   ② 组织若启用 SSO：PAT 须在 SSO 中 Authorize；③ docker login 用户名需与镜像命名空间一致（多已用小写 org 名）；④ PAT 勾选 read:packages（私有再加 repo）。" >&2
-              echo "   ⑤ 仍 denied 时在服务器手动验证：printf '%s' \"\$TOKEN\" | docker login ghcr.io -u \"fangcunmount\" --password-stdin" >&2
-              exit 1
-            fi
-          fi
+          echo "📦 docker load from ${BUNDLE}..."
+          gunzip -c "${BUNDLE}" | $SUDO docker load
+          rm -f "${BUNDLE}"
 
           # 网络不存在就创建（比直接失败更“改完就能跑”）
           if ! $SUDO docker network ls --format '{{.Name}}' | grep -q "^${NETWORK_NAME}$"; then
