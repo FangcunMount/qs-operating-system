@@ -36,10 +36,69 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE: ghcr.io/fangcunmount/qs-operating-system
+  IMAGE_DOCKERHUB: fangcunmount/qs-operating-system
   DOCKERFILE: build/Dockerfile
 
 jobs:
+  validate-secrets:
+    name: Validate Secrets
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Check required secrets
+        shell: bash
+        env:
+          SVRB_HOST: ${{ secrets.SVRB_HOST }}
+          SVRB_USERNAME: ${{ secrets.SVRB_USERNAME }}
+          SVRB_SSH_KEY: ${{ secrets.SVRB_SSH_KEY }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        run: |
+          set -Eeuo pipefail
+          ENFORCE_REQUIRED=0
+          VALIDATION_FAILED=0
+
+          if [ "${GITHUB_REF}" = "refs/heads/main" ] || [ "${GITHUB_REF}" = "refs/heads/master" ]; then
+            ENFORCE_REQUIRED=1
+            echo "📋 main/master 分支：严格校验部署必需 secrets"
+          else
+            echo "ℹ️ 非 main/master 分支：仅提示缺失，不阻断"
+          fi
+
+          REQUIRED_SECRETS=(SVRB_HOST SVRB_USERNAME SVRB_SSH_KEY GHCR_TOKEN)
+          OPTIONAL_SECRETS=(SVRB_SSH_PORT SVRB_SUDO_PASSWORD GHCR_USERNAME DOCKERHUB_USERNAME DOCKERHUB_TOKEN)
+
+          for SECRET_NAME in "${REQUIRED_SECRETS[@]}"; do
+            VALUE="${!SECRET_NAME:-}"
+            if [ -n "$VALUE" ]; then
+              echo "✅ $SECRET_NAME is set"
+            else
+              if [ "$ENFORCE_REQUIRED" -eq 1 ]; then
+                echo "❌ $SECRET_NAME is not set"
+                VALIDATION_FAILED=1
+              else
+                echo "⚠️ $SECRET_NAME is not set (required on main/master deploy)"
+              fi
+            fi
+          done
+
+          echo "📎 optional secrets check..."
+          for SECRET_NAME in "${OPTIONAL_SECRETS[@]}"; do
+            VALUE="${!SECRET_NAME:-}"
+            if [ -n "$VALUE" ]; then
+              echo "✅ $SECRET_NAME is set"
+            else
+              echo "⚠️ $SECRET_NAME is not set (optional)"
+            fi
+          done
+
+          if [ "$ENFORCE_REQUIRED" -eq 1 ] && [ "$VALIDATION_FAILED" -eq 1 ]; then
+            echo "❌ Secrets validation failed."
+            exit 1
+          fi
+          echo "✅ Secrets validation passed."
+
   test_lint:
+    needs: [validate-secrets]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -76,7 +135,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & Push
+      - name: Build & Push GHCR
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -87,6 +146,21 @@ jobs:
             ${{ env.IMAGE }}:sha-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Mirror image to Docker Hub (optional)
+        shell: bash
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          set -Eeuo pipefail
+          if [ -z "${DOCKERHUB_USERNAME:-}" ] || [ -z "${DOCKERHUB_TOKEN:-}" ]; then
+            echo "ℹ️ Docker Hub credentials missing, skip mirror."
+            exit 0
+          fi
+          echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
+          docker buildx imagetools create -t "${IMAGE_DOCKERHUB}:latest" "${IMAGE}:latest"
+          docker buildx imagetools create -t "${IMAGE_DOCKERHUB}:sha-${GITHUB_SHA}" "${IMAGE}:sha-${GITHUB_SHA}"
 
   deploy_serverb:
     needs: [docker_build_push]
@@ -115,19 +189,29 @@ jobs:
           USER: ${{ secrets.SVRB_USERNAME }}
           PORT: ${{ secrets.SVRB_SSH_PORT || 22 }}
           SUDO_PASSWORD: ${{ secrets.SVRB_SUDO_PASSWORD }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME || github.actor }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           IMAGE: ${{ env.IMAGE }}
+          IMAGE_DOCKERHUB: ${{ env.IMAGE_DOCKERHUB }}
         run: |
           set -Eeuo pipefail
 
           SSH_OPTS="-i ~/.ssh/id_ed25519 -p ${PORT} -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
           echo "🔌 Connecting to ${USER}@${HOST}:${PORT}"
 
-          cat <<'REMOTE_SCRIPT' | ssh ${SSH_OPTS} "${USER}@${HOST}" "IMAGE=${IMAGE} SUDO_PASSWORD='${SUDO_PASSWORD}' bash -s"
+          cat <<'REMOTE_SCRIPT' | ssh ${SSH_OPTS} "${USER}@${HOST}" "IMAGE=${IMAGE} IMAGE_DOCKERHUB=${IMAGE_DOCKERHUB} SUDO_PASSWORD='${SUDO_PASSWORD}' GHCR_USERNAME='${GHCR_USERNAME}' GHCR_TOKEN='${GHCR_TOKEN}' DOCKERHUB_USERNAME='${DOCKERHUB_USERNAME}' DOCKERHUB_TOKEN='${DOCKERHUB_TOKEN}' bash -s"
           set -Eeuo pipefail
 
           CONTAINER_NAME="qs-operating-system"
           NETWORK_NAME="infra-network"
           IMAGE_NAME="${IMAGE}:latest"
+          IMAGE_NAME_DOCKERHUB="${IMAGE_DOCKERHUB}:latest"
+          REGISTRY="ghcr.io"
+          APP_PORT="3000"
+          HEALTH_URL="http://127.0.0.1:${APP_PORT}/"
+          PREV_IMAGE=""
 
           # sudo helper（兼容需要密码/不需要密码）
           if sudo -n true 2>/dev/null; then
@@ -143,13 +227,43 @@ jobs:
             $SUDO -v || true
           fi
 
-          echo "📥 Pull image: ${IMAGE_NAME}"
-          $SUDO docker pull "${IMAGE_NAME}"
+          USE_IMAGE="${IMAGE_NAME}"
+          GHCR_PULL_OK=0
+          if [ -n "${GHCR_TOKEN:-}" ]; then
+            echo "🔐 Login registry: ${REGISTRY}"
+            if printf '%s' "${GHCR_TOKEN}" | $SUDO docker login "${REGISTRY}" -u "${GHCR_USERNAME}" --password-stdin; then
+              echo "📥 Pull image from GHCR: ${IMAGE_NAME}"
+              if $SUDO docker pull "${IMAGE_NAME}"; then
+                GHCR_PULL_OK=1
+              fi
+            fi
+          fi
+
+          if [ "${GHCR_PULL_OK}" -ne 1 ]; then
+            if [ -n "${DOCKERHUB_USERNAME:-}" ] && [ -n "${DOCKERHUB_TOKEN:-}" ]; then
+              echo "⚠️ GHCR pull failed, fallback to Docker Hub"
+              printf '%s' "${DOCKERHUB_TOKEN}" | $SUDO docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
+              echo "📥 Pull image from Docker Hub: ${IMAGE_NAME_DOCKERHUB}"
+              $SUDO docker pull "${IMAGE_NAME_DOCKERHUB}"
+              USE_IMAGE="${IMAGE_NAME_DOCKERHUB}"
+            else
+              echo "❌ GHCR pull failed and Docker Hub credentials missing" >&2
+              exit 1
+            fi
+          fi
 
           # 网络不存在就创建（比直接失败更“改完就能跑”）
           if ! $SUDO docker network ls --format '{{.Name}}' | grep -q "^${NETWORK_NAME}$"; then
             echo "ℹ️ Network ${NETWORK_NAME} not found, creating..."
             $SUDO docker network create "${NETWORK_NAME}"
+          fi
+
+          # 记录当前运行版本，供失败回滚
+          if $SUDO docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+            PREV_IMAGE="$($SUDO docker inspect --format '{{.Config.Image}}' "${CONTAINER_NAME}" 2>/dev/null || true)"
+            if [ -n "${PREV_IMAGE}" ]; then
+              echo "🧾 Previous image detected: ${PREV_IMAGE}"
+            fi
           fi
 
           if $SUDO docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
@@ -162,9 +276,41 @@ jobs:
             --name "${CONTAINER_NAME}" \
             --network "${NETWORK_NAME}" \
             --restart unless-stopped \
-            -p 3000:3000 \
-            "${IMAGE_NAME}"
+            -p ${APP_PORT}:${APP_PORT} \
+            "${USE_IMAGE}"
+
+          echo "🩺 Health check: ${HEALTH_URL}"
+          HEALTH_OK=0
+          for i in $(seq 1 20); do
+            if $SUDO curl -fsS --max-time 3 "${HEALTH_URL}" >/dev/null 2>&1; then
+              HEALTH_OK=1
+              break
+            fi
+            sleep 3
+          done
+
+          if [ "${HEALTH_OK}" -ne 1 ]; then
+            echo "❌ Health check failed, start rollback..."
+            $SUDO docker logs --tail 100 "${CONTAINER_NAME}" || true
+            $SUDO docker stop "${CONTAINER_NAME}" || true
+            $SUDO docker rm "${CONTAINER_NAME}" || true
+
+            if [ -n "${PREV_IMAGE}" ]; then
+              echo "↩️ Rollback to previous image: ${PREV_IMAGE}"
+              $SUDO docker run -d \
+                --name "${CONTAINER_NAME}" \
+                --network "${NETWORK_NAME}" \
+                --restart unless-stopped \
+                -p ${APP_PORT}:${APP_PORT} \
+                "${PREV_IMAGE}"
+              echo "⚠️ Deployment rolled back."
+              $SUDO docker ps --filter "name=${CONTAINER_NAME}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
+            else
+              echo "❌ No previous image available, rollback skipped." >&2
+            fi
+            exit 1
+          fi
 
           echo "✅ Done. Current status:"
-          $SUDO docker ps --filter "name=${CONTAINER_NAME}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+          $SUDO docker ps --filter "name=${CONTAINER_NAME}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
           REMOTE_SCRIPT
