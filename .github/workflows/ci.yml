@@ -51,7 +51,12 @@ jobs:
           SVRB_HOST: ${{ secrets.SVRB_HOST }}
           SVRB_USERNAME: ${{ secrets.SVRB_USERNAME }}
           SVRB_SSH_KEY: ${{ secrets.SVRB_SSH_KEY }}
+          SVRB_SSH_PORT: ${{ secrets.SVRB_SSH_PORT }}
+          SVRB_SUDO_PASSWORD: ${{ secrets.SVRB_SUDO_PASSWORD }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           set -Eeuo pipefail
           ENFORCE_REQUIRED=0
