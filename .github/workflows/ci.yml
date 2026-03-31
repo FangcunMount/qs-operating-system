@@ -64,8 +64,8 @@ jobs:
             echo "ℹ️ 非 main/master 分支：仅提示缺失，不阻断"
           fi
 
-          REQUIRED_SECRETS=(SVRB_HOST SVRB_USERNAME SVRB_SSH_KEY GHCR_TOKEN)
-          OPTIONAL_SECRETS=(SVRB_SSH_PORT SVRB_SUDO_PASSWORD GHCR_USERNAME DOCKERHUB_USERNAME DOCKERHUB_TOKEN)
+          REQUIRED_SECRETS=(SVRB_HOST SVRB_USERNAME SVRB_SSH_KEY)
+          OPTIONAL_SECRETS=(SVRB_SSH_PORT SVRB_SUDO_PASSWORD GHCR_TOKEN GHCR_USERNAME DOCKERHUB_USERNAME DOCKERHUB_TOKEN)
 
           for SECRET_NAME in "${REQUIRED_SECRETS[@]}"; do
             VALUE="${!SECRET_NAME:-}"
@@ -87,7 +87,21 @@ jobs:
             if [ -n "$VALUE" ]; then
               echo "✅ $SECRET_NAME is set"
             else
-              echo "⚠️ $SECRET_NAME is not set (optional)"
+              case "$SECRET_NAME" in
+                GHCR_TOKEN)
+                  if [ "$ENFORCE_REQUIRED" -eq 1 ]; then
+                    echo "⚠️ $SECRET_NAME is not set — 部署将改用 Actions 内置 GITHUB_TOKEN 登录 GHCR（须在 Package 设置中给本仓库 Actions 读权限）"
+                  else
+                    echo "⚠️ $SECRET_NAME is not set (optional; Actions token may be used instead)"
+                  fi
+                  ;;
+                DOCKERHUB_TOKEN|DOCKERHUB_USERNAME)
+                  echo "⚠️ $SECRET_NAME is not set — GHCR 失败时无法回退 Docker Hub"
+                  ;;
+                *)
+                  echo "⚠️ $SECRET_NAME is not set (optional)"
+                  ;;
+              esac
             fi
           done
 
@@ -174,6 +188,9 @@ jobs:
   deploy_serverb:
     needs: [docker_build_push]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     if: |
       (github.event_name == 'push') ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == true)
@@ -200,6 +217,8 @@ jobs:
           SUDO_PASSWORD: ${{ secrets.SVRB_SUDO_PASSWORD }}
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME || github.actor }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          GHCR_ACTIONS_USER: ${{ github.repository_owner }}
+          ACTIONS_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           IMAGE: ${{ env.IMAGE }}
@@ -210,7 +229,7 @@ jobs:
           SSH_OPTS="-i ~/.ssh/id_ed25519 -p ${PORT} -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
           echo "🔌 Connecting to ${USER}@${HOST}:${PORT}"
 
-          cat <<'REMOTE_SCRIPT' | ssh ${SSH_OPTS} "${USER}@${HOST}" "IMAGE=${IMAGE} IMAGE_DOCKERHUB=${IMAGE_DOCKERHUB} SUDO_PASSWORD='${SUDO_PASSWORD}' GHCR_USERNAME='${GHCR_USERNAME}' GHCR_TOKEN='${GHCR_TOKEN}' DOCKERHUB_USERNAME='${DOCKERHUB_USERNAME}' DOCKERHUB_TOKEN='${DOCKERHUB_TOKEN}' bash -s"
+          cat <<'REMOTE_SCRIPT' | ssh ${SSH_OPTS} "${USER}@${HOST}" "IMAGE=${IMAGE} IMAGE_DOCKERHUB=${IMAGE_DOCKERHUB} SUDO_PASSWORD='${SUDO_PASSWORD}' GHCR_USERNAME='${GHCR_USERNAME}' GHCR_TOKEN='${GHCR_TOKEN}' GHCR_ACTIONS_USER='${GHCR_ACTIONS_USER}' ACTIONS_GITHUB_TOKEN='${ACTIONS_GITHUB_TOKEN}' DOCKERHUB_USERNAME='${DOCKERHUB_USERNAME}' DOCKERHUB_TOKEN='${DOCKERHUB_TOKEN}' bash -s"
           set -Eeuo pipefail
 
           CONTAINER_NAME="qs-operating-system"
@@ -238,25 +257,55 @@ jobs:
 
           USE_IMAGE="${IMAGE_NAME}"
           GHCR_PULL_OK=0
+
+          ghcr_try_login_pull() {
+            local user="$1"
+            local secret="$2"
+            local label="$3"
+            [ -n "$secret" ] || return 1
+            echo "🔐 GHCR (${label}) login as ${user}..."
+            $SUDO docker logout "${REGISTRY}" 2>/dev/null || true
+            if ! printf '%s' "$secret" | $SUDO docker login "${REGISTRY}" -u "$user" --password-stdin; then
+              echo "⚠️ GHCR login failed (${label})" >&2
+              return 1
+            fi
+            echo "📥 Pull from GHCR: ${IMAGE_NAME}"
+            if ! $SUDO docker pull "${IMAGE_NAME}"; then
+              echo "⚠️ GHCR pull failed (${label})" >&2
+              return 1
+            fi
+            return 0
+          }
+
           if [ -n "${GHCR_TOKEN:-}" ]; then
-            echo "🔐 Login registry: ${REGISTRY}"
-            if printf '%s' "${GHCR_TOKEN}" | $SUDO docker login "${REGISTRY}" -u "${GHCR_USERNAME}" --password-stdin; then
-              echo "📥 Pull image from GHCR: ${IMAGE_NAME}"
-              if $SUDO docker pull "${IMAGE_NAME}"; then
-                GHCR_PULL_OK=1
-              fi
+            if ghcr_try_login_pull "${GHCR_USERNAME}" "${GHCR_TOKEN}" "PAT"; then
+              GHCR_PULL_OK=1
+            fi
+          fi
+
+          if [ "${GHCR_PULL_OK}" -ne 1 ] && [ -n "${ACTIONS_GITHUB_TOKEN:-}" ] && [ -n "${GHCR_ACTIONS_USER:-}" ]; then
+            echo "⚠️ PAT 未配置或无效，尝试 Actions GITHUB_TOKEN（用户 ${GHCR_ACTIONS_USER}）"
+            if ghcr_try_login_pull "${GHCR_ACTIONS_USER}" "${ACTIONS_GITHUB_TOKEN}" "GITHUB_TOKEN"; then
+              GHCR_PULL_OK=1
             fi
           fi
 
           if [ "${GHCR_PULL_OK}" -ne 1 ]; then
             if [ -n "${DOCKERHUB_USERNAME:-}" ] && [ -n "${DOCKERHUB_TOKEN:-}" ]; then
-              echo "⚠️ GHCR pull failed, fallback to Docker Hub"
-              printf '%s' "${DOCKERHUB_TOKEN}" | $SUDO docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
-              echo "📥 Pull image from Docker Hub: ${IMAGE_NAME_DOCKERHUB}"
-              $SUDO docker pull "${IMAGE_NAME_DOCKERHUB}"
+              echo "⚠️ GHCR 不可用，回退 Docker Hub"
+              $SUDO docker logout "${REGISTRY}" 2>/dev/null || true
+              if ! printf '%s' "${DOCKERHUB_TOKEN}" | $SUDO docker login -u "${DOCKERHUB_USERNAME}" --password-stdin; then
+                echo "❌ Docker Hub 登录失败：检查 DOCKERHUB_USERNAME / DOCKERHUB_TOKEN（建议用 Hub Access Token，勿用账户密码）" >&2
+                exit 1
+              fi
+              echo "📥 Pull from Docker Hub: ${IMAGE_NAME_DOCKERHUB}"
+              if ! $SUDO docker pull "${IMAGE_NAME_DOCKERHUB}"; then
+                echo "❌ Docker Hub pull 失败" >&2
+                exit 1
+              fi
               USE_IMAGE="${IMAGE_NAME_DOCKERHUB}"
             else
-              echo "❌ GHCR pull failed and Docker Hub credentials missing" >&2
+              echo "❌ GHCR 全部方式失败，且无 Docker Hub 兜底。请检查：① PAT 与 GHCR_USERNAME 是否匹配、read:packages；② Package → Manage Actions access 是否授权本仓库；或 ③ 配置 DOCKERHUB_*" >&2
               exit 1
             fi
           fi
