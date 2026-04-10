@@ -19,6 +19,7 @@ interface TaskStatus {
   status: 'completed' | 'pending' | 'overdue'
   completedAt?: string
   dueDate?: string
+  plannedAt?: string
 }
 
 interface PeriodicProject {
@@ -172,7 +173,13 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
                     {task.status === 'completed' && task.completedAt && (
                       <span>完成时间：{task.completedAt}</span>
                     )}
-                    {task.status !== 'completed' && task.dueDate && (
+                    {task.status === 'pending' && task.dueDate && (
+                      <span>截止日期：{task.dueDate}</span>
+                    )}
+                    {task.status === 'pending' && !task.dueDate && task.plannedAt && (
+                      <span>计划时间：{task.plannedAt}</span>
+                    )}
+                    {task.status === 'overdue' && task.dueDate && (
                       <span>截止日期：{task.dueDate}</span>
                     )}
                   </div>
@@ -441,6 +448,7 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
                       调度类型: {getScheduleTypeText(plan.schedule_type)}
                       {plan.total_times && ` | 总次数: ${plan.total_times}`}
                       {plan.interval && ` | 间隔: ${plan.interval}${plan.schedule_type === 'by_week' ? '周' : '天'}`}
+                      {plan.trigger_time && ` | 触发时间: ${plan.trigger_time}`}
                     </div>
                   </div>
                 </Select.Option>

@@ -26,6 +26,26 @@ module.exports = function (app) {
       }
     })
   )
+
+  app.use(
+    '/internal',
+    createProxyMiddleware({
+      target: process.env.REACT_APP_QS_HOST || 'https://qs.fangcunmount.cn',
+      changeOrigin: true,
+      pathRewrite: (path) => path,
+      logLevel: 'debug',
+      onProxyReq: (proxyReq, req) => {
+        console.log('[Proxy] Internal Request:', req.method, req.url, '-> ', proxyReq.path)
+        const authHeader = req.headers.authorization
+        if (authHeader) {
+          proxyReq.setHeader('Authorization', authHeader)
+        }
+      },
+      onProxyRes: (proxyRes, req) => {
+        console.log('[Proxy] Internal Response:', proxyRes.statusCode, req.url)
+      }
+    })
+  )
   
   // 如果直接访问 /questionnaires 路径（没有 /api/v1 前缀），重定向到正确的 API 路径
   // 这通常不应该发生，但为了调试方便，我们可以添加这个规则

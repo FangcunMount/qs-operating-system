@@ -13,6 +13,8 @@ export interface IUserProfile {
   status: string
   nickname: string
   contacts: IContact[]
+  /** 当前用户角色名列表（与权限配置中的 role name 对应）；未返回时菜单不做角色限制 */
+  roles?: string[]
 }
 
 export interface IUserUpdateRequest {

@@ -75,10 +75,15 @@ const TaskDetail: React.FC = () => {
     }
   }
 
-  const handleOpen = async (values: IOpenTaskRequest) => {
+  const handleOpen = async (values: any) => {
     if (!id) return
     try {
-      const [err] = await taskApi.open(id, values)
+      const requestData: IOpenTaskRequest = {
+        entry_token: values.entry_token,
+        entry_url: values.entry_url,
+        expire_at: values.expire_at?.format?.('YYYY-MM-DD HH:mm:ss') || values.expire_at
+      }
+      const [err] = await taskApi.open(id, requestData)
       if (err) {
         message.error('开放任务失败')
         return
@@ -280,4 +285,3 @@ const TaskDetail: React.FC = () => {
 }
 
 export default TaskDetail
-

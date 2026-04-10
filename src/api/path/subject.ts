@@ -132,6 +132,7 @@ export interface ITaskStatus {
   week: number                   // 第几周（从1开始）
   status: 'completed' | 'pending' | 'overdue'  // 状态
   completed_at?: string          // 完成时间，格式：YYYY-MM-DD HH:mm:ss
+  planned_at?: string            // 计划时间，格式：YYYY-MM-DD HH:mm:ss
   due_date?: string              // 截止时间，格式：YYYY-MM-DD
   assessment_id?: number         // 关联的测评ID（如已完成）
 }

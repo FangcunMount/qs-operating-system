@@ -6,9 +6,10 @@ import {
   ArrowLeftOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
-  StopOutlined
+  StopOutlined,
+  SyncOutlined
 } from '@ant-design/icons'
-import { planApi, IPlan, ITask } from '@/api/path/plan'
+import { planApi, taskApi, IPlan, ITask } from '@/api/path/plan'
 import './index.scss'
 
 const PlanDetail: React.FC = () => {
@@ -18,6 +19,7 @@ const PlanDetail: React.FC = () => {
   const [plan, setPlan] = useState<IPlan | null>(null)
   const [tasks, setTasks] = useState<ITask[]>([])
   const [tasksLoading, setTasksLoading] = useState(false)
+  const [scheduleLoading, setScheduleLoading] = useState(false)
 
   useEffect(() => {
     if (id) {
@@ -110,6 +112,32 @@ const PlanDetail: React.FC = () => {
     }
   }
 
+  const handleSchedulePlanTasks = async () => {
+    if (!id) return
+    setScheduleLoading(true)
+    try {
+      const [err, response] = await taskApi.schedule({ plan_id: id })
+      if (err || !response?.data) {
+        message.error('执行计划任务调度失败')
+        return
+      }
+
+      const stats = response.data.stats
+      if (stats) {
+        message.success(`调度完成：开放 ${stats.opened_count} 个任务，过期 ${stats.expired_count} 个任务`)
+      } else {
+        message.success(`调度完成：开放 ${response.data.tasks?.length || 0} 个任务`)
+      }
+      fetchPlanDetail()
+      fetchPlanTasks()
+    } catch (error) {
+      console.error('执行计划任务调度失败:', error)
+      message.error('执行计划任务调度失败')
+    } finally {
+      setScheduleLoading(false)
+    }
+  }
+
   const getStatusTag = (status: string) => {
     const statusMap: Record<string, { color: string; text: string }> = {
       active: { color: 'green', text: '进行中' },
@@ -124,9 +152,9 @@ const PlanDetail: React.FC = () => {
   const getTaskStatusTag = (status: string) => {
     const statusMap: Record<string, { color: string; text: string }> = {
       pending: { color: 'default', text: '待开放' },
-      open: { color: 'blue', text: '已开放' },
+      opened: { color: 'blue', text: '已开放' },
       completed: { color: 'green', text: '已完成' },
-      cancelled: { color: 'red', text: '已取消' },
+      canceled: { color: 'red', text: '已取消' },
       expired: { color: 'orange', text: '已过期' }
     }
     const config = statusMap[status] || { color: 'default', text: status }
@@ -257,6 +285,7 @@ const PlanDetail: React.FC = () => {
             <Descriptions.Item label="调度类型">
               <Tag icon={<CalendarOutlined />}>{getScheduleTypeText(plan.schedule_type)}</Tag>
             </Descriptions.Item>
+            <Descriptions.Item label="触发时间">{plan.trigger_time || '19:00:00'}</Descriptions.Item>
             {(plan.schedule_type === 'by_week' || plan.schedule_type === 'by_day') && plan.total_times && (
               <Descriptions.Item label="总次数">{plan.total_times}</Descriptions.Item>
             )}
@@ -287,6 +316,15 @@ const PlanDetail: React.FC = () => {
         </div>
         {plan.status !== 'canceled' && (
           <Space>
+            {plan.status === 'active' && (
+              <Button
+                icon={<SyncOutlined />}
+                loading={scheduleLoading}
+                onClick={handleSchedulePlanTasks}
+              >
+                执行该计划任务
+              </Button>
+            )}
             {plan.status === 'active' && (
               <Popconfirm
                 title="确定要暂停此计划吗？"
@@ -331,4 +369,3 @@ const PlanDetail: React.FC = () => {
 }
 
 export default PlanDetail
-

@@ -276,6 +276,7 @@ export const routes: Array<IRoute> = [
       }
     ]
   },
+  // 菜单与路由权限：用户须具备非空 roles；在路由上增加 `roles: ['角色名']` 则进一步限制为该角色（与 GET /identity/me 一致）；不写 roles 的路由仅需「有任意角色」
   {
     title: '系统管理',
     name: 'admin',

@@ -27,6 +27,7 @@ export interface TaskStatus {
   status: 'completed' | 'pending' | 'overdue'
   completedAt?: string
   dueDate?: string
+  plannedAt?: string
 }
 
 export interface PeriodicProject {
@@ -336,6 +337,7 @@ class SubjectStore {
               week,
               status,
               completed_at: task.completed_at,
+              planned_at: task.planned_at,
               due_date: task.expire_at ? task.expire_at.split(' ')[0] : undefined, // 只取日期部分
               assessment_id: task.assessment_id ? Number(task.assessment_id) : undefined
             }
@@ -498,7 +500,8 @@ class SubjectStore {
         week: task.week,
         status: task.status,
         completedAt: task.completed_at,
-        dueDate: task.due_date
+        dueDate: task.due_date,
+        plannedAt: task.planned_at
       }))
     }))
 

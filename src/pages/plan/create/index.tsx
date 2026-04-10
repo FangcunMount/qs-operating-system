@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { useHistory } from 'react-router-dom'
-import { Form, Button, Card, Select, InputNumber, Space, message } from 'antd'
+import { Form, Button, Card, Select, InputNumber, Space, TimePicker, message } from 'antd'
 import { CalendarOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import { planApi, ICreatePlanRequest } from '@/api/path/plan'
 import { getScaleList, IScaleResponse } from '@/api/path/scale'
 import dayjs from 'dayjs'
+import moment from 'moment'
 import './index.scss'
 
 const { Option } = Select
@@ -52,6 +53,7 @@ const PlanCreate: React.FC = () => {
     try {
       // 根据调度类型构建请求数据，只包含必要的字段
       let requestData: ICreatePlanRequest
+      const triggerTime = values.trigger_time?.format?.('HH:mm:ss') || '19:00:00'
 
       if (values.schedule_type === 'by_week' || values.schedule_type === 'by_day') {
         // by_week 和 by_day 需要 interval 和 total_times
@@ -68,6 +70,7 @@ const PlanCreate: React.FC = () => {
         requestData = {
           scale_code: values.scale_code,
           schedule_type: values.schedule_type,
+          trigger_time: triggerTime,
           interval: values.interval,
           total_times: values.total_times
         }
@@ -81,6 +84,7 @@ const PlanCreate: React.FC = () => {
         requestData = {
           scale_code: values.scale_code,
           schedule_type: values.schedule_type,
+          trigger_time: triggerTime,
           fixed_dates: values.fixed_dates
         }
       } else if (values.schedule_type === 'custom') {
@@ -93,6 +97,7 @@ const PlanCreate: React.FC = () => {
         requestData = {
           scale_code: values.scale_code,
           schedule_type: values.schedule_type,
+          trigger_time: triggerTime,
           relative_weeks: values.relative_weeks
         }
       } else {
@@ -157,7 +162,8 @@ const PlanCreate: React.FC = () => {
           layout="vertical"
           onFinish={handleSubmit}
           initialValues={{
-            schedule_type: 'by_day'
+            schedule_type: 'by_day',
+            trigger_time: moment('19:00:00', 'HH:mm:ss')
           }}
         >
           <Form.Item
@@ -210,6 +216,20 @@ const PlanCreate: React.FC = () => {
             </Select>
           </Form.Item>
 
+          <Form.Item
+            label="触发时间"
+            name="trigger_time"
+            rules={[{ required: true, message: '请选择触发时间' }]}
+            extra="任务会在当天该时间点进入待开放调度，默认 19:00"
+          >
+            <TimePicker
+              format="HH:mm"
+              minuteStep={5}
+              style={{ width: '100%' }}
+              placeholder="请选择触发时间"
+            />
+          </Form.Item>
+
           {(scheduleType === 'by_week' || scheduleType === 'by_day') && (
             <>
               <Form.Item
@@ -253,14 +273,15 @@ const PlanCreate: React.FC = () => {
                   if (!values) return
                   // 验证日期格式
                   const valuesArray = Array.isArray(values) ? values : [values]
-                  const validDates = valuesArray
+                  const validDates = Array.from(new Set(valuesArray
                     .filter((v): v is string => typeof v === 'string')
                     .filter((v: string) => {
                       const dateRegex = /^\d{4}-\d{2}-\d{2}$/
                       if (!dateRegex.test(v)) return false
                       const date = dayjs(v, 'YYYY-MM-DD')
                       return date.isValid()
-                    })
+                    })))
+                    .sort((a, b) => a.localeCompare(b))
                   form.setFieldsValue({ fixed_dates: validDates })
                 }}
               />
@@ -285,10 +306,11 @@ const PlanCreate: React.FC = () => {
                   if (!values) return
                   // 转换为数字数组
                   const valuesArray = Array.isArray(values) ? values : [values]
-                  const weeks = valuesArray
+                  const weeks = Array.from(new Set(valuesArray
                     .filter((v): v is string => typeof v === 'string')
                     .map((v: string) => parseInt(v, 10))
                     .filter((w: number) => !isNaN(w) && w > 0)
+                  )).sort((a, b) => a - b)
                   form.setFieldsValue({ relative_weeks: weeks })
                 }}
               >
@@ -319,4 +341,3 @@ const PlanCreate: React.FC = () => {
 }
 
 export default PlanCreate
-

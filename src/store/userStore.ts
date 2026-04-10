@@ -2,6 +2,7 @@ import { makeAutoObservable, runInAction } from 'mobx'
 import { message } from 'antd'
 import { api } from '../api'
 import type { IUserProfile, IContact } from '../api/path/user'
+import { parseJwtClaims, validateJwtClaims } from '@/utils/jwtClaims'
 
 // 导出类型供其他模块使用
 export type { IUserProfile, IContact }
@@ -15,6 +16,9 @@ class UserStore {
   
   // 是否已登录
   isLoggedIn = false
+
+  /** 是否已完成至少一次用户信息拉取（用于菜单权限：未完成前不按 roles 收紧） */
+  profileFetchDone = false
 
   constructor() {
     makeAutoObservable(this)
@@ -34,10 +38,12 @@ class UserStore {
         this.currentUser = data.data
         this.isLoggedIn = true
         this.loading = false
+        this.profileFetchDone = true
       })
     } catch (error) {
       runInAction(() => {
         this.loading = false
+        this.profileFetchDone = true
       })
       message.error('获取用户信息失败')
     }
@@ -129,6 +135,12 @@ class UserStore {
       if (error || !resp || !resp.data) {
         throw new Error(resp?.errmsg || '登录失败')
       }
+
+      const claims = parseJwtClaims(resp.data.access_token)
+      const claimCheck = claims ? validateJwtClaims(claims) : { valid: false, reason: 'access_token 非法 JWT' }
+      if (!claimCheck.valid) {
+        throw new Error(`登录凭证不符合规范: ${claimCheck.reason}`)
+      }
       
       // 保存 token
       localStorage.setItem('access_token', resp.data.access_token)
@@ -166,6 +178,7 @@ class UserStore {
 
     this.currentUser = null
     this.isLoggedIn = false
+    this.profileFetchDone = false
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('token')
@@ -179,6 +192,7 @@ class UserStore {
     this.currentUser = null
     this.loading = false
     this.isLoggedIn = false
+    this.profileFetchDone = false
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('token')

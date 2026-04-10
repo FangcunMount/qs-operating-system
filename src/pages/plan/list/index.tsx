@@ -8,9 +8,10 @@ import {
   EyeOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
-  StopOutlined
+  StopOutlined,
+  SyncOutlined
 } from '@ant-design/icons'
-import { planApi, IPlan } from '@/api/path/plan'
+import { planApi, taskApi, IPlan } from '@/api/path/plan'
 import './index.scss'
 
 const { Search } = Input
@@ -23,6 +24,7 @@ const PlanList: React.FC = () => {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [loading, setLoading] = useState(false)
+  const [scheduleLoading, setScheduleLoading] = useState(false)
   const [dataSource, setDataSource] = useState<IPlan[]>([])
   const [total, setTotal] = useState(0)
 
@@ -54,7 +56,7 @@ const PlanList: React.FC = () => {
 
   useEffect(() => {
     fetchData()
-  }, [page, pageSize, statusFilter])
+  }, [page, pageSize, statusFilter, keyword])
 
   const handleStatusChange = (value: string) => {
     setStatusFilter(value === 'all' ? undefined : value)
@@ -106,6 +108,30 @@ const PlanList: React.FC = () => {
     }
   }
 
+  const handleScheduleAll = async () => {
+    setScheduleLoading(true)
+    try {
+      const [err, response] = await taskApi.schedule({})
+      if (err || !response?.data) {
+        message.error('执行周期任务调度失败')
+        return
+      }
+
+      const stats = response.data.stats
+      if (stats) {
+        message.success(`调度完成：开放 ${stats.opened_count} 个任务，过期 ${stats.expired_count} 个任务`)
+      } else {
+        message.success(`调度完成：开放 ${response.data.tasks?.length || 0} 个任务`)
+      }
+      fetchData()
+    } catch (error) {
+      console.error('执行周期任务调度失败:', error)
+      message.error('执行周期任务调度失败')
+    } finally {
+      setScheduleLoading(false)
+    }
+  }
+
   const getStatusTag = (status: string) => {
     const statusMap: Record<string, { color: string; text: string }> = {
       active: { color: 'green', text: '进行中' },
@@ -134,6 +160,8 @@ const PlanList: React.FC = () => {
   const renderScheduleType = (type: string) => (
     <Tag icon={<CalendarOutlined />}>{getScheduleTypeText(type)}</Tag>
   )
+
+  const renderTriggerTime = (triggerTime?: string) => triggerTime || '19:00:00'
 
   const renderScheduleParams = (_: any, record: IPlan) => {
     if (record.schedule_type === 'fixed_date' && record.fixed_dates) {
@@ -253,6 +281,14 @@ const PlanList: React.FC = () => {
       align: 'center' as const
     },
     {
+      title: '触发时间',
+      dataIndex: 'trigger_time',
+      key: 'trigger_time',
+      width: 110,
+      align: 'center' as const,
+      render: renderTriggerTime
+    },
+    {
       title: '调度参数',
       key: 'schedule_params',
       width: 200,
@@ -299,7 +335,6 @@ const PlanList: React.FC = () => {
               onSearch={(value) => {
                 setKeyword(value)
                 setPage(1)
-                fetchData()
               }}
             />
             <Select
@@ -316,14 +351,24 @@ const PlanList: React.FC = () => {
               <Option value="canceled">已取消</Option>
             </Select>
           </Space>
-          <Button
-            type="primary"
-            size="large"
-            icon={<PlusOutlined />}
-            onClick={() => history.push('/plan/create')}
-          >
-            新建计划
-          </Button>
+          <Space>
+            <Button
+              size="large"
+              icon={<SyncOutlined />}
+              loading={scheduleLoading}
+              onClick={handleScheduleAll}
+            >
+              执行周期任务
+            </Button>
+            <Button
+              type="primary"
+              size="large"
+              icon={<PlusOutlined />}
+              onClick={() => history.push('/plan/create')}
+            >
+              新建计划
+            </Button>
+          </Space>
         </div>
       </Card>
 
@@ -357,4 +402,3 @@ const PlanList: React.FC = () => {
 }
 
 export default PlanList
-

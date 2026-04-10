@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import PropTypes from 'prop-types'
+import { observer } from 'mobx-react-lite'
 import { Layout, Menu, Dropdown, Avatar, Badge, Space, Button } from 'antd'
 import {
   MenuFoldOutlined,
@@ -16,6 +17,7 @@ import { useHistory, useLocation } from 'react-router-dom'
 import { routes } from '../../router/map'
 import { IRoute } from '../../types/router'
 import { rootStore } from '@/store'
+import { filterRoutesForMenu } from '@/utils/menuAccess'
 import './mainLayout.scss'
 
 const { Header, Sider, Content } = Layout
@@ -24,10 +26,20 @@ interface IMainLayoutProps {
   children: React.ReactNode
 }
 
-const MainLayout: React.FC<IMainLayoutProps> = ({ children }) => {
+const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
   const history = useHistory()
   const location = useLocation()
   const { userStore } = rootStore
+
+  const menuRoutes = useMemo(
+    () =>
+      filterRoutesForMenu(
+        routes,
+        userStore.currentUser?.roles,
+        userStore.profileFetchDone
+      ),
+    [userStore.currentUser?.roles, userStore.profileFetchDone]
+  )
   
   // 判断是否为编辑量表相关页面
   const isScaleEditPage = () => {
@@ -191,14 +203,14 @@ const MainLayout: React.FC<IMainLayoutProps> = ({ children }) => {
 
       // 检查是否有子菜单
       if (route.children && route.children.some(child => !child.hideInMenu)) {
+        const visibleChildren = route.children.filter(child => !child.hideInMenu)
         return (
           <Menu.SubMenu 
             key={route.name} 
             icon={route.icon}
             title={route.title}
           >
-            {route.children
-              .filter(child => !child.hideInMenu)
+            {visibleChildren
               .map(child => (
                 <Menu.Item 
                   key={child.name}
@@ -284,7 +296,7 @@ const MainLayout: React.FC<IMainLayoutProps> = ({ children }) => {
             openKeys={openKeys}
             onOpenChange={(keys) => setOpenKeys(keys as string[])}
           >
-            {renderMenuItems(routes)}
+            {renderMenuItems(menuRoutes)}
           </Menu>
         </Sider>
       )}
@@ -332,7 +344,7 @@ const MainLayout: React.FC<IMainLayoutProps> = ({ children }) => {
                       icon={<UserOutlined />} 
                       className="user-avatar"
                     />
-                    <span className="user-name">管理员</span>
+                    <span className="user-name">{userStore.currentUser?.nickname || '用户'}</span>
                   </div>
                 </Dropdown>
               </Space>
@@ -350,7 +362,7 @@ const MainLayout: React.FC<IMainLayoutProps> = ({ children }) => {
       </Layout>
     </Layout>
   )
-}
+})
 
 MainLayout.propTypes = {
   children: PropTypes.node.isRequired

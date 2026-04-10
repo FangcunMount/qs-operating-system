@@ -1,6 +1,7 @@
 import { AxiosError, AxiosRequestConfig } from 'axios'
 import { errorHandler } from 'fc-tools-pc/dist/bundle'
 import { refreshToken } from './path/auth'
+import { parseJwtClaims, validateJwtClaims } from '@/utils/jwtClaims'
 
 /**
  * Token 刷新状态管理
@@ -96,6 +97,13 @@ async function refreshAccessToken(): Promise<string | null> {
 
     // 存储新的 token
     const { access_token, refresh_token } = response.data
+    const claims = parseJwtClaims(access_token)
+    const claimCheck = claims ? validateJwtClaims(claims) : { valid: false, reason: 'access_token 非法 JWT' }
+    if (!claimCheck.valid) {
+      console.error('[TokenRefresh] token claims 校验失败:', claimCheck.reason)
+      return null
+    }
+
     localStorage.setItem('access_token', access_token)
     if (refresh_token) {
       localStorage.setItem('refresh_token', refresh_token)

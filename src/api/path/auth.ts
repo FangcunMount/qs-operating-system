@@ -3,6 +3,7 @@ import { get, post } from '../server'
 
 export interface ILoginRequest {
   method: 'password' | 'phone_otp' | 'wechat' | 'wecom'
+  tenant_id?: string
   credentials: {
     username?: string
     password?: string
@@ -23,12 +24,10 @@ export function login<T = ITokenPair>(
   username: string,
   password: string
 ): ApiResponse<T> {
-  // 自动在用户名前添加 +86（如果还没有的话）
-  const formattedUsername = username.startsWith('+86') ? username : `+86${username}`
-  
   return post<T>('/authn/login', {
     method: 'password',
-    credentials: { username: formattedUsername, password }
+    tenant_id: '1',
+    credentials: { username: username, password }
   })
 }
 

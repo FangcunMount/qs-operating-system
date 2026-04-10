@@ -21,10 +21,10 @@ const apiAxios = axios.create({
 
 // 直接使用真实网络请求
 apiAxios.interceptors.request.use((cfg) => {
+  cfg.headers['tenant_id'] = '1'
   const accessToken = localStorage.getItem('access_token') || localStorage.getItem('token') || config.token || ''
   if (accessToken) {
     cfg.headers['Authorization'] = `Bearer ${accessToken}`
-    cfg.headers['token'] = accessToken
   }
   return cfg
 })

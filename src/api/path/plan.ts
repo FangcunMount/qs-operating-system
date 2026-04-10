@@ -1,4 +1,4 @@
-import { get, post } from '../qsServer'
+import { get, post, internalPost } from '../qsServer'
 import type { QSResponse } from '@/types/qs'
 
 // ==================== 计划相关类型定义 ====================
@@ -18,6 +18,7 @@ export interface IPlan {
   org_id: number  // 机构ID
   scale_code: string  // 量表编码（如 "3adyDE"）
   schedule_type: string  // 周期类型：by_week/by_day/fixed_date/custom
+  trigger_time: string  // 触发时间（HH:mm:ss）
   total_times?: number  // 总次数（用于 by_week/by_day）
   interval?: number  // 间隔（周/天，用于 by_week/by_day）
   fixed_dates?: string[]  // 固定日期列表（用于 fixed_date）
@@ -42,6 +43,7 @@ export interface IPlanListResponse {
 export interface ICreatePlanRequest {
   scale_code: string  // 量表编码（如 '3adyDE'）
   schedule_type: string  // by_week/by_day/fixed_date/custom
+  trigger_time?: string  // 触发时间（HH:mm:ss）
   total_times?: number  // 总次数（用于 by_week/by_day）
   interval?: number  // 间隔（用于 by_week/by_day）
   fixed_dates?: string[]  // 固定日期列表（用于 fixed_date，格式：YYYY-MM-DD）
@@ -88,6 +90,7 @@ export interface ITaskListResponse {
   page: number
   page_size: number
   total_count: number
+  stats?: ITaskScheduleStats
 }
 
 // 开放任务请求参数
@@ -105,6 +108,17 @@ export interface ICompleteTaskRequest {
 // 调度任务请求参数（通过 query 参数传递）
 export interface IScheduleTaskRequest {
   before?: string  // 截止时间（格式：YYYY-MM-DD HH:mm:ss），默认当前时间
+  source?: string
+  plan_id?: string
+  testee_ids?: string[]
+}
+
+export interface ITaskScheduleStats {
+  pending_count: number
+  opened_count: number
+  failed_count: number
+  expired_count: number
+  expire_failed_count: number
 }
 
 // ==================== 受试者加入计划相关 ====================
@@ -220,8 +234,7 @@ export const taskApi = {
   },
 
   // POST /plans/tasks/schedule - 调度待推送任务
-  schedule: (before?: string): Promise<[any, QSResponse<ITaskListResponse> | undefined]> => {
-    return post<ITaskListResponse>('/plans/tasks/schedule', {}, before ? { before } : {})
+  schedule: (data?: IScheduleTaskRequest): Promise<[any, QSResponse<ITaskListResponse> | undefined]> => {
+    return internalPost<ITaskListResponse>('/plans/tasks/schedule', data || {})
   }
 }
-
