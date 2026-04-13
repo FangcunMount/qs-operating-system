@@ -31,6 +31,7 @@ const AdminClinician = lazy(() => import('../pages/admin/clinician'))
 const AdminClinicianDetail = lazy(() => import('../pages/admin/clinician/detail'))
 const AdminAssessmentEntryDetail = lazy(() => import('../pages/admin/clinician/entry-detail'))
 const AdminResource = lazy(() => import('../pages/admin/resource'))
+const ClinicianWorkbench = lazy(() => import('../pages/clinician/workbench'))
 
 // 新增页面组件
 const SubjectList = lazy(() => import('../pages/subject/list'))
@@ -268,6 +269,41 @@ export const routes: Array<IRoute> = [
         name: 'user-profile',
         path: '/user/profile',
         component: UserProfile
+      }
+    ]
+  },
+  {
+    title: '临床工作台',
+    name: 'clinician-workbench',
+    path: '/clinician',
+    icon: createIcon(TeamOutlined),
+    children: [
+      {
+        title: '我的工作台',
+        name: 'clinician-me',
+        path: '/clinician/me',
+        component: ClinicianWorkbench
+      },
+      {
+        title: '我的受试者',
+        name: 'clinician-me-testees',
+        path: '/clinician/me/testees',
+        component: ClinicianWorkbench,
+        hideInMenu: true
+      },
+      {
+        title: '我的关系',
+        name: 'clinician-me-relations',
+        path: '/clinician/me/relations',
+        component: ClinicianWorkbench,
+        hideInMenu: true
+      },
+      {
+        title: '我的入口',
+        name: 'clinician-me-entries',
+        path: '/clinician/me/entries',
+        component: ClinicianWorkbench,
+        hideInMenu: true
       }
     ]
   },

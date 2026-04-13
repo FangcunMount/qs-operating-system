@@ -1,3 +1,4 @@
+import type { ITestee } from './subject'
 import { get, post, put } from '../qsServer'
 
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
@@ -102,6 +103,27 @@ export interface IAssignClinicianTesteeRequest {
   source_id?: number
 }
 
+export interface ITransferPrimaryClinicianRequest {
+  org_id?: number
+  to_clinician_id: number
+  testee_id: number
+  source_type?: string
+  source_id?: number
+}
+
+export interface IClinicianRelationItem {
+  testee: ITestee
+  relation: IRelation
+}
+
+export interface IClinicianRelationListResponse {
+  items: IClinicianRelationItem[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
 export const clinicianApi = {
   listClinicians: (params: { org_id?: number; page?: number; page_size?: number }) => get<IClinicianListResponse>('/clinicians', params),
 
@@ -135,9 +157,36 @@ export const clinicianApi = {
 
   assignTestee: (data: IAssignClinicianTesteeRequest) => post<IRelation>('/clinician-testee-relations/assign', data),
 
+  assignPrimary: (data: IAssignClinicianTesteeRequest) => post<IRelation>('/clinician-testee-relations/assign-primary', data),
+
+  assignAttending: (data: IAssignClinicianTesteeRequest) => post<IRelation>('/clinician-testee-relations/assign-attending', data),
+
+  assignCollaborator: (data: IAssignClinicianTesteeRequest) => post<IRelation>('/clinician-testee-relations/assign-collaborator', data),
+
+  transferPrimary: (data: ITransferPrimaryClinicianRequest) => post<IRelation>('/clinician-testee-relations/transfer-primary', data),
+
   unbindRelation: (id: number | string) => post<IRelation>(`/clinician-testee-relations/${id}/unbind`, undefined),
+
+  listClinicianRelations: (id: number | string, params: { page?: number; page_size?: number }) =>
+    get<IClinicianRelationListResponse>(`/clinicians/${id}/relations`, params),
 
   getTesteeClinicians: (testeeId: number | string) => get<ITesteeClinicianRelationListResponse>(`/testees/${testeeId}/clinicians`),
 
-  listTesteeClinicianRelations: (testeeId: number | string) => get<ITesteeClinicianRelationListResponse>(`/testees/${testeeId}/clinician-relations`)
+  listTesteeClinicianRelations: (testeeId: number | string) => get<ITesteeClinicianRelationListResponse>(`/testees/${testeeId}/clinician-relations`),
+
+  getMyClinician: () => get<IClinician>('/clinicians/me'),
+
+  listMyClinicianTestees: (params: { page?: number; page_size?: number }) => get<any>('/clinicians/me/testees', params),
+
+  listMyClinicianRelations: (params: { page?: number; page_size?: number }) =>
+    get<IClinicianRelationListResponse>('/clinicians/me/relations', params),
+
+  listMyAssessmentEntries: (params: { page?: number; page_size?: number }) =>
+    get<IAssessmentEntryListResponse>('/clinicians/me/assessment-entries', params),
+
+  createMyAssessmentEntry: (data: ICreateAssessmentEntryRequest) => post<IAssessmentEntry>('/clinicians/me/assessment-entries', data),
+
+  deactivateMyAssessmentEntry: (id: number | string) => post<IAssessmentEntry>(`/clinicians/me/assessment-entries/${id}/deactivate`, undefined),
+
+  reactivateMyAssessmentEntry: (id: number | string) => post<IAssessmentEntry>(`/clinicians/me/assessment-entries/${id}/reactivate`, undefined)
 }

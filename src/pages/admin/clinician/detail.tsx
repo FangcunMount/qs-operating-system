@@ -2,15 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useHistory, useParams } from 'react-router-dom'
 import { Button, Card, Descriptions, Form, Input, Modal, Select, Space, Table, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { clinicianApi, IAssessmentEntry, IClinician } from '@/api/path/clinician'
-import type { ITestee } from '@/api/path/subject'
+import { clinicianApi, IAssessmentEntry, IClinician, IClinicianRelationItem } from '@/api/path/clinician'
 
 const ClinicianDetailPage: React.FC = () => {
   const history = useHistory()
   const { id } = useParams<{ id: string }>()
   const [loading, setLoading] = useState(false)
   const [clinician, setClinician] = useState<IClinician | null>(null)
-  const [testees, setTestees] = useState<ITestee[]>([])
+  const [relations, setRelations] = useState<IClinicianRelationItem[]>([])
   const [entries, setEntries] = useState<IAssessmentEntry[]>([])
   const [entryModalVisible, setEntryModalVisible] = useState(false)
   const [entryForm] = Form.useForm()
@@ -32,11 +31,11 @@ const ClinicianDetailPage: React.FC = () => {
       }
       setClinician(clinicianRes.data)
 
-      const [testeeErr, testeeRes] = await clinicianApi.listClinicianTestees(id, { page: 1, page_size: 100 })
-      if (!testeeErr && testeeRes?.data) {
-        setTestees(testeeRes.data.items || [])
+      const [relationErr, relationRes] = await clinicianApi.listClinicianRelations(id, { page: 1, page_size: 100 })
+      if (!relationErr && relationRes?.data) {
+        setRelations(relationRes.data.items || [])
       } else {
-        setTestees([])
+        setRelations([])
       }
 
       const [entryErr, entryRes] = await clinicianApi.listClinicianAssessmentEntries(id, { page: 1, page_size: 100 })
@@ -83,8 +82,16 @@ const ClinicianDetailPage: React.FC = () => {
 
   const renderKeyFocus = (value: boolean) => (value ? <Tag color="gold">是</Tag> : <Tag>否</Tag>)
 
-  const renderTesteeAction = (_: unknown, record: ITestee) => (
-    <Button type="link" size="small" onClick={() => history.push(`/subject/detail/${record.id}`)}>
+  const relationTypeTextMap: Record<string, string> = {
+    primary: '主责',
+    attending: '跟进',
+    collaborator: '协作',
+    creator: '来源',
+    assigned: '跟进'
+  }
+
+  const renderTesteeAction = (_: unknown, record: IClinicianRelationItem) => (
+    <Button type="link" size="small" onClick={() => history.push(`/subject/detail/${record.testee.id}`)}>
       查看受试者
     </Button>
   )
@@ -111,13 +118,21 @@ const ClinicianDetailPage: React.FC = () => {
     </Space>
   )
 
-  const testeeColumns: ColumnsType<ITestee> = [
-    { title: '姓名', dataIndex: 'name', key: 'name' },
-    { title: '性别', dataIndex: 'gender', key: 'gender', width: 80 },
-    { title: '来源', dataIndex: 'source', key: 'source', width: 120 },
+  const testeeColumns: ColumnsType<IClinicianRelationItem> = [
+    { title: '姓名', dataIndex: ['testee', 'name'], key: 'name' },
+    { title: '性别', dataIndex: ['testee', 'gender'], key: 'gender', width: 80 },
+    {
+      title: '关系类型',
+      dataIndex: ['relation', 'relation_type'],
+      key: 'relation_type',
+      width: 100,
+      render: (value: string) => relationTypeTextMap[value] || value
+    },
+    { title: '关系来源', dataIndex: ['relation', 'source_type'], key: 'source_type', width: 120 },
+    { title: '受试者来源', dataIndex: ['testee', 'source'], key: 'source', width: 120 },
     {
       title: '重点关注',
-      dataIndex: 'is_key_focus',
+      dataIndex: ['testee', 'is_key_focus'],
       key: 'is_key_focus',
       width: 100,
       render: renderKeyFocus
@@ -171,7 +186,7 @@ const ClinicianDetailPage: React.FC = () => {
       </Card>
 
       <Card title="名下受试者" style={{ marginTop: 16 }}>
-        <Table rowKey="id" dataSource={testees} columns={testeeColumns} pagination={false} />
+        <Table rowKey={(record) => `${record.relation.id}`} dataSource={relations} columns={testeeColumns} pagination={false} />
       </Card>
 
       <Card
