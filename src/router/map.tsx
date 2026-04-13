@@ -1,13 +1,6 @@
 import React, { lazy } from 'react'
 import { IRoute } from '../types/router'
-import {
-  HomeOutlined,
-  SettingOutlined,
-  TeamOutlined,
-  AuditOutlined,
-  FolderOutlined,
-  CalendarOutlined
-} from '@ant-design/icons'
+import { HomeOutlined, SettingOutlined, TeamOutlined, AuditOutlined, FolderOutlined, CalendarOutlined } from '@ant-design/icons'
 
 // 图标创建辅助函数，确保 React 被使用
 const createIcon = (Icon: React.ComponentType) => React.createElement(Icon)
@@ -34,6 +27,8 @@ const Login = lazy(() => import('../pages/user/login'))
 const UserProfile = lazy(() => import('../pages/user/profile'))
 const AdminAuthz = lazy(() => import('../pages/admin/authz'))
 const AdminStaff = lazy(() => import('../pages/admin/staff'))
+const AdminClinician = lazy(() => import('../pages/admin/clinician'))
+const AdminClinicianDetail = lazy(() => import('../pages/admin/clinician/detail'))
 const AdminResource = lazy(() => import('../pages/admin/resource'))
 
 // 新增页面组件
@@ -210,8 +205,7 @@ export const routes: Array<IRoute> = [
     component: ScalePublish,
     hideInMenu: true
   },
-  
-  
+
   {
     title: '入校筛查',
     name: 'screening',
@@ -288,6 +282,19 @@ export const routes: Array<IRoute> = [
         name: 'admin-staff',
         path: '/admin/staff',
         component: AdminStaff
+      },
+      {
+        title: '临床人员管理',
+        name: 'admin-clinicians',
+        path: '/admin/clinicians',
+        component: AdminClinician
+      },
+      {
+        title: '临床人员详情',
+        name: 'admin-clinician-detail',
+        path: '/admin/clinicians/:id',
+        component: AdminClinicianDetail,
+        hideInMenu: true
       },
       {
         title: '权限配置',

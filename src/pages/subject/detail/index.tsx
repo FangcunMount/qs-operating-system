@@ -3,11 +3,7 @@ import { useParams, useHistory } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
 import { Spin, Tabs } from 'antd'
 import { subjectStore } from '@/store'
-import { 
-  DashboardTab,
-  ScaleRecordsTab,
-  SurveyRecordsTab
-} from './components'
+import { DashboardTab, ClinicianRelationsTab, ScaleRecordsTab, SurveyRecordsTab } from './components'
 import './index.scss'
 
 const { TabPane } = Tabs
@@ -50,24 +46,24 @@ const SubjectDetail: React.FC = observer(() => {
   }
 
   // 过滤量表测评记录
-  const filteredScales = detail?.scales?.filter((item: any) => {
-    const matchSearch = !scaleSearchText || 
-      item.scaleName?.toLowerCase().includes(scaleSearchText.toLowerCase())
-    const matchName = !scaleNameFilter || item.scaleName === scaleNameFilter
-    return matchSearch && matchName
-  }) || []
+  const filteredScales =
+    detail?.scales?.filter((item: any) => {
+      const matchSearch = !scaleSearchText || item.scaleName?.toLowerCase().includes(scaleSearchText.toLowerCase())
+      const matchName = !scaleNameFilter || item.scaleName === scaleNameFilter
+      return matchSearch && matchName
+    }) || []
 
   // 过滤问卷记录
-  const filteredSurveys = detail?.surveys?.filter((item: any) => {
-    const matchSearch = !surveySearchText || 
-      item.questionnaireName?.toLowerCase().includes(surveySearchText.toLowerCase())
-    const matchName = !surveyNameFilter || item.questionnaireName === surveyNameFilter
-    return matchSearch && matchName
-  }) || []
+  const filteredSurveys =
+    detail?.surveys?.filter((item: any) => {
+      const matchSearch = !surveySearchText || item.questionnaireName?.toLowerCase().includes(surveySearchText.toLowerCase())
+      const matchName = !surveyNameFilter || item.questionnaireName === surveyNameFilter
+      return matchSearch && matchName
+    }) || []
 
   // 获取量表名称选项
   const scaleNameOptions = Array.from(new Set(detail?.scales?.map((item: any) => item.scaleName) || []))
-  
+
   // 获取问卷名称选项
   const surveyNameOptions = Array.from(new Set(detail?.surveys?.map((item: any) => item.questionnaireName) || []))
 
@@ -142,6 +138,10 @@ const SubjectDetail: React.FC = observer(() => {
             onReset={handleResetSurveyFilter}
             onViewDetail={handleViewSurveyDetail}
           />
+        </TabPane>
+
+        <TabPane tab="Clinician归属" key="4">
+          <ClinicianRelationsTab testeeId={id} />
         </TabPane>
       </Tabs>
     </div>

@@ -1,23 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { 
-  Card, 
-  Table, 
-  Button, 
-  Modal, 
-  Form, 
-  Input, 
-  Select, 
-  Space, 
-  Tag, 
-  Popconfirm,
-  InputNumber 
-} from 'antd'
+import { Card, Table, Button, Modal, Form, Input, Select, Space, Tag, Popconfirm, InputNumber } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { observer } from 'mobx-react-lite'
 import { rootStore } from '@/store'
 import type { IStaff, ICreateStaffRequest } from '@/api/path/staff'
 import { listRoles, IRole } from '@/api/path/authz'
+import { clinicianApi, IClinician } from '@/api/path/clinician'
 import './index.scss'
 
 const { Option } = Select
@@ -28,13 +17,15 @@ const StaffManagement: React.FC = observer(() => {
   const [editingStaff, setEditingStaff] = useState<IStaff | null>(null)
   const [form] = Form.useForm()
   const [roleOptions, setRoleOptions] = useState<Array<{ value: string; label: string }>>([])
-  
+  const [clinicians, setClinicians] = useState<IClinician[]>([])
+
   // 固定使用机构ID=1，实际应该从用户信息中获取
   const currentOrgId = 1
 
   useEffect(() => {
     fetchStaffList()
     fetchRoleOptions()
+    fetchClinicians()
   }, [])
 
   const fetchRoleOptions = async () => {
@@ -54,6 +45,17 @@ const StaffManagement: React.FC = observer(() => {
       page,
       page_size: pageSize
     })
+  }
+
+  const fetchClinicians = async () => {
+    const [error, response] = await clinicianApi.listClinicians({
+      org_id: currentOrgId,
+      page: 1,
+      page_size: 200
+    })
+    if (!error && response?.data) {
+      setClinicians(response.data.items || [])
+    }
   }
 
   const handleAdd = () => {
@@ -77,13 +79,14 @@ const StaffManagement: React.FC = observer(() => {
     const success = await staffStore.deleteStaff(id)
     if (success) {
       fetchStaffList(staffStore.pageInfo.current, staffStore.pageInfo.pageSize)
+      fetchClinicians()
     }
   }
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
-      
+
       const data: ICreateStaffRequest = {
         name: values.name,
         org_id: currentOrgId,
@@ -94,13 +97,12 @@ const StaffManagement: React.FC = observer(() => {
         is_active: values.is_active === 'true' || values.is_active === true
       }
 
-      const success = editingStaff
-        ? await staffStore.updateStaff(editingStaff.id, data)
-        : await staffStore.createStaff(data)
+      const success = editingStaff ? await staffStore.updateStaff(editingStaff.id, data) : await staffStore.createStaff(data)
 
       if (success) {
         setModalVisible(false)
         fetchStaffList(staffStore.pageInfo.current, staffStore.pageInfo.pageSize)
+        fetchClinicians()
       }
     } catch (error) {
       console.error('Validation failed:', error)
@@ -112,19 +114,19 @@ const StaffManagement: React.FC = observer(() => {
       title: 'ID',
       dataIndex: 'id',
       key: 'id',
-      width: 80,
+      width: 80
     },
     {
       title: '姓名',
       dataIndex: 'name',
       key: 'name',
-      width: 120,
+      width: 120
     },
     {
       title: '用户ID',
       dataIndex: 'user_id',
       key: 'user_id',
-      width: 100,
+      width: 100
     },
     {
       title: '角色',
@@ -135,7 +137,7 @@ const StaffManagement: React.FC = observer(() => {
         return (
           <Space size={4} wrap>
             {roles?.map((role) => {
-              const roleOption = roleOptions.find(opt => opt.value === role)
+              const roleOption = roleOptions.find((opt) => opt.value === role)
               const displayName = roleOption?.label || role
               const colorMap: Record<string, string> = {
                 admin: 'blue',
@@ -145,7 +147,11 @@ const StaffManagement: React.FC = observer(() => {
                 viewer: 'default'
               }
               const color = colorMap[role] || 'default'
-              return <Tag key={role} color={color}>{displayName}</Tag>
+              return (
+                <Tag key={role} color={color}>
+                  {displayName}
+                </Tag>
+              )
             })}
           </Space>
         )
@@ -157,10 +163,23 @@ const StaffManagement: React.FC = observer(() => {
       key: 'is_active',
       width: 100,
       render(isActive: boolean) {
+        return <Tag color={isActive ? 'success' : 'error'}>{isActive ? '激活' : '未激活'}</Tag>
+      }
+    },
+    {
+      title: '绑定Clinician',
+      key: 'clinician_binding',
+      width: 180,
+      render(_, record) {
+        const clinician = clinicians.find((item) => item.operator_id === record.id)
+        if (!clinician) {
+          return <Tag>未绑定</Tag>
+        }
         return (
-          <Tag color={isActive ? 'success' : 'error'}>
-            {isActive ? '激活' : '未激活'}
-          </Tag>
+          <Space size={4} wrap>
+            <Tag color={clinician.is_active ? 'success' : 'default'}>{clinician.is_active ? '已绑定' : '已绑定(停用)'}</Tag>
+            <span>{clinician.name}</span>
+          </Space>
         )
       }
     },
@@ -172,33 +191,18 @@ const StaffManagement: React.FC = observer(() => {
       render(_, record) {
         return (
           <Space size="small">
-            <Button 
-              type="link" 
-              size="small" 
-              icon={<EditOutlined />}
-              onClick={() => handleEdit(record)}
-            >
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
               编辑
             </Button>
-            <Popconfirm
-              title="确定要删除该员工吗？"
-              onConfirm={() => handleDelete(record.id)}
-              okText="确定"
-              cancelText="取消"
-            >
-              <Button 
-                type="link" 
-                size="small" 
-                danger
-                icon={<DeleteOutlined />}
-              >
+            <Popconfirm title="确定要删除该员工吗？" onConfirm={() => handleDelete(record.id)} okText="确定" cancelText="取消">
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
                 删除
               </Button>
             </Popconfirm>
           </Space>
         )
-      },
-    },
+      }
+    }
   ]
 
   return (
@@ -246,42 +250,19 @@ const StaffManagement: React.FC = observer(() => {
             is_active: 'true'
           }}
         >
-          <Form.Item
-            label="姓名"
-            name="name"
-            rules={[{ required: true, message: '请输入姓名' }]}
-          >
+          <Form.Item label="姓名" name="name" rules={[{ required: true, message: '请输入姓名' }]}>
             <Input placeholder="请输入姓名" />
           </Form.Item>
 
-          <Form.Item
-            label="用户ID"
-            name="user_id"
-            rules={[{ required: true, message: '请输入用户ID' }]}
-          >
-            <InputNumber 
-              placeholder="请输入用户ID" 
-              style={{ width: '100%' }}
-              min={1}
-            />
+          <Form.Item label="用户ID" name="user_id" rules={[{ required: true, message: '请输入用户ID' }]}>
+            <InputNumber placeholder="请输入用户ID" style={{ width: '100%' }} min={1} />
           </Form.Item>
 
-          <Form.Item
-            label="角色"
-            name="roles"
-            rules={[{ required: true, message: '请选择至少一个角色' }]}
-          >
-            <Select
-              mode="multiple"
-              placeholder="请选择角色"
-              options={roleOptions}
-            />
+          <Form.Item label="角色" name="roles" rules={[{ required: true, message: '请选择至少一个角色' }]}>
+            <Select mode="multiple" placeholder="请选择角色" options={roleOptions} />
           </Form.Item>
 
-          <Form.Item
-            label="状态"
-            name="is_active"
-          >
+          <Form.Item label="状态" name="is_active">
             <Select>
               <Option value="true">激活</Option>
               <Option value="false">未激活</Option>
