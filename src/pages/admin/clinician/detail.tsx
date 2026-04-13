@@ -95,6 +95,9 @@ const ClinicianDetailPage: React.FC = () => {
 
   const renderEntryAction = (_: unknown, record: IAssessmentEntry) => (
     <Space size="small">
+      <Button type="link" size="small" onClick={() => history.push(`/admin/assessment-entries/${record.id}`)}>
+        详情
+      </Button>
       <Button
         type="link"
         size="small"

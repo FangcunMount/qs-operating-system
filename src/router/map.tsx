@@ -29,6 +29,7 @@ const AdminAuthz = lazy(() => import('../pages/admin/authz'))
 const AdminStaff = lazy(() => import('../pages/admin/staff'))
 const AdminClinician = lazy(() => import('../pages/admin/clinician'))
 const AdminClinicianDetail = lazy(() => import('../pages/admin/clinician/detail'))
+const AdminAssessmentEntryDetail = lazy(() => import('../pages/admin/clinician/entry-detail'))
 const AdminResource = lazy(() => import('../pages/admin/resource'))
 
 // 新增页面组件
@@ -294,6 +295,13 @@ export const routes: Array<IRoute> = [
         name: 'admin-clinician-detail',
         path: '/admin/clinicians/:id',
         component: AdminClinicianDetail,
+        hideInMenu: true
+      },
+      {
+        title: 'Assessment Entry详情',
+        name: 'admin-assessment-entry-detail',
+        path: '/admin/assessment-entries/:id',
+        component: AdminAssessmentEntryDetail,
         hideInMenu: true
       },
       {

@@ -133,7 +133,7 @@ export const clinicianApi = {
 
   reactivateAssessmentEntry: (id: number | string) => post<IAssessmentEntry>(`/assessment-entries/${id}/reactivate`, undefined),
 
-  assignTestee: (data: IAssignClinicianTesteeRequest) => post<IRelation>('/clinician-testee-relations:assign', data),
+  assignTestee: (data: IAssignClinicianTesteeRequest) => post<IRelation>('/clinician-testee-relations/assign', data),
 
   unbindRelation: (id: number | string) => post<IRelation>(`/clinician-testee-relations/${id}/unbind`, undefined),
 

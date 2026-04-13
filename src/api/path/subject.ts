@@ -9,6 +9,7 @@ export interface IListTesteeRequest {
   org_id: number
   name?: string
   profile_id?: string
+  clinician_id?: number
   is_key_focus?: boolean
   page?: number
   page_size?: number
@@ -24,36 +25,36 @@ export interface IAssessmentStats {
 
 // 监护人信息
 export interface IGuardian {
-  name: string          // 监护人姓名
-  relation: string      // 与受试者关系（如：父亲、母亲、爷爷等）
-  phone: string         // 联系电话
+  name: string // 监护人姓名
+  relation: string // 与受试者关系（如：父亲、母亲、爷爷等）
+  phone: string // 联系电话
 }
 
 // GET /testees/{id} - 受试者基础信息（完整版）
 export interface ITesteeDetail {
   // ===== 基本信息 =====
-  id: number                      // 受试者ID
-  name: string                    // 姓名
-  gender: string                  // 性别：male/female
-  birthday?: string               // 出生日期，格式：YYYY-MM-DD
-  org_id: number                  // 机构ID
-  profile_id?: number             // 用户档案ID
-  iam_child_id?: number           // IAM儿童ID（已废弃，向后兼容）
-  
+  id: number // 受试者ID
+  name: string // 姓名
+  gender: string // 性别：male/female
+  birthday?: string // 出生日期，格式：YYYY-MM-DD
+  org_id: number // 机构ID
+  profile_id?: number // 用户档案ID
+  iam_child_id?: number // IAM儿童ID（已废弃，向后兼容）
+
   // ===== 扩展信息 =====
-  is_key_focus: boolean           // 是否重点关注
-  tags?: string[]                 // 标签列表
-  source?: string                 // 来源
-  
+  is_key_focus: boolean // 是否重点关注
+  tags?: string[] // 标签列表
+  source?: string // 来源
+
   // ===== 监护人信息 =====
-  guardians?: IGuardian[]         // 监护人列表（建议后端新增此字段）
-  
+  guardians?: IGuardian[] // 监护人列表（建议后端新增此字段）
+
   // ===== 统计信息 =====
-  assessment_stats?: IAssessmentStats  // 测评统计
-  
+  assessment_stats?: IAssessmentStats // 测评统计
+
   // ===== 时间戳 =====
-  created_at: string              // 创建时间
-  updated_at: string              // 更新时间
+  created_at: string // 创建时间
+  updated_at: string // 更新时间
 }
 
 // 受试者响应数据（简化版，用于列表）
@@ -94,68 +95,68 @@ export interface IUpdateTesteeRequest {
 
 // 因子得分（某次测评中的单个因子）
 export interface IFactorScoreInTest {
-  factor_code: string            // 因子编码
-  factor_name: string            // 因子名称
-  raw_score: number              // 原始分
-  t_score?: number               // T分
-  percentile?: number            // 百分位
-  risk_level?: string            // 风险等级：normal/medium/high
+  factor_code: string // 因子编码
+  factor_name: string // 因子名称
+  raw_score: number // 原始分
+  t_score?: number // T分
+  percentile?: number // 百分位
+  risk_level?: string // 风险等级：normal/medium/high
 }
 
 // 单次测评记录（用于趋势分析）
 export interface ITestRecord {
-  assessment_id: number          // 测评ID
-  test_date: string              // 测评日期，格式：YYYY-MM-DD HH:mm:ss
-  total_score: number            // 总分
-  risk_level: string             // 风险等级：normal/medium/high
-  result?: string                // 结果描述
-  factors: IFactorScoreInTest[]  // 各因子得分
+  assessment_id: number // 测评ID
+  test_date: string // 测评日期，格式：YYYY-MM-DD HH:mm:ss
+  total_score: number // 总分
+  risk_level: string // 风险等级：normal/medium/high
+  result?: string // 结果描述
+  factors: IFactorScoreInTest[] // 各因子得分
 }
 
 // 单个量表的趋势分析数据
 export interface IScaleTrend {
-  scale_id: number               // 量表ID
-  scale_code: string             // 量表编码
-  scale_name: string             // 量表名称
-  tests: ITestRecord[]           // 测评历史记录（按时间升序排列）
+  scale_id: number // 量表ID
+  scale_code: string // 量表编码
+  scale_name: string // 量表名称
+  tests: ITestRecord[] // 测评历史记录（按时间升序排列）
 }
 
 // 量表趋势分析响应（可能包含多个量表）
 export interface IScaleAnalysisResponse {
-  scales: IScaleTrend[]          // 量表趋势列表
+  scales: IScaleTrend[] // 量表趋势列表
 }
 
 // ==================== GET /testees/{id}/periodic-stats - 周期性测评统计 ====================
 
 // 单周任务状态
 export interface ITaskStatus {
-  week: number                   // 第几周（从1开始）
-  status: 'completed' | 'pending' | 'overdue'  // 状态
-  completed_at?: string          // 完成时间，格式：YYYY-MM-DD HH:mm:ss
-  planned_at?: string            // 计划时间，格式：YYYY-MM-DD HH:mm:ss
-  due_date?: string              // 截止时间，格式：YYYY-MM-DD
-  assessment_id?: number         // 关联的测评ID（如已完成）
+  week: number // 第几周（从1开始）
+  status: 'completed' | 'pending' | 'overdue' // 状态
+  completed_at?: string // 完成时间，格式：YYYY-MM-DD HH:mm:ss
+  planned_at?: string // 计划时间，格式：YYYY-MM-DD HH:mm:ss
+  due_date?: string // 截止时间，格式：YYYY-MM-DD
+  assessment_id?: number // 关联的测评ID（如已完成）
 }
 
 // 单个周期性项目统计
 export interface IPeriodicProject {
-  project_id: string             // 项目ID（使用字符串避免精度问题）
-  project_name: string           // 项目名称
-  scale_name: string             // 关联的量表名称
-  total_weeks: number            // 总周数
-  completed_weeks: number        // 已完成周数
-  completion_rate: number        // 完成率（0-100）
-  current_week: number           // 当前应该完成的周次
-  tasks: ITaskStatus[]           // 各周任务状态（按周次升序排列）
-  start_date?: string            // 项目开始日期
-  end_date?: string              // 项目结束日期
+  project_id: string // 项目ID（使用字符串避免精度问题）
+  project_name: string // 项目名称
+  scale_name: string // 关联的量表名称
+  total_weeks: number // 总周数
+  completed_weeks: number // 已完成周数
+  completion_rate: number // 完成率（0-100）
+  current_week: number // 当前应该完成的周次
+  tasks: ITaskStatus[] // 各周任务状态（按周次升序排列）
+  start_date?: string // 项目开始日期
+  end_date?: string // 项目结束日期
 }
 
 // 周期性测评统计响应
 export interface IPeriodicStatsResponse {
-  projects: IPeriodicProject[]   // 周期性项目列表
-  total_projects: number         // 项目总数
-  active_projects: number        // 进行中的项目数
+  projects: IPeriodicProject[] // 周期性项目列表
+  total_projects: number // 项目总数
+  active_projects: number // 进行中的项目数
 }
 
 // 受试者API
@@ -164,23 +165,23 @@ export const testeeApi = {
   listTestees: (params: IListTesteeRequest): Promise<[any, QSResponse<ITesteeListResponse> | undefined]> => {
     return get<ITesteeListResponse>('/testees', params)
   },
-  
+
   // GET /testees/{id} - 获取受试者详情（含监护人、统计等完整信息）
   getTestee: (id: number | string): Promise<[any, QSResponse<ITesteeDetail> | undefined]> => {
     return get<ITesteeDetail>(`/testees/${id}`)
   },
-  
+
   // PUT /testees/{id} - 更新受试者
   updateTestee: (id: number | string, data: IUpdateTesteeRequest): Promise<[any, QSResponse<ITesteeDetail> | undefined]> => {
     return put<ITesteeDetail>(`/testees/${id}`, data)
   },
-  
+
   // GET /testees/{id}/scale-analysis - 获取量表趋势分析
   // 返回该受试者在各个量表上的历史测评数据，用于绘制趋势图表
   getScaleAnalysis: (id: number | string): Promise<[any, QSResponse<IScaleAnalysisResponse> | undefined]> => {
     return get<IScaleAnalysisResponse>(`/testees/${id}/scale-analysis`)
   },
-  
+
   // GET /testees/{id}/periodic-stats - 获取周期性测评统计
   // 返回该受试者参与的周期性测评项目的完成进度
   getPeriodicStats: (id: number | string): Promise<[any, QSResponse<IPeriodicStatsResponse> | undefined]> => {
@@ -222,7 +223,7 @@ function calculateAge(birthday: string): number {
 // 使用新的 API，并转换为旧格式
 export const getSubjectList = async (params: { page?: number; pageSize?: number; keyword?: string }): Promise<FcResponse<ListResponse<Subject>>> => {
   const { page = 1, pageSize = 10, keyword = '' } = params
-  
+
   // 调用新的 testeeApi
   const [err, res] = await testeeApi.listTestees({
     org_id: 1, // TODO: 从用户信息中获取
@@ -230,14 +231,14 @@ export const getSubjectList = async (params: { page?: number; pageSize?: number;
     page,
     page_size: pageSize
   })
-  
+
   if (err || !res) {
     throw new Error('获取受试者列表失败')
   }
-  
+
   // 转换为旧格式以兼容现有页面
   const transformedData: ListResponse<Subject> = {
-    list: res.data.items.map(testee => ({
+    list: res.data.items.map((testee) => ({
       id: String(testee.id),
       name: testee.name,
       gender: testee.gender === 'male' ? '男' : testee.gender === 'female' ? '女' : testee.gender,
@@ -252,7 +253,7 @@ export const getSubjectList = async (params: { page?: number; pageSize?: number;
     page: res.data.page,
     pageSize: res.data.page_size
   }
-  
+
   return {
     errno: '0',
     errmsg: 'success',
