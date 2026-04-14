@@ -1,13 +1,22 @@
-import { get, post, del } from '../qsServer'
+import { get, post, put, del } from '../qsServer'
 
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 
 // 员工接口请求参数
 export interface ICreateStaffRequest {
   name: string
-  org_id: number
+  org_id?: number
   roles: string[]
-  user_id: number
+  user_id?: string
+  email?: string
+  phone?: string
+  is_active?: boolean
+  [key: string]: any
+}
+
+export interface IUpdateStaffRequest {
+  name?: string
+  roles?: string[]
   email?: string
   phone?: string
   is_active?: boolean
@@ -15,7 +24,7 @@ export interface ICreateStaffRequest {
 }
 
 export interface IListStaffRequest {
-  org_id: number
+  org_id?: number
   role?: string
   page?: number
   page_size?: number
@@ -24,10 +33,10 @@ export interface IListStaffRequest {
 
 // 员工接口响应数据
 export interface IStaff {
-  id: number
+  id: string
   name: string
-  org_id: number
-  user_id: number
+  org_id: string
+  user_id: string
   roles: string[]
   email?: string
   phone?: string
@@ -57,17 +66,17 @@ export const staffApi = {
   },
 
   // 获取员工详情
-  getStaff: (id: number) => {
+  getStaff: (id: string) => {
     return get<IStaff>(`/staff/${id}`)
   },
 
   // 删除员工
-  deleteStaff: (id: number) => {
+  deleteStaff: (id: string) => {
     return del(`/staff/${id}`)
   },
 
   // 更新员工
-  updateStaff: (id: number, data: Partial<ICreateStaffRequest>) => {
-    return post<IStaff>(`/staff/${id}`, data)
+  updateStaff: (id: string, data: IUpdateStaffRequest) => {
+    return put<IStaff>(`/staff/${id}`, data)
   }
 }

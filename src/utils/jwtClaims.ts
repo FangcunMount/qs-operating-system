@@ -1,3 +1,5 @@
+import { config } from '@/config/config'
+
 export interface IJwtClaims {
   iss?: string
   aud?: string[] | string
@@ -54,4 +56,35 @@ export function validateJwtClaims(claims: IJwtClaims): { valid: boolean; reason?
   }
 
   return { valid: true }
+}
+
+export function getStoredAccessToken(): string {
+  return localStorage.getItem('access_token') || localStorage.getItem('token') || config.token || ''
+}
+
+export function getStoredJwtClaims(): IJwtClaims | null {
+  const token = getStoredAccessToken()
+  if (!token) {
+    return null
+  }
+  return parseJwtClaims(token)
+}
+
+export function getCurrentTenantId(): string | undefined {
+  const claims = getStoredJwtClaims()
+  const tenantId = String(claims?.tenant_id || '').trim()
+  return tenantId || undefined
+}
+
+export function getCurrentOrgId(): number | undefined {
+  const tenantId = getCurrentTenantId()
+  if (!tenantId) {
+    return undefined
+  }
+
+  const orgId = Number(tenantId)
+  if (!Number.isSafeInteger(orgId) || orgId <= 0) {
+    return undefined
+  }
+  return orgId
 }

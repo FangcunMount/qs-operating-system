@@ -7,6 +7,8 @@ import { statisticsApi, ITesteeStatistics } from '@/api/path/statistics'
 import { identityApi, IChildSuggestItem } from '@/api/path/identity'
 import { clinicianApi, IClinician } from '@/api/path/clinician'
 import { LazyTable } from '@/components/lazyTable'
+import { getCurrentOrgId } from '@/utils/jwtClaims'
+import { extractErrorMessage } from '@/utils/apiError'
 import './index.scss'
 
 interface ITesteeWithStats extends ITestee {
@@ -19,7 +21,7 @@ const SubjectList: React.FC = () => {
   const [keyword, setKeyword] = useState('')
   const [isKeyFocusFilter, setIsKeyFocusFilter] = useState<boolean | undefined>(undefined)
   const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>(undefined)
-  const [selectedClinicianId, setSelectedClinicianId] = useState<number | undefined>(undefined)
+  const [selectedClinicianId, setSelectedClinicianId] = useState<string | undefined>(undefined)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [loading, setLoading] = useState(false)
@@ -29,6 +31,7 @@ const SubjectList: React.FC = () => {
   const [suggestLoading, setSuggestLoading] = useState(false)
   const [clinicianOptions, setClinicianOptions] = useState<IClinician[]>([])
   const suggestTimer = useRef<number | null>(null)
+  const currentOrgId = getCurrentOrgId()
 
   const calculateAge = (birthday?: string): number => {
     if (!birthday) return 0
@@ -86,8 +89,12 @@ const SubjectList: React.FC = () => {
 
       setLoading(true)
       try {
+        if (!currentOrgId) {
+          message.error('当前登录态缺少机构上下文')
+          return
+        }
         const queryParams = {
-          org_id: 1,
+          org_id: currentOrgId,
           profile_id: targetProfileId,
           clinician_id: selectedClinicianId,
           is_key_focus: isKeyFocusFilter,
@@ -98,7 +105,7 @@ const SubjectList: React.FC = () => {
         const [err, response] = await testeeApi.listTestees(queryParams)
 
         if (err || !response?.data) {
-          message.error('获取受试者列表失败')
+          message.error(extractErrorMessage(err, '获取受试者列表失败'))
           return
         }
 
@@ -126,8 +133,11 @@ const SubjectList: React.FC = () => {
 
   useEffect(() => {
     const fetchClinicians = async () => {
+      if (!currentOrgId) {
+        return
+      }
       const [error, response] = await clinicianApi.listClinicians({
-        org_id: 1,
+        org_id: currentOrgId,
         page: 1,
         page_size: 100
       })
@@ -137,7 +147,7 @@ const SubjectList: React.FC = () => {
     }
 
     fetchClinicians()
-  }, [])
+  }, [currentOrgId])
 
   useEffect(() => {
     return () => {

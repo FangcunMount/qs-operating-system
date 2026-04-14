@@ -1,15 +1,16 @@
 import { get, post, put } from '../qsServer'
 import type { QSResponse } from '@/types/qs'
 import type { FcResponse, ListResponse } from '../../types/server'
+import { getCurrentOrgId } from '@/utils/jwtClaims'
 
 // ==================== 新API接口定义 ====================
 
 // 受试者接口请求参数
 export interface IListTesteeRequest {
-  org_id: number
+  org_id?: number
   name?: string
   profile_id?: string
-  clinician_id?: number
+  clinician_id?: string
   is_key_focus?: boolean
   page?: number
   page_size?: number
@@ -226,7 +227,7 @@ export const getSubjectList = async (params: { page?: number; pageSize?: number;
 
   // 调用新的 testeeApi
   const [err, res] = await testeeApi.listTestees({
-    org_id: 1, // TODO: 从用户信息中获取
+    org_id: getCurrentOrgId(),
     name: keyword,
     page,
     page_size: pageSize

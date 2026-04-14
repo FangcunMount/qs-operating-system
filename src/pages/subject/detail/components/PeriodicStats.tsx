@@ -10,6 +10,8 @@ import {
   PlusOutlined
 } from '@ant-design/icons'
 import { planApi, IPlan } from '@/api/path/plan'
+import { getCurrentOrgId } from '@/utils/jwtClaims'
+import { extractErrorMessage } from '@/utils/apiError'
 import dayjs, { Dayjs } from 'dayjs'
 
 const { Panel } = Collapse
@@ -38,6 +40,7 @@ interface PeriodicStatsProps {
 }
 
 const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh }) => {
+  const currentOrgId = getCurrentOrgId()
   const [expandedKeys, setExpandedKeys] = useState<string[]>([])
   const [enrollModalVisible, setEnrollModalVisible] = useState(false)
   const [planList, setPlanList] = useState<IPlan[]>([])
@@ -213,17 +216,21 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
   }, [enrollModalVisible])
 
   const fetchPlanList = async () => {
+    if (!currentOrgId) {
+      message.error('当前登录态缺少机构上下文')
+      return
+    }
     setPlanLoading(true)
     try {
       const [err, response] = await planApi.list({
-        org_id: 1, // TODO: 从用户信息中获取
+        org_id: currentOrgId,
         status: 'active', // 只获取进行中的计划
         page: 1,
         page_size: 100
       })
       if (err || !response?.data) {
         console.error('获取计划列表失败:', err)
-        message.error('获取计划列表失败')
+        message.error(extractErrorMessage(err, '获取计划列表失败'))
         return
       }
       setPlanList(response.data.plans)

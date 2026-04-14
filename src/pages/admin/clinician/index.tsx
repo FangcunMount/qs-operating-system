@@ -1,14 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, message } from 'antd'
+import { Alert, Button, Card, Form, Input, Modal, Popconfirm, Radio, Select, Space, Table, Tag, message } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { useHistory } from 'react-router-dom'
 import type { ColumnsType } from 'antd/es/table'
 import { clinicianApi, IClinician } from '@/api/path/clinician'
 import { staffApi, IStaff } from '@/api/path/staff'
+import { getCurrentOrgId } from '@/utils/jwtClaims'
+import { extractErrorMessage } from '@/utils/apiError'
 import './index.scss'
 
 const { Option } = Select
-const currentOrgId = 1
 
 const ClinicianManagement: React.FC = () => {
   const history = useHistory()
@@ -25,6 +26,8 @@ const ClinicianManagement: React.FC = () => {
   const [form] = Form.useForm()
   const [bindForm] = Form.useForm()
 
+  const currentOrgId = getCurrentOrgId()
+
   const clinicianTypeOptions = useMemo(
     () => [
       { value: 'doctor', label: '医生' },
@@ -35,7 +38,28 @@ const ClinicianManagement: React.FC = () => {
     []
   )
 
+  const bindableStaffOptions = useMemo(() => {
+    const occupiedByOthers = new Set(
+      items
+        .filter((item) => item.is_active && item.operator_id && item.id !== bindingItem?.id)
+        .map((item) => String(item.operator_id))
+    )
+    const currentOperatorId = bindingItem?.operator_id ? String(bindingItem.operator_id) : ''
+
+    return staffOptions.filter((item) => {
+      if (!item.is_active) {
+        return false
+      }
+      const id = String(item.id)
+      return !occupiedByOthers.has(id) || id === currentOperatorId
+    })
+  }, [bindingItem, items, staffOptions])
+
   const fetchClinicians = async (nextPage = page, nextPageSize = pageSize) => {
+    if (!currentOrgId) {
+      return
+    }
+
     setLoading(true)
     try {
       const [error, response] = await clinicianApi.listClinicians({
@@ -44,7 +68,7 @@ const ClinicianManagement: React.FC = () => {
         page_size: nextPageSize
       })
       if (error || !response?.data) {
-        throw new Error('获取临床人员列表失败')
+        throw error || new Error('获取临床人员列表失败')
       }
       setItems(response.data.items || [])
       setTotal(response.data.total || 0)
@@ -52,17 +76,21 @@ const ClinicianManagement: React.FC = () => {
       setPageSize(response.data.page_size || nextPageSize)
     } catch (error) {
       console.error(error)
-      message.error('获取临床人员列表失败')
+      message.error(extractErrorMessage(error, '获取临床人员列表失败'))
     } finally {
       setLoading(false)
     }
   }
 
   const fetchStaff = async () => {
+    if (!currentOrgId) {
+      return
+    }
+
     const [error, response] = await staffApi.listStaff({
       org_id: currentOrgId,
       page: 1,
-      page_size: 100
+      page_size: 200
     })
     if (!error && response?.data) {
       setStaffOptions(response.data.items || [])
@@ -70,19 +98,23 @@ const ClinicianManagement: React.FC = () => {
   }
 
   useEffect(() => {
+    if (!currentOrgId) {
+      return
+    }
     fetchClinicians()
     fetchStaff()
-  }, [])
+  }, [currentOrgId])
 
   const handleOpenCreate = () => {
     setEditingItem(null)
     form.resetFields()
-    form.setFieldsValue({ clinician_type: 'counselor', is_active: 'true' })
+    form.setFieldsValue({ clinician_type: 'counselor', is_active: true })
     setModalVisible(true)
   }
 
   const handleOpenEdit = (item: IClinician) => {
     setEditingItem(item)
+    form.resetFields()
     form.setFieldsValue({
       name: item.name,
       department: item.department,
@@ -95,6 +127,10 @@ const ClinicianManagement: React.FC = () => {
   }
 
   const handleSubmit = async () => {
+    if (!currentOrgId) {
+      return
+    }
+
     try {
       const values = await form.validateFields()
       const payload = {
@@ -104,29 +140,35 @@ const ClinicianManagement: React.FC = () => {
         title: values.title,
         clinician_type: values.clinician_type,
         employee_code: values.employee_code,
-        is_active: values.is_active === 'true'
+        is_active: Boolean(values.is_active)
       }
-      const [error] = editingItem ? await clinicianApi.updateClinician(editingItem.id, payload) : await clinicianApi.createClinician(payload)
+      const [error] = editingItem
+        ? await clinicianApi.updateClinician(editingItem.id, payload)
+        : await clinicianApi.createClinician(payload)
       if (error) {
         throw error
       }
       message.success(editingItem ? '更新临床人员成功' : '创建临床人员成功')
       setModalVisible(false)
       fetchClinicians()
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.errorFields) {
+        return
+      }
       console.error(error)
-      message.error(editingItem ? '更新临床人员失败' : '创建临床人员失败')
+      message.error(extractErrorMessage(error, editingItem ? '更新临床人员失败' : '创建临床人员失败'))
     }
   }
 
   const handleToggleActive = async (item: IClinician) => {
     const [error] = item.is_active ? await clinicianApi.deactivateClinician(item.id) : await clinicianApi.activateClinician(item.id)
     if (error) {
-      message.error(item.is_active ? '停用失败' : '启用失败')
+      message.error(extractErrorMessage(error, item.is_active ? '停用失败' : '启用失败'))
       return
     }
     message.success(item.is_active ? '已停用' : '已启用')
     fetchClinicians()
+    fetchStaff()
   }
 
   const handleOpenBind = (item: IClinician) => {
@@ -142,34 +184,36 @@ const ClinicianManagement: React.FC = () => {
     if (!bindingItem) return
     try {
       const values = await bindForm.validateFields()
-      const [error] = await clinicianApi.bindOperator(bindingItem.id, values.operator_id)
+      const [error] = await clinicianApi.bindOperator(bindingItem.id, String(values.operator_id))
       if (error) {
         throw error
       }
       message.success('绑定员工成功')
       setBindVisible(false)
       fetchClinicians()
+      fetchStaff()
     } catch (error) {
       console.error(error)
-      message.error('绑定员工失败')
+      message.error(extractErrorMessage(error, '绑定员工失败'))
     }
   }
 
   const handleUnbind = async (item: IClinician) => {
     const [error] = await clinicianApi.unbindOperator(item.id)
     if (error) {
-      message.error('解绑员工失败')
+      message.error(extractErrorMessage(error, '解绑员工失败'))
       return
     }
     message.success('解绑员工成功')
     fetchClinicians()
+    fetchStaff()
   }
 
   const renderClinicianStatus = (value: boolean) => <Tag color={value ? 'success' : 'error'}>{value ? '激活' : '停用'}</Tag>
 
   const renderBoundStaff = (_: unknown, record: IClinician) => {
-    const staff = staffOptions.find((item) => item.id === record.operator_id)
     if (!record.operator_id) return <Tag>未绑定</Tag>
+    const staff = staffOptions.find((item) => String(item.id) === String(record.operator_id))
     return <span>{staff?.name || `员工#${record.operator_id}`}</span>
   }
 
@@ -239,10 +283,19 @@ const ClinicianManagement: React.FC = () => {
       <Card>
         <div className="page-header">
           <h2>临床人员管理</h2>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate} disabled={!currentOrgId}>
             新建临床人员
           </Button>
         </div>
+
+        {!currentOrgId && (
+          <Alert
+            type="error"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message="当前登录态缺少机构上下文，无法管理临床人员"
+          />
+        )}
 
         <Table
           rowKey="id"
@@ -290,10 +343,10 @@ const ClinicianManagement: React.FC = () => {
           </Form.Item>
           {!editingItem && (
             <Form.Item label="创建后激活" name="is_active">
-              <Select>
-                <Option value="true">是</Option>
-                <Option value="false">否</Option>
-              </Select>
+              <Radio.Group>
+                <Radio value>是</Radio>
+                <Radio value={false}>否</Radio>
+              </Radio.Group>
             </Form.Item>
           )}
         </Form>
@@ -303,7 +356,7 @@ const ClinicianManagement: React.FC = () => {
         <Form layout="vertical" form={bindForm}>
           <Form.Item label="员工" name="operator_id" rules={[{ required: true, message: '请选择员工' }]}>
             <Select showSearch optionFilterProp="children" placeholder="请选择要绑定的员工">
-              {staffOptions.map((item) => (
+              {bindableStaffOptions.map((item) => (
                 <Option key={item.id} value={item.id}>
                   {item.name} (#{item.id})
                 </Option>

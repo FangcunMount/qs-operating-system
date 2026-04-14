@@ -4,9 +4,9 @@ import { get, post, put } from '../qsServer'
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 
 export interface IClinician {
-  id: number
-  org_id: number
-  operator_id?: number
+  id: string
+  org_id: string
+  operator_id?: string
   name: string
   department?: string
   title?: string
@@ -27,7 +27,7 @@ export interface IClinicianListResponse {
 
 export interface ICreateClinicianRequest {
   org_id?: number
-  operator_id?: number
+  operator_id?: string
   name: string
   department?: string
   title?: string
@@ -45,9 +45,9 @@ export interface IUpdateClinicianRequest {
 }
 
 export interface IAssessmentEntry {
-  id: number
-  org_id: number
-  clinician_id: number
+  id: string
+  org_id: string
+  clinician_id: string
   token: string
   target_type: string
   target_code: string
@@ -73,13 +73,13 @@ export interface ICreateAssessmentEntryRequest {
 }
 
 export interface IRelation {
-  id: number
-  org_id: number
-  clinician_id: number
-  testee_id: number
+  id: string
+  org_id: string
+  clinician_id: string
+  testee_id: string
   relation_type: string
   source_type: string
-  source_id?: number
+  source_id?: string
   is_active: boolean
   bound_at: string
   unbound_at?: string
@@ -96,19 +96,19 @@ export interface ITesteeClinicianRelationListResponse {
 
 export interface IAssignClinicianTesteeRequest {
   org_id?: number
-  clinician_id: number
-  testee_id: number
+  clinician_id: string
+  testee_id: string
   relation_type?: string
   source_type?: string
-  source_id?: number
+  source_id?: string
 }
 
 export interface ITransferPrimaryClinicianRequest {
   org_id?: number
-  to_clinician_id: number
-  testee_id: number
+  to_clinician_id: string
+  testee_id: string
   source_type?: string
-  source_id?: number
+  source_id?: string
 }
 
 export interface IClinicianRelationItem {
@@ -137,7 +137,7 @@ export const clinicianApi = {
 
   deactivateClinician: (id: number | string) => post<IClinician>(`/clinicians/${id}/deactivate`, undefined),
 
-  bindOperator: (id: number | string, operator_id: number) => post<IClinician>(`/clinicians/${id}/bind-operator`, { operator_id }),
+  bindOperator: (id: number | string, operator_id: string) => post<IClinician>(`/clinicians/${id}/bind-operator`, { operator_id }),
 
   unbindOperator: (id: number | string) => post<IClinician>(`/clinicians/${id}/unbind-operator`, undefined),
 

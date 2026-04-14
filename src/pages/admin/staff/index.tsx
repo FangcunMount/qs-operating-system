@@ -1,45 +1,41 @@
-import React, { useState, useEffect } from 'react'
-import { Card, Table, Button, Modal, Form, Input, Select, Space, Tag, Popconfirm, InputNumber } from 'antd'
+import React, { useEffect, useState } from 'react'
+import { Alert, Button, Card, Form, Input, Modal, Popconfirm, Radio, Select, Space, Table, Tag } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { observer } from 'mobx-react-lite'
 import { rootStore } from '@/store'
-import type { IStaff, ICreateStaffRequest } from '@/api/path/staff'
-import { listRoles, IRole } from '@/api/path/authz'
-import { clinicianApi, IClinician } from '@/api/path/clinician'
+import type { ICreateStaffRequest, IStaff, IUpdateStaffRequest } from '@/api/path/staff'
+import type { IClinician } from '@/api/path/clinician'
+import { clinicianApi } from '@/api/path/clinician'
+import { OPERATOR_ROLE_COLOR_MAP, OPERATOR_ROLE_OPTIONS } from '@/constants/operatorRoles'
+import { getCurrentOrgId } from '@/utils/jwtClaims'
+import { extractErrorMessage } from '@/utils/apiError'
 import './index.scss'
 
-const { Option } = Select
+type AccountMode = 'create' | 'existing'
 
 const StaffManagement: React.FC = observer(() => {
   const { staffStore } = rootStore
   const [modalVisible, setModalVisible] = useState(false)
   const [editingStaff, setEditingStaff] = useState<IStaff | null>(null)
-  const [form] = Form.useForm()
-  const [roleOptions, setRoleOptions] = useState<Array<{ value: string; label: string }>>([])
   const [clinicians, setClinicians] = useState<IClinician[]>([])
+  const [accountMode, setAccountMode] = useState<AccountMode>('create')
+  const [form] = Form.useForm()
 
-  // 固定使用机构ID=1，实际应该从用户信息中获取
-  const currentOrgId = 1
+  const currentOrgId = getCurrentOrgId()
 
   useEffect(() => {
-    fetchStaffList()
-    fetchRoleOptions()
-    fetchClinicians()
-  }, [])
-
-  const fetchRoleOptions = async () => {
-    const [error, response] = await listRoles({ limit: 100, offset: 0 })
-    if (!error && response?.data) {
-      const options = response.data.map((role: IRole) => ({
-        value: role.name,
-        label: role.display_name
-      }))
-      setRoleOptions(options)
+    if (!currentOrgId) {
+      return
     }
-  }
+    fetchStaffList()
+    fetchClinicians()
+  }, [currentOrgId])
 
   const fetchStaffList = (page = 1, pageSize = 20) => {
+    if (!currentOrgId) {
+      return
+    }
     staffStore.fetchStaffList({
       org_id: currentOrgId,
       page,
@@ -48,6 +44,10 @@ const StaffManagement: React.FC = observer(() => {
   }
 
   const fetchClinicians = async () => {
+    if (!currentOrgId) {
+      return
+    }
+
     const [error, response] = await clinicianApi.listClinicians({
       org_id: currentOrgId,
       page: 1,
@@ -60,22 +60,33 @@ const StaffManagement: React.FC = observer(() => {
 
   const handleAdd = () => {
     setEditingStaff(null)
+    setAccountMode('create')
     form.resetFields()
+    form.setFieldsValue({
+      account_mode: 'create',
+      roles: ['qs:staff'],
+      is_active: true
+    })
     setModalVisible(true)
   }
 
   const handleEdit = (record: IStaff) => {
     setEditingStaff(record)
+    setAccountMode('existing')
+    form.resetFields()
     form.setFieldsValue({
-      ...record,
+      account_mode: 'existing',
+      name: record.name,
+      user_id: record.user_id,
       phone: record.phone || '',
       email: record.email || '',
-      is_active: record.is_active ? 'true' : 'false'
+      roles: record.roles || [],
+      is_active: record.is_active
     })
     setModalVisible(true)
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     const success = await staffStore.deleteStaff(id)
     if (success) {
       fetchStaffList(staffStore.pageInfo.current, staffStore.pageInfo.pageSize)
@@ -84,28 +95,56 @@ const StaffManagement: React.FC = observer(() => {
   }
 
   const handleSubmit = async () => {
+    if (!currentOrgId) {
+      return
+    }
+
     try {
       const values = await form.validateFields()
+
+      if (editingStaff) {
+        const data: IUpdateStaffRequest = {
+          name: values.name,
+          roles: values.roles,
+          phone: values.phone || undefined,
+          email: values.email || undefined,
+          is_active: Boolean(values.is_active)
+        }
+        const success = await staffStore.updateStaff(editingStaff.id, data)
+        if (success) {
+          setModalVisible(false)
+          fetchStaffList(staffStore.pageInfo.current, staffStore.pageInfo.pageSize)
+          fetchClinicians()
+        }
+        return
+      }
 
       const data: ICreateStaffRequest = {
         name: values.name,
         org_id: currentOrgId,
-        user_id: values.user_id,
         roles: values.roles,
         phone: values.phone || undefined,
         email: values.email || undefined,
-        is_active: values.is_active === 'true' || values.is_active === true
+        is_active: Boolean(values.is_active)
+      }
+      if (values.account_mode === 'existing') {
+        data.user_id = String(values.user_id || '').trim()
       }
 
-      const success = editingStaff ? await staffStore.updateStaff(editingStaff.id, data) : await staffStore.createStaff(data)
-
+      const success = await staffStore.createStaff(data)
       if (success) {
         setModalVisible(false)
         fetchStaffList(staffStore.pageInfo.current, staffStore.pageInfo.pageSize)
         fetchClinicians()
       }
-    } catch (error) {
-      console.error('Validation failed:', error)
+    } catch (error: any) {
+      if (error?.errorFields) {
+        return
+      }
+      Modal.error({
+        title: '提交失败',
+        content: extractErrorMessage(error, '提交员工信息失败')
+      })
     }
   }
 
@@ -114,42 +153,33 @@ const StaffManagement: React.FC = observer(() => {
       title: 'ID',
       dataIndex: 'id',
       key: 'id',
-      width: 80
+      width: 160
     },
     {
       title: '姓名',
       dataIndex: 'name',
       key: 'name',
-      width: 120
+      width: 140
     },
     {
       title: '用户ID',
       dataIndex: 'user_id',
       key: 'user_id',
-      width: 100
+      width: 180
     },
     {
       title: '角色',
       dataIndex: 'roles',
       key: 'roles',
-      width: 200,
+      width: 280,
       render(roles: string[]) {
         return (
           <Space size={4} wrap>
             {roles?.map((role) => {
-              const roleOption = roleOptions.find((opt) => opt.value === role)
-              const displayName = roleOption?.label || role
-              const colorMap: Record<string, string> = {
-                admin: 'blue',
-                teacher: 'green',
-                counselor: 'purple',
-                doctor: 'cyan',
-                viewer: 'default'
-              }
-              const color = colorMap[role] || 'default'
+              const roleOption = OPERATOR_ROLE_OPTIONS.find((item) => item.value === role)
               return (
-                <Tag key={role} color={color}>
-                  {displayName}
+                <Tag key={role} color={OPERATOR_ROLE_COLOR_MAP[role] || 'default'}>
+                  {roleOption?.label || role}
                 </Tag>
               )
             })}
@@ -167,9 +197,9 @@ const StaffManagement: React.FC = observer(() => {
       }
     },
     {
-      title: '绑定Clinician',
+      title: '绑定 Clinician',
       key: 'clinician_binding',
-      width: 180,
+      width: 220,
       render(_, record) {
         const clinician = clinicians.find((item) => item.operator_id === record.id)
         if (!clinician) {
@@ -205,15 +235,28 @@ const StaffManagement: React.FC = observer(() => {
     }
   ]
 
+  const modalTitle = editingStaff ? '编辑员工' : '添加员工'
+  const showCreateFields = !editingStaff && accountMode === 'create'
+  const showExistingFields = !editingStaff && accountMode === 'existing'
+
   return (
     <div className="staff-management-page">
       <Card>
         <div className="page-header">
           <h2>员工管理</h2>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} disabled={!currentOrgId}>
             添加员工
           </Button>
         </div>
+
+        {!currentOrgId && (
+          <Alert
+            type="error"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message="当前登录态缺少机构上下文，无法管理员工"
+          />
+        )}
 
         <Table
           columns={columns}
@@ -235,38 +278,84 @@ const StaffManagement: React.FC = observer(() => {
       </Card>
 
       <Modal
-        title={editingStaff ? '编辑员工' : '添加员工'}
+        title={modalTitle}
         visible={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
-        width={600}
+        width={640}
         okText="确定"
         cancelText="取消"
+        destroyOnClose
       >
         <Form
           form={form}
           layout="vertical"
           initialValues={{
-            is_active: 'true'
+            account_mode: 'create',
+            roles: ['qs:staff'],
+            is_active: true
           }}
         >
+          {!editingStaff && (
+            <Form.Item label="账号模式" name="account_mode">
+              <Radio.Group onChange={(event) => setAccountMode(event.target.value as AccountMode)}>
+                <Radio.Button value="create">新建账号</Radio.Button>
+                <Radio.Button value="existing">已有账号</Radio.Button>
+              </Radio.Group>
+            </Form.Item>
+          )}
+
           <Form.Item label="姓名" name="name" rules={[{ required: true, message: '请输入姓名' }]}>
             <Input placeholder="请输入姓名" />
           </Form.Item>
 
-          <Form.Item label="用户ID" name="user_id" rules={[{ required: true, message: '请输入用户ID' }]}>
-            <InputNumber placeholder="请输入用户ID" style={{ width: '100%' }} min={1} />
+          {editingStaff && (
+            <Form.Item label="用户ID" name="user_id">
+              <Input disabled />
+            </Form.Item>
+          )}
+
+          {showExistingFields && (
+            <Form.Item
+              label="用户ID"
+              name="user_id"
+              rules={[
+                { required: true, message: '请输入用户ID' },
+                { pattern: /^\d+$/, message: '用户ID 必须是数字字符串' }
+              ]}
+            >
+              <Input placeholder="请输入已有 IAM 用户ID" />
+            </Form.Item>
+          )}
+
+          <Form.Item
+            label="手机号"
+            name="phone"
+            rules={showCreateFields ? [{ required: true, message: '新建账号时必须填写手机号' }] : undefined}
+          >
+            <Input placeholder={showCreateFields ? '请输入手机号，用于创建 IAM 账号' : '请输入手机号'} />
+          </Form.Item>
+
+          <Form.Item label="邮箱" name="email" rules={[{ type: 'email', message: '邮箱格式不正确' }]}>
+            <Input placeholder="请输入邮箱" />
           </Form.Item>
 
           <Form.Item label="角色" name="roles" rules={[{ required: true, message: '请选择至少一个角色' }]}>
-            <Select mode="multiple" placeholder="请选择角色" options={roleOptions} />
+            <Select
+              mode="multiple"
+              placeholder="请选择角色"
+              options={OPERATOR_ROLE_OPTIONS.map((item) => ({
+                value: item.value,
+                label: item.label
+              }))}
+            />
           </Form.Item>
 
           <Form.Item label="状态" name="is_active">
-            <Select>
-              <Option value="true">激活</Option>
-              <Option value="false">未激活</Option>
-            </Select>
+            <Radio.Group>
+              <Radio value>激活</Radio>
+              <Radio value={false}>未激活</Radio>
+            </Radio.Group>
           </Form.Item>
         </Form>
       </Modal>

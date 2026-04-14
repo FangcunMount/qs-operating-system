@@ -1,6 +1,7 @@
 import { makeAutoObservable, runInAction } from 'mobx'
 import { message } from 'antd'
-import { staffApi, IStaff, ICreateStaffRequest, IListStaffRequest } from '@/api/path/staff'
+import { staffApi, IStaff, ICreateStaffRequest, IListStaffRequest, IUpdateStaffRequest } from '@/api/path/staff'
+import { extractErrorMessage } from '@/utils/apiError'
 
 export class StaffStore {
   staffList: IStaff[] = []
@@ -22,7 +23,7 @@ export class StaffStore {
     try {
       const [error, response] = await staffApi.listStaff(params)
       if (error || !response) {
-        throw new Error('获取员工列表失败')
+        throw error || new Error('获取员工列表失败')
       }
       runInAction(() => {
         this.staffList = response.data?.items || []
@@ -34,7 +35,7 @@ export class StaffStore {
         }
       })
     } catch (error) {
-      message.error('获取员工列表失败')
+      message.error(extractErrorMessage(error, '获取员工列表失败'))
       console.error('Fetch staff list error:', error)
     } finally {
       runInAction(() => {
@@ -49,12 +50,12 @@ export class StaffStore {
     try {
       const [error, response] = await staffApi.createStaff(data)
       if (error || !response) {
-        throw new Error('创建员工失败')
+        throw error || new Error('创建员工失败')
       }
       message.success('创建员工成功')
       return true
     } catch (error) {
-      message.error('创建员工失败')
+      message.error(extractErrorMessage(error, '创建员工失败'))
       console.error('Create staff error:', error)
       return false
     } finally {
@@ -65,16 +66,16 @@ export class StaffStore {
   }
 
   // 获取员工详情
-  async getStaff(id: number): Promise<IStaff | null> {
+  async getStaff(id: string): Promise<IStaff | null> {
     this.loading = true
     try {
       const [error, response] = await staffApi.getStaff(id)
       if (error || !response) {
-        throw new Error('获取员工详情失败')
+        throw error || new Error('获取员工详情失败')
       }
       return response.data
     } catch (error) {
-      message.error('获取员工详情失败')
+      message.error(extractErrorMessage(error, '获取员工详情失败'))
       console.error('Get staff error:', error)
       return null
     } finally {
@@ -85,17 +86,17 @@ export class StaffStore {
   }
 
   // 删除员工
-  async deleteStaff(id: number): Promise<boolean> {
+  async deleteStaff(id: string): Promise<boolean> {
     this.loading = true
     try {
       const [error, response] = await staffApi.deleteStaff(id)
       if (error || !response) {
-        throw new Error('删除员工失败')
+        throw error || new Error('删除员工失败')
       }
       message.success('删除员工成功')
       return true
     } catch (error) {
-      message.error('删除员工失败')
+      message.error(extractErrorMessage(error, '删除员工失败'))
       console.error('Delete staff error:', error)
       return false
     } finally {
@@ -106,17 +107,17 @@ export class StaffStore {
   }
 
   // 更新员工
-  async updateStaff(id: number, data: Partial<ICreateStaffRequest>): Promise<boolean> {
+  async updateStaff(id: string, data: IUpdateStaffRequest): Promise<boolean> {
     this.loading = true
     try {
       const [error, response] = await staffApi.updateStaff(id, data)
       if (error || !response) {
-        throw new Error('更新员工失败')
+        throw error || new Error('更新员工失败')
       }
       message.success('更新员工成功')
       return true
     } catch (error) {
-      message.error('更新员工失败')
+      message.error(extractErrorMessage(error, '更新员工失败'))
       console.error('Update staff error:', error)
       return false
     } finally {
