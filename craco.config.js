@@ -10,7 +10,8 @@ module.exports = {
   jest: {
     configure: {
       moduleNameMapper: {
-        '^@/(.*)$': '<rootDir>/src/$1'
+        '^@/(.*)$': '<rootDir>/src/$1',
+        '^fc-tools-pc/dist/bundle$': '<rootDir>/src/test/mocks/fcToolsPcBundle.ts'
       },
       setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts']
     }
