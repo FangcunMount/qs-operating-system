@@ -8,9 +8,73 @@ import { getCurrentTenantId, getStoredAccessToken } from '@/utils/jwtClaims'
 
 const isDev = process.env.NODE_ENV === 'development'
 const apiHost = process.env.REACT_APP_QS_HOST || config.qsHost || `https://qs.${config.domain}`
-// 开发环境使用代理路径以避免 CORS；生产环境使用绝对地址
-const baseURL = isDev ? '/api/v1' : `${apiHost}/api/v1`
-const internalBaseURL = isDev ? '/internal/v1' : `${apiHost}/internal/v1`
+const ABSOLUTE_URL_RE = /^(?:[a-z][a-z\d+.-]*:)?\/\//i
+
+const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
+const ensureLeadingSlash = (value: string) => (value.startsWith('/') ? value : `/${value}`)
+
+const stripKnownQSBasePath = (value: string) => {
+  const normalizedValue = trimTrailingSlash(value)
+  const knownSuffixes = ['/api/v1/internal/v1', '/api/v1', '/internal/v1']
+  const matchedSuffix = knownSuffixes.find((suffix) => normalizedValue.endsWith(suffix))
+
+  if (!matchedSuffix) {
+    return normalizedValue
+  }
+
+  return normalizedValue.slice(0, -matchedSuffix.length)
+}
+
+const getPathname = (value?: string) => {
+  if (!value) return ''
+
+  try {
+    const pathname = new URL(value, 'https://qs.local').pathname
+    return trimTrailingSlash(pathname) || '/'
+  } catch {
+    return ''
+  }
+}
+
+const normalizeRelativeRequestUrl = (base?: string, url?: string) => {
+  if (!url || ABSOLUTE_URL_RE.test(url)) {
+    return url
+  }
+
+  const normalizedUrl = ensureLeadingSlash(url)
+  const basePath = getPathname(base)
+
+  if (!basePath || basePath === '/') {
+    return normalizedUrl
+  }
+
+  if (normalizedUrl === basePath) {
+    return '/'
+  }
+
+  if (normalizedUrl.startsWith(`${basePath}/`)) {
+    return normalizedUrl.slice(basePath.length)
+  }
+
+  return normalizedUrl
+}
+
+const buildQSBaseURL = (host: string, prefix: '/api/v1' | '/internal/v1') => {
+  const origin = stripKnownQSBasePath(host)
+  return `${origin}${prefix}`
+}
+
+const buildDebugUrl = (base: string, url: string) => {
+  if (ABSOLUTE_URL_RE.test(url)) {
+    return url
+  }
+
+  return `${trimTrailingSlash(base)}${normalizeRelativeRequestUrl(base, url) || ''}`
+}
+
+// 开发环境使用代理路径以避免 CORS；生产环境统一规范为恰好一个 API 前缀
+const baseURL = isDev ? '/api/v1' : buildQSBaseURL(apiHost, '/api/v1')
+const internalBaseURL = isDev ? '/internal/v1' : buildQSBaseURL(apiHost, '/internal/v1')
 
 export const qsAxios = axios.create({
   timeout: 50000,
@@ -30,6 +94,7 @@ export const qsInternalAxios = axios.create({
 // 使用真实后端 QS API
 const attachCommonHeaders = (cfg: AxiosRequestConfig) => {
   cfg.headers = cfg.headers || {}
+  cfg.url = normalizeRelativeRequestUrl(cfg.baseURL, cfg.url)
   const tenantId = getCurrentTenantId()
   if (tenantId) {
     cfg.headers['tenant_id'] = tenantId
@@ -138,7 +203,7 @@ export const qsPost = <T>(url: string, data: any = {}, params: any = {}): Promis
   new Promise((resolve) => {
     // 如果 data 是 undefined 或 null，不发送请求体（某些接口不需要请求体）
     const requestData = data === undefined || data === null ? undefined : data
-    const fullUrl = `${baseURL}${url}`
+    const fullUrl = buildDebugUrl(baseURL, url)
     console.log('[qsPost] 发送 POST 请求:', {
       url: fullUrl,
       data: requestData,
@@ -181,7 +246,7 @@ export const qsInternalGet = <T>(url: string, params: any = {}, clearFn?: Fn<T>)
 export const qsInternalPost = <T>(url: string, data: any = {}, params: any = {}): Promise<[any, QSResponse<T> | undefined]> =>
   new Promise((resolve) => {
     const requestData = data === undefined || data === null ? undefined : data
-    const fullUrl = `${internalBaseURL}${url}`
+    const fullUrl = buildDebugUrl(internalBaseURL, url)
     console.log('[qsInternalPost] 发送 POST 请求:', {
       url: fullUrl,
       data: requestData,
