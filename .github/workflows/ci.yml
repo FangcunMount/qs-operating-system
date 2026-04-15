@@ -33,6 +33,10 @@ permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: qs-operating-system-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE: ghcr.io/fangcunmount/qs-operating-system
@@ -117,7 +121,6 @@ jobs:
           echo "✅ Secrets validation passed."
 
   test_lint:
-    needs: [validate-secrets]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -130,13 +133,13 @@ jobs:
       - run: npm ci
 
       - name: Test
-        run: npm test -- --coverage --watchAll=false --passWithNoTests || true
+        run: npm test -- --coverage --watchAll=false --passWithNoTests
 
       - name: Lint
-        run: npx eslint . --ext .ts,.tsx,.js,.jsx --max-warnings 0 || true
+        run: npx eslint . --ext .ts,.tsx,.js,.jsx --max-warnings 0
 
   docker_build_push:
-    needs: [test_lint]
+    needs: [validate-secrets, test_lint]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -154,15 +157,31 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Compute image tags
+        id: image_meta
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          TAGS="${IMAGE}:sha-${GITHUB_SHA}"
+          if [ "${GITHUB_REF}" = "refs/heads/main" ] || [ "${GITHUB_REF}" = "refs/heads/master" ]; then
+            TAGS="${TAGS}"$'\n'"${IMAGE}:latest"
+          fi
+          {
+            echo "tags<<EOF"
+            echo "${TAGS}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
       - name: Build & Push GHCR
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ${{ env.DOCKERFILE }}
           push: true
-          tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:sha-${{ github.sha }}
+          tags: ${{ steps.image_meta.outputs.tags }}
+          build-args: |
+            REACT_APP_BUILD_SHA=${{ github.sha }}
+            REACT_APP_BUILD_REF=${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -181,13 +200,15 @@ jobs:
             echo "⚠️ Docker Hub login failed, skip mirror."
             exit 0
           fi
-          if ! docker buildx imagetools create -t "${IMAGE_DOCKERHUB}:latest" "${IMAGE}:latest"; then
-            echo "⚠️ Mirror latest tag failed, skip Docker Hub mirror."
-            exit 0
-          fi
           if ! docker buildx imagetools create -t "${IMAGE_DOCKERHUB}:sha-${GITHUB_SHA}" "${IMAGE}:sha-${GITHUB_SHA}"; then
             echo "⚠️ Mirror sha tag failed, keep GHCR as source of truth."
             exit 0
+          fi
+          if [ "${GITHUB_REF}" = "refs/heads/main" ] || [ "${GITHUB_REF}" = "refs/heads/master" ]; then
+            if ! docker buildx imagetools create -t "${IMAGE_DOCKERHUB}:latest" "${IMAGE}:latest"; then
+              echo "⚠️ Mirror latest tag failed, keep GHCR as source of truth."
+              exit 0
+            fi
           fi
 
   deploy_serverb:
@@ -196,9 +217,14 @@ jobs:
     permissions:
       contents: read
       packages: read
+    concurrency:
+      group: qs-operating-system-production
+      cancel-in-progress: true
     if: |
-      (github.event_name == 'push') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == true)
+      ((github.event_name == 'push') &&
+       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
+      ((github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == true) &&
+       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
     steps:
       - name: Prepare SSH key
         shell: bash
@@ -223,7 +249,7 @@ jobs:
 
       - name: Pull image on runner and export bundle
         env:
-          IMAGE_REF: ${{ env.IMAGE }}:latest
+          IMAGE_REF: ${{ env.IMAGE }}:sha-${{ github.sha }}
         run: |
           set -Eeuo pipefail
           docker pull "${IMAGE_REF}"
@@ -249,18 +275,19 @@ jobs:
           PORT: ${{ secrets.SVRB_SSH_PORT || 22 }}
           SUDO_PASSWORD: ${{ secrets.SVRB_SUDO_PASSWORD }}
           IMAGE: ${{ env.IMAGE }}
+          IMAGE_SHA: ${{ github.sha }}
         run: |
           set -Eeuo pipefail
 
           SSH_OPTS="-i ~/.ssh/id_ed25519 -p ${PORT} -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
           echo "🔌 Connecting to ${USER}@${HOST}:${PORT}"
 
-          cat <<'REMOTE_SCRIPT' | ssh ${SSH_OPTS} "${USER}@${HOST}" "IMAGE=${IMAGE} SUDO_PASSWORD='${SUDO_PASSWORD}' bash -s"
+          cat <<'REMOTE_SCRIPT' | ssh ${SSH_OPTS} "${USER}@${HOST}" "IMAGE=${IMAGE} IMAGE_SHA=${IMAGE_SHA} SUDO_PASSWORD='${SUDO_PASSWORD}' bash -s"
           set -Eeuo pipefail
 
           CONTAINER_NAME="qs-operating-system"
           NETWORK_NAME="infra-network"
-          IMAGE_NAME="${IMAGE}:latest"
+          IMAGE_NAME="${IMAGE}:sha-${IMAGE_SHA}"
           BUNDLE="/tmp/qs-ops-image.tar.gz"
           APP_PORT="3000"
           PREV_IMAGE=""
