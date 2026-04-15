@@ -4,7 +4,6 @@ import * as subjectApi from '../api/path/subject'
 import { testeeApi } from '../api/path/subject'
 import { assessmentApi } from '../api/path/assessment'
 import { answerSheetApi } from '../api/path/answerSheet'
-import { planApi, IPlan, ITask } from '../api/path/plan'
 
 // 受试者详情页数据类型
 export interface Guardian {
@@ -24,7 +23,7 @@ export interface SubjectBasicInfo {
 
 export interface TaskStatus {
   week: number
-  status: 'completed' | 'pending' | 'overdue'
+  status: 'completed' | 'pending' | 'overdue' | 'canceled'
   completedAt?: string
   dueDate?: string
   plannedAt?: string
@@ -264,15 +263,13 @@ class SubjectStore {
     }
   }
   
-  // 获取周期性测评统计（使用 plan 相关接口）
+  // 获取周期性测评统计（统一走 statistics 读模型）
   async fetchPeriodicStats(testeeId: number | string) {
     try {
-      // 1. 获取受试者参与的所有计划
-      const [plansErr, plansResponse] = await planApi.getTesteePlans(String(testeeId))
-      
-      if (plansErr || !plansResponse?.data) {
-        console.warn('获取受试者计划列表失败:', plansErr)
-        // 如果没有计划，设置为空数据
+      const [error, response] = await testeeApi.getPeriodicStats(testeeId)
+
+      if (error || !response?.data) {
+        console.warn('获取周期性测评统计失败:', error)
         this.setPeriodicStats({
           projects: [],
           total_projects: 0,
@@ -280,140 +277,9 @@ class SubjectStore {
         })
         return
       }
-      
-      const plans = plansResponse.data.plans || []
-      
-      // 2. 为每个计划获取任务列表，并转换为周期性项目格式
-      const projects = await Promise.all(
-        plans.map(async (plan: IPlan) => {
-          // 获取该计划下的所有任务
-          const [tasksErr, tasksResponse] = await planApi.getTesteePlanTasks(String(testeeId), plan.id)
-          
-          if (tasksErr || !tasksResponse?.data) {
-            console.warn(`获取计划 ${plan.id} 的任务列表失败:`, tasksErr)
-            return null
-          }
-
-          const tasks = tasksResponse.data.tasks || []
-          
-          // 过滤掉已取消的任务（canceled 状态的任务不参与统计）
-          const validTasks = tasks.filter((task: ITask) => task.status !== 'canceled')
-          
-          // 根据计划类型计算总周数
-          let totalWeeks = 0
-          if (plan.schedule_type === 'by_week' || plan.schedule_type === 'by_day') {
-            totalWeeks = plan.total_times || 0
-          } else if (plan.schedule_type === 'fixed_date') {
-            totalWeeks = plan.fixed_dates?.length || 0
-          } else if (plan.schedule_type === 'custom') {
-            totalWeeks = plan.relative_weeks?.length || 0
-          }
-
-          // 统计已完成的任务
-          const completedTasks = validTasks.filter((task: ITask) => task.status === 'completed')
-          const completedWeeks = completedTasks.length
-          const completionRate = totalWeeks > 0 ? Math.round((completedWeeks / totalWeeks) * 100) : 0
-
-          // 将任务转换为任务状态格式
-          const taskStatuses = validTasks.map((task: ITask) => {
-            // 根据任务状态映射（API 状态：pending/opened/completed/expired/canceled）
-            let status: 'completed' | 'pending' | 'overdue' = 'pending'
-            if (task.status === 'completed') {
-              status = 'completed'
-            } else if (task.status === 'expired') {
-              status = 'overdue'
-            } else if (task.status === 'opened' || task.status === 'pending') {
-              // opened: 已开放但未完成，pending: 未开放，都视为待完成
-              status = 'pending'
-            } else {
-              // 其他未知状态，默认为待完成
-              status = 'pending'
-            }
-
-            // 计算周次（使用 seq 作为周次）
-            const week = task.seq
-
-            return {
-              week,
-              status,
-              completed_at: task.completed_at,
-              planned_at: task.planned_at,
-              due_date: task.expire_at ? task.expire_at.split(' ')[0] : undefined, // 只取日期部分
-              assessment_id: task.assessment_id ? Number(task.assessment_id) : undefined
-            }
-          }).sort((a, b) => a.week - b.week) // 按周次排序
-
-          // 获取量表名称（可选，用于显示）
-          let scaleName = plan.scale_code
-          try {
-            const { scaleApi } = await import('../api/path/scale')
-            const [scaleErr, scaleResponse] = await scaleApi.getScaleDetail(plan.scale_code)
-            if (!scaleErr && scaleResponse?.data?.title) {
-              scaleName = scaleResponse.data.title
-            }
-          } catch (error) {
-            console.warn(`获取量表 ${plan.scale_code} 详情失败:`, error)
-            // 如果获取失败，继续使用 scale_code
-          }
-
-          // 计算当前周次（下一个待完成的任务周次，如果没有则取已完成的最大周次）
-          let currentWeek = 0
-          if (taskStatuses.length > 0) {
-            // 找到第一个未完成的任务
-            const nextPendingTask = taskStatuses.find(t => t.status === 'pending' || t.status === 'overdue')
-            if (nextPendingTask) {
-              currentWeek = nextPendingTask.week
-            } else {
-              // 如果所有任务都已完成，取最大周次
-              currentWeek = Math.max(...taskStatuses.map(t => t.week), 0)
-            }
-          }
-
-          // 获取开始和结束日期（使用有效任务，排除 canceled）
-          const sortedTasks = [...validTasks].sort((a, b) => {
-            const dateA = a.planned_at ? new Date(a.planned_at).getTime() : 0
-            const dateB = b.planned_at ? new Date(b.planned_at).getTime() : 0
-            return dateA - dateB
-          })
-
-          return {
-            project_id: plan.id,
-            project_name: `${scaleName} (${plan.scale_code})`,
-            scale_name: scaleName,
-            total_weeks: totalWeeks,
-            completed_weeks: completedWeeks,
-            completion_rate: completionRate,
-            current_week: currentWeek,
-            tasks: taskStatuses,
-            start_date: sortedTasks.length > 0 && sortedTasks[0].planned_at 
-              ? sortedTasks[0].planned_at.split(' ')[0] 
-              : undefined,
-            end_date: (() => {
-              const lastTask = sortedTasks.length > 0 ? sortedTasks[sortedTasks.length - 1] : null
-              return lastTask?.expire_at ? lastTask.expire_at.split(' ')[0] : undefined
-            })()
-          }
-        })
-      )
-
-      // 过滤掉 null 值
-      const validProjects = projects.filter((p): p is NonNullable<typeof p> => p !== null)
-
-      // 计算统计信息
-      const activeProjects = validProjects.filter(p => {
-        // 判断项目是否活跃：有未完成的任务
-        return p.tasks.some(t => t.status === 'pending' || t.status === 'overdue')
-      }).length
-
-      // 设置周期性统计数据
-      this.setPeriodicStats({
-        projects: validProjects,
-        total_projects: validProjects.length,
-        active_projects: activeProjects
-      })
+      this.setPeriodicStats(response.data)
     } catch (error) {
       console.error('获取周期性测评统计失败:', error)
-      // 发生错误时设置为空数据
       this.setPeriodicStats({
         projects: [],
         total_projects: 0,

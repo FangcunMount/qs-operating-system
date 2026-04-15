@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Alert, Button, Card, Form, Input, Modal, Popconfirm, Radio, Select, Space, Table, Tag } from 'antd'
+import { Alert, Button, Card, Form, Input, Modal, Popconfirm, Radio, Select, Space, Table, Tag, Typography } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { observer } from 'mobx-react-lite'
@@ -51,7 +51,7 @@ const StaffManagement: React.FC = observer(() => {
     const [error, response] = await clinicianApi.listClinicians({
       org_id: currentOrgId,
       page: 1,
-      page_size: 200
+      page_size: 100
     })
     if (!error && response?.data) {
       setClinicians(response.data.items || [])
@@ -125,6 +125,7 @@ const StaffManagement: React.FC = observer(() => {
         roles: values.roles,
         phone: values.phone || undefined,
         email: values.email || undefined,
+        password: values.password || undefined,
         is_active: Boolean(values.is_active)
       }
       if (values.account_mode === 'existing') {
@@ -328,6 +329,20 @@ const StaffManagement: React.FC = observer(() => {
             </Form.Item>
           )}
 
+          {showCreateFields && (
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message="登录名说明"
+              description={
+                <Typography.Text type="secondary">
+                  新建账号会同时在 IAM 中创建运营账号和密码凭据。登录名优先使用邮箱，未填写邮箱时使用手机号。
+                </Typography.Text>
+              }
+            />
+          )}
+
           <Form.Item
             label="手机号"
             name="phone"
@@ -339,6 +354,19 @@ const StaffManagement: React.FC = observer(() => {
           <Form.Item label="邮箱" name="email" rules={[{ type: 'email', message: '邮箱格式不正确' }]}>
             <Input placeholder="请输入邮箱" />
           </Form.Item>
+
+          {showCreateFields && (
+            <Form.Item
+              label="初始密码"
+              name="password"
+              rules={[
+                { required: true, message: '新建账号时必须设置初始密码' },
+                { min: 8, message: '初始密码至少 8 位' }
+              ]}
+            >
+              <Input.Password placeholder="请输入初始密码" />
+            </Form.Item>
+          )}
 
           <Form.Item label="角色" name="roles" rules={[{ required: true, message: '请选择至少一个角色' }]}>
             <Select

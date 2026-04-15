@@ -4,7 +4,7 @@ import { FcResponse } from '../types/server'
 import { config } from '../config/config'
 import { errorHandler } from 'fc-tools-pc/dist/bundle'
 import { handle401Error } from './tokenRefresh'
-import { getCurrentTenantId, getStoredAccessToken } from '@/utils/jwtClaims'
+import { getStoredAccessToken } from '@/utils/jwtClaims'
 
 const isDev = process.env.NODE_ENV === 'development'
 const apiAxios = axios.create({
@@ -22,10 +22,6 @@ const apiAxios = axios.create({
 
 // 直接使用真实网络请求
 apiAxios.interceptors.request.use((cfg) => {
-  const tenantId = getCurrentTenantId()
-  if (tenantId) {
-    cfg.headers['tenant_id'] = tenantId
-  }
   const accessToken = getStoredAccessToken()
   if (accessToken) {
     cfg.headers['Authorization'] = `Bearer ${accessToken}`

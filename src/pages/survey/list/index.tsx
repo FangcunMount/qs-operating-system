@@ -13,7 +13,7 @@ import {
 } from '@ant-design/icons'
 import { Select } from 'antd'
 import { surveyApi } from '@/api/path/survey'
-import { answerSheetApi } from '@/api/path/answerSheet'
+import { statisticsApi } from '@/api/path/statistics'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
 import { message } from 'antd'
 // 列表页面暂时不使用提取的组件，保持原有实现
@@ -72,29 +72,19 @@ const List: React.FC = observer(() => {
 
       setSurveyList(surveyListBasic)
 
-      // 异步加载答卷统计（不阻塞列表显示）
-      Promise.all(
-        questionnaires.map(async (q: any, index: number) => {
-          try {
-            const [statErr, statRes] = await answerSheetApi.getAnswerSheetStatistics(q.code)
-            if (!statErr && statRes?.data) {
-              const answerCount = statRes.data.total_count || 0
-              // 更新对应项的答卷数量
-              setSurveyList((prev: IQuestionSheetInfo[]) => {
-                const updated = [...prev]
-                if (updated[index]) {
-                  updated[index] = { ...updated[index], answersheet_cnt: String(answerCount) }
-                }
-                return updated
-              })
-            }
-          } catch (error) {
-            console.warn(`获取问卷 ${q.code} 的答卷统计失败:`, error)
-          }
-        })
-      ).catch(error => {
-        console.error('批量获取答卷统计失败:', error)
-      })
+      const codes = questionnaires.map((q: any) => q.code).filter(Boolean)
+      if (codes.length > 0) {
+        const [statErr, statRes] = await statisticsApi.batchQuestionnaireStatistics(codes)
+        if (!statErr && statRes?.data) {
+          const countMap = new Map(statRes.data.items.map((item) => [item.code, item.total_submissions]))
+          setSurveyList((prev: IQuestionSheetInfo[]) =>
+            prev.map((item) => ({
+              ...item,
+              answersheet_cnt: String(countMap.get(item.id || '') || 0)
+            }))
+          )
+        }
+      }
       setPageInfo({
         pagenum: num,
         pagesize: size,

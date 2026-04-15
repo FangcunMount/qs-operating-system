@@ -90,7 +90,7 @@ const ClinicianManagement: React.FC = () => {
     const [error, response] = await staffApi.listStaff({
       org_id: currentOrgId,
       page: 1,
-      page_size: 200
+      page_size: 100
     })
     if (!error && response?.data) {
       setStaffOptions(response.data.items || [])

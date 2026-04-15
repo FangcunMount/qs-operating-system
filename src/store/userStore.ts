@@ -2,7 +2,10 @@ import { makeAutoObservable, runInAction } from 'mobx'
 import { message } from 'antd'
 import { api } from '../api'
 import type { IUserProfile, IContact } from '../api/path/user'
+import { clinicianApi } from '@/api/path/clinician'
+import type { IClinician } from '@/api/path/clinician'
 import { parseJwtClaims, validateJwtClaims } from '@/utils/jwtClaims'
+import { buildAccessContext } from '@/utils/accessControl'
 
 // 导出类型供其他模块使用
 export type { IUserProfile, IContact }
@@ -20,8 +23,16 @@ class UserStore {
   /** 是否已完成至少一次用户信息拉取（用于菜单权限：未完成前不按 roles 收紧） */
   profileFetchDone = false
 
+  clinicianIdentity: IClinician | null = null
+
+  clinicianResolved = false
+
   constructor() {
     makeAutoObservable(this)
+  }
+
+  get accessContext() {
+    return buildAccessContext(this.currentUser?.roles, Boolean(this.clinicianIdentity))
   }
 
   // 获取用户信息
@@ -37,6 +48,9 @@ class UserStore {
       runInAction(() => {
         this.currentUser = data.data
         this.isLoggedIn = true
+      })
+      await this.fetchClinicianIdentity()
+      runInAction(() => {
         this.loading = false
         this.profileFetchDone = true
       })
@@ -44,9 +58,35 @@ class UserStore {
       runInAction(() => {
         this.loading = false
         this.profileFetchDone = true
+        this.clinicianIdentity = null
+        this.clinicianResolved = true
       })
       message.error('获取用户信息失败')
     }
+  }
+
+  async fetchClinicianIdentity() {
+    if (!this.currentUser?.roles?.length) {
+      runInAction(() => {
+        this.clinicianIdentity = null
+        this.clinicianResolved = true
+      })
+      return
+    }
+
+    if (!this.currentUser.roles.includes('qs:staff')) {
+      runInAction(() => {
+        this.clinicianIdentity = null
+        this.clinicianResolved = true
+      })
+      return
+    }
+
+    const [error, data] = await clinicianApi.probeMyClinician()
+    runInAction(() => {
+      this.clinicianIdentity = !error && data?.data ? data.data : null
+      this.clinicianResolved = true
+    })
   }
 
   // 更新用户信息
@@ -152,6 +192,8 @@ class UserStore {
       runInAction(() => {
         this.isLoggedIn = true
         this.loading = false
+        this.clinicianIdentity = null
+        this.clinicianResolved = false
       })
       await this.fetchUserProfile()
       message.success('登录成功')
@@ -179,6 +221,8 @@ class UserStore {
     this.currentUser = null
     this.isLoggedIn = false
     this.profileFetchDone = false
+    this.clinicianIdentity = null
+    this.clinicianResolved = false
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('token')
@@ -193,6 +237,8 @@ class UserStore {
     this.loading = false
     this.isLoggedIn = false
     this.profileFetchDone = false
+    this.clinicianIdentity = null
+    this.clinicianResolved = false
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('token')

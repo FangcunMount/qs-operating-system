@@ -9,6 +9,7 @@ import { clinicianApi, IClinician } from '@/api/path/clinician'
 import { LazyTable } from '@/components/lazyTable'
 import { getCurrentOrgId } from '@/utils/jwtClaims'
 import { extractErrorMessage } from '@/utils/apiError'
+import { rootStore } from '@/store'
 import './index.scss'
 
 interface ITesteeWithStats extends ITestee {
@@ -32,6 +33,7 @@ const SubjectList: React.FC = () => {
   const [clinicianOptions, setClinicianOptions] = useState<IClinician[]>([])
   const suggestTimer = useRef<number | null>(null)
   const currentOrgId = getCurrentOrgId()
+  const canFilterByClinician = rootStore.userStore.accessContext.capabilities.has('org_admin')
 
   const calculateAge = (birthday?: string): number => {
     if (!birthday) return 0
@@ -133,7 +135,7 @@ const SubjectList: React.FC = () => {
 
   useEffect(() => {
     const fetchClinicians = async () => {
-      if (!currentOrgId) {
+      if (!currentOrgId || !canFilterByClinician) {
         return
       }
       const [error, response] = await clinicianApi.listClinicians({
@@ -147,7 +149,7 @@ const SubjectList: React.FC = () => {
     }
 
     fetchClinicians()
-  }, [currentOrgId])
+  }, [currentOrgId, canFilterByClinician])
 
   useEffect(() => {
     return () => {
@@ -471,22 +473,24 @@ const SubjectList: React.FC = () => {
               onPressEnter={() => fetchData()}
             />
           </AutoComplete>
-          <Select
-            style={{ width: 220 }}
-            allowClear
-            placeholder="按 Clinician 过滤"
-            value={selectedClinicianId}
-            onChange={(value) => {
-              setSelectedClinicianId(value)
-              setPage(1)
-            }}
-          >
-            {clinicianOptions.map((item) => (
-              <Select.Option key={item.id} value={item.id}>
-                {item.name} ({item.clinician_type})
-              </Select.Option>
-            ))}
-          </Select>
+          {canFilterByClinician && (
+            <Select
+              style={{ width: 220 }}
+              allowClear
+              placeholder="按 Clinician 过滤"
+              value={selectedClinicianId}
+              onChange={(value) => {
+                setSelectedClinicianId(value)
+                setPage(1)
+              }}
+            >
+              {clinicianOptions.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {item.name} ({item.clinician_type})
+                </Select.Option>
+              ))}
+            </Select>
+          )}
         </Space>
       </div>
       <div className="table-container">

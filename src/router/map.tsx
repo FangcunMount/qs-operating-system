@@ -1,6 +1,6 @@
 import React, { lazy } from 'react'
 import { IRoute } from '../types/router'
-import { HomeOutlined, SettingOutlined, TeamOutlined, AuditOutlined, FolderOutlined, CalendarOutlined } from '@ant-design/icons'
+import { HomeOutlined, SettingOutlined, TeamOutlined, AuditOutlined, FolderOutlined, BarChartOutlined } from '@ant-design/icons'
 
 // 图标创建辅助函数，确保 React 被使用
 const createIcon = (Icon: React.ComponentType) => React.createElement(Icon)
@@ -32,6 +32,7 @@ const AdminClinicianDetail = lazy(() => import('../pages/admin/clinician/detail'
 const AdminAssessmentEntryDetail = lazy(() => import('../pages/admin/clinician/entry-detail'))
 const AdminResource = lazy(() => import('../pages/admin/resource'))
 const ClinicianWorkbench = lazy(() => import('../pages/clinician/workbench'))
+const AssessmentList = lazy(() => import('../pages/evaluation/assessment-list'))
 
 // 新增页面组件
 const SubjectList = lazy(() => import('../pages/subject/list'))
@@ -44,6 +45,7 @@ const PlanList = lazy(() => import('../pages/plan/list'))
 const PlanDetail = lazy(() => import('../pages/plan/detail'))
 const PlanCreate = lazy(() => import('../pages/plan/create'))
 const TaskDetail = lazy(() => import('../pages/plan/tasks'))
+const StatisticsCenter = lazy(() => import('../pages/statistics/center'))
 
 export const routes: Array<IRoute> = [
   {
@@ -52,223 +54,313 @@ export const routes: Array<IRoute> = [
     path: '/',
     exact: true,
     component: Home,
-    icon: createIcon(HomeOutlined)
+    icon: createIcon(HomeOutlined),
+    menuScope: 'public'
   },
   {
     title: '登录',
     name: 'login',
     path: '/user/login',
     component: Login,
-    hideInMenu: true
+    hideInMenu: true,
+    menuScope: 'hidden'
   },
   {
-    title: '受试者管理',
-    name: 'subject',
-    path: '/subject',
-    icon: createIcon(TeamOutlined),
+    title: '业务运营',
+    name: 'operations',
+    path: '/operations',
+    icon: createIcon(BarChartOutlined),
+    menuScope: 'org_admin',
+    requiredCapabilities: ['read_subjects'],
+    allowClinicianAccess: true,
     children: [
       {
         title: '受试者列表',
         name: 'subject-list',
         path: '/subject/list',
-        component: SubjectList
+        component: SubjectList,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['read_subjects'],
+        allowClinicianAccess: true
       },
       {
         title: '受试者详情',
         name: 'subject-detail',
         path: '/subject/detail/:id',
         component: SubjectDetail,
-        hideInMenu: true
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['read_subjects'],
+        allowClinicianAccess: true,
+        activeMenuName: 'subject-list'
       },
       {
         title: '问卷答卷详情',
         name: 'subject-answer-detail',
         path: '/subject/:subjectId/answer/:answerId',
         component: SubjectAnswerDetail,
-        hideInMenu: true
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['read_assessment_records'],
+        allowClinicianAccess: true,
+        activeMenuName: 'assessment-records'
       },
       {
         title: '量表测评详情',
         name: 'subject-scale-detail',
         path: '/subject/:subjectId/scale/:testId',
         component: SubjectScaleDetail,
-        hideInMenu: true
-      }
-    ]
-  },
-  {
-    title: '模板管理',
-    name: 'template',
-    path: '/template',
-    icon: createIcon(FolderOutlined),
-    children: [
-      {
-        title: '调查问卷',
-        name: 'survey-list',
-        path: '/survey/list',
-        component: SurveyList
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['read_assessment_records'],
+        allowClinicianAccess: true,
+        activeMenuName: 'assessment-records'
       },
       {
-        title: '医学量表',
-        name: 'scale-list',
-        path: '/scale/list',
-        component: ScaleList
-      }
-    ]
-  },
-  {
-    title: '问卷编辑',
-    name: 'survey-edit',
-    path: '/qs/edit/:questionsheetid/:answercnt',
-    component: QsEdit,
-    hideInMenu: true
-  },
-  {
-    title: '问卷基本信息',
-    name: 'survey-info',
-    path: '/survey/info/:questionsheetid',
-    component: SurveyBasicInfo,
-    hideInMenu: true
-  },
-  {
-    title: '创建问卷',
-    name: 'survey-create',
-    path: '/survey/create/:questionsheetid/:answercnt',
-    component: SurveyQuestionEdit,
-    hideInMenu: true
-  },
-  {
-    title: '问卷路由设置',
-    name: 'survey-routing',
-    path: '/survey/routing/:questionsheetid',
-    component: SurveyQuestionRouting,
-    hideInMenu: true
-  },
-  {
-    title: '发布问卷',
-    name: 'survey-publish',
-    path: '/survey/publish/:questionsheetid',
-    component: SurveyPublish,
-    hideInMenu: true
-  },
-  {
-    title: '量表基本信息',
-    name: 'scale-info',
-    path: '/scale/info/:questionsheetid',
-    component: ScaleBasicInfo,
-    hideInMenu: true
-  },
-  {
-    title: '创建量表',
-    name: 'scale-create',
-    path: '/scale/create/:questionsheetid/:answercnt',
-    component: ScaleQuestionEdit,
-    hideInMenu: true
-  },
-  {
-    title: '答卷列表',
-    name: 'survey-answer-list',
-    path: '/as/list/:questionsheetid',
-    component: AsList,
-    hideInMenu: true
-  },
-  {
-    title: '答卷详情',
-    name: 'survey-answer-detail',
-    path: '/as/detail/:answersheetid',
-    component: AsDetail,
-    hideInMenu: true
-  },
-  {
-    title: '量表路由设置',
-    name: 'scale-router',
-    path: '/scale/routing/:questionsheetid',
-    component: ScaleQuestionRouting,
-    hideInMenu: true
-  },
-  {
-    title: '设置因子',
-    name: 'scale-factor',
-    path: '/scale/factor/:questionsheetid',
-    component: ScaleFactor,
-    hideInMenu: true
-  },
-  {
-    title: '设置解读',
-    name: 'scale-analysis',
-    path: '/scale/analysis/:questionsheetid',
-    component: ScaleAnalysis,
-    hideInMenu: true
-  },
-  {
-    title: '发布量表',
-    name: 'scale-publish',
-    path: '/scale/publish/:questionsheetid',
-    component: ScalePublish,
-    hideInMenu: true
-  },
-
-  {
-    title: '入校筛查',
-    name: 'screening',
-    path: '/screening/list',
-    icon: createIcon(AuditOutlined),
-    component: ScreeningList,
-    hideInMenu: true
-  },
-  {
-    title: '筛查项目详情',
-    name: 'screening-detail',
-    path: '/screening/detail/:id',
-    component: ScreeningDetail,
-    hideInMenu: true
-  },
-  {
-    title: '测评计划',
-    name: 'plan',
-    path: '/plan',
-    icon: createIcon(CalendarOutlined),
-    children: [
+        title: '测评记录',
+        name: 'assessment-records',
+        path: '/assessment/list',
+        component: AssessmentList,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['read_assessment_records'],
+        allowClinicianAccess: true
+      },
       {
-        title: '计划列表',
+        title: '测评计划',
         name: 'plan-list',
         path: '/plan/list',
-        component: PlanList
+        component: PlanList,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['manage_evaluation_plans']
       },
       {
         title: '计划详情',
         name: 'plan-detail',
         path: '/plan/detail/:id',
         component: PlanDetail,
-        hideInMenu: true
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_evaluation_plans'],
+        activeMenuName: 'plan-list'
       },
       {
         title: '创建计划',
         name: 'plan-create',
         path: '/plan/create',
         component: PlanCreate,
-        hideInMenu: true
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_evaluation_plans'],
+        activeMenuName: 'plan-list'
       },
       {
         title: '任务详情',
         name: 'task-detail',
         path: '/plan/tasks/:id',
         component: TaskDetail,
-        hideInMenu: true
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_evaluation_plans'],
+        activeMenuName: 'plan-list'
+      },
+      {
+        title: '统计中心',
+        name: 'statistics-center',
+        path: '/statistics/center',
+        component: StatisticsCenter,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['org_admin']
       }
     ]
+  },
+  {
+    title: '内容管理',
+    name: 'content',
+    path: '/template',
+    icon: createIcon(FolderOutlined),
+    menuScope: 'org_admin',
+    requiredCapabilities: ['manage_content'],
+    children: [
+      {
+        title: '调查问卷',
+        name: 'survey-list',
+        path: '/survey/list',
+        component: SurveyList,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['manage_content']
+      },
+      {
+        title: '医学量表',
+        name: 'scale-list',
+        path: '/scale/list',
+        component: ScaleList,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['manage_content']
+      },
+      {
+        title: '问卷编辑',
+        name: 'survey-edit',
+        path: '/qs/edit/:questionsheetid/:answercnt',
+        component: QsEdit,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'survey-list'
+      },
+      {
+        title: '问卷基本信息',
+        name: 'survey-info',
+        path: '/survey/info/:questionsheetid',
+        component: SurveyBasicInfo,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'survey-list'
+      },
+      {
+        title: '创建问卷',
+        name: 'survey-create',
+        path: '/survey/create/:questionsheetid/:answercnt',
+        component: SurveyQuestionEdit,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'survey-list'
+      },
+      {
+        title: '问卷路由设置',
+        name: 'survey-routing',
+        path: '/survey/routing/:questionsheetid',
+        component: SurveyQuestionRouting,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'survey-list'
+      },
+      {
+        title: '发布问卷',
+        name: 'survey-publish',
+        path: '/survey/publish/:questionsheetid',
+        component: SurveyPublish,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'survey-list'
+      },
+      {
+        title: '量表基本信息',
+        name: 'scale-info',
+        path: '/scale/info/:questionsheetid',
+        component: ScaleBasicInfo,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'scale-list'
+      },
+      {
+        title: '创建量表',
+        name: 'scale-create',
+        path: '/scale/create/:questionsheetid/:answercnt',
+        component: ScaleQuestionEdit,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'scale-list'
+      },
+      {
+        title: '答卷列表',
+        name: 'survey-answer-list',
+        path: '/as/list/:questionsheetid',
+        component: AsList,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'survey-list'
+      },
+      {
+        title: '答卷详情',
+        name: 'survey-answer-detail',
+        path: '/as/detail/:answersheetid',
+        component: AsDetail,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'survey-list'
+      },
+      {
+        title: '量表路由设置',
+        name: 'scale-router',
+        path: '/scale/routing/:questionsheetid',
+        component: ScaleQuestionRouting,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'scale-list'
+      },
+      {
+        title: '设置因子',
+        name: 'scale-factor',
+        path: '/scale/factor/:questionsheetid',
+        component: ScaleFactor,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'scale-list'
+      },
+      {
+        title: '设置解读',
+        name: 'scale-analysis',
+        path: '/scale/analysis/:questionsheetid',
+        component: ScaleAnalysis,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'scale-list'
+      },
+      {
+        title: '发布量表',
+        name: 'scale-publish',
+        path: '/scale/publish/:questionsheetid',
+        component: ScalePublish,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'scale-list'
+      }
+    ]
+  },
+  {
+    title: '入校筛查',
+    name: 'screening',
+    path: '/screening/list',
+    icon: createIcon(AuditOutlined),
+    component: ScreeningList,
+    hideInMenu: true,
+    menuScope: 'hidden',
+    requiredCapabilities: ['org_admin']
+  },
+  {
+    title: '筛查项目详情',
+    name: 'screening-detail',
+    path: '/screening/detail/:id',
+    component: ScreeningDetail,
+    hideInMenu: true,
+    menuScope: 'hidden',
+    requiredCapabilities: ['org_admin']
   },
   {
     title: '用户中心',
     name: 'user',
     path: '/user',
     hideInMenu: true,
+    menuScope: 'hidden',
     children: [
       {
         title: '个人资料',
         name: 'user-profile',
         path: '/user/profile',
-        component: UserProfile
+        component: UserProfile,
+        menuScope: 'public'
       }
     ]
   },
@@ -277,80 +369,105 @@ export const routes: Array<IRoute> = [
     name: 'clinician-workbench',
     path: '/clinician',
     icon: createIcon(TeamOutlined),
+    menuScope: 'clinician',
+    requiresClinician: true,
     children: [
       {
-        title: '我的工作台',
+        title: '临床工作台',
         name: 'clinician-me',
         path: '/clinician/me',
-        component: ClinicianWorkbench
+        component: ClinicianWorkbench,
+        menuScope: 'clinician',
+        requiresClinician: true
       },
       {
         title: '我的受试者',
         name: 'clinician-me-testees',
         path: '/clinician/me/testees',
         component: ClinicianWorkbench,
-        hideInMenu: true
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiresClinician: true
       },
       {
         title: '我的关系',
         name: 'clinician-me-relations',
         path: '/clinician/me/relations',
         component: ClinicianWorkbench,
-        hideInMenu: true
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiresClinician: true
       },
       {
         title: '我的入口',
         name: 'clinician-me-entries',
         path: '/clinician/me/entries',
         component: ClinicianWorkbench,
-        hideInMenu: true
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiresClinician: true
       }
     ]
   },
-  // 菜单与路由权限：用户须具备非空 roles；在路由上增加 `roles: ['角色名']` 则进一步限制为该角色（与 GET /identity/me 一致）；不写 roles 的路由仅需「有任意角色」
   {
-    title: '系统管理',
-    name: 'admin',
-    path: '/admin',
+    title: '组织管理',
+    name: 'organization-management',
+    path: '/admin/organization',
     icon: createIcon(SettingOutlined),
+    menuScope: 'org_admin',
+    requiredCapabilities: ['org_admin'],
     children: [
       {
-        title: '员工管理',
+        title: '员工与账号',
         name: 'admin-staff',
         path: '/admin/staff',
-        component: AdminStaff
+        component: AdminStaff,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['org_admin']
       },
       {
-        title: '临床人员管理',
+        title: '临床人员',
         name: 'admin-clinicians',
         path: '/admin/clinicians',
-        component: AdminClinician
+        component: AdminClinician,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['org_admin']
       },
       {
         title: '临床人员详情',
         name: 'admin-clinician-detail',
         path: '/admin/clinicians/:id',
         component: AdminClinicianDetail,
-        hideInMenu: true
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['org_admin'],
+        activeMenuName: 'admin-clinicians'
       },
       {
         title: 'Assessment Entry详情',
         name: 'admin-assessment-entry-detail',
         path: '/admin/assessment-entries/:id',
         component: AdminAssessmentEntryDetail,
-        hideInMenu: true
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['org_admin'],
+        activeMenuName: 'admin-clinicians'
       },
       {
         title: '权限配置',
         name: 'admin-authz',
         path: '/admin/authz',
-        component: AdminAuthz
+        component: AdminAuthz,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['org_admin']
       },
       {
         title: '资源管理',
         name: 'admin-resource',
         path: '/admin/resource',
-        component: AdminResource
+        component: AdminResource,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['org_admin']
       }
     ]
   }

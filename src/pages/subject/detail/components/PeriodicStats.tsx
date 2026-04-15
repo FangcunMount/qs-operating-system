@@ -6,6 +6,7 @@ import {
   ClockCircleOutlined, 
   CalendarOutlined, 
   ExclamationCircleOutlined,
+  StopOutlined,
   DownOutlined,
   PlusOutlined
 } from '@ant-design/icons'
@@ -18,7 +19,7 @@ const { Panel } = Collapse
 
 interface TaskStatus {
   week: number
-  status: 'completed' | 'pending' | 'overdue'
+  status: 'completed' | 'pending' | 'overdue' | 'canceled'
   completedAt?: string
   dueDate?: string
   plannedAt?: string
@@ -120,6 +121,9 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
                     {statusCount.overdue > 0 && (
                       <Tag color="error" style={{ margin: 0 }}>逾期 {statusCount.overdue}</Tag>
                     )}
+                    {statusCount.canceled > 0 && (
+                      <Tag color="default" style={{ margin: 0 }}>已取消 {statusCount.canceled}</Tag>
+                    )}
                   </div>
                 </div>
               </Col>
@@ -154,6 +158,10 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
               color = 'green'
               icon = <CheckCircleOutlined />
               statusTag = <Tag color="success">已完成</Tag>
+            } else if (task.status === 'canceled') {
+              color = 'gray'
+              icon = <StopOutlined />
+              statusTag = <Tag>已取消</Tag>
             } else if (task.status === 'overdue') {
               color = 'red'
               icon = <ExclamationCircleOutlined />
@@ -184,6 +192,12 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
                     )}
                     {task.status === 'overdue' && task.dueDate && (
                       <span>截止日期：{task.dueDate}</span>
+                    )}
+                    {task.status === 'canceled' && task.plannedAt && (
+                      <span>计划时间：{task.plannedAt}</span>
+                    )}
+                    {task.status === 'canceled' && !task.plannedAt && (
+                      <span>该周任务已取消</span>
                     )}
                   </div>
                 </div>

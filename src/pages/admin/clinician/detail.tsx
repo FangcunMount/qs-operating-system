@@ -1,8 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useHistory, useParams } from 'react-router-dom'
-import { Button, Card, Descriptions, Form, Input, Modal, Select, Space, Table, Tag, message } from 'antd'
+import { Button, Card, DatePicker, Descriptions, Form, Input, Modal, Select, Space, Table, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { clinicianApi, IAssessmentEntry, IClinician, IClinicianRelationItem } from '@/api/path/clinician'
+import { buildAssessmentEntryPublicLink, copyAssessmentEntryPublicLink, triggerAssessmentEntryQRCodeDownload } from '@/utils/assessmentEntry'
+import { extractErrorMessage } from '@/utils/apiError'
+import { getScaleList, IScaleResponse } from '@/api/path/scale'
+import { listQuestionnaires, IQuestionnaireResponse } from '@/api/path/survey'
+
+interface ITargetCodeOption {
+  label: string
+  value: string
+}
 
 const ClinicianDetailPage: React.FC = () => {
   const history = useHistory()
@@ -12,6 +21,11 @@ const ClinicianDetailPage: React.FC = () => {
   const [relations, setRelations] = useState<IClinicianRelationItem[]>([])
   const [entries, setEntries] = useState<IAssessmentEntry[]>([])
   const [entryModalVisible, setEntryModalVisible] = useState(false)
+  const [targetCodeLoading, setTargetCodeLoading] = useState(false)
+  const [targetCodeOptions, setTargetCodeOptions] = useState<ITargetCodeOption[]>([])
+  const [previewVisible, setPreviewVisible] = useState(false)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewEntry, setPreviewEntry] = useState<IAssessmentEntry | null>(null)
   const [entryForm] = Form.useForm()
 
   const targetTypeOptions = useMemo(
@@ -22,12 +36,54 @@ const ClinicianDetailPage: React.FC = () => {
     []
   )
 
+  const loadTargetCodeOptions = async (targetType: string) => {
+    if (!targetType) {
+      setTargetCodeOptions([])
+      return
+    }
+
+    setTargetCodeLoading(true)
+    try {
+      if (targetType === 'scale') {
+        const [error, response] = await getScaleList(1, 100, undefined, 'published')
+        if (error || !response?.data) {
+          throw error || new Error('获取量表列表失败')
+        }
+        setTargetCodeOptions((response.data.scales || []).map((item: IScaleResponse) => ({
+          value: item.code,
+          label: `${item.title} (${item.code})`
+        })))
+        return
+      }
+
+      if (targetType === 'questionnaire') {
+        const [error, response] = await listQuestionnaires({ page: 1, page_size: 100, status: 'published' })
+        if (error || !response?.data) {
+          throw error || new Error('获取问卷列表失败')
+        }
+        setTargetCodeOptions((response.data.questionnaires || []).map((item: IQuestionnaireResponse) => ({
+          value: item.code,
+          label: `${item.title} (${item.code})`
+        })))
+        return
+      }
+
+      setTargetCodeOptions([])
+    } catch (error) {
+      console.error(error)
+      setTargetCodeOptions([])
+      message.error(extractErrorMessage(error, '获取目标编码失败'))
+    } finally {
+      setTargetCodeLoading(false)
+    }
+  }
+
   const fetchData = async () => {
     setLoading(true)
     try {
       const [clinicianErr, clinicianRes] = await clinicianApi.getClinician(id)
       if (clinicianErr || !clinicianRes?.data) {
-        throw new Error('获取临床人员详情失败')
+        throw clinicianErr || new Error('获取临床人员详情失败')
       }
       setClinician(clinicianRes.data)
 
@@ -46,7 +102,7 @@ const ClinicianDetailPage: React.FC = () => {
       }
     } catch (error) {
       console.error(error)
-      message.error('获取临床人员详情失败')
+      message.error(extractErrorMessage(error, '获取临床人员详情失败'))
     } finally {
       setLoading(false)
     }
@@ -59,14 +115,20 @@ const ClinicianDetailPage: React.FC = () => {
   const handleCreateEntry = async () => {
     try {
       const values = await entryForm.validateFields()
-      const [error] = await clinicianApi.createClinicianAssessmentEntry(id, values)
+      const payload = {
+        ...values,
+        expires_at: values.expires_at ? values.expires_at.toISOString() : undefined
+      }
+      const [error] = await clinicianApi.createClinicianAssessmentEntry(id, payload)
       if (error) throw error
       message.success('创建入口成功')
       setEntryModalVisible(false)
+      entryForm.resetFields()
+      setTargetCodeOptions([])
       fetchData()
     } catch (error) {
       console.error(error)
-      message.error('创建入口失败')
+      message.error(extractErrorMessage(error, '创建入口失败'))
     }
   }
 
@@ -78,6 +140,50 @@ const ClinicianDetailPage: React.FC = () => {
     }
     message.success(item.is_active ? '已停用入口' : '已启用入口')
     fetchData()
+  }
+
+  const resolveEntryWithQRCode = async (item: IAssessmentEntry) => {
+    if (item.qrcode_url) {
+      return item
+    }
+    const [error, response] = await clinicianApi.getAssessmentEntry(item.id)
+    if (error || !response?.data) {
+      throw error || new Error('获取小程序码失败')
+    }
+    return response.data
+  }
+
+  const handlePreviewEntryQRCode = async (item: IAssessmentEntry) => {
+    setPreviewEntry(null)
+    setPreviewVisible(true)
+    setPreviewLoading(true)
+    try {
+      const resolved = await resolveEntryWithQRCode(item)
+      if (!resolved.qrcode_url) {
+        throw new Error('当前入口未生成微信小程序码')
+      }
+      setPreviewEntry(resolved)
+    } catch (error) {
+      console.error(error)
+      setPreviewVisible(false)
+      message.error(extractErrorMessage(error, '获取小程序码失败'))
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  const handleDownloadEntryQRCode = async (item: IAssessmentEntry) => {
+    try {
+      const resolved = await resolveEntryWithQRCode(item)
+      if (!resolved.qrcode_url) {
+        throw new Error('当前入口未生成微信小程序码')
+      }
+      triggerAssessmentEntryQRCodeDownload(resolved.qrcode_url, `assessment-entry-${resolved.id}.png`)
+      message.success('已开始下载微信小程序码')
+    } catch (error) {
+      console.error(error)
+      message.error(extractErrorMessage(error, '下载小程序码失败'))
+    }
   }
 
   const renderKeyFocus = (value: boolean) => (value ? <Tag color="gold">是</Tag> : <Tag>否</Tag>)
@@ -105,11 +211,13 @@ const ClinicianDetailPage: React.FC = () => {
       <Button type="link" size="small" onClick={() => history.push(`/admin/assessment-entries/${record.id}`)}>
         详情
       </Button>
-      <Button
-        type="link"
-        size="small"
-        onClick={() => navigator.clipboard.writeText(`${window.location.origin}/#/public/assessment-entry/${record.token}`)}
-      >
+      <Button type="link" size="small" onClick={() => handlePreviewEntryQRCode(record)}>
+        查看小程序码
+      </Button>
+      <Button type="link" size="small" onClick={() => handleDownloadEntryQRCode(record)}>
+        下载小程序码
+      </Button>
+      <Button type="link" size="small" onClick={() => copyAssessmentEntryPublicLink(record.token)}>
         复制链接
       </Button>
       <Button type="link" size="small" onClick={() => handleToggleEntry(record)}>
@@ -161,7 +269,7 @@ const ClinicianDetailPage: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 240,
+      width: 360,
       render: renderEntryAction
     }
   ]
@@ -205,23 +313,83 @@ const ClinicianDetailPage: React.FC = () => {
         title="创建 Assessment Entry"
         visible={entryModalVisible}
         onOk={handleCreateEntry}
-        onCancel={() => setEntryModalVisible(false)}
+        onCancel={() => {
+          setEntryModalVisible(false)
+          entryForm.resetFields()
+          setTargetCodeOptions([])
+        }}
         destroyOnClose
       >
         <Form layout="vertical" form={entryForm}>
           <Form.Item label="目标类型" name="target_type" rules={[{ required: true, message: '请选择目标类型' }]}>
-            <Select options={targetTypeOptions} />
+            <Select
+              options={targetTypeOptions}
+              onChange={(value) => {
+                entryForm.setFieldsValue({ target_code: undefined })
+                loadTargetCodeOptions(String(value || ''))
+              }}
+            />
           </Form.Item>
-          <Form.Item label="目标编码" name="target_code" rules={[{ required: true, message: '请输入目标编码' }]}>
-            <Input />
+          <Form.Item label="目标编码" name="target_code" rules={[{ required: true, message: '请选择目标编码' }]}>
+            <Select
+              showSearch
+              optionFilterProp="label"
+              loading={targetCodeLoading}
+              options={targetCodeOptions}
+              placeholder="请先选择目标类型"
+              disabled={!entryForm.getFieldValue('target_type')}
+            />
           </Form.Item>
           <Form.Item label="目标版本" name="target_version">
             <Input />
           </Form.Item>
           <Form.Item label="过期时间" name="expires_at">
-            <Input placeholder="可空，例：2026-12-31 23:59:59" />
+            <DatePicker
+              style={{ width: '100%' }}
+              showTime
+              format="YYYY-MM-DD HH:mm:ss"
+              placeholder="可空，选择过期时间"
+            />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="微信小程序码"
+        visible={previewVisible}
+        footer={previewEntry ? [
+          <Button key="copy" onClick={() => copyAssessmentEntryPublicLink(previewEntry.token)}>
+            复制链接
+          </Button>,
+          <Button key="download" type="primary" onClick={() => handleDownloadEntryQRCode(previewEntry)}>
+            下载小程序码
+          </Button>
+        ] : null}
+        onCancel={() => {
+          setPreviewVisible(false)
+          setPreviewEntry(null)
+        }}
+        destroyOnClose
+      >
+        <Card loading={previewLoading} bordered={false}>
+          {previewEntry?.qrcode_url ? (
+            <div style={{ textAlign: 'center' }}>
+              <img
+                src={previewEntry.qrcode_url}
+                alt="微信小程序码"
+                style={{ maxWidth: '100%', maxHeight: 360, objectFit: 'contain' }}
+              />
+              <div style={{ marginTop: 12, color: '#666' }}>
+                目标：{previewEntry.target_type} / {previewEntry.target_code}
+              </div>
+              <div style={{ marginTop: 8, color: '#999', wordBreak: 'break-all' }}>
+                {buildAssessmentEntryPublicLink(previewEntry.token)}
+              </div>
+            </div>
+          ) : !previewLoading ? (
+            <div style={{ textAlign: 'center', color: '#999' }}>暂无可预览的小程序码</div>
+          ) : null}
+        </Card>
       </Modal>
     </div>
   )

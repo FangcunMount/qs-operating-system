@@ -17,6 +17,11 @@ export const qsAxios = axios.create({
   baseURL
 })
 
+export const qsSilentAxios = axios.create({
+  timeout: 50000,
+  baseURL
+})
+
 export const qsInternalAxios = axios.create({
   timeout: 50000,
   baseURL: internalBaseURL
@@ -81,6 +86,7 @@ const createResponseErrorHandler = (
 }
 
 qsAxios.interceptors.request.use(attachCommonHeaders)
+qsSilentAxios.interceptors.request.use(attachCommonHeaders)
 qsInternalAxios.interceptors.request.use(attachCommonHeaders)
 
 qsAxios.interceptors.response.use(
@@ -107,6 +113,23 @@ export const qsGet = <T>(url: string, params: any = {}, clearFn?: Fn<T>): Promis
           tmp = result.data as QSResponse<T>
         }
         resolve([null, tmp])
+      })
+      .catch((err) => resolve([err, undefined]))
+  })
+
+export const qsSilentGet = <T>(url: string, params: any = {}): Promise<[any, QSResponse<T> | undefined]> =>
+  new Promise((resolve) => {
+    qsSilentAxios
+      .get(url, {
+        params,
+        validateStatus: () => true
+      })
+      .then((result) => {
+        if (result.status === 200 && result.data?.code === 0) {
+          resolve([null, result.data as QSResponse<T>])
+          return
+        }
+        resolve([result, undefined])
       })
       .catch((err) => resolve([err, undefined]))
   })
@@ -200,6 +223,7 @@ export const qsDelete = <T>(url: string, params: any = {}): Promise<[any, QSResp
 
 // 别名导出，方便使用
 export const get = qsGet
+export const silentGet = qsSilentGet
 export const post = qsPost
 export const put = qsPut
 export const del = qsDelete

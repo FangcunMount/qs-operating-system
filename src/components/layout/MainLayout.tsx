@@ -8,6 +8,7 @@ import {
   UserOutlined,
   LogoutOutlined,
   SettingOutlined,
+  TeamOutlined,
   BellOutlined,
   QuestionCircleOutlined,
   GithubOutlined,
@@ -18,6 +19,8 @@ import { routes } from '../../router/map'
 import { IRoute } from '../../types/router'
 import { rootStore } from '@/store'
 import { filterRoutesForMenu } from '@/utils/menuAccess'
+import { getDefaultLandingPath } from '@/utils/accessControl'
+import { getRouteDisplayTitle } from '@/utils/routeDisplay'
 import './mainLayout.scss'
 
 const { Header, Sider, Content } = Layout
@@ -35,10 +38,10 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
     () =>
       filterRoutesForMenu(
         routes,
-        userStore.currentUser?.roles,
+        userStore.accessContext,
         userStore.profileFetchDone
       ),
-    [userStore.currentUser?.roles, userStore.profileFetchDone]
+    [userStore.accessContext, userStore.profileFetchDone]
   )
   
   // 判断是否为编辑量表相关页面
@@ -95,6 +98,9 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
             if (path === childPath || path.startsWith(childPath + '/') || (childPath !== '/' && path.startsWith(childPath))) {
               // 如果匹配到的菜单项是隐藏的，返回父菜单下的第一个可见菜单项
               if (child.hideInMenu) {
+                if (child.activeMenuName) {
+                  return child.activeMenuName
+                }
                 const firstVisibleChild = route.children.find(c => !c.hideInMenu)
                 return firstVisibleChild ? firstVisibleChild.name : child.name
               }
@@ -106,6 +112,9 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
         if (path === route.path || (route.path !== '/' && path.startsWith(route.path + '/') || path.startsWith(route.path))) {
           // 如果匹配到的菜单项是隐藏的，尝试返回父菜单下的第一个可见菜单项
           if (route.hideInMenu) {
+            if (route.activeMenuName) {
+              return route.activeMenuName
+            }
             // 查找包含此路由的父菜单
             const findParent = (parentRoutes: IRoute[]): string | null => {
               for (const parentRoute of parentRoutes) {
@@ -174,6 +183,7 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
   // 获取页面标题
   const getPageTitle = () => {
     const path = location.pathname
+    const access = userStore.accessContext
     
     // 递归查找标题
     const findTitle = (routes: IRoute[]): string => {
@@ -182,12 +192,12 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
           for (const child of route.children) {
             const childPath = child.path.split(':')[0].replace(/\/$/, '')
             if (path.startsWith(childPath)) {
-              return child.title
+              return getRouteDisplayTitle(child.name, child.title, access)
             }
           }
         }
         if (path === route.path) {
-          return route.title
+          return getRouteDisplayTitle(route.name, route.title, access)
         }
       }
       return '问卷系统'
@@ -204,11 +214,25 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
       // 检查是否有子菜单
       if (route.children && route.children.some(child => !child.hideInMenu)) {
         const visibleChildren = route.children.filter(child => !child.hideInMenu)
+
+        if (route.name === 'clinician-workbench' && visibleChildren.length === 1) {
+          const child = visibleChildren[0]
+          return (
+            <Menu.Item
+              key={child.name}
+              icon={route.icon}
+              onClick={() => history.push(child.path)}
+            >
+              {getRouteDisplayTitle(route.name, route.title, userStore.accessContext)}
+            </Menu.Item>
+          )
+        }
+
         return (
           <Menu.SubMenu 
             key={route.name} 
             icon={route.icon}
-            title={route.title}
+            title={getRouteDisplayTitle(route.name, route.title, userStore.accessContext)}
           >
             {visibleChildren
               .map(child => (
@@ -216,7 +240,7 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
                   key={child.name}
                   onClick={() => history.push(child.path)}
                 >
-                  {child.title}
+                  {getRouteDisplayTitle(child.name, child.title, userStore.accessContext)}
                 </Menu.Item>
               ))}
           </Menu.SubMenu>
@@ -230,7 +254,7 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
           icon={route.icon}
           onClick={() => history.push(route.path)}
         >
-          {route.title}
+          {getRouteDisplayTitle(route.name, route.title, userStore.accessContext)}
         </Menu.Item>
       )
     })
@@ -243,6 +267,17 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
     })
   }
 
+  const handleDefaultLanding = () => {
+    history.push(getDefaultLandingPath(userStore.accessContext))
+  }
+
+  const handleLogoKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      handleDefaultLanding()
+    }
+  }
+
   // 用户菜单
   const userMenu = (
     <Menu>
@@ -253,13 +288,33 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
       >
         个人资料
       </Menu.Item>
-      <Menu.Item 
-        key="settings" 
-        icon={<SettingOutlined />}
-        onClick={() => history.push('/admin/authz')}
-      >
-        系统设置
-      </Menu.Item>
+      {userStore.accessContext.isClinician && (
+        <Menu.Item
+          key="workbench"
+          icon={<TeamOutlined />}
+          onClick={() => history.push('/clinician/me')}
+        >
+          临床工作台
+        </Menu.Item>
+      )}
+      {userStore.accessContext.isPlatformAdmin && (
+        <Menu.Item 
+          key="settings" 
+          icon={<SettingOutlined />}
+          onClick={() => history.push('/admin/authz')}
+        >
+          系统设置
+        </Menu.Item>
+      )}
+      {!userStore.accessContext.isPlatformAdmin && (
+        <Menu.Item
+          key="home"
+          icon={<FileTextOutlined />}
+          onClick={handleDefaultLanding}
+        >
+          返回首页
+        </Menu.Item>
+      )}
       <Menu.Divider />
       <Menu.Item 
         key="logout" 
@@ -285,7 +340,13 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
           className="main-layout-sider"
           width={220}
         >
-          <div className="logo">
+          <div
+            className="logo"
+            onClick={handleDefaultLanding}
+            onKeyDown={handleLogoKeyDown}
+            role="button"
+            tabIndex={0}
+          >
             <FileTextOutlined className="logo-icon" />
             {!collapsed && <span className="logo-text">问卷系统</span>}
           </div>

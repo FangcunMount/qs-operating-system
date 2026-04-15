@@ -6,6 +6,7 @@ import { Spin } from 'antd'
 import MainLayout from '@/components/layout/MainLayout'
 import { rootStore } from '@/store'
 import { hasRouteRoleAccess } from '@/utils/menuAccess'
+import { getDefaultLandingPath } from '@/utils/accessControl'
 import type { IRoute } from '@/types/router'
 
 const NoPermission = lazy(() => import('@/pages/no-permission'))
@@ -13,12 +14,12 @@ const NoPermission = lazy(() => import('@/pages/no-permission'))
 const RouteAccess: React.FC<{ route: IRoute; children: React.ReactNode }> = observer(
   ({ route, children }) => {
     const { userStore } = rootStore
-    const roles = userStore.currentUser?.roles
-    if (!hasRouteRoleAccess(route, roles, userStore.profileFetchDone)) {
-      if (userStore.profileFetchDone && !roles?.length) {
+    const access = userStore.accessContext
+    if (!hasRouteRoleAccess(route, access, userStore.profileFetchDone)) {
+      if (userStore.profileFetchDone && !access.hasAnyRole) {
         return <Redirect to="/no-permission" />
       }
-      return <Redirect to="/" />
+      return <Redirect to={getDefaultLandingPath(access)} />
     }
     return <>{children}</>
   }
@@ -49,6 +50,11 @@ const AuthenticatedApp: React.FC = observer(() => {
 
   if (!userStore.currentUser?.roles?.length) {
     return <Redirect to="/no-permission" />
+  }
+
+  const defaultLandingPath = getDefaultLandingPath(userStore.accessContext)
+  if (location.pathname === '/' && defaultLandingPath !== '/') {
+    return <Redirect to={defaultLandingPath} />
   }
 
   return (

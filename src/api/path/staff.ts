@@ -10,6 +10,7 @@ export interface ICreateStaffRequest {
   user_id?: string
   email?: string
   phone?: string
+  password?: string
   is_active?: boolean
   [key: string]: any
 }

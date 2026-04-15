@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { Card, Row, Col, Button, Typography, Space, Spin } from 'antd'
+import React, { useEffect, useMemo, useState } from 'react'
+import { Card, Row, Col, Button, Typography, Space, Spin, Empty } from 'antd'
 import { 
   ExperimentOutlined, 
   FormOutlined, 
@@ -11,28 +11,75 @@ import {
   BarChartOutlined,
   CalendarOutlined,
   FolderOutlined,
-  SettingOutlined,
-  AuditOutlined,
-  FileTextOutlined
+  SettingOutlined
 } from '@ant-design/icons'
+import {
+  CartesianGrid,
+  Funnel,
+  FunnelChart,
+  LabelList,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  Cell
+} from 'recharts'
 import { useHistory } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
 import { rootStore } from '@/store'
+import { routes } from '@/router/map'
+import { filterRoutesForMenu } from '@/utils/menuAccess'
+import { getRouteDisplayTitle } from '@/utils/routeDisplay'
+import { getOverviewStatistics } from '@/api/path/statistics'
+import type { IStatisticsOverviewResponse } from '@/api/path/statistics'
+import ClinicianWorkbenchPage from '@/pages/clinician/workbench'
 import './index.scss'
 
 const { Title, Text } = Typography
+const CHART_COLORS = ['#1677ff', '#00b578', '#faad14', '#ff7a45', '#722ed1', '#13c2c2', '#eb2f96']
 
 const Home: React.FC = observer(() => {
   const history = useHistory()
-  const { statisticsStore } = rootStore
+  const { userStore } = rootStore
   const [expandedTips, setExpandedTips] = useState<Set<number>>(new Set())
+  const [overviewStats, setOverviewStats] = useState<IStatisticsOverviewResponse | null>(null)
+  const [overviewLoading, setOverviewLoading] = useState(false)
 
   useEffect(() => {
-    statisticsStore.fetchSystemStatistics()
-  }, [])
+    const shouldFetchOverview = userStore.accessContext.capabilities.has('org_admin') || userStore.accessContext.isPlatformAdmin
+    if (!shouldFetchOverview) {
+      setOverviewStats(null)
+      return
+    }
 
-  const stats = statisticsStore.systemStatistics
-  const isLoading = statisticsStore.loading
+    let cancelled = false
+    setOverviewLoading(true)
+    getOverviewStatistics({ preset: '30d' })
+      .then(([error, response]) => {
+        if (cancelled) return
+        if (error || !response?.data) {
+          throw error || new Error('获取统计概览失败')
+        }
+        setOverviewStats(response.data)
+      })
+      .catch((error) => {
+        if (cancelled) return
+        console.error(error)
+      })
+      .finally(() => {
+        if (!cancelled) setOverviewLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [userStore.accessContext.capabilities, userStore.accessContext.isPlatformAdmin])
+
+  const showAdminStats = userStore.accessContext.capabilities.has('org_admin') || userStore.accessContext.isPlatformAdmin
+  const visibleRoutes = filterRoutesForMenu(routes, userStore.accessContext, userStore.profileFetchDone)
 
   const toggleTip = (index: number) => {
     const newExpanded = new Set(expandedTips)
@@ -44,112 +91,178 @@ const Home: React.FC = observer(() => {
     setExpandedTips(newExpanded)
   }
 
-  // 主要统计卡片 - 突出医学量表相关数据
-  const mainStats = [
-    {
-      title: '医学量表',
-      value: stats?.questionnaire_count || 0,
-      icon: <ExperimentOutlined />,
-      color: '#1890ff',
-      action: () => history.push('/scale/list')
-    },
+  const summaryStats = [
     {
       title: '测评总数',
-      value: stats?.assessment_count || 0,
+      value: overviewStats?.snapshot.assessment_count || 0,
       icon: <BarChartOutlined />,
       color: '#722ed1',
-      action: () => history.push('/plan/list')
+      action: () => history.push('/assessment/list')
     },
     {
       title: '受试者总数',
-      value: stats?.testee_count || 0,
+      value: overviewStats?.snapshot.testee_count || 0,
       icon: <TeamOutlined />,
       color: '#faad14',
       action: () => history.push('/subject/list')
     },
     {
-      title: '答卷总数',
-      value: stats?.answer_sheet_count || 0,
-      icon: <FormOutlined />,
-      color: '#1890ff',
-      action: () => history.push('/scale/list')
-    },
-    {
-      title: '今日新增量表',
-      value: stats?.today_new_questionnaires || 0,
-      icon: <ExperimentOutlined />,
-      color: '#52c41a',
-      action: () => history.push('/scale/list')
-    },
-    {
-      title: '今日新增测评',
-      value: stats?.today_new_assessments || 0,
-      icon: <BarChartOutlined />,
-      color: '#722ed1',
-      action: () => history.push('/plan/list')
-    },
-    {
-      title: '今日新增受试者',
-      value: stats?.today_new_testees || 0,
+      title: '临床人员总数',
+      value: overviewStats?.snapshot.clinician_count || 0,
       icon: <TeamOutlined />,
-      color: '#faad14',
-      action: () => history.push('/subject/list')
-    },
-    {
-      title: '今日新增答卷',
-      value: stats?.today_new_answer_sheets || 0,
-      icon: <FormOutlined />,
       color: '#13c2c2',
-      action: () => history.push('/scale/list')
+      action: () => history.push('/admin/clinicians')
+    },
+    {
+      title: 'Active 入口',
+      value: overviewStats?.snapshot.active_entry_count || 0,
+      icon: <FormOutlined />,
+      color: '#52c41a',
+      action: () => history.push('/statistics/center')
     }
   ]
 
-  // 快捷入口 - 医学量表优先
-  const quickLinks = [
+  const windowStats = [
     {
-      title: '医学量表',
-      icon: <ExperimentOutlined />,
-      path: '/scale/list',
-      color: '#1890ff',
-      description: '创建和管理医学量表',
-      primary: true
-    },
-    {
-      title: '受试者管理',
+      title: '近 30 天新增受试者',
+      value: overviewStats?.window.new_testees || 0,
       icon: <TeamOutlined />,
-      path: '/subject/list',
-      color: '#faad14',
-      description: '查看和管理受试者信息'
+      color: '#fa8c16',
+      action: () => history.push('/statistics/center')
     },
     {
-      title: '测评计划',
-      icon: <CalendarOutlined />,
-      path: '/plan/list',
+      title: '近 30 天入口解析',
+      value: overviewStats?.window.entry_resolved_count || 0,
+      icon: <BarChartOutlined />,
+      color: '#1677ff',
+      action: () => history.push('/statistics/center')
+    },
+    {
+      title: '近 30 天 Intake',
+      value: overviewStats?.window.entry_intake_count || 0,
+      icon: <BarChartOutlined />,
       color: '#722ed1',
-      description: '创建和管理测评计划'
+      action: () => history.push('/statistics/center')
     },
     {
-      title: '入校筛查',
-      icon: <AuditOutlined />,
-      path: '/screening/list',
+      title: '近 30 天 Assigned',
+      value: overviewStats?.window.relation_assigned_count || 0,
+      icon: <CalendarOutlined />,
       color: '#eb2f96',
-      description: '管理入校筛查项目'
+      action: () => history.push('/statistics/center')
     },
     {
-      title: '调查问卷',
-      icon: <FileTextOutlined />,
-      path: '/survey/list',
-      color: '#1890ff',
-      description: '管理调查问卷模板'
-    },
-    {
-      title: '系统管理',
-      icon: <SettingOutlined />,
-      path: '/admin/list',
+      title: '近 30 天完成测评',
+      value: overviewStats?.window.assessment_completed_count || 0,
+      icon: <FormOutlined />,
       color: '#13c2c2',
-      description: '管理员和权限配置'
+      action: () => history.push('/statistics/center')
     }
   ]
+
+  const trendData = useMemo(() => {
+    if (!overviewStats) return []
+    const assessmentMap = new Map(overviewStats.trend.assessments.map((item) => [item.date, item.count]))
+    const intakeMap = new Map(overviewStats.trend.intakes.map((item) => [item.date, item.count]))
+    const assignmentMap = new Map(overviewStats.trend.assignments.map((item) => [item.date, item.count]))
+    const allDates = Array.from(new Set([
+      ...overviewStats.trend.assessments.map((item) => item.date),
+      ...overviewStats.trend.intakes.map((item) => item.date),
+      ...overviewStats.trend.assignments.map((item) => item.date)
+    ])).sort()
+
+    return allDates.map((date) => ({
+      date,
+      label: date.slice(5, 10),
+      assessments: assessmentMap.get(date) || 0,
+      intakes: intakeMap.get(date) || 0,
+      assignments: assignmentMap.get(date) || 0
+    }))
+  }, [overviewStats])
+
+  const funnelData = useMemo(() => {
+    const raw = [
+      { name: '新增受试者', value: overviewStats?.window.new_testees || 0, fill: CHART_COLORS[0] },
+      { name: '入口创建', value: overviewStats?.window.entry_created_count || 0, fill: CHART_COLORS[1] },
+      { name: '入口解析', value: overviewStats?.window.entry_resolved_count || 0, fill: CHART_COLORS[2] },
+      { name: 'Intake', value: overviewStats?.window.entry_intake_count || 0, fill: CHART_COLORS[3] },
+      { name: 'Assigned', value: overviewStats?.window.relation_assigned_count || 0, fill: CHART_COLORS[4] },
+      { name: '完成测评', value: overviewStats?.window.assessment_completed_count || 0, fill: CHART_COLORS[5] }
+    ].filter((item) => item.value > 0)
+
+    const baseline = raw[0]?.value || 0
+    return raw.map((item, index) => ({
+      ...item,
+      rateLabel: baseline > 0
+        ? `${((item.value / baseline) * 100).toFixed(index === 0 ? 0 : 1)}%`
+        : '0%'
+    }))
+  }, [overviewStats])
+
+  const quickLinkMeta: Record<string, { description: string; color: string }> = {
+    operations: {
+      description: userStore.accessContext.isClinician ? '查看我的受试者、测评记录与相关统计' : '查看受试者、测评记录、计划与统计',
+      color: '#722ed1'
+    },
+    content: { description: '管理问卷和量表内容', color: '#1890ff' },
+    'clinician-workbench': { description: '进入我的受试者、关系和入口工作区', color: '#52c41a' },
+    'organization-management': { description: '管理员工、临床人员、权限和资源', color: '#f5222d' }
+  }
+
+  const quickLinks = visibleRoutes
+    .filter((route) => !['home', 'user'].includes(route.name))
+    .map((route) => {
+      const targetPath = route.children?.find((child) => !child.hideInMenu)?.path || route.path
+      const meta = quickLinkMeta[route.name] || { description: '进入对应功能区', color: '#1890ff' }
+      return {
+        title: getRouteDisplayTitle(route.name, route.title, userStore.accessContext),
+        icon: route.icon,
+        path: targetPath,
+        color: meta.color,
+        description: meta.description,
+        primary: route.name === 'clinician-workbench'
+      }
+    })
+  const dedupedQuickLinks = quickLinks.filter(
+    (link, index, arr) => arr.findIndex((item) => item.path === link.path) === index
+  )
+
+  const clinicianWorkbenchLink = userStore.accessContext.isClinician
+    ? {
+      title: '临床工作台',
+      icon: <TeamOutlined />,
+      path: '/clinician/me',
+      color: '#52c41a',
+      description: '进入我的受试者、关系和入口工作区',
+      primary: true
+    }
+    : null
+
+  const orderedQuickLinks = [
+    ...(clinicianWorkbenchLink ? [clinicianWorkbenchLink] : []),
+    ...dedupedQuickLinks.filter((link) => !userStore.accessContext.isClinician || link.path !== '/clinician/me')
+  ]
+    .filter((link, index, arr) => arr.findIndex((item) => item.path === link.path) === index)
+    .sort((a, b) => {
+      if (a.primary === b.primary) return 0
+      return a.primary ? -1 : 1
+    })
+
+  const headerAction = (() => {
+    if (userStore.accessContext.isClinician) {
+      return { text: '进入工作台', path: '/clinician/me', icon: <TeamOutlined /> }
+    }
+    if (userStore.accessContext.capabilities.has('manage_content')) {
+      return { text: '创建新量表', path: '/scale/info/new', icon: <PlusOutlined /> }
+    }
+    if (userStore.accessContext.capabilities.has('manage_evaluation_plans')) {
+      return { text: '创建计划', path: '/plan/create', icon: <CalendarOutlined /> }
+    }
+    if (userStore.accessContext.capabilities.has('read_assessment_records')) {
+      return { text: '查看测评记录', path: '/assessment/list', icon: <BarChartOutlined /> }
+    }
+    return { text: '个人资料', path: '/user/profile', icon: <SettingOutlined /> }
+  })()
 
   return (
     <div className="home-page">
@@ -158,53 +271,159 @@ const Home: React.FC = observer(() => {
         <div className="header-content">
           <div>
             <Title level={2} className="header-title">
-              医学量表管理系统
+              {userStore.accessContext.isClinician ? '临床工作台' : '测评运营后台'}
             </Title>
             <Text className="header-subtitle">
-              专业的医学量表创建、管理和测评平台
+              {userStore.accessContext.isClinician
+                ? '聚焦我的受试者、关系和测评入口'
+                : '按当前身份展示机构管理、内容配置与测评运营能力'}
             </Text>
           </div>
           <Button 
             type="primary" 
             size="large" 
-            icon={<PlusOutlined />}
-            onClick={() => history.push('/scale/info/new')}
+            icon={headerAction.icon}
+            onClick={() => history.push(headerAction.path)}
             className="header-action"
           >
-            创建新量表
+            {headerAction.text}
           </Button>
         </div>
       </div>
 
       <div className="home-container">
         {/* 统计 Dashboard */}
-        <Spin spinning={isLoading}>
-          <Row gutter={[16, 16]} className="stats-row">
-            {mainStats.map((stat, index) => (
-              <Col xs={24} sm={12} lg={6} key={index}>
-                <Card 
-                  className="stat-card"
-                  hoverable
-                  onClick={stat.action}
-                >
-                  <div className="stat-content">
-                    <div className="stat-icon" style={{ color: stat.color }}>
-                      {stat.icon}
-                    </div>
-                    <div className="stat-info">
-                      <div className="stat-title">{stat.title}</div>
-                      <div className="stat-value-wrapper">
-                        <div className="stat-value" style={{ color: stat.color }}>
-                          {stat.value.toLocaleString()}
+        {showAdminStats && (
+          <Spin spinning={overviewLoading}>
+            <div className="stats-section">
+              <Row gutter={[16, 16]} className="stats-row">
+                {summaryStats.map((stat, index) => (
+                  <Col xs={24} sm={12} lg={6} key={`summary-${index}`}>
+                    <Card
+                      className="stat-card stat-card-summary"
+                      hoverable
+                      onClick={stat.action}
+                    >
+                      <div className="stat-card-topline" style={{ background: stat.color }} />
+                      <div className="stat-content">
+                        <div className="stat-icon" style={{ color: stat.color }}>
+                          {stat.icon}
+                        </div>
+                        <div className="stat-info">
+                          <div className="stat-title">{stat.title}</div>
+                          <div className="stat-value-wrapper">
+                            <div className="stat-value" style={{ color: stat.color }}>
+                              {stat.value.toLocaleString()}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </Card>
-              </Col>
-            ))}
-          </Row>
-        </Spin>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+
+              <Row gutter={[16, 16]} className="stats-row">
+                {windowStats.map((stat, index) => (
+                  <Col xs={24} sm={12} lg={6} key={`window-${index}`}>
+                    <Card
+                      className="stat-card stat-card-window"
+                      hoverable
+                      onClick={stat.action}
+                    >
+                      <div className="stat-card-topline stat-card-topline-soft" style={{ background: stat.color }} />
+                      <div className="stat-content">
+                        <div className="stat-icon" style={{ color: stat.color }}>
+                          {stat.icon}
+                        </div>
+                        <div className="stat-info">
+                          <div className="stat-title">{stat.title}</div>
+                          <div className="stat-value-wrapper">
+                            <div className="stat-value" style={{ color: stat.color }}>
+                              {stat.value.toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+
+              <Row gutter={[16, 16]} className="stats-chart-row">
+                <Col xs={24} lg={15}>
+                  <Card
+                    className="overview-chart-card"
+                    title="近 30 天趋势总览"
+                    extra={(
+                      <Button type="link" onClick={() => history.push('/statistics/center')}>
+                        查看统计中心
+                      </Button>
+                    )}
+                  >
+                    {trendData.length ? (
+                      <div className="overview-chart">
+                        <ResponsiveContainer>
+                          <LineChart data={trendData} margin={{ top: 16, right: 16, left: 0, bottom: 8 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="label" />
+                            <YAxis allowDecimals={false} />
+                            <Tooltip />
+                            <Legend />
+                            <Line type="monotone" dataKey="assessments" name="测评" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="intakes" name="Intake" stroke={CHART_COLORS[2]} strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="assignments" name="Assigned" stroke={CHART_COLORS[4]} strokeWidth={2} dot={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="overview-chart-empty">
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无趋势数据" />
+                      </div>
+                    )}
+                  </Card>
+                </Col>
+                <Col xs={24} lg={9}>
+                  <Card
+                    className="overview-chart-card"
+                    title="窗口转化漏斗"
+                    extra={(
+                      <Button type="link" onClick={() => history.push('/statistics/center')}>
+                        查看详情
+                      </Button>
+                    )}
+                  >
+                    {funnelData.length ? (
+                      <div className="overview-chart">
+                        <ResponsiveContainer>
+                          <FunnelChart>
+                            <Tooltip formatter={(value: number) => [value, '数量']} />
+                            <Funnel
+                              data={funnelData}
+                              dataKey="value"
+                              nameKey="name"
+                              isAnimationActive={false}
+                            >
+                              <LabelList dataKey="name" position="right" stroke="none" fill="#595959" />
+                              <LabelList dataKey="rateLabel" position="left" stroke="none" fill="#8c8c8c" />
+                              {funnelData.map((item) => (
+                                <Cell key={item.name} fill={item.fill} />
+                              ))}
+                            </Funnel>
+                          </FunnelChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="overview-chart-empty">
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无转化数据" />
+                      </div>
+                    )}
+                  </Card>
+                </Col>
+              </Row>
+            </div>
+          </Spin>
+        )}
 
         {/* 快捷入口 */}
         <Card 
@@ -217,7 +436,7 @@ const Home: React.FC = observer(() => {
           className="quick-links-card"
         >
           <Row gutter={[16, 16]}>
-            {quickLinks.map((link, index) => (
+            {orderedQuickLinks.map((link, index) => (
               <Col xs={24} sm={12} lg={8} key={index}>
                 <Card 
                   hoverable 
@@ -247,6 +466,8 @@ const Home: React.FC = observer(() => {
             ))}
           </Row>
         </Card>
+
+        {userStore.accessContext.isClinician && <ClinicianWorkbenchPage embedded />}
 
         {/* 使用指南 */}
         <Row gutter={[16, 16]}>

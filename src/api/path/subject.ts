@@ -127,16 +127,16 @@ export interface IScaleAnalysisResponse {
   scales: IScaleTrend[] // 量表趋势列表
 }
 
-// ==================== GET /testees/{id}/periodic-stats - 周期性测评统计 ====================
+// ==================== GET /statistics/testees/{id}/periodic - 周期性测评统计 ====================
 
 // 单周任务状态
 export interface ITaskStatus {
   week: number // 第几周（从1开始）
-  status: 'completed' | 'pending' | 'overdue' // 状态
+  status: 'completed' | 'pending' | 'overdue' | 'canceled' // 状态
   completed_at?: string // 完成时间，格式：YYYY-MM-DD HH:mm:ss
   planned_at?: string // 计划时间，格式：YYYY-MM-DD HH:mm:ss
   due_date?: string // 截止时间，格式：YYYY-MM-DD
-  assessment_id?: number // 关联的测评ID（如已完成）
+  assessment_id?: string // 关联的测评ID（如已完成）
 }
 
 // 单个周期性项目统计
@@ -183,10 +183,10 @@ export const testeeApi = {
     return get<IScaleAnalysisResponse>(`/testees/${id}/scale-analysis`)
   },
 
-  // GET /testees/{id}/periodic-stats - 获取周期性测评统计
+  // GET /statistics/testees/{id}/periodic - 获取周期性测评统计
   // 返回该受试者参与的周期性测评项目的完成进度
   getPeriodicStats: (id: number | string): Promise<[any, QSResponse<IPeriodicStatsResponse> | undefined]> => {
-    return get<IPeriodicStatsResponse>(`/testees/${id}/periodic-stats`)
+    return get<IPeriodicStatsResponse>(`/statistics/testees/${id}/periodic`)
   }
 }
 
@@ -313,9 +313,10 @@ interface SubjectBasicInfo {
 
 interface TaskStatus {
   week: number
-  status: 'completed' | 'pending' | 'overdue'
+  status: 'completed' | 'pending' | 'overdue' | 'canceled'
   completedAt?: string
   dueDate?: string
+  plannedAt?: string
 }
 
 interface PeriodicProject {

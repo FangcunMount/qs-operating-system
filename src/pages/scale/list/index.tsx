@@ -13,7 +13,7 @@ import {
 } from '@ant-design/icons'
 import { getScaleList } from '@/api/path/template'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
-import { answerSheetApi } from '@/api/path/answerSheet'
+import { statisticsApi } from '@/api/path/statistics'
 import { scaleStore } from '@/store'
 
 const { Column } = Table
@@ -65,34 +65,19 @@ const List: React.FC = observer(() => {
           total: parseInt(res.data.total_count, 10)
         })
 
-        // 异步加载测评数量（不阻塞列表显示）
-        // 注意：问题数量不在列表页面加载，只在编辑页面需要时加载
-        Promise.all(
-          list.map(async (item: IQuestionSheetInfo) => {
-            if (!item.id) return
-
-            try {
-              // 获取答卷统计（包含测评数量）
-              const [statErr, statRes] = await answerSheetApi.getAnswerSheetStatistics(item.id)
-              if (!statErr && statRes?.data) {
-                const answerCount = statRes.data.total_count || 0
-                // 更新测评数量
-                setScaleList((prev: IQuestionSheetInfo[]) => {
-                  const updated = [...prev]
-                  const foundIndex = updated.findIndex(p => p.id === item.id)
-                  if (foundIndex >= 0) {
-                    updated[foundIndex] = { ...updated[foundIndex], answersheet_cnt: String(answerCount) }
-                  }
-                  return updated
-                })
-              }
-            } catch (error) {
-              console.warn(`获取量表 ${item.id} 的测评数量失败:`, error)
-            }
-          })
-        ).catch(error => {
-          console.error('批量获取测评统计失败:', error)
-        })
+        const codes = list.map((item: IQuestionSheetInfo) => item.id).filter(Boolean) as string[]
+        if (codes.length > 0) {
+          const [statErr, statRes] = await statisticsApi.batchQuestionnaireStatistics(codes)
+          if (!statErr && statRes?.data) {
+            const countMap = new Map(statRes.data.items.map((item) => [item.code, item.total_submissions]))
+            setScaleList((prev: IQuestionSheetInfo[]) =>
+              prev.map((item) => ({
+                ...item,
+                answersheet_cnt: String(countMap.get(item.id || '') || 0)
+              }))
+            )
+          }
+        }
       }
     } catch (error) {
       console.error('获取量表列表异常:', error)

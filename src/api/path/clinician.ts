@@ -1,5 +1,5 @@
 import type { ITestee } from './subject'
-import { get, post, put } from '../qsServer'
+import { get, post, put, silentGet } from '../qsServer'
 
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 
@@ -176,6 +176,8 @@ export const clinicianApi = {
 
   getMyClinician: () => get<IClinician>('/clinicians/me'),
 
+  probeMyClinician: () => silentGet<IClinician>('/clinicians/me'),
+
   listMyClinicianTestees: (params: { page?: number; page_size?: number }) => get<any>('/clinicians/me/testees', params),
 
   listMyClinicianRelations: (params: { page?: number; page_size?: number }) =>
@@ -183,6 +185,8 @@ export const clinicianApi = {
 
   listMyAssessmentEntries: (params: { page?: number; page_size?: number }) =>
     get<IAssessmentEntryListResponse>('/clinicians/me/assessment-entries', params),
+
+  getMyAssessmentEntry: (id: number | string) => get<IAssessmentEntry>(`/clinicians/me/assessment-entries/${id}`),
 
   createMyAssessmentEntry: (data: ICreateAssessmentEntryRequest) => post<IAssessmentEntry>('/clinicians/me/assessment-entries', data),
 
