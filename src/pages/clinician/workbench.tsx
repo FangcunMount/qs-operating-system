@@ -328,25 +328,25 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
     { title: '版本', dataIndex: 'target_version', key: 'target_version', width: 120 },
     { title: '状态', dataIndex: 'is_active', key: 'is_active', width: 100, render: renderStatus },
     {
-      title: '累计 Resolve',
+      title: '累计入口打开',
       key: 'resolve_count',
       width: 120,
       render: (_: unknown, record: IAssessmentEntry) => entryStatisticsMap.get(record.id)?.snapshot.resolve_count ?? 0
     },
     {
-      title: '累计 Intake',
+      title: '累计完成接入',
       key: 'intake_count',
-      width: 120,
+      width: 140,
       render: (_: unknown, record: IAssessmentEntry) => entryStatisticsMap.get(record.id)?.snapshot.intake_count ?? 0
     },
     {
-      title: '累计 Assigned',
+      title: '累计建立照护关系',
       key: 'assigned_count',
-      width: 130,
+      width: 150,
       render: (_: unknown, record: IAssessmentEntry) => entryStatisticsMap.get(record.id)?.snapshot.assigned_count ?? 0
     },
     {
-      title: '累计 Assessment',
+      title: '累计形成测评',
       key: 'assessment_count',
       width: 140,
       render: (_: unknown, record: IAssessmentEntry) => entryStatisticsMap.get(record.id)?.snapshot.assessment_count ?? 0
@@ -361,7 +361,7 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
   ]
 
   const clinicianSummaryCard = (
-    <Card loading={loading} title={embedded ? '临床工作台概览' : 'Clinician 工作台'}>
+    <Card loading={loading} title={embedded ? '临床工作台概览' : '临床工作台'}>
       {clinician && (
         <Descriptions bordered column={2}>
           <Descriptions.Item label="姓名">{clinician.name}</Descriptions.Item>
@@ -373,7 +373,7 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
           </Descriptions.Item>
           <Descriptions.Item label="绑定员工">{clinician.operator_id ? `#${clinician.operator_id}` : '未绑定'}</Descriptions.Item>
           <Descriptions.Item label="受试者数">{clinician.assigned_testee_count}</Descriptions.Item>
-          <Descriptions.Item label="入口数">{clinician.assessment_entry_count}</Descriptions.Item>
+          <Descriptions.Item label="活跃入口">{clinician.assessment_entry_count}</Descriptions.Item>
         </Descriptions>
       )}
     </Card>
@@ -389,16 +389,22 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
           <Statistic title="主责受试者" value={primaryTesteeCount} />
         </Col>
         <Col xs={24} sm={12} lg={8}>
-          <Statistic title="Active 入口" value={overviewStats?.snapshot.active_entry_count ?? entries.length} />
+          <Statistic title="活跃入口" value={overviewStats?.snapshot.active_entry_count ?? entries.length} />
         </Col>
         <Col xs={24} sm={12} lg={8}>
-          <Statistic title="近 30 天 Intake" value={overviewStats?.window.intake_count ?? 0} />
+          <Statistic title="近 30 天入口打开" value={overviewStats?.funnel.resolved_count ?? 0} />
         </Col>
         <Col xs={24} sm={12} lg={8}>
-          <Statistic title="近 30 天 Assigned" value={overviewStats?.window.assigned_count ?? 0} />
+          <Statistic title="近 30 天完成接入" value={overviewStats?.window.intake_count ?? 0} />
         </Col>
         <Col xs={24} sm={12} lg={8}>
-          <Statistic title="近 30 天完成测评" value={overviewStats?.window.completed_assessment_count ?? 0} />
+          <Statistic title="近 30 天建立照护关系" value={overviewStats?.window.assigned_count ?? 0} />
+        </Col>
+        <Col xs={24} sm={12} lg={8}>
+          <Statistic title="近 30 天形成测评" value={overviewStats?.funnel.assessment_count ?? 0} />
+        </Col>
+        <Col xs={24} sm={12} lg={8}>
+          <Statistic title="近 30 天产出报告" value={overviewStats?.window.completed_assessment_count ?? 0} />
         </Col>
       </Row>
     </Card>
@@ -434,13 +440,21 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
               </Row>
               <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12} lg={8}>
-                  <Statistic title="入口创建" value={overviewStats?.funnel.created_count ?? 0} />
+                  <Statistic title="近 30 天入口打开" value={overviewStats?.funnel.resolved_count ?? 0} />
                 </Col>
                 <Col xs={24} sm={12} lg={8}>
-                  <Statistic title="入口 Resolve" value={overviewStats?.funnel.resolved_count ?? 0} />
+                  <Statistic title="近 30 天完成接入" value={overviewStats?.window.intake_count ?? 0} />
+                </Col>
+              </Row>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={12} lg={8}>
+                  <Statistic title="近 30 天建立照护关系" value={overviewStats?.window.assigned_count ?? 0} />
                 </Col>
                 <Col xs={24} sm={12} lg={8}>
-                  <Statistic title="入口 Assessment" value={overviewStats?.funnel.assessment_count ?? 0} />
+                  <Statistic title="近 30 天形成测评" value={overviewStats?.funnel.assessment_count ?? 0} />
+                </Col>
+                <Col xs={24} sm={12} lg={8}>
+                  <Statistic title="近 30 天产出报告" value={overviewStats?.window.completed_assessment_count ?? 0} />
                 </Col>
               </Row>
             </Space>
@@ -466,7 +480,7 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
       </Card>
 
       <Modal
-        title="创建 Assessment Entry"
+        title="创建入口"
         visible={entryModalVisible}
         onOk={handleCreateEntry}
         onCancel={() => {

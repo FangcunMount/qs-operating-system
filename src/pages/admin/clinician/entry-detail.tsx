@@ -59,7 +59,7 @@ const AssessmentEntryDetailPage: React.FC = () => {
   return (
     <Card
       loading={loading}
-      title="Assessment Entry 详情"
+      title="入口详情"
       extra={
         <Space>
           <Button onClick={() => history.goBack()}>返回</Button>
@@ -78,8 +78,8 @@ const AssessmentEntryDetailPage: React.FC = () => {
       {entry && (
         <Descriptions bordered column={2}>
           <Descriptions.Item label="ID">{entry.id}</Descriptions.Item>
-          <Descriptions.Item label="Clinician ID">{entry.clinician_id}</Descriptions.Item>
-          <Descriptions.Item label="Token" span={2}>
+          <Descriptions.Item label="临床人员 ID">{entry.clinician_id}</Descriptions.Item>
+          <Descriptions.Item label="入口 Token" span={2}>
             {entry.token}
           </Descriptions.Item>
           <Descriptions.Item label="目标类型">{entry.target_type}</Descriptions.Item>
@@ -91,7 +91,7 @@ const AssessmentEntryDetailPage: React.FC = () => {
           <Descriptions.Item label="过期时间" span={2}>
             {entry.expires_at || '长期有效'}
           </Descriptions.Item>
-          <Descriptions.Item label="入口链接" span={2}>
+          <Descriptions.Item label="公开入口链接" span={2}>
             {buildAssessmentEntryPublicLink(entry.token)}
           </Descriptions.Item>
           <Descriptions.Item label="微信小程序码" span={2}>

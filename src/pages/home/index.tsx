@@ -14,10 +14,9 @@ import {
   SettingOutlined
 } from '@ant-design/icons'
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
-  Funnel,
-  FunnelChart,
-  LabelList,
   Legend,
   Line,
   LineChart,
@@ -93,18 +92,19 @@ const Home: React.FC = observer(() => {
 
   const summaryStats = [
     {
-      title: '测评总数',
-      value: overviewStats?.snapshot.assessment_count || 0,
-      icon: <BarChartOutlined />,
-      color: '#722ed1',
-      action: () => history.push('/assessment/list')
-    },
-    {
       title: '受试者总数',
       value: overviewStats?.snapshot.testee_count || 0,
       icon: <TeamOutlined />,
       color: '#faad14',
       action: () => history.push('/subject/list')
+    },
+  
+    {
+      title: '测评总数',
+      value: overviewStats?.snapshot.assessment_count || 0,
+      icon: <BarChartOutlined />,
+      color: '#722ed1',
+      action: () => history.push('/assessment/list')
     },
     {
       title: '临床人员总数',
@@ -113,46 +113,46 @@ const Home: React.FC = observer(() => {
       color: '#13c2c2',
       action: () => history.push('/admin/clinicians')
     },
-    {
-      title: 'Active 入口',
-      value: overviewStats?.snapshot.active_entry_count || 0,
-      icon: <FormOutlined />,
-      color: '#52c41a',
-      action: () => history.push('/statistics/center')
-    }
   ]
 
   const windowStats = [
     {
-      title: '近 30 天新增受试者',
-      value: overviewStats?.window.new_testees || 0,
-      icon: <TeamOutlined />,
-      color: '#fa8c16',
-      action: () => history.push('/statistics/center')
-    },
-    {
-      title: '近 30 天入口解析',
+      title: '近 30 天入口打开',
       value: overviewStats?.window.entry_resolved_count || 0,
       icon: <BarChartOutlined />,
-      color: '#1677ff',
+      color: '#4096ff',
       action: () => history.push('/statistics/center')
     },
     {
-      title: '近 30 天 Intake',
+      title: '近 30 天完成接入',
       value: overviewStats?.window.entry_intake_count || 0,
       icon: <BarChartOutlined />,
       color: '#722ed1',
       action: () => history.push('/statistics/center')
     },
     {
-      title: '近 30 天 Assigned',
+      title: '近 30 天新建档案',
+      value: overviewStats?.window.new_testees || 0,
+      icon: <TeamOutlined />,
+      color: '#fa8c16',
+      action: () => history.push('/statistics/center')
+    },
+    {
+      title: '近 30 天建立照护',
       value: overviewStats?.window.relation_assigned_count || 0,
-      icon: <CalendarOutlined />,
+      icon: <TeamOutlined />,
       color: '#eb2f96',
       action: () => history.push('/statistics/center')
     },
     {
-      title: '近 30 天完成测评',
+      title: '近 30 天形成测评',
+      value: overviewStats?.window.assessment_created_count || 0,
+      icon: <BarChartOutlined />,
+      color: '#00b578',
+      action: () => history.push('/statistics/center')
+    },
+    {
+      title: '近 30 天产出报告',
       value: overviewStats?.window.assessment_completed_count || 0,
       icon: <FormOutlined />,
       color: '#13c2c2',
@@ -180,23 +180,15 @@ const Home: React.FC = observer(() => {
     }))
   }, [overviewStats])
 
-  const funnelData = useMemo(() => {
-    const raw = [
-      { name: '新增受试者', value: overviewStats?.window.new_testees || 0, fill: CHART_COLORS[0] },
-      { name: '入口创建', value: overviewStats?.window.entry_created_count || 0, fill: CHART_COLORS[1] },
-      { name: '入口解析', value: overviewStats?.window.entry_resolved_count || 0, fill: CHART_COLORS[2] },
-      { name: 'Intake', value: overviewStats?.window.entry_intake_count || 0, fill: CHART_COLORS[3] },
-      { name: 'Assigned', value: overviewStats?.window.relation_assigned_count || 0, fill: CHART_COLORS[4] },
-      { name: '完成测评', value: overviewStats?.window.assessment_completed_count || 0, fill: CHART_COLORS[5] }
+  const windowMetricData = useMemo(() => {
+    return [
+      { name: '入口打开', value: overviewStats?.window.entry_resolved_count || 0, fill: CHART_COLORS[0] },
+      { name: '完成接入', value: overviewStats?.window.entry_intake_count || 0, fill: CHART_COLORS[1] },
+      { name: '新建档案', value: overviewStats?.window.new_testees || 0, fill: CHART_COLORS[2] },
+      { name: '建立照护关系', value: overviewStats?.window.relation_assigned_count || 0, fill: CHART_COLORS[3] },
+      { name: '形成测评', value: overviewStats?.window.assessment_created_count || 0, fill: CHART_COLORS[4] },
+      { name: '产出报告', value: overviewStats?.window.assessment_completed_count || 0, fill: CHART_COLORS[5] }
     ].filter((item) => item.value > 0)
-
-    const baseline = raw[0]?.value || 0
-    return raw.map((item, index) => ({
-      ...item,
-      rateLabel: baseline > 0
-        ? `${((item.value / baseline) * 100).toFixed(index === 0 ? 0 : 1)}%`
-        : '0%'
-    }))
   }, [overviewStats])
 
   const quickLinkMeta: Record<string, { description: string; color: string }> = {
@@ -298,7 +290,7 @@ const Home: React.FC = observer(() => {
             <div className="stats-section">
               <Row gutter={[16, 16]} className="stats-row">
                 {summaryStats.map((stat, index) => (
-                  <Col xs={24} sm={12} lg={6} key={`summary-${index}`}>
+                  <Col xs={24} sm={12} lg={8} key={`summary-${index}`}>
                     <Card
                       className="stat-card stat-card-summary"
                       hoverable
@@ -325,7 +317,7 @@ const Home: React.FC = observer(() => {
 
               <Row gutter={[16, 16]} className="stats-row">
                 {windowStats.map((stat, index) => (
-                  <Col xs={24} sm={12} lg={6} key={`window-${index}`}>
+                  <Col xs={24} sm={12} lg={4} key={`window-${index}`}>
                     <Card
                       className="stat-card stat-card-window"
                       hoverable
@@ -354,7 +346,7 @@ const Home: React.FC = observer(() => {
                 <Col xs={24} lg={15}>
                   <Card
                     className="overview-chart-card"
-                    title="近 30 天趋势总览"
+                    title="近 30 天接入与服务趋势"
                     extra={(
                       <Button type="link" onClick={() => history.push('/statistics/center')}>
                         查看统计中心
@@ -370,9 +362,9 @@ const Home: React.FC = observer(() => {
                             <YAxis allowDecimals={false} />
                             <Tooltip />
                             <Legend />
-                            <Line type="monotone" dataKey="assessments" name="测评" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} />
-                            <Line type="monotone" dataKey="intakes" name="Intake" stroke={CHART_COLORS[2]} strokeWidth={2} dot={false} />
-                            <Line type="monotone" dataKey="assignments" name="Assigned" stroke={CHART_COLORS[4]} strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="intakes" name="完成接入" stroke={CHART_COLORS[2]} strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="assignments" name="建立照护关系" stroke={CHART_COLORS[4]} strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="assessments" name="形成测评" stroke={CHART_COLORS[5]} strokeWidth={2} dot={false} />
                           </LineChart>
                         </ResponsiveContainer>
                       </div>
@@ -386,36 +378,32 @@ const Home: React.FC = observer(() => {
                 <Col xs={24} lg={9}>
                   <Card
                     className="overview-chart-card"
-                    title="窗口转化漏斗"
+                    title="近 30 天关键指标"
                     extra={(
                       <Button type="link" onClick={() => history.push('/statistics/center')}>
                         查看详情
                       </Button>
                     )}
                   >
-                    {funnelData.length ? (
+                    {windowMetricData.length ? (
                       <div className="overview-chart">
                         <ResponsiveContainer>
-                          <FunnelChart>
+                          <BarChart data={windowMetricData} layout="vertical" margin={{ top: 8, right: 16, left: 24, bottom: 8 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                            <XAxis type="number" allowDecimals={false} />
+                            <YAxis type="category" dataKey="name" width={84} />
                             <Tooltip formatter={(value: number) => [value, '数量']} />
-                            <Funnel
-                              data={funnelData}
-                              dataKey="value"
-                              nameKey="name"
-                              isAnimationActive={false}
-                            >
-                              <LabelList dataKey="name" position="right" stroke="none" fill="#595959" />
-                              <LabelList dataKey="rateLabel" position="left" stroke="none" fill="#8c8c8c" />
-                              {funnelData.map((item) => (
+                            <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                              {windowMetricData.map((item) => (
                                 <Cell key={item.name} fill={item.fill} />
                               ))}
-                            </Funnel>
-                          </FunnelChart>
+                            </Bar>
+                          </BarChart>
                         </ResponsiveContainer>
                       </div>
                     ) : (
                       <div className="overview-chart-empty">
-                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无转化数据" />
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无窗口统计" />
                       </div>
                     )}
                   </Card>

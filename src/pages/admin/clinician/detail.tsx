@@ -288,7 +288,7 @@ const ClinicianDetailPage: React.FC = () => {
               <Tag color={clinician.is_active ? 'success' : 'error'}>{clinician.is_active ? '激活' : '停用'}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="受试者数">{clinician.assigned_testee_count}</Descriptions.Item>
-            <Descriptions.Item label="入口数">{clinician.assessment_entry_count}</Descriptions.Item>
+            <Descriptions.Item label="活跃入口">{clinician.assessment_entry_count}</Descriptions.Item>
           </Descriptions>
         )}
       </Card>
@@ -298,7 +298,7 @@ const ClinicianDetailPage: React.FC = () => {
       </Card>
 
       <Card
-        title="Assessment Entries"
+        title="入口列表"
         style={{ marginTop: 16 }}
         extra={
           <Button type="primary" onClick={() => setEntryModalVisible(true)}>
@@ -310,7 +310,7 @@ const ClinicianDetailPage: React.FC = () => {
       </Card>
 
       <Modal
-        title="创建 Assessment Entry"
+        title="创建入口"
         visible={entryModalVisible}
         onOk={handleCreateEntry}
         onCancel={() => {
