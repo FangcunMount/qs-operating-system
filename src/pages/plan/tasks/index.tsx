@@ -98,7 +98,7 @@ const TaskDetail: React.FC = () => {
     }
   }
 
-  const getStatusTag = (status: string) => {
+  const getStatusTag = (status: string, label?: string) => {
     const statusMap: Record<string, { color: string; text: string }> = {
       pending: { color: 'default', text: '待开放' },
       opened: { color: 'blue', text: '已开放' },
@@ -106,8 +106,22 @@ const TaskDetail: React.FC = () => {
       canceled: { color: 'red', text: '已取消' },
       expired: { color: 'orange', text: '已过期' }
     }
-    const config = statusMap[status] || { color: 'default', text: status }
-    return <Tag color={config.color}>{config.text}</Tag>
+    const config = statusMap[status] || { color: 'default', text: label || status }
+    return <Tag color={config.color}>{label || config.text}</Tag>
+  }
+
+  const renderScaleValue = (record: Pick<ITask, 'scale_code' | 'scale_title'>) => {
+    const scaleTitle = record.scale_title || record.scale_code
+    if (!record.scale_title || record.scale_title === record.scale_code) {
+      return scaleTitle
+    }
+
+    return (
+      <div>
+        <div>{scaleTitle}</div>
+        <div style={{ fontSize: 12, color: '#8c8c8c' }}>{record.scale_code}</div>
+      </div>
+    )
   }
 
   if (loading) {
@@ -144,13 +158,27 @@ const TaskDetail: React.FC = () => {
       </div>
 
       <Card style={{ marginBottom: 16 }}>
-        <Descriptions title="基本信息" bordered column={2}>
-          <Descriptions.Item label="任务ID">{task.id}</Descriptions.Item>
-          <Descriptions.Item label="状态">{getStatusTag(task.status)}</Descriptions.Item>
-          <Descriptions.Item label="计划ID">{task.plan_id}</Descriptions.Item>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 6 }}>任务概览</div>
+              <div style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.4 }}>{task.scale_title || task.scale_code}</div>
+              {task.scale_title && task.scale_title !== task.scale_code && (
+                <div style={{ fontSize: 13, color: '#8c8c8c', marginTop: 4 }}>量表编码：{task.scale_code}</div>
+              )}
+            </div>
+            <div>{getStatusTag(task.status, task.status_label)}</div>
+          </div>
+          <div style={{ fontSize: 12, color: '#8c8c8c', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <span>任务编号：{task.id}</span>
+            <span>计划编号：{task.plan_id}</span>
+            <span>机构 ID：{task.org_id}</span>
+          </div>
+        </div>
+        <Descriptions bordered column={2}>
+          <Descriptions.Item label="量表">{renderScaleValue(task)}</Descriptions.Item>
           <Descriptions.Item label="受试者ID">{task.testee_id}</Descriptions.Item>
-          <Descriptions.Item label="量表编码">{task.scale_code}</Descriptions.Item>
-          <Descriptions.Item label="机构ID">{task.org_id}</Descriptions.Item>
+          <Descriptions.Item label="状态">{getStatusTag(task.status, task.status_label)}</Descriptions.Item>
           <Descriptions.Item label="序号">{task.seq}</Descriptions.Item>
           <Descriptions.Item label="计划时间">{task.planned_at}</Descriptions.Item>
           {task.open_at && (

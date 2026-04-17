@@ -18,16 +18,16 @@ import { buildAssessmentEntryPublicLink, copyAssessmentEntryPublicLink, triggerA
 import { extractErrorMessage } from '@/utils/apiError'
 import { getScaleList, IScaleResponse } from '@/api/path/scale'
 import { listQuestionnaires, IQuestionnaireResponse } from '@/api/path/survey'
+import {
+  formatClinicianType,
+  formatGender,
+  formatRelationSource,
+  formatRelationType,
+  formatTargetType,
+  formatTesteeSource
+} from '@/utils/display'
 
 const { TabPane } = Tabs
-
-const relationTypeTextMap: Record<string, string> = {
-  primary: '主责',
-  attending: '跟进',
-  collaborator: '协作',
-  creator: '来源',
-  assigned: '跟进'
-}
 
 interface ClinicianWorkbenchPageProps {
   embedded?: boolean
@@ -56,6 +56,12 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewEntry, setPreviewEntry] = useState<IAssessmentEntry | null>(null)
   const [entryForm] = Form.useForm()
+  const renderClinicianTypeLabel = (item?: IClinician | null) => item?.clinician_type_label || formatClinicianType(item?.clinician_type)
+  const renderGenderLabel = (item?: ITestee) => item?.gender_label || formatGender(item?.gender)
+  const renderTesteeSourceLabel = (item?: ITestee) => item?.source_label || formatTesteeSource(item?.source)
+  const renderRelationTypeLabel = (item?: IClinicianRelationItem['relation']) => item?.relation_type_label || formatRelationType(item?.relation_type)
+  const renderRelationSourceLabel = (item?: IClinicianRelationItem['relation']) => item?.source_type_label || formatRelationSource(item?.source_type)
+  const renderTargetTypeLabel = (item?: IAssessmentEntry | null) => item?.target_type_label || formatTargetType(item?.target_type)
 
   const activeTab = useMemo(() => {
     if (location.pathname.endsWith('/testees')) return 'testees'
@@ -149,7 +155,7 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
       ])
 
       if (clinicianErr || !clinicianRes?.data) {
-        throw clinicianErr || new Error('获取 clinician 身份失败')
+        throw clinicianErr || new Error('获取临床人员身份失败')
       }
       setClinician(clinicianRes.data)
       setTestees(!testeeErr && testeeRes?.data ? testeeRes.data.items || [] : [])
@@ -160,7 +166,7 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
       setTesteeSummaryStats(!testeeSummaryErr && testeeSummaryRes?.data ? testeeSummaryRes.data : null)
     } catch (error) {
       console.error(error)
-      message.error('获取 clinician 工作台数据失败')
+      message.error('获取临床人员工作台数据失败')
     } finally {
       setLoading(false)
     }
@@ -256,7 +262,6 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
 
   const renderStatus = (value: boolean) => <Tag color={value ? 'success' : 'error'}>{value ? '启用' : '停用'}</Tag>
   const renderKeyFocus = (value: boolean) => (value ? <Tag color="gold">是</Tag> : <Tag>否</Tag>)
-  const renderRelationType = (value: string) => relationTypeTextMap[value] || value
   const renderExpiresAt = (value?: string) => value || '-'
 
   const renderTesteeAction = (_: unknown, record: ITestee) => (
@@ -298,8 +303,8 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
 
   const testeeColumns: ColumnsType<ITestee> = [
     { title: '姓名', dataIndex: 'name', key: 'name' },
-    { title: '性别', dataIndex: 'gender', key: 'gender', width: 80 },
-    { title: '来源', dataIndex: 'source', key: 'source', width: 120 },
+    { title: '性别', key: 'gender', width: 80, render: (_: unknown, record) => renderGenderLabel(record) },
+    { title: '来源', key: 'source', width: 120, render: (_: unknown, record) => renderTesteeSourceLabel(record) },
     { title: '重点关注', dataIndex: 'is_key_focus', key: 'is_key_focus', width: 100, render: renderKeyFocus },
     {
       title: '操作',
@@ -311,8 +316,8 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
 
   const relationColumns: ColumnsType<IClinicianRelationItem> = [
     { title: '受试者', dataIndex: ['testee', 'name'], key: 'testee_name' },
-    { title: '关系类型', dataIndex: ['relation', 'relation_type'], key: 'relation_type', width: 100, render: renderRelationType },
-    { title: '关系来源', dataIndex: ['relation', 'source_type'], key: 'source_type', width: 120 },
+    { title: '关系类型', key: 'relation_type', width: 100, render: (_: unknown, record) => renderRelationTypeLabel(record.relation) },
+    { title: '关系来源', key: 'source_type', width: 120, render: (_: unknown, record) => renderRelationSourceLabel(record.relation) },
     { title: '绑定时间', dataIndex: ['relation', 'bound_at'], key: 'bound_at', width: 180 },
     {
       title: '操作',
@@ -323,7 +328,7 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
   ]
 
   const entryColumns: ColumnsType<IAssessmentEntry> = [
-    { title: '目标类型', dataIndex: 'target_type', key: 'target_type', width: 100 },
+    { title: '目标类型', key: 'target_type', width: 100, render: (_: unknown, record) => renderTargetTypeLabel(record) },
     { title: '目标编码', dataIndex: 'target_code', key: 'target_code', width: 160 },
     { title: '版本', dataIndex: 'target_version', key: 'target_version', width: 120 },
     { title: '状态', dataIndex: 'is_active', key: 'is_active', width: 100, render: renderStatus },
@@ -365,7 +370,7 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
       {clinician && (
         <Descriptions bordered column={2}>
           <Descriptions.Item label="姓名">{clinician.name}</Descriptions.Item>
-          <Descriptions.Item label="类型">{clinician.clinician_type}</Descriptions.Item>
+          <Descriptions.Item label="类型">{renderClinicianTypeLabel(clinician)}</Descriptions.Item>
           <Descriptions.Item label="科室">{clinician.department || '-'}</Descriptions.Item>
           <Descriptions.Item label="职称">{clinician.title || '-'}</Descriptions.Item>
           <Descriptions.Item label="状态">
@@ -554,7 +559,7 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
                 style={{ maxWidth: '100%', maxHeight: 360, objectFit: 'contain' }}
               />
               <div style={{ marginTop: 12, color: '#666' }}>
-                目标：{previewEntry.target_type} / {previewEntry.target_code}
+                目标：{renderTargetTypeLabel(previewEntry)} / {previewEntry.target_code}
               </div>
               <div style={{ marginTop: 8, color: '#999', wordBreak: 'break-all' }}>
                 {buildAssessmentEntryPublicLink(previewEntry.token)}

@@ -165,6 +165,7 @@ export interface IQuestionnaireBatchStatisticsResponse {
 export interface IPeriodicTaskStatus {
   week: number
   status: 'completed' | 'pending' | 'overdue' | 'canceled'
+  status_label?: string
   completed_at?: string
   planned_at?: string
   due_date?: string

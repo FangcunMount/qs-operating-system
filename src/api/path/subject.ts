@@ -12,6 +12,8 @@ export interface IListTesteeRequest {
   profile_id?: string
   clinician_id?: string
   is_key_focus?: boolean
+  created_start_date?: string
+  created_end_date?: string
   page?: number
   page_size?: number
   [key: string]: any
@@ -22,6 +24,7 @@ export interface IAssessmentStats {
   total_count: number
   last_assessment_at?: string
   last_risk_level?: string
+  last_risk_level_label?: string
 }
 
 // 监护人信息
@@ -37,6 +40,7 @@ export interface ITesteeDetail {
   id: number // 受试者ID
   name: string // 姓名
   gender: string // 性别：male/female
+  gender_label?: string // 性别中文
   birthday?: string // 出生日期，格式：YYYY-MM-DD
   org_id: number // 机构ID
   profile_id?: number // 用户档案ID
@@ -44,8 +48,11 @@ export interface ITesteeDetail {
 
   // ===== 扩展信息 =====
   is_key_focus: boolean // 是否重点关注
+  is_key_focus_label?: string // 是否重点关注中文
   tags?: string[] // 标签列表
+  tags_label?: string[] // 标签中文
   source?: string // 来源
+  source_label?: string // 来源中文
 
   // ===== 监护人信息 =====
   guardians?: IGuardian[] // 监护人列表（建议后端新增此字段）
@@ -63,13 +70,17 @@ export interface ITestee {
   id: number
   name: string
   gender: string
+  gender_label?: string
   birthday?: string
   org_id: number
   profile_id?: number
   iam_child_id?: number
   is_key_focus: boolean
+  is_key_focus_label?: string
   source?: string
+  source_label?: string
   tags?: string[]
+  tags_label?: string[]
   assessment_stats?: IAssessmentStats
   created_at: string
   updated_at: string
@@ -102,6 +113,7 @@ export interface IFactorScoreInTest {
   t_score?: number // T分
   percentile?: number // 百分位
   risk_level?: string // 风险等级：normal/medium/high
+  risk_level_label?: string // 风险等级中文
 }
 
 // 单次测评记录（用于趋势分析）
@@ -110,6 +122,7 @@ export interface ITestRecord {
   test_date: string // 测评日期，格式：YYYY-MM-DD HH:mm:ss
   total_score: number // 总分
   risk_level: string // 风险等级：normal/medium/high
+  risk_level_label?: string // 风险等级中文
   result?: string // 结果描述
   factors: IFactorScoreInTest[] // 各因子得分
 }
@@ -133,6 +146,7 @@ export interface IScaleAnalysisResponse {
 export interface ITaskStatus {
   week: number // 第几周（从1开始）
   status: 'completed' | 'pending' | 'overdue' | 'canceled' // 状态
+  status_label?: string // 状态中文
   completed_at?: string // 完成时间，格式：YYYY-MM-DD HH:mm:ss
   planned_at?: string // 计划时间，格式：YYYY-MM-DD HH:mm:ss
   due_date?: string // 截止时间，格式：YYYY-MM-DD

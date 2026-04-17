@@ -4,12 +4,14 @@ import { Button, Card, Descriptions, Space, Tag, message } from 'antd'
 import { clinicianApi, IAssessmentEntry } from '@/api/path/clinician'
 import { buildAssessmentEntryPublicLink, copyAssessmentEntryPublicLink, triggerAssessmentEntryQRCodeDownload } from '@/utils/assessmentEntry'
 import { extractErrorMessage } from '@/utils/apiError'
+import { formatTargetType } from '@/utils/display'
 
 const AssessmentEntryDetailPage: React.FC = () => {
   const history = useHistory()
   const { id } = useParams<{ id: string }>()
   const [loading, setLoading] = useState(false)
   const [entry, setEntry] = useState<IAssessmentEntry | null>(null)
+  const targetTypeLabel = entry?.target_type_label || formatTargetType(entry?.target_type)
 
   const fetchEntry = async () => {
     setLoading(true)
@@ -82,11 +84,11 @@ const AssessmentEntryDetailPage: React.FC = () => {
           <Descriptions.Item label="入口 Token" span={2}>
             {entry.token}
           </Descriptions.Item>
-          <Descriptions.Item label="目标类型">{entry.target_type}</Descriptions.Item>
+          <Descriptions.Item label="目标类型">{targetTypeLabel}</Descriptions.Item>
           <Descriptions.Item label="目标编码">{entry.target_code}</Descriptions.Item>
           <Descriptions.Item label="目标版本">{entry.target_version || '-'}</Descriptions.Item>
           <Descriptions.Item label="状态">
-            <Tag color={entry.is_active ? 'success' : 'error'}>{entry.is_active ? '启用' : '停用'}</Tag>
+            <Tag color={entry.is_active ? 'success' : 'error'}>{entry.is_active_label || (entry.is_active ? '启用' : '停用')}</Tag>
           </Descriptions.Item>
           <Descriptions.Item label="过期时间" span={2}>
             {entry.expires_at || '长期有效'}

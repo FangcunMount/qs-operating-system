@@ -308,6 +308,8 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
     return typeMap[type] || type
   }
 
+  const getPlanScaleTitle = (plan: IPlan) => plan.scale_title || plan.scale_code
+
   return (
     <>
       <Card 
@@ -454,6 +456,7 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
                 if (!plan) return false
                 const searchText = input.toLowerCase()
                 return (
+                  getPlanScaleTitle(plan).toLowerCase().includes(searchText) ||
                   plan.scale_code.toLowerCase().includes(searchText) ||
                   getScheduleTypeText(plan.schedule_type).toLowerCase().includes(searchText)
                 )
@@ -463,9 +466,10 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
                 <Select.Option key={plan.id} value={plan.id}>
                   <div>
                     <div style={{ fontWeight: 500, marginBottom: 4 }}>
-                      量表编码: {plan.scale_code}
+                      {getPlanScaleTitle(plan)}
                     </div>
                     <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+                      {plan.scale_title && plan.scale_title !== plan.scale_code && `编码: ${plan.scale_code} | `}
                       调度类型: {getScheduleTypeText(plan.schedule_type)}
                       {plan.total_times && ` | 总次数: ${plan.total_times}`}
                       {plan.interval && ` | 间隔: ${plan.interval}${plan.schedule_type === 'by_week' ? '周' : '天'}`}

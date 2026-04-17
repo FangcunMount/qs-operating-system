@@ -2,6 +2,7 @@
 import React from 'react'
 import { Table, Button, Tag } from 'antd'
 import { ColumnType } from 'antd/es/table'
+import { formatSurveyStatus, getSurveyStatusColor } from '@/utils/display'
 
 interface SurveyRecord {
   id: string
@@ -41,11 +42,7 @@ const SurveyRecords: React.FC<SurveyRecordsProps> = ({ data, onViewDetail }) => 
       dataIndex: 'status',
       key: 'status',
       render: function renderSurveyStatus(status: string) {
-        return (
-          <Tag color={status === 'completed' ? 'success' : 'default'}>
-            {status === 'completed' ? '已完成' : '进行中'}
-          </Tag>
-        )
+        return <Tag color={getSurveyStatusColor(status)}>{formatSurveyStatus(status)}</Tag>
       }
     },
     {

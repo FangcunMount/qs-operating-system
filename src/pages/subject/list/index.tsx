@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AutoComplete, Button, Input, Select, Space, Tag, Switch, Tooltip, Spin, message } from 'antd'
+import { AutoComplete, Button, DatePicker, Input, Select, Space, Tag, Switch, Tooltip, Spin, message } from 'antd'
 import { SearchOutlined, StarOutlined, StarFilled } from '@ant-design/icons'
 import { useHistory } from 'react-router-dom'
+import moment from 'moment'
 import { testeeApi, ITestee } from '@/api/path/subject'
 import { statisticsApi, ITesteeStatistics } from '@/api/path/statistics'
 import { identityApi, IChildSuggestItem } from '@/api/path/identity'
@@ -10,7 +11,10 @@ import { LazyTable } from '@/components/lazyTable'
 import { getCurrentOrgId } from '@/utils/jwtClaims'
 import { extractErrorMessage } from '@/utils/apiError'
 import { rootStore } from '@/store'
+import { formatClinicianType, formatGender } from '@/utils/display'
 import './index.scss'
+
+const { RangePicker } = DatePicker
 
 interface ITesteeWithStats extends ITestee {
   statsLoading?: boolean
@@ -23,6 +27,7 @@ const SubjectList: React.FC = () => {
   const [isKeyFocusFilter, setIsKeyFocusFilter] = useState<boolean | undefined>(undefined)
   const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>(undefined)
   const [selectedClinicianId, setSelectedClinicianId] = useState<string | undefined>(undefined)
+  const [createdDateRange, setCreatedDateRange] = useState<[moment.Moment | null, moment.Moment | null] | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [loading, setLoading] = useState(false)
@@ -100,6 +105,8 @@ const SubjectList: React.FC = () => {
           profile_id: targetProfileId,
           clinician_id: selectedClinicianId,
           is_key_focus: isKeyFocusFilter,
+          created_start_date: createdDateRange?.[0]?.format('YYYY-MM-DD'),
+          created_end_date: createdDateRange?.[1]?.format('YYYY-MM-DD'),
           page: targetPage,
           page_size: targetPageSize
         }
@@ -126,7 +133,7 @@ const SubjectList: React.FC = () => {
         setLoading(false)
       }
     },
-    [isKeyFocusFilter, page, pageSize, selectedProfileId, selectedClinicianId]
+    [createdDateRange, isKeyFocusFilter, page, pageSize, selectedProfileId, selectedClinicianId]
   )
 
   useEffect(() => {
@@ -253,6 +260,21 @@ const SubjectList: React.FC = () => {
     [fetchData]
   )
 
+  const hasActiveFilters = useMemo(
+    () => Boolean(keyword || selectedProfileId || selectedClinicianId || isKeyFocusFilter !== undefined || createdDateRange),
+    [createdDateRange, isKeyFocusFilter, keyword, selectedClinicianId, selectedProfileId]
+  )
+
+  const resetFilters = useCallback(() => {
+    setKeyword('')
+    setSelectedProfileId(undefined)
+    setSelectedClinicianId(undefined)
+    setIsKeyFocusFilter(undefined)
+    setCreatedDateRange(null)
+    setChildSuggests([])
+    setPage(1)
+  }, [])
+
   const handleRowVisible = useCallback(
     (record: ITesteeWithStats) => {
       if (record.statsLoading || record.statsData !== undefined) return
@@ -288,13 +310,18 @@ const SubjectList: React.FC = () => {
         key: 'gender',
         width: 60,
         align: 'center' as const,
-        render: function renderGender(gender: string) {
+        render: function renderGender(gender: string, record: ITesteeWithStats) {
           const genderConfig = {
             male: { text: '男', class: 'male' },
             female: { text: '女', class: 'female' }
           }
+          if (record.gender_label) {
+            const config = genderConfig[gender as keyof typeof genderConfig]
+            if (config) return <div className={`gender-badge ${config.class}`}>{record.gender_label}</div>
+            return record.gender_label
+          }
           const config = genderConfig[gender as keyof typeof genderConfig]
-          if (!config) return gender
+          if (!config) return formatGender(gender)
           return <div className={`gender-badge ${config.class}`}>{config.text}</div>
         }
       },
@@ -314,17 +341,18 @@ const SubjectList: React.FC = () => {
         dataIndex: 'tags',
         key: 'tags',
         width: 200,
-        render: function renderTags(tags?: string[]) {
+        render: function renderTags(tags: string[] | undefined, record: ITesteeWithStats) {
+          const displayTags = record.tags_label || tags
           return (
             <div className="tag-list">
-              {tags && tags.length > 0 ? (
-                tags.slice(0, 3).map((tag, index) => <Tag key={index}>{tag}</Tag>)
+              {displayTags && displayTags.length > 0 ? (
+                displayTags.slice(0, 3).map((tag, index) => <Tag key={index}>{tag}</Tag>)
               ) : (
                 <span className="no-tags">暂无标签</span>
               )}
-              {tags && tags.length > 3 && (
-                <Tooltip title={tags.slice(3).join('、')}>
-                  <Tag>+{tags.length - 3}</Tag>
+              {displayTags && displayTags.length > 3 && (
+                <Tooltip title={displayTags.slice(3).join('、')}>
+                  <Tag>+{displayTags.length - 3}</Tag>
                 </Tooltip>
               )}
             </div>
@@ -378,6 +406,7 @@ const SubjectList: React.FC = () => {
 
           const totalCount = stats.total_count || 0
           const riskLevel = stats.last_risk_level
+          const riskLevelLabel = stats.last_risk_level_label
 
           return (
             <div className="stats-container">
@@ -387,7 +416,7 @@ const SubjectList: React.FC = () => {
               </div>
               {riskLevel && (
                 <div className="risk-level">
-                  <Tag color={getRiskLevelColor(riskLevel)}>{getRiskLevelText(riskLevel)}</Tag>
+                  <Tag color={getRiskLevelColor(riskLevel)}>{riskLevelLabel || getRiskLevelText(riskLevel)}</Tag>
                 </div>
               )}
             </div>
@@ -407,7 +436,7 @@ const SubjectList: React.FC = () => {
           if (record.statsData === undefined) return <span className="time-text no-data">未加载</span>
           if (record.statsData === null) return <span className="time-text no-data">未测评</span>
           if (!time) return <span className="time-text no-data">未测评</span>
-          return <span className="time-text">{time.replace('T', ' ').substring(0, 16)}</span>
+          return <span className="time-text">{time}</span>
         }
       },
       {
@@ -477,7 +506,7 @@ const SubjectList: React.FC = () => {
             <Select
               style={{ width: 220 }}
               allowClear
-              placeholder="按 Clinician 过滤"
+              placeholder="按临床人员过滤"
               value={selectedClinicianId}
               onChange={(value) => {
                 setSelectedClinicianId(value)
@@ -486,10 +515,27 @@ const SubjectList: React.FC = () => {
             >
               {clinicianOptions.map((item) => (
                 <Select.Option key={item.id} value={item.id}>
-                  {item.name} ({item.clinician_type})
+                  {item.name} ({formatClinicianType(item.clinician_type)})
                 </Select.Option>
               ))}
             </Select>
+          )}
+          <Space size={8}>
+            <span className="filter-label">报到时间</span>
+            <RangePicker
+              style={{ width: 260 }}
+              value={createdDateRange}
+              placeholder={['开始日期', '结束日期']}
+              onChange={(dates) => {
+                setCreatedDateRange((dates as [moment.Moment | null, moment.Moment | null] | null) ?? null)
+                setPage(1)
+              }}
+            />
+          </Space>
+          {hasActiveFilters && (
+            <Button onClick={resetFilters}>
+              重置筛选
+            </Button>
           )}
         </Space>
       </div>

@@ -132,33 +132,46 @@ const PlanList: React.FC = () => {
     }
   }
 
-  const getStatusTag = (status: string) => {
+  const getStatusTag = (status: string, label?: string) => {
     const statusMap: Record<string, { color: string; text: string }> = {
       active: { color: 'green', text: '进行中' },
       paused: { color: 'orange', text: '已暂停' },
       finished: { color: 'blue', text: '已完成' },
       canceled: { color: 'red', text: '已取消' }
     }
-    const config = statusMap[status] || { color: 'default', text: status }
-    return <Tag color={config.color}>{config.text}</Tag>
+    const config = statusMap[status] || { color: 'default', text: label || status }
+    const text = label || config.text
+    return <Tag color={config.color}>{text}</Tag>
   }
 
-  const getScheduleTypeText = (type: string) => {
+  const getScheduleTypeText = (type: string, label?: string) => {
     const typeMap: Record<string, string> = {
       by_week: '按周间隔',
       by_day: '按天间隔',
       fixed_date: '固定日期',
       custom: '自定义周次'
     }
-    return typeMap[type] || type
+    return label || typeMap[type] || type
   }
 
   const renderPlanId = (id: string) => (
     <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{id}</span>
   )
 
-  const renderScheduleType = (type: string) => (
-    <Tag icon={<CalendarOutlined />}>{getScheduleTypeText(type)}</Tag>
+  const renderScaleName = (record: IPlan) => {
+    const scaleTitle = record.scale_title || record.scale_code
+    const showCode = !!record.scale_title && record.scale_title !== record.scale_code
+
+    return (
+      <div>
+        <div>{scaleTitle}</div>
+        {showCode && <div style={{ fontSize: 12, color: '#8c8c8c' }}>{record.scale_code}</div>}
+      </div>
+    )
+  }
+
+  const renderScheduleType = (_: string, record: IPlan) => (
+    <Tag icon={<CalendarOutlined />}>{getScheduleTypeText(record.schedule_type, record.schedule_type_label)}</Tag>
   )
 
   const renderTriggerTime = (triggerTime?: string) => triggerTime || '19:00:00'
@@ -261,10 +274,11 @@ const PlanList: React.FC = () => {
       render: renderPlanId
     },
     {
-      title: '量表编码',
+      title: '量表名称',
       dataIndex: 'scale_code',
       key: 'scale_code',
-      width: 120
+      width: 180,
+      render: (_: string, record: IPlan) => renderScaleName(record)
     },
     {
       title: '调度类型',
@@ -300,7 +314,7 @@ const PlanList: React.FC = () => {
       key: 'status',
       width: 100,
       align: 'center' as const,
-      render: getStatusTag
+      render: (_: string, record: IPlan) => getStatusTag(record.status, record.status_label)
     },
     {
       title: '操作',
@@ -327,7 +341,7 @@ const PlanList: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
           <Space size="middle">
             <Search 
-              placeholder='搜索量表编码（如：3adyDE）'
+              placeholder='搜索量表（当前支持编码筛选，如 3adyDE）'
               allowClear 
               enterButton={<><SearchOutlined /> 搜索</>}
               size="large" 

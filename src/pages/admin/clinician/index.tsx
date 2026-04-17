@@ -247,10 +247,12 @@ const ClinicianManagement: React.FC = () => {
     { title: '姓名', dataIndex: 'name', key: 'name', width: 140 },
     {
       title: '类型',
-      dataIndex: 'clinician_type',
       key: 'clinician_type',
       width: 120,
-      render: (value: string) => clinicianTypeOptions.find((item) => item.value === value)?.label || value
+      render: (_: string, record: IClinician) =>
+        record.clinician_type_label ||
+        clinicianTypeOptions.find((item) => item.value === record.clinician_type)?.label ||
+        record.clinician_type
     },
     { title: '科室', dataIndex: 'department', key: 'department', width: 140 },
     { title: '职称', dataIndex: 'title', key: 'title', width: 140 },

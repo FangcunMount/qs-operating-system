@@ -17,13 +17,16 @@ export interface IPlan {
   id: string  // 计划ID
   org_id: number  // 机构ID
   scale_code: string  // 量表编码（如 "3adyDE"）
+  scale_title?: string  // 量表标题
   schedule_type: string  // 周期类型：by_week/by_day/fixed_date/custom
+  schedule_type_label?: string
   trigger_time: string  // 触发时间（HH:mm:ss）
   total_times?: number  // 总次数（用于 by_week/by_day）
   interval?: number  // 间隔（周/天，用于 by_week/by_day）
   fixed_dates?: string[]  // 固定日期列表（用于 fixed_date）
   relative_weeks?: number[]  // 相对周次列表（用于 custom）
   status: string  // 状态：active/paused/finished/canceled
+  status_label?: string
 }
 
 // 计划列表响应
@@ -73,8 +76,10 @@ export interface ITask {
   testee_id: string  // 受试者ID
   org_id: number  // 机构ID
   scale_code: string  // 量表编码（如 "3adyDE"）
+  scale_title?: string  // 量表标题
   seq: number  // 序号（计划内的第N次测评）
   status: string  // 状态：pending/opened/completed/expired/canceled
+  status_label?: string
   planned_at: string  // 计划时间点
   open_at?: string  // 实际开放时间
   expire_at?: string  // 截止时间

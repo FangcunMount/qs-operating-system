@@ -4,17 +4,10 @@ import type { ColumnsType } from 'antd/es/table'
 import { clinicianApi, IClinician, ITesteeClinicianRelationItem } from '@/api/path/clinician'
 import { getCurrentOrgId } from '@/utils/jwtClaims'
 import { extractErrorMessage } from '@/utils/apiError'
+import { formatClinicianType, formatRelationSource, formatRelationType } from '@/utils/display'
 
 interface Props {
   testeeId: string
-}
-
-const relationTypeTextMap: Record<string, string> = {
-  primary: '主责',
-  attending: '跟进',
-  collaborator: '协作',
-  creator: '来源',
-  assigned: '跟进'
 }
 
 const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
@@ -27,6 +20,12 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
   const [clinicians, setClinicians] = useState<IClinician[]>([])
   const [form] = Form.useForm()
   const [transferForm] = Form.useForm()
+  const renderClinicianTypeLabel = (item?: IClinician) =>
+    item?.clinician_type_label || formatClinicianType(item?.clinician_type)
+  const renderRelationTypeLabel = (item?: ITesteeClinicianRelationItem['relation']) =>
+    item?.relation_type_label || formatRelationType(item?.relation_type)
+  const renderRelationSourceLabel = (item?: ITesteeClinicianRelationItem['relation']) =>
+    item?.source_type_label || formatRelationSource(item?.source_type)
 
   const fetchData = async () => {
     if (!currentOrgId) {
@@ -164,13 +163,11 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
 
   const renderUnboundAt = (value?: string) => value || '-'
 
-  const renderRelationType = (value: string) => relationTypeTextMap[value] || value
-
   const activeColumns: ColumnsType<ITesteeClinicianRelationItem> = [
     { title: '临床人员', dataIndex: ['clinician', 'name'], key: 'name' },
-    { title: '类型', dataIndex: ['clinician', 'clinician_type'], key: 'clinician_type', width: 120 },
-    { title: '关系类型', dataIndex: ['relation', 'relation_type'], key: 'relation_type', width: 120, render: renderRelationType },
-    { title: '来源', dataIndex: ['relation', 'source_type'], key: 'source_type', width: 120 },
+    { title: '类型', key: 'clinician_type', width: 120, render: (_: unknown, record) => renderClinicianTypeLabel(record.clinician) },
+    { title: '关系类型', key: 'relation_type', width: 120, render: (_: unknown, record) => renderRelationTypeLabel(record.relation) },
+    { title: '来源', key: 'source_type', width: 120, render: (_: unknown, record) => renderRelationSourceLabel(record.relation) },
     { title: '创建时间', dataIndex: ['relation', 'bound_at'], key: 'bound_at', width: 180 },
     {
       title: '操作',
@@ -182,8 +179,8 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
 
   const historyColumns: ColumnsType<ITesteeClinicianRelationItem> = [
     { title: '临床人员', dataIndex: ['clinician', 'name'], key: 'name' },
-    { title: '关系类型', dataIndex: ['relation', 'relation_type'], key: 'relation_type', width: 120, render: renderRelationType },
-    { title: '来源', dataIndex: ['relation', 'source_type'], key: 'source_type', width: 120 },
+    { title: '关系类型', key: 'relation_type', width: 120, render: (_: unknown, record) => renderRelationTypeLabel(record.relation) },
+    { title: '来源', key: 'source_type', width: 120, render: (_: unknown, record) => renderRelationSourceLabel(record.relation) },
     {
       title: '状态',
       dataIndex: ['relation', 'is_active'],
@@ -198,7 +195,7 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
   return (
     <div>
       <Card
-        title="当前 Clinician 归属"
+        title="当前临床人员归属"
         extra={
           <div>
             <Button
@@ -209,7 +206,7 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
               {primaryRelation ? '转移主责' : '设置主责'}
             </Button>
             <Button type="primary" onClick={() => setAssignVisible(true)}>
-              分配 Clinician
+              分配临床人员
             </Button>
           </div>
         }
@@ -233,15 +230,15 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
         />
       </Card>
 
-      <Modal title="分配 Clinician" visible={assignVisible} onOk={handleAssign} onCancel={() => setAssignVisible(false)} destroyOnClose>
+      <Modal title="分配临床人员" visible={assignVisible} onOk={handleAssign} onCancel={() => setAssignVisible(false)} destroyOnClose>
         <Form layout="vertical" form={form}>
-          <Form.Item label="Clinician" name="clinician_id" rules={[{ required: true, message: '请选择 Clinician' }]}>
-            <Select showSearch optionFilterProp="children" placeholder="请选择 Clinician">
+          <Form.Item label="临床人员" name="clinician_id" rules={[{ required: true, message: '请选择临床人员' }]}>
+            <Select showSearch optionFilterProp="children" placeholder="请选择临床人员">
               {clinicians
                 .filter((item) => item.is_active)
                 .map((item) => (
                   <Select.Option key={item.id} value={item.id}>
-                    {item.name} ({item.clinician_type})
+                    {item.name} ({renderClinicianTypeLabel(item)})
                   </Select.Option>
                 ))}
             </Select>
@@ -257,20 +254,20 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
       </Modal>
 
       <Modal
-        title={primaryRelation ? '转移主责 Clinician' : '设置主责 Clinician'}
+        title={primaryRelation ? '转移主责临床人员' : '设置主责临床人员'}
         visible={transferVisible}
         onOk={handleTransferPrimary}
         onCancel={() => setTransferVisible(false)}
         destroyOnClose
       >
         <Form layout="vertical" form={transferForm}>
-          <Form.Item label="目标 Clinician" name="to_clinician_id" rules={[{ required: true, message: '请选择 Clinician' }]}>
-            <Select showSearch optionFilterProp="children" placeholder="请选择目标 Clinician">
+          <Form.Item label="目标临床人员" name="to_clinician_id" rules={[{ required: true, message: '请选择临床人员' }]}>
+            <Select showSearch optionFilterProp="children" placeholder="请选择目标临床人员">
               {clinicians
                 .filter((item) => item.is_active && (!primaryRelation || item.id !== primaryRelation.clinician.id))
                 .map((item) => (
                   <Select.Option key={item.id} value={item.id}>
-                    {item.name} ({item.clinician_type})
+                    {item.name} ({renderClinicianTypeLabel(item)})
                   </Select.Option>
                 ))}
             </Select>

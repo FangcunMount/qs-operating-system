@@ -173,16 +173,20 @@ const PlanCreate: React.FC = () => {
           >
             <Select
               showSearch
-              placeholder="请选择量表"
+              placeholder="请选择量表名称"
               loading={scaleLoading}
               filterOption={false}
               onSearch={handleScaleSearch}
+              optionLabelProp="label"
               notFoundContent={scaleLoading ? '加载中...' : '暂无数据'}
               style={{ width: '100%' }}
             >
               {scaleList.map((scale) => (
-                <Option key={scale.code} value={scale.code}>
-                  {scale.title} ({scale.code})
+                <Option key={scale.code} value={scale.code} label={scale.title}>
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{scale.title}</div>
+                    <div style={{ fontSize: 12, color: '#8c8c8c' }}>编码：{scale.code}</div>
+                  </div>
                 </Option>
               ))}
             </Select>

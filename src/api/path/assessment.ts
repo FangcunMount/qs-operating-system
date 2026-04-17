@@ -21,7 +21,9 @@ export interface IAssessment {
   questionnaire_version: string // 问卷版本
   total_score: number          // 总分
   risk_level: string           // 风险等级
+  risk_level_label?: string    // 风险等级中文
   status: string               // 状态
+  status_label?: string        // 状态中文
   submitted_at: string         // 提交时间
   interpreted_at?: string      // 解读时间
   failed_at?: string           // 失败时间
@@ -29,6 +31,7 @@ export interface IAssessment {
   org_id: string               // 组织ID
   origin_id?: string           // 来源ID
   origin_type?: string         // 来源类型
+  origin_type_label?: string   // 来源类型中文
 }
 
 // 测评列表响应
@@ -47,6 +50,7 @@ export interface IFactorScoreItem {
   raw_score: number
   max_score?: number
   risk_level?: string
+  risk_level_label?: string
   conclusion?: string
   suggestion?: string
   is_total_score?: boolean
@@ -69,6 +73,7 @@ export interface IScoreResponse {
   factor_scores: IFactorScoreItem[]
   total_score: number
   risk_level: string
+  risk_level_label?: string
 }
 
 // 维度项（根据 API 文档 response.DimensionItem）
@@ -78,6 +83,7 @@ export interface IDimensionItem {
   raw_score: number
   max_score?: number
   risk_level: string
+  risk_level_label?: string
   description?: string
   suggestion?: string
 }
@@ -96,6 +102,7 @@ export interface IReportResponse {
   created_at?: string
   dimensions: IDimensionItem[]
   risk_level: string
+  risk_level_label?: string
   scale_code: string
   scale_name: string
   suggestions: ISuggestionItem[]

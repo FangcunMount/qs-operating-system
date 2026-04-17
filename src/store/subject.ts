@@ -4,6 +4,7 @@ import * as subjectApi from '../api/path/subject'
 import { testeeApi } from '../api/path/subject'
 import { assessmentApi } from '../api/path/assessment'
 import { answerSheetApi } from '../api/path/answerSheet'
+import { formatAssessmentOriginType, formatGender, formatRiskLevel } from '@/utils/display'
 
 // 受试者详情页数据类型
 export interface Guardian {
@@ -226,7 +227,7 @@ class SubjectStore {
       const factors: FactorScore[] = scoreRes.data.factor_scores.map((factor) => ({
         name: factor.factor_name,
         score: factor.raw_score || 0,
-        level: factor.risk_level || '正常',
+        level: factor.risk_level_label || factor.risk_level || '正常',
         maxScore: factor.max_score,
         rawScore: factor.raw_score
       }))
@@ -344,10 +345,10 @@ class SubjectStore {
     // 转换基本信息
     const basicInfo: SubjectBasicInfo = {
       name: this.testeeInfo.name,
-      gender: this.testeeInfo.gender === 'male' ? '男' : this.testeeInfo.gender === 'female' ? '女' : this.testeeInfo.gender,
+      gender: this.testeeInfo.gender_label || formatGender(this.testeeInfo.gender),
       age: this.calculateAge(this.testeeInfo.birthday),
-      tags: this.testeeInfo.tags || [],
-      attentionLevel: this.testeeInfo.is_key_focus ? '重点关注' : '普通',
+      tags: this.testeeInfo.tags_label || this.testeeInfo.tags || [],
+      attentionLevel: this.testeeInfo.is_key_focus ? 'high' : 'low',
       guardians: (this.testeeInfo.guardians || []).map(g => ({
         name: g.name,
         relation: g.relation,
@@ -358,7 +359,7 @@ class SubjectStore {
     // 转换周期性统计
     const periodicStats: PeriodicProject[] = (this.periodicStats?.projects || []).map(project => ({
       id: project.project_id,
-      name: project.project_name,
+      name: project.project_name || project.scale_name || project.project_id,
       totalWeeks: project.total_weeks,
       completedWeeks: project.completed_weeks,
       completionRate: project.completion_rate,
@@ -383,7 +384,7 @@ class SubjectStore {
         factors: test.factors.map(factor => ({
           factorName: factor.factor_name,
           score: factor.raw_score,
-          level: factor.risk_level
+          level: factor.risk_level_label || factor.risk_level
         }))
       }))
     }))
@@ -394,9 +395,9 @@ class SubjectStore {
       scaleName: assessment.medical_scale_name || '未知量表',
       completedAt: assessment.submitted_at || assessment.interpreted_at || '',
       totalScore: parseFloat(assessment.total_score || '0'),
-      result: assessment.risk_level || 'normal',
+      result: assessment.risk_level_label || formatRiskLevel(assessment.risk_level),
       riskLevel: assessment.risk_level || 'normal',
-      source: assessment.origin_type || '未知来源',
+      source: assessment.origin_type_label || formatAssessmentOriginType(assessment.origin_type),
       factors: undefined
     }))
 

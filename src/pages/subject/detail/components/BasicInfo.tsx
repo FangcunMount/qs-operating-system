@@ -49,7 +49,12 @@ const BasicInfo: React.FC<BasicInfoProps> = ({ data, loading }) => {
       medium: { color: 'orange', text: '一般关注' },
       low: { color: 'green', text: '正常' }
     }
-    const config = levelConfig[data?.attentionLevel || 'low']
+    const normalizedLevel = data?.attentionLevel === '重点关注'
+      ? 'high'
+      : data?.attentionLevel === '普通'
+        ? 'low'
+        : (data?.attentionLevel || 'low')
+    const config = levelConfig[normalizedLevel]
     return <Tag color={config?.color}>{config?.text || '-'}</Tag>
   }
 

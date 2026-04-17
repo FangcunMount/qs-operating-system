@@ -11,8 +11,10 @@ export interface IClinician {
   department?: string
   title?: string
   clinician_type: string
+  clinician_type_label?: string
   employee_code?: string
   is_active: boolean
+  is_active_label?: string
   assigned_testee_count: number
   assessment_entry_count: number
 }
@@ -50,9 +52,11 @@ export interface IAssessmentEntry {
   clinician_id: string
   token: string
   target_type: string
+  target_type_label?: string
   target_code: string
   target_version?: string
   is_active: boolean
+  is_active_label?: string
   expires_at?: string
   qrcode_url?: string
 }
@@ -78,9 +82,12 @@ export interface IRelation {
   clinician_id: string
   testee_id: string
   relation_type: string
+  relation_type_label?: string
   source_type: string
+  source_type_label?: string
   source_id?: string
   is_active: boolean
+  is_active_label?: string
   bound_at: string
   unbound_at?: string
 }

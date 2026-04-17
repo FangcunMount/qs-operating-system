@@ -87,12 +87,12 @@ const AssessmentListPage: React.FC = () => {
     setPageSize(10)
   }
 
-  function renderStatusTag(value: string) {
-    return <Tag color={statusColorMap[value] || 'default'}>{statusTextMap[value] || value}</Tag>
+  function renderStatusTag(value: string, label?: string) {
+    return <Tag color={statusColorMap[value] || 'default'}>{label || statusTextMap[value] || value}</Tag>
   }
 
-  function renderRiskTag(value: string) {
-    return <Tag color={riskColorMap[value] || 'default'}>{value || '-'}</Tag>
+  function renderRiskTag(value: string, label?: string) {
+    return <Tag color={riskColorMap[value] || 'default'}>{label || value || '-'}</Tag>
   }
 
   function renderTimestamp(value?: string) {
@@ -121,14 +121,14 @@ const AssessmentListPage: React.FC = () => {
         dataIndex: 'status',
         key: 'status',
         width: 120,
-        render: renderStatusTag
+        render: (_: string, record: IAssessment) => renderStatusTag(record.status, record.status_label)
       },
       {
         title: '风险等级',
         dataIndex: 'risk_level',
         key: 'risk_level',
         width: 120,
-        render: renderRiskTag
+        render: (_: string, record: IAssessment) => renderRiskTag(record.risk_level, record.risk_level_label)
       },
       { title: '提交时间', dataIndex: 'submitted_at', key: 'submitted_at', width: 180 },
       { title: '解读时间', dataIndex: 'interpreted_at', key: 'interpreted_at', width: 180, render: renderTimestamp },

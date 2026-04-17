@@ -140,7 +140,7 @@ const SubjectDetail: React.FC = observer(() => {
           />
         </TabPane>
 
-        <TabPane tab="Clinician归属" key="4">
+        <TabPane tab="临床人员归属" key="4">
           <ClinicianRelationsTab testeeId={id} />
         </TabPane>
       </Tabs>

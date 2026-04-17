@@ -7,6 +7,14 @@ import { buildAssessmentEntryPublicLink, copyAssessmentEntryPublicLink, triggerA
 import { extractErrorMessage } from '@/utils/apiError'
 import { getScaleList, IScaleResponse } from '@/api/path/scale'
 import { listQuestionnaires, IQuestionnaireResponse } from '@/api/path/survey'
+import {
+  formatClinicianType,
+  formatGender,
+  formatRelationSource,
+  formatRelationType,
+  formatTargetType,
+  formatTesteeSource
+} from '@/utils/display'
 
 interface ITargetCodeOption {
   label: string
@@ -27,6 +35,12 @@ const ClinicianDetailPage: React.FC = () => {
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewEntry, setPreviewEntry] = useState<IAssessmentEntry | null>(null)
   const [entryForm] = Form.useForm()
+  const renderClinicianTypeLabel = (item?: IClinician | null) => item?.clinician_type_label || formatClinicianType(item?.clinician_type)
+  const renderGenderLabel = (item?: IClinicianRelationItem['testee']) => item?.gender_label || formatGender(item?.gender)
+  const renderTesteeSourceLabel = (item?: IClinicianRelationItem['testee']) => item?.source_label || formatTesteeSource(item?.source)
+  const renderRelationTypeLabel = (item?: IClinicianRelationItem['relation']) => item?.relation_type_label || formatRelationType(item?.relation_type)
+  const renderRelationSourceLabel = (item?: IClinicianRelationItem['relation']) => item?.source_type_label || formatRelationSource(item?.source_type)
+  const renderTargetTypeLabel = (item?: IAssessmentEntry | null) => item?.target_type_label || formatTargetType(item?.target_type)
 
   const targetTypeOptions = useMemo(
     () => [
@@ -188,14 +202,6 @@ const ClinicianDetailPage: React.FC = () => {
 
   const renderKeyFocus = (value: boolean) => (value ? <Tag color="gold">是</Tag> : <Tag>否</Tag>)
 
-  const relationTypeTextMap: Record<string, string> = {
-    primary: '主责',
-    attending: '跟进',
-    collaborator: '协作',
-    creator: '来源',
-    assigned: '跟进'
-  }
-
   const renderTesteeAction = (_: unknown, record: IClinicianRelationItem) => (
     <Button type="link" size="small" onClick={() => history.push(`/subject/detail/${record.testee.id}`)}>
       查看受试者
@@ -228,16 +234,15 @@ const ClinicianDetailPage: React.FC = () => {
 
   const testeeColumns: ColumnsType<IClinicianRelationItem> = [
     { title: '姓名', dataIndex: ['testee', 'name'], key: 'name' },
-    { title: '性别', dataIndex: ['testee', 'gender'], key: 'gender', width: 80 },
     {
       title: '关系类型',
-      dataIndex: ['relation', 'relation_type'],
       key: 'relation_type',
       width: 100,
-      render: (value: string) => relationTypeTextMap[value] || value
+      render: (_: unknown, record) => renderRelationTypeLabel(record.relation)
     },
-    { title: '关系来源', dataIndex: ['relation', 'source_type'], key: 'source_type', width: 120 },
-    { title: '受试者来源', dataIndex: ['testee', 'source'], key: 'source', width: 120 },
+    { title: '性别', key: 'gender', width: 80, render: (_: unknown, record) => renderGenderLabel(record.testee) },
+    { title: '关系来源', key: 'source_type', width: 120, render: (_: unknown, record) => renderRelationSourceLabel(record.relation) },
+    { title: '受试者来源', key: 'source', width: 120, render: (_: unknown, record) => renderTesteeSourceLabel(record.testee) },
     {
       title: '重点关注',
       dataIndex: ['testee', 'is_key_focus'],
@@ -255,7 +260,7 @@ const ClinicianDetailPage: React.FC = () => {
 
   const entryColumns: ColumnsType<IAssessmentEntry> = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 120 },
-    { title: '目标类型', dataIndex: 'target_type', key: 'target_type', width: 100 },
+    { title: '目标类型', key: 'target_type', width: 100, render: (_: unknown, record) => renderTargetTypeLabel(record) },
     { title: '目标编码', dataIndex: 'target_code', key: 'target_code', width: 180 },
     { title: '版本', dataIndex: 'target_version', key: 'target_version', width: 120 },
     {
@@ -280,7 +285,7 @@ const ClinicianDetailPage: React.FC = () => {
         {clinician && (
           <Descriptions bordered column={2}>
             <Descriptions.Item label="姓名">{clinician.name}</Descriptions.Item>
-            <Descriptions.Item label="类型">{clinician.clinician_type}</Descriptions.Item>
+            <Descriptions.Item label="类型">{renderClinicianTypeLabel(clinician)}</Descriptions.Item>
             <Descriptions.Item label="科室">{clinician.department || '-'}</Descriptions.Item>
             <Descriptions.Item label="职称">{clinician.title || '-'}</Descriptions.Item>
             <Descriptions.Item label="员工绑定">{clinician.operator_id ? `#${clinician.operator_id}` : '未绑定'}</Descriptions.Item>
@@ -380,7 +385,7 @@ const ClinicianDetailPage: React.FC = () => {
                 style={{ maxWidth: '100%', maxHeight: 360, objectFit: 'contain' }}
               />
               <div style={{ marginTop: 12, color: '#666' }}>
-                目标：{previewEntry.target_type} / {previewEntry.target_code}
+                目标：{renderTargetTypeLabel(previewEntry)} / {previewEntry.target_code}
               </div>
               <div style={{ marginTop: 8, color: '#999', wordBreak: 'break-all' }}>
                 {buildAssessmentEntryPublicLink(previewEntry.token)}

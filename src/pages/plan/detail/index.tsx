@@ -138,18 +138,18 @@ const PlanDetail: React.FC = () => {
     }
   }
 
-  const getStatusTag = (status: string) => {
+  const getStatusTag = (status: string, label?: string) => {
     const statusMap: Record<string, { color: string; text: string }> = {
       active: { color: 'green', text: '进行中' },
       paused: { color: 'orange', text: '已暂停' },
       finished: { color: 'blue', text: '已完成' },
       canceled: { color: 'red', text: '已取消' }
     }
-    const config = statusMap[status] || { color: 'default', text: status }
-    return <Tag color={config.color}>{config.text}</Tag>
+    const config = statusMap[status] || { color: 'default', text: label || status }
+    return <Tag color={config.color}>{label || config.text}</Tag>
   }
 
-  const getTaskStatusTag = (status: string) => {
+  const getTaskStatusTag = (status: string, label?: string) => {
     const statusMap: Record<string, { color: string; text: string }> = {
       pending: { color: 'default', text: '待开放' },
       opened: { color: 'blue', text: '已开放' },
@@ -157,18 +157,32 @@ const PlanDetail: React.FC = () => {
       canceled: { color: 'red', text: '已取消' },
       expired: { color: 'orange', text: '已过期' }
     }
-    const config = statusMap[status] || { color: 'default', text: status }
-    return <Tag color={config.color}>{config.text}</Tag>
+    const config = statusMap[status] || { color: 'default', text: label || status }
+    return <Tag color={config.color}>{label || config.text}</Tag>
   }
 
-  const getScheduleTypeText = (type: string) => {
+  const getScheduleTypeText = (type: string, label?: string) => {
     const typeMap: Record<string, string> = {
       by_week: '按周间隔',
       by_day: '按天间隔',
       fixed_date: '固定日期',
       custom: '自定义周次'
     }
-    return typeMap[type] || type
+    return label || typeMap[type] || type
+  }
+
+  const renderScaleValue = (record: Pick<IPlan, 'scale_code' | 'scale_title'>) => {
+    const scaleTitle = record.scale_title || record.scale_code
+    if (!record.scale_title || record.scale_title === record.scale_code) {
+      return scaleTitle
+    }
+
+    return (
+      <div>
+        <div>{scaleTitle}</div>
+        <div style={{ fontSize: 12, color: '#8c8c8c' }}>{record.scale_code}</div>
+      </div>
+    )
   }
 
   const renderTaskTime = (time?: string) => time || '-'
@@ -205,7 +219,7 @@ const PlanDetail: React.FC = () => {
       key: 'status',
       width: 100,
       align: 'center' as const,
-      render: getTaskStatusTag
+      render: (_: string, record: ITask) => getTaskStatusTag(record.status, record.status_label)
     },
     {
       title: '计划时间',
@@ -276,16 +290,30 @@ const PlanDetail: React.FC = () => {
       </div>
 
       <Card style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 6 }}>计划概览</div>
+              <div style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.4 }}>{plan.scale_title || plan.scale_code}</div>
+              {plan.scale_title && plan.scale_title !== plan.scale_code && (
+                <div style={{ fontSize: 13, color: '#8c8c8c', marginTop: 4 }}>量表编码：{plan.scale_code}</div>
+              )}
+            </div>
+            <div>{getStatusTag(plan.status, plan.status_label)}</div>
+          </div>
+          <div style={{ fontSize: 12, color: '#8c8c8c', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <span>计划编号：{plan.id}</span>
+            <span>机构 ID：{plan.org_id}</span>
+          </div>
+        </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-          <Descriptions title="基本信息" bordered column={2}>
-            <Descriptions.Item label="计划ID">{plan.id}</Descriptions.Item>
-            <Descriptions.Item label="状态">{getStatusTag(plan.status)}</Descriptions.Item>
-            <Descriptions.Item label="量表编码">{plan.scale_code}</Descriptions.Item>
-            <Descriptions.Item label="机构ID">{plan.org_id}</Descriptions.Item>
+          <Descriptions bordered column={2}>
             <Descriptions.Item label="调度类型">
-              <Tag icon={<CalendarOutlined />}>{getScheduleTypeText(plan.schedule_type)}</Tag>
+              <Tag icon={<CalendarOutlined />}>{getScheduleTypeText(plan.schedule_type, plan.schedule_type_label)}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="触发时间">{plan.trigger_time || '19:00:00'}</Descriptions.Item>
+            <Descriptions.Item label="量表">{renderScaleValue(plan)}</Descriptions.Item>
+            <Descriptions.Item label="状态">{getStatusTag(plan.status, plan.status_label)}</Descriptions.Item>
             {(plan.schedule_type === 'by_week' || plan.schedule_type === 'by_day') && plan.total_times && (
               <Descriptions.Item label="总次数">{plan.total_times}</Descriptions.Item>
             )}
