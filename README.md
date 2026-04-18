@@ -74,8 +74,64 @@ macOS/Linux 用户需要使用：
 
 - `/api/*` → `https://fangcunmount.cn`
 - `/oss/*` → `https://api.fangcunmount.cn`
+- `/internal/*` → `QS Server internal API`
 
 如需修改代理配置，请编辑 `src/setupProxy.js` 文件。
+
+## 缓存治理页
+
+项目已新增只读缓存治理页：
+
+- 页面路由：`/operations/cache-governance`
+- 依赖接口：
+  - `GET /internal/v1/cache/governance/status`
+  - `GET /internal/v1/cache/governance/hotset?kind=...&limit=...`
+
+页面职责固定为：
+
+- 展示当前缓存 family 状态
+- 展示最近一次 warmup 执行情况
+- 展示 hotset top-N 预览
+- 提供 Grafana 深链接查看时序趋势
+
+### Grafana 环境变量
+
+缓存治理页不会自己绘制历史趋势图，而是通过环境变量读取 Grafana 深链接。
+
+最少建议配置：
+
+```bash
+REACT_APP_GRAFANA_URL=https://grafana.example.com
+```
+
+可选补充：
+
+```bash
+REACT_APP_GRAFANA_CACHE_OVERVIEW_URL=https://grafana.example.com/d/cache-overview/qs-cache-overview
+REACT_APP_GRAFANA_CACHE_WORKER_LOCK_URL=https://grafana.example.com/d/cache-worker-lock/qs-cache-worker-lock
+REACT_APP_GRAFANA_CACHE_FAMILY_URL=https://grafana.example.com/d/cache-family/qs-cache-family
+REACT_APP_GRAFANA_CACHE_WARMUP_URL=https://grafana.example.com/d/cache-warmup/qs-cache-warmup
+REACT_APP_GRAFANA_CACHE_HOTSET_URL=https://grafana.example.com/d/cache-hotset/qs-cache-hotset
+REACT_APP_GRAFANA_CACHE_QUERY_VERSION_URL=https://grafana.example.com/d/cache-query-version/qs-cache-query-version
+```
+
+如果只配置 `REACT_APP_GRAFANA_URL`，页面会按固定 dashboard UID 自动拼出 6 个默认链接；如果单个 dashboard 需要覆盖，再使用对应的 `REACT_APP_GRAFANA_CACHE_*_URL`。
+
+如果上述变量都未配置，对应按钮会在页面中自动禁用。
+
+### 联调前提
+
+要让缓存治理页正常返回数据，需要同时满足：
+
+1. `qs-apiserver` 已启用 internal 缓存治理接口
+2. 当前 operating 登录用户具备 `org_admin` 能力
+3. operating 到 `qs-apiserver` 的 `/internal` 代理可用
+
+如果页面能进入但摘要区报错，优先检查：
+
+- `REACT_APP_QS_HOST` 是否正确
+- 浏览器请求 `/internal/v1/cache/governance/status` 是否返回 `code=0`
+- 当前登录态是否能访问 internal 接口
 
 ## 项目结构
 

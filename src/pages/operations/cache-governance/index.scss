@@ -1,0 +1,42 @@
+.cache-governance-page {
+  padding: 24px;
+
+  &__header {
+    width: 100%;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  &__section {
+    margin-top: 16px;
+  }
+
+  &__alert,
+  &__alert-stack {
+    margin-bottom: 16px;
+  }
+
+  &__descriptions {
+    margin-bottom: 16px;
+  }
+
+  &__row--degraded td {
+    background: #fff7e6;
+  }
+
+  &__row--unavailable td {
+    background: #fff1f0;
+  }
+}
+
+@media (max-width: 768px) {
+  .cache-governance-page {
+    padding: 16px;
+
+    &__header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+  }
+}

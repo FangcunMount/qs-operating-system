@@ -424,7 +424,17 @@ const SubjectList: React.FC = () => {
         }
       },
       {
-        title: '最近测评时间',
+        title: '报到日期',
+        dataIndex: 'created_at',
+        key: 'created_at',
+        width: 160,
+        render: function renderCreatedAt(created_at: string) {
+          if (!created_at) return <span className="time-text no-data">-</span>
+          return <span className="time-text">{moment(created_at).format('YYYY-MM-DD')}</span>
+        }
+      },
+      {
+        title: '最近测评日期',
         key: 'last_assessment_at',
         width: 160,
         render: function renderLastTime(_: any, record: ITesteeWithStats) {
@@ -436,7 +446,7 @@ const SubjectList: React.FC = () => {
           if (record.statsData === undefined) return <span className="time-text no-data">未加载</span>
           if (record.statsData === null) return <span className="time-text no-data">未测评</span>
           if (!time) return <span className="time-text no-data">未测评</span>
-          return <span className="time-text">{time}</span>
+          return <span className="time-text">{moment(time).format('YYYY-MM-DD')}</span>
         }
       },
       {

@@ -5,6 +5,7 @@ interface IConfigBase {
   host: string
   iamHost?: string
   qsHost?: string
+  grafanaURL?: string
   token?: string
 }
 
@@ -48,10 +49,12 @@ const base = configMap[envVersion]
 const iamHostFromEnv = process.env.REACT_APP_IAM_HOST
 const qsHostFromEnv = process.env.REACT_APP_QS_HOST
 const hostFromEnv = process.env.REACT_APP_HOST
+const grafanaURLFromEnv = process.env.REACT_APP_GRAFANA_URL
 
 const domain = base.domain || 'fangcunmount.cn'
 const iamHost = iamHostFromEnv || base.iamHost || `https://iam.${domain}/api/v1`
 const qsHost = qsHostFromEnv || base.qsHost || `https://qs.${domain}/api/v1`
+const grafanaURL = grafanaURLFromEnv || ''
 
 // 兼容旧代码：host 继续指向旧业务域名（不带 /api 前缀），供 /api/xxx 路径拼接
 const host = hostFromEnv || base.host || `//${domain}`
@@ -62,5 +65,6 @@ export const config: IConfigBase = {
   host,
   iamHost,
   qsHost,
+  grafanaURL,
   token: ''
 }
