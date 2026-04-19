@@ -7,6 +7,7 @@ import MainLayout from '@/components/layout/MainLayout'
 import { rootStore } from '@/store'
 import { hasRouteRoleAccess } from '@/utils/menuAccess'
 import { getDefaultLandingPath } from '@/utils/accessControl'
+import { hasStoredAuthSession } from '@/utils/jwtClaims'
 import type { IRoute } from '@/types/router'
 
 const NoPermission = lazy(() => import('@/pages/no-permission'))
@@ -27,7 +28,7 @@ const RouteAccess: React.FC<{ route: IRoute; children: React.ReactNode }> = obse
 
 const AuthenticatedApp: React.FC = observer(() => {
   const location = useLocation()
-  const hasToken = Boolean(localStorage.getItem('access_token') || localStorage.getItem('token'))
+  const hasToken = hasStoredAuthSession()
   const { userStore } = rootStore
 
   useEffect(() => {

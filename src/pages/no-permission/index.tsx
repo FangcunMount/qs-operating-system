@@ -3,10 +3,11 @@ import { observer } from 'mobx-react-lite'
 import { Result, Button, Spin } from 'antd'
 import { Redirect } from 'react-router-dom'
 import { rootStore } from '@/store'
+import { hasStoredAuthSession } from '@/utils/jwtClaims'
 
 const NoPermission: React.FC = observer(() => {
   const { userStore } = rootStore
-  const hasToken = Boolean(localStorage.getItem('access_token') || localStorage.getItem('token'))
+  const hasToken = hasStoredAuthSession()
 
   useEffect(() => {
     if (hasToken && !userStore.profileFetchDone && !userStore.loading) {

@@ -4,7 +4,14 @@ import { api } from '../api'
 import type { IUserProfile, IContact } from '../api/path/user'
 import { clinicianApi } from '@/api/path/clinician'
 import type { IClinician } from '@/api/path/clinician'
-import { parseJwtClaims, validateJwtClaims } from '@/utils/jwtClaims'
+import {
+  clearStoredTokens,
+  getStoredAccessToken,
+  getStoredRefreshToken,
+  parseJwtClaims,
+  persistTokenPair,
+  validateJwtClaims
+} from '@/utils/jwtClaims'
 import { buildAccessContext } from '@/utils/accessControl'
 
 // 导出类型供其他模块使用
@@ -183,11 +190,7 @@ class UserStore {
       }
       
       // 保存 token
-      localStorage.setItem('access_token', resp.data.access_token)
-      localStorage.setItem('token', resp.data.access_token)
-      if (resp.data.refresh_token) {
-        localStorage.setItem('refresh_token', resp.data.refresh_token)
-      }
+      persistTokenPair(resp.data.access_token, resp.data.refresh_token)
       
       runInAction(() => {
         this.isLoggedIn = true
@@ -209,8 +212,8 @@ class UserStore {
 
   // 登出
   async logout() {
-    const accessToken = localStorage.getItem('access_token') || localStorage.getItem('token') || undefined
-    const refreshToken = localStorage.getItem('refresh_token') || undefined
+    const accessToken = getStoredAccessToken() || undefined
+    const refreshToken = getStoredRefreshToken() || undefined
 
     try {
       await api.logout(accessToken, refreshToken)
@@ -223,12 +226,10 @@ class UserStore {
     this.profileFetchDone = false
     this.clinicianIdentity = null
     this.clinicianResolved = false
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    localStorage.removeItem('token')
+    clearStoredTokens()
     message.success('已退出登录')
     // 跳转到登录页面
-    window.location.href = '/user/login'
+    window.location.replace('/user/login')
   }
 
   // 重置状态
@@ -239,9 +240,7 @@ class UserStore {
     this.profileFetchDone = false
     this.clinicianIdentity = null
     this.clinicianResolved = false
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    localStorage.removeItem('token')
+    clearStoredTokens()
   }
 }
 

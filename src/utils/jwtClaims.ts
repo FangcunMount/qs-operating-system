@@ -62,6 +62,28 @@ export function getStoredAccessToken(): string {
   return localStorage.getItem('access_token') || localStorage.getItem('token') || config.token || ''
 }
 
+export function getStoredRefreshToken(): string {
+  return localStorage.getItem('refresh_token') || ''
+}
+
+export function hasStoredAuthSession(): boolean {
+  return Boolean(localStorage.getItem('access_token') || localStorage.getItem('token'))
+}
+
+export function persistTokenPair(accessToken: string, refreshToken?: string): void {
+  localStorage.setItem('access_token', accessToken)
+  localStorage.setItem('token', accessToken)
+  if (refreshToken) {
+    localStorage.setItem('refresh_token', refreshToken)
+  }
+}
+
+export function clearStoredTokens(): void {
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('refresh_token')
+  localStorage.removeItem('token')
+}
+
 export function getStoredJwtClaims(): IJwtClaims | null {
   const token = getStoredAccessToken()
   if (!token) {
