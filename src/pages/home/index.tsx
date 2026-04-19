@@ -196,6 +196,10 @@ const Home: React.FC = observer(() => {
       description: userStore.accessContext.isClinician ? '查看我的受试者、测评记录与相关统计' : '查看受试者、测评记录、计划与统计',
       color: '#722ed1'
     },
+    'system-governance': {
+      description: '查看缓存治理与平台运行状态',
+      color: '#fa8c16'
+    },
     content: { description: '管理问卷和量表内容', color: '#1890ff' },
     'clinician-workbench': { description: '进入我的受试者、关系和入口工作区', color: '#52c41a' },
     'organization-management': { description: '管理员工、临床人员、权限和资源', color: '#f5222d' }

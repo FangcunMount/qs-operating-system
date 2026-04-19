@@ -171,7 +171,17 @@ export const routes: Array<IRoute> = [
         component: StatisticsCenter,
         menuScope: 'org_admin',
         requiredCapabilities: ['org_admin']
-      },
+      }
+    ]
+  },
+  {
+    title: '系统治理',
+    name: 'system-governance',
+    path: '/governance',
+    icon: createIcon(AuditOutlined),
+    menuScope: 'org_admin',
+    requiredCapabilities: ['org_admin'],
+    children: [
       {
         title: '缓存治理',
         name: 'cache-governance',
