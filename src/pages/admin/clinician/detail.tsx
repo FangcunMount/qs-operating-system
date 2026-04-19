@@ -41,6 +41,7 @@ const ClinicianDetailPage: React.FC = () => {
   const renderRelationTypeLabel = (item?: IClinicianRelationItem['relation']) => item?.relation_type_label || formatRelationType(item?.relation_type)
   const renderRelationSourceLabel = (item?: IClinicianRelationItem['relation']) => item?.source_type_label || formatRelationSource(item?.source_type)
   const renderTargetTypeLabel = (item?: IAssessmentEntry | null) => item?.target_type_label || formatTargetType(item?.target_type)
+  const primaryEntry = useMemo(() => entries.find((item) => item.is_active) || entries[0] || null, [entries])
 
   const targetTypeOptions = useMemo(
     () => [
@@ -295,6 +296,34 @@ const ClinicianDetailPage: React.FC = () => {
             <Descriptions.Item label="受试者数">{clinician.assigned_testee_count}</Descriptions.Item>
             <Descriptions.Item label="活跃入口">{clinician.assessment_entry_count}</Descriptions.Item>
           </Descriptions>
+        )}
+      </Card>
+
+      <Card
+        title="当前入口二维码"
+        style={{ marginTop: 16 }}
+        extra={
+          primaryEntry ? (
+            <Space size="small">
+              <Button onClick={() => handlePreviewEntryQRCode(primaryEntry)}>查看二维码</Button>
+              <Button type="primary" onClick={() => handleDownloadEntryQRCode(primaryEntry)}>
+                下载二维码
+              </Button>
+            </Space>
+          ) : null
+        }
+      >
+        {primaryEntry ? (
+          <Descriptions bordered column={2}>
+            <Descriptions.Item label="入口 ID">{primaryEntry.id}</Descriptions.Item>
+            <Descriptions.Item label="状态">{renderEntryStatus(primaryEntry.is_active)}</Descriptions.Item>
+            <Descriptions.Item label="目标类型">{renderTargetTypeLabel(primaryEntry)}</Descriptions.Item>
+            <Descriptions.Item label="目标编码">{primaryEntry.target_code}</Descriptions.Item>
+            <Descriptions.Item label="版本">{primaryEntry.target_version || '-'}</Descriptions.Item>
+            <Descriptions.Item label="公开链接">{buildAssessmentEntryPublicLink(primaryEntry.token)}</Descriptions.Item>
+          </Descriptions>
+        ) : (
+          <div style={{ color: '#999' }}>当前临床人员暂无可用入口，请先创建入口。</div>
         )}
       </Card>
 

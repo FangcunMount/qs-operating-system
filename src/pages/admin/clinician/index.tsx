@@ -3,10 +3,11 @@ import { Alert, Button, Card, Form, Input, Modal, Popconfirm, Radio, Select, Spa
 import { PlusOutlined } from '@ant-design/icons'
 import { useHistory } from 'react-router-dom'
 import type { ColumnsType } from 'antd/es/table'
-import { clinicianApi, IClinician } from '@/api/path/clinician'
+import { clinicianApi, IAssessmentEntry, IClinician } from '@/api/path/clinician'
 import { staffApi, IStaff } from '@/api/path/staff'
 import { getCurrentOrgId } from '@/utils/jwtClaims'
 import { extractErrorMessage } from '@/utils/apiError'
+import { buildAssessmentEntryPublicLink, copyAssessmentEntryPublicLink, triggerAssessmentEntryQRCodeDownload } from '@/utils/assessmentEntry'
 import './index.scss'
 
 const { Option } = Select
@@ -22,6 +23,10 @@ const ClinicianManagement: React.FC = () => {
   const [bindVisible, setBindVisible] = useState(false)
   const [editingItem, setEditingItem] = useState<IClinician | null>(null)
   const [bindingItem, setBindingItem] = useState<IClinician | null>(null)
+  const [previewVisible, setPreviewVisible] = useState(false)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewClinician, setPreviewClinician] = useState<IClinician | null>(null)
+  const [previewEntry, setPreviewEntry] = useState<IAssessmentEntry | null>(null)
   const [staffOptions, setStaffOptions] = useState<IStaff[]>([])
   const [form] = Form.useForm()
   const [bindForm] = Form.useForm()
@@ -217,10 +222,72 @@ const ClinicianManagement: React.FC = () => {
     return <span>{staff?.name || `员工#${record.operator_id}`}</span>
   }
 
+  const resolveClinicianQRCodeEntry = async (clinician: IClinician) => {
+    const [listError, listResponse] = await clinicianApi.listClinicianAssessmentEntries(clinician.id, { page: 1, page_size: 100 })
+    if (listError || !listResponse?.data) {
+      throw listError || new Error('获取临床人员入口失败')
+    }
+
+    const items = listResponse.data.items || []
+    const candidate = items.find((item) => item.is_active) || items[0]
+    if (!candidate) {
+      throw new Error('当前临床人员暂无入口')
+    }
+    if (candidate.qrcode_url) {
+      return candidate
+    }
+
+    const [detailError, detailResponse] = await clinicianApi.getAssessmentEntry(candidate.id)
+    if (detailError || !detailResponse?.data) {
+      throw detailError || new Error('获取入口二维码失败')
+    }
+    return detailResponse.data
+  }
+
+  const handlePreviewQRCode = async (clinician: IClinician) => {
+    setPreviewClinician(clinician)
+    setPreviewEntry(null)
+    setPreviewVisible(true)
+    setPreviewLoading(true)
+    try {
+      const entry = await resolveClinicianQRCodeEntry(clinician)
+      if (!entry.qrcode_url) {
+        throw new Error('当前入口未生成微信小程序码')
+      }
+      setPreviewEntry(entry)
+    } catch (error) {
+      console.error(error)
+      setPreviewVisible(false)
+      message.error(extractErrorMessage(error, '获取临床人员二维码失败'))
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  const handleDownloadQRCode = async (clinician: IClinician) => {
+    try {
+      const entry = await resolveClinicianQRCodeEntry(clinician)
+      if (!entry.qrcode_url) {
+        throw new Error('当前入口未生成微信小程序码')
+      }
+      triggerAssessmentEntryQRCodeDownload(entry.qrcode_url, `clinician-${clinician.id}-assessment-entry-${entry.id}.png`)
+      message.success('已开始下载微信小程序码')
+    } catch (error) {
+      console.error(error)
+      message.error(extractErrorMessage(error, '下载临床人员二维码失败'))
+    }
+  }
+
   const renderAction = (_: unknown, record: IClinician) => (
     <Space size="small" wrap>
       <Button type="link" size="small" onClick={() => history.push(`/admin/clinicians/${record.id}`)}>
         详情
+      </Button>
+      <Button type="link" size="small" onClick={() => handlePreviewQRCode(record)} disabled={record.assessment_entry_count <= 0}>
+        查看二维码
+      </Button>
+      <Button type="link" size="small" onClick={() => handleDownloadQRCode(record)} disabled={record.assessment_entry_count <= 0}>
+        下载二维码
       </Button>
       <Button type="link" size="small" onClick={() => handleOpenEdit(record)}>
         编辑
@@ -366,6 +433,49 @@ const ClinicianManagement: React.FC = () => {
             </Select>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={previewClinician ? `微信小程序码 · ${previewClinician.name}` : '微信小程序码'}
+        visible={previewVisible}
+        footer={previewEntry ? [
+          <Button key="copy" onClick={() => copyAssessmentEntryPublicLink(previewEntry.token)}>
+            复制链接
+          </Button>,
+          <Button key="detail" onClick={() => previewClinician && history.push(`/admin/clinicians/${previewClinician.id}`)}>
+            查看详情
+          </Button>,
+          <Button key="download" type="primary" onClick={() => previewClinician && handleDownloadQRCode(previewClinician)}>
+            下载二维码
+          </Button>
+        ] : null}
+        onCancel={() => {
+          setPreviewVisible(false)
+          setPreviewLoading(false)
+          setPreviewClinician(null)
+          setPreviewEntry(null)
+        }}
+        destroyOnClose
+      >
+        <Card loading={previewLoading} bordered={false}>
+          {previewEntry?.qrcode_url ? (
+            <div style={{ textAlign: 'center' }}>
+              <img
+                src={previewEntry.qrcode_url}
+                alt="微信小程序码"
+                style={{ maxWidth: '100%', maxHeight: 360, objectFit: 'contain' }}
+              />
+              <div style={{ marginTop: 12, color: '#666' }}>
+                入口目标：{previewEntry.target_type} / {previewEntry.target_code}
+              </div>
+              <div style={{ marginTop: 8, color: '#999', wordBreak: 'break-all' }}>
+                {buildAssessmentEntryPublicLink(previewEntry.token)}
+              </div>
+            </div>
+          ) : !previewLoading ? (
+            <div style={{ textAlign: 'center', color: '#999' }}>暂无可预览的小程序码</div>
+          ) : null}
+        </Card>
       </Modal>
     </div>
   )
