@@ -175,24 +175,6 @@ export const routes: Array<IRoute> = [
     ]
   },
   {
-    title: '系统治理',
-    name: 'system-governance',
-    path: '/governance',
-    icon: createIcon(AuditOutlined),
-    menuScope: 'org_admin',
-    requiredCapabilities: ['org_admin'],
-    children: [
-      {
-        title: '缓存治理',
-        name: 'cache-governance',
-        path: '/operations/cache-governance',
-        component: CacheGovernance,
-        menuScope: 'org_admin',
-        requiredCapabilities: ['org_admin']
-      }
-    ]
-  },
-  {
     title: '内容管理',
     name: 'content',
     path: '/template',
@@ -349,25 +331,6 @@ export const routes: Array<IRoute> = [
     ]
   },
   {
-    title: '入校筛查',
-    name: 'screening',
-    path: '/screening/list',
-    icon: createIcon(AuditOutlined),
-    component: ScreeningList,
-    hideInMenu: true,
-    menuScope: 'hidden',
-    requiredCapabilities: ['org_admin']
-  },
-  {
-    title: '筛查项目详情',
-    name: 'screening-detail',
-    path: '/screening/detail/:id',
-    component: ScreeningDetail,
-    hideInMenu: true,
-    menuScope: 'hidden',
-    requiredCapabilities: ['org_admin']
-  },
-  {
     title: '用户中心',
     name: 'user',
     path: '/user',
@@ -489,5 +452,23 @@ export const routes: Array<IRoute> = [
         requiredCapabilities: ['org_admin']
       }
     ]
-  }
+  },
+  {
+    title: '系统治理',
+    name: 'system-governance',
+    path: '/governance',
+    icon: createIcon(AuditOutlined),
+    menuScope: 'org_admin',
+    requiredCapabilities: ['org_admin'],
+    children: [
+      {
+        title: '缓存治理',
+        name: 'cache-governance',
+        path: '/operations/cache-governance',
+        component: CacheGovernance,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['org_admin']
+      }
+    ]
+  },
 ]
