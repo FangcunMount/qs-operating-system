@@ -76,7 +76,7 @@ export const scaleStore = makeObservable(
     desc: scaleInit.desc,
     img_url: scaleInit.img_url,
     category: '', // 主类：ADHD、抽动障碍、感统、执行功能、心理健康、神经发育筛查、慢性病管理、生活质量
-    stages: [] as string[], // 阶段列表（数组）：screening(筛查)、deep_assessment(深评)、follow_up(随访)、outcome(结局)
+    stages: [] as string[], // 阶段列表（数组）：deep_assessment(深评)、follow_up(随访)、outcome(结局)
     applicable_ages: [] as string[], // 使用年龄列表（数组）：infant(婴幼儿)、preschool(学龄前)、school_child(学龄儿童)、adolescent(青少年)、adult(成人)
     reporters: [] as string[], // 填报人列表（数组）：parent(家长评)、teacher(教师评)、self(自评)、clinical(临床评定)
     tags: [] as string[], // 标签数组（动态输入）

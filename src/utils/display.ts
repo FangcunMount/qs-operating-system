@@ -35,7 +35,6 @@ const testeeSourceTextMap: Record<string, string> = {
   self_registered: '自主注册',
   self_register: '自主注册',
   intake: '接入流程',
-  screening: '筛查',
   wechat: '微信',
   wx: '微信',
   seeddata: '种子数据'

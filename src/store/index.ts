@@ -8,7 +8,6 @@ import { questionSheetListStore } from './questionSheetListStore'
 import { answerSheetStore } from './answerSheetStore'
 import { statisticsStore } from './statisticsStore'
 import { subjectStore } from './subject'
-import { screeningStore } from './screening'
 import { surveyStore } from './surveyStore'
 import { scaleStore } from './scaleStore'
 import { staffStore } from './staffStore'
@@ -24,7 +23,6 @@ export {
   statisticsStore,
   analysisStore,
   subjectStore,
-  screeningStore,
   surveyStore,
   scaleStore,
   staffStore
@@ -46,7 +44,6 @@ export const rootStore = {
   
   // 新模块的 store
   subjectStore,
-  screeningStore,
   
   // 问卷和量表的 store
   surveyStore,
