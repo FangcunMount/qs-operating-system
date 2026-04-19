@@ -182,6 +182,7 @@ jobs:
           build-args: |
             REACT_APP_BUILD_SHA=${{ github.sha }}
             REACT_APP_BUILD_REF=${{ github.ref_name }}
+            REACT_APP_GRAFANA_URL=${{ vars.REACT_APP_GRAFANA_URL != '' && vars.REACT_APP_GRAFANA_URL || secrets.REACT_APP_GRAFANA_URL }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
