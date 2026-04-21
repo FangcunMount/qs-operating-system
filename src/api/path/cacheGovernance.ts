@@ -11,8 +11,17 @@ export const CACHE_GOVERNANCE_HOTSET_KINDS = [
   'query.stats_plan'
 ] as const
 
+export const CACHE_GOVERNANCE_WARMUP_KINDS = [
+  'static.scale',
+  'static.questionnaire',
+  'static.scale_list',
+  'query.stats_system',
+  'query.stats_questionnaire',
+  'query.stats_plan'
+] as const
+
 export type CacheGovernanceHotsetKind = typeof CACHE_GOVERNANCE_HOTSET_KINDS[number]
-export type CacheGovernanceWarmupKind = typeof CACHE_GOVERNANCE_HOTSET_KINDS[number]
+export type CacheGovernanceWarmupKind = typeof CACHE_GOVERNANCE_WARMUP_KINDS[number]
 
 export interface ICacheGovernanceSummary {
   family_total: number

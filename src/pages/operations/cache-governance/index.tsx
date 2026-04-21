@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useMemo } from 'react'
 import {
   Alert,
   Button,
@@ -8,7 +8,6 @@ import {
   Empty,
   Input,
   InputNumber,
-  message,
   Modal,
   Row,
   Select,
@@ -30,35 +29,25 @@ import {
 import moment from 'moment'
 import {
   CACHE_GOVERNANCE_HOTSET_KINDS,
+  CACHE_GOVERNANCE_WARMUP_KINDS,
   CacheGovernanceHotsetKind,
   CacheGovernanceWarmupKind,
-  getCacheGovernanceHotset,
   getCacheGovernanceLinks,
-  getCacheGovernanceStatus,
   ICacheGovernanceFamilyStatus,
-  ICacheGovernanceHotsetResponse,
   ICacheGovernanceManualWarmupItemResult,
-  ICacheGovernanceManualWarmupResult,
-  ICacheGovernanceManualWarmupTarget,
-  ICacheGovernanceStatusResponse,
-  ICacheGovernanceWarmupRun,
-  postCacheGovernanceWarmupTargets
+  ICacheGovernanceWarmupRun
 } from '@/api/path/cacheGovernance'
-import { extractErrorMessage } from '@/utils/apiError'
 import { getCurrentOrgId } from '@/utils/jwtClaims'
+import { useBoundedPolling } from './hooks/useBoundedPolling'
+import { useCacheGovernanceStatus } from './hooks/useCacheGovernanceStatus'
+import { useManualWarmup } from './hooks/useManualWarmup'
+import { getWarmupScopePlaceholder } from './utils'
 import './index.scss'
 
 const { Title, Text } = Typography
 
-const HOTSET_LIMIT = 20
 const STATUS_POLL_INTERVAL_MS = 30000
 const DEFAULT_STATUS_POLL_LIMIT = 10
-const getInitialPageVisible = () => (typeof document === 'undefined' ? true : document.visibilityState === 'visible')
-
-const DEFAULT_MANUAL_WARMUP_TARGET: ICacheGovernanceManualWarmupTarget = {
-  kind: 'static.scale',
-  scope: ''
-}
 
 const FAMILY_LABELS: Record<string, string> = {
   static_meta: 'Static',
@@ -69,8 +58,6 @@ const FAMILY_LABELS: Record<string, string> = {
   lock_lease: 'Lock',
   ops_runtime: 'Ops'
 }
-
-const FAMILY_ORDER = ['static_meta', 'object_view', 'query_result', 'meta_hotset', 'sdk_token', 'lock_lease']
 
 const GRAFANA_LINK_LABELS: Record<string, string> = {
   overview: '查看 Grafana 缓存总览',
@@ -128,258 +115,59 @@ const renderHotsetScope = (value: string) => (
   </Tooltip>
 )
 
-const getWarmupScopePlaceholder = (kind: CacheGovernanceWarmupKind, orgId?: number) => {
-  switch (kind) {
-  case 'static.scale':
-    return 'scale:S-001'
-  case 'static.questionnaire':
-    return 'questionnaire:Q-001'
-  case 'static.scale_list':
-    return 'published'
-  case 'query.stats_system':
-    return `org:${orgId || 1}`
-  case 'query.stats_questionnaire':
-    return `org:${orgId || 1}:questionnaire:Q-001`
-  case 'query.stats_plan':
-    return `org:${orgId || 1}:plan:123`
-  default:
-    return ''
-  }
-}
-
-const getScopeOrgId = (kind: CacheGovernanceWarmupKind, scope: string): number | undefined => {
-  let match: RegExpMatchArray | null = null
-  if (kind === 'query.stats_system') {
-    match = scope.match(/^org:(\d+)$/)
-  }
-  if (kind === 'query.stats_questionnaire') {
-    match = scope.match(/^org:(\d+):questionnaire:[^:\s]+$/)
-  }
-  if (kind === 'query.stats_plan') {
-    match = scope.match(/^org:(\d+):plan:[^:\s]+$/)
-  }
-  if (!match) {
-    return undefined
-  }
-  const orgId = Number(match[1])
-  return Number.isSafeInteger(orgId) ? orgId : undefined
-}
-
-const validateManualWarmupTargets = (
-  targets: ICacheGovernanceManualWarmupTarget[],
-  currentOrgId?: number
-): { validTargets?: ICacheGovernanceManualWarmupTarget[]; message?: string } => {
-  if (!targets.length) {
-    return { message: '至少添加一个预热目标' }
-  }
-
-  const validTargets = targets.map((item) => ({
-    kind: item.kind,
-    scope: item.scope.trim()
-  }))
-
-  for (let index = 0; index < validTargets.length; index += 1) {
-    const item = validTargets[index]
-    const prefix = `第 ${index + 1} 个目标`
-
-    if (!CACHE_GOVERNANCE_HOTSET_KINDS.includes(item.kind)) {
-      return { message: `${prefix} 的预热类型不受支持` }
-    }
-
-    if (!item.scope) {
-      return { message: `${prefix} 的 scope 不能为空` }
-    }
-
-    switch (item.kind) {
-    case 'static.scale':
-      if (!/^scale:[^:\s]+$/.test(item.scope)) {
-        return { message: `${prefix} 的 scope 必须形如 scale:S-001` }
-      }
-      break
-    case 'static.questionnaire':
-      if (!/^questionnaire:[^:\s]+$/.test(item.scope)) {
-        return { message: `${prefix} 的 scope 必须形如 questionnaire:Q-001` }
-      }
-      break
-    case 'static.scale_list':
-      if (item.scope !== 'published') {
-        return { message: `${prefix} 的 scope 目前只支持 published` }
-      }
-      break
-    case 'query.stats_system':
-      if (!/^org:(\d+)$/.test(item.scope)) {
-        return { message: `${prefix} 的 scope 必须形如 org:1` }
-      }
-      break
-    case 'query.stats_questionnaire':
-      if (!/^org:(\d+):questionnaire:[^:\s]+$/.test(item.scope)) {
-        return { message: `${prefix} 的 scope 必须形如 org:1:questionnaire:Q-001` }
-      }
-      break
-    case 'query.stats_plan':
-      if (!/^org:(\d+):plan:[^:\s]+$/.test(item.scope)) {
-        return { message: `${prefix} 的 scope 必须形如 org:1:plan:123` }
-      }
-      break
-    default:
-      return { message: `${prefix} 的预热类型不受支持` }
-    }
-
-    if (item.kind.startsWith('query.')) {
-      const scopeOrgId = getScopeOrgId(item.kind, item.scope)
-      if (!currentOrgId) {
-        return { message: `${prefix} 需要当前登录态具备受保护组织上下文` }
-      }
-      if (!scopeOrgId || scopeOrgId !== currentOrgId) {
-        return { message: `${prefix} 的 org 必须与当前组织 ${currentOrgId} 完全一致` }
-      }
-    }
-  }
-
-  return { validTargets }
-}
-
 const CacheGovernancePage: React.FC = () => {
-  const [status, setStatus] = useState<ICacheGovernanceStatusResponse | null>(null)
-  const [statusLoading, setStatusLoading] = useState(false)
-  const [statusError, setStatusError] = useState('')
-  const [selectedKind, setSelectedKind] = useState<CacheGovernanceHotsetKind>('query.stats_system')
-  const [hotset, setHotset] = useState<ICacheGovernanceHotsetResponse | null>(null)
-  const [hotsetLoading, setHotsetLoading] = useState(false)
-  const [hotsetError, setHotsetError] = useState('')
-  const [manualWarmupVisible, setManualWarmupVisible] = useState(false)
-  const [manualWarmupSubmitting, setManualWarmupSubmitting] = useState(false)
-  const [manualWarmupError, setManualWarmupError] = useState('')
-  const [manualWarmupResult, setManualWarmupResult] = useState<ICacheGovernanceManualWarmupResult | null>(null)
-  const [manualWarmupTargets, setManualWarmupTargets] = useState<ICacheGovernanceManualWarmupTarget[]>([
-    { ...DEFAULT_MANUAL_WARMUP_TARGET }
-  ])
-  const [pollingEnabled, setPollingEnabled] = useState(false)
-  const [pollingLimit, setPollingLimit] = useState(DEFAULT_STATUS_POLL_LIMIT)
-  const [pollingCount, setPollingCount] = useState(0)
-  const [pageVisible, setPageVisible] = useState(getInitialPageVisible)
-  const hotsetSelectionInitializedRef = useRef(false)
-
-  const grafanaLinks = useMemo(() => getCacheGovernanceLinks(), [])
   const currentOrgId = getCurrentOrgId()
+  const grafanaLinks = useMemo(() => getCacheGovernanceLinks(), [])
 
-  const loadStatus = useCallback(async (silent = false) => {
-    if (!silent) {
-      setStatusLoading(true)
-    }
-    const [error, response] = await getCacheGovernanceStatus()
-    if (error || !response?.data) {
-      setStatusError(extractErrorMessage(error, '获取缓存治理状态失败'))
-      if (!silent) {
-        setStatusLoading(false)
-      }
-      return
-    }
-    setStatus(response.data)
-    setStatusError('')
-    if (!silent) {
-      setStatusLoading(false)
-    }
-  }, [])
+  const {
+    status,
+    statusLoading,
+    statusError,
+    selectedKind,
+    setSelectedKind,
+    hotset,
+    hotsetLoading,
+    hotsetError,
+    families,
+    warmupRuns,
+    summary,
+    queryDegraded,
+    metaDegraded,
+    disableHotsetPreview,
+    loadStatus,
+    loadHotset,
+    refreshAll
+  } = useCacheGovernanceStatus()
 
-  const loadHotset = useCallback(async (kind: CacheGovernanceHotsetKind, silent = false) => {
-    if (!silent) {
-      setHotsetLoading(true)
-    }
-    const [error, response] = await getCacheGovernanceHotset(kind, HOTSET_LIMIT)
-    if (error || !response?.data) {
-      setHotsetError(extractErrorMessage(error, '获取热点预览失败'))
-      if (!silent) {
-        setHotsetLoading(false)
-      }
-      return
-    }
-    setHotset(response.data)
-    setHotsetError('')
-    if (!silent) {
-      setHotsetLoading(false)
-    }
-  }, [])
+  const {
+    pollingEnabled,
+    pollingLimit,
+    pollingCount,
+    pollingPausedByVisibility,
+    handlePollingToggle,
+    handlePollingLimitChange
+  } = useBoundedPolling({
+    intervalMs: STATUS_POLL_INTERVAL_MS,
+    defaultLimit: DEFAULT_STATUS_POLL_LIMIT,
+    onTick: () => loadStatus(true)
+  })
 
-  useEffect(() => {
-    loadStatus()
-  }, [loadStatus])
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      setPageVisible(document.visibilityState === 'visible')
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!pollingEnabled) {
-      return undefined
-    }
-    if (!pageVisible) {
-      return undefined
-    }
-    if (pollingCount >= pollingLimit) {
-      setPollingEnabled(false)
-      message.info(`缓存治理轮询已达到上限 ${pollingLimit} 次，已自动停止`)
-      return undefined
-    }
-
-    const timer = window.setTimeout(() => {
-      loadStatus(true)
-      setPollingCount((current) => current + 1)
-    }, STATUS_POLL_INTERVAL_MS)
-
-    return () => window.clearTimeout(timer)
-  }, [loadStatus, pageVisible, pollingCount, pollingEnabled, pollingLimit])
-
-  useEffect(() => {
-    if (!hotsetSelectionInitializedRef.current) {
-      hotsetSelectionInitializedRef.current = true
-      return
-    }
-    loadHotset(selectedKind)
-  }, [loadHotset, selectedKind])
-
-  const refreshAll = useCallback(() => {
-    loadStatus()
-    loadHotset(selectedKind)
-  }, [loadHotset, loadStatus, selectedKind])
-
-  const handlePollingToggle = useCallback((checked: boolean) => {
-    if (checked) {
-      loadStatus(true)
-      setPollingCount(1)
-      setPollingEnabled(true)
-      return
-    }
-    setPollingEnabled(false)
-  }, [loadStatus])
-
-  const handlePollingLimitChange = useCallback((value: number | null) => {
-    if (!value || !Number.isFinite(value)) {
-      return
-    }
-    setPollingLimit(Math.max(1, Math.floor(value)))
-  }, [])
-
-  const families = useMemo(() => {
-    const items = status?.families || []
-    return [...items].sort((left, right) => {
-      const leftIndex = FAMILY_ORDER.indexOf(left.family)
-      const rightIndex = FAMILY_ORDER.indexOf(right.family)
-      const normalizedLeft = leftIndex === -1 ? 99 : leftIndex
-      const normalizedRight = rightIndex === -1 ? 99 : rightIndex
-      if (normalizedLeft === normalizedRight) {
-        return left.family.localeCompare(right.family)
-      }
-      return normalizedLeft - normalizedRight
-    })
-  }, [status?.families])
+  const {
+    manualWarmupVisible,
+    manualWarmupSubmitting,
+    manualWarmupError,
+    manualWarmupResult,
+    manualWarmupTargets,
+    openManualWarmupModal,
+    closeManualWarmupModal,
+    addManualWarmupTarget,
+    removeManualWarmupTarget,
+    updateManualWarmupTarget,
+    submitManualWarmup
+  } = useManualWarmup({
+    currentOrgId,
+    onFinished: () => loadStatus(true)
+  })
 
   const familyColumns = useMemo<ColumnsType<ICacheGovernanceFamilyStatus>>(
     () => [
@@ -523,87 +311,6 @@ const CacheGovernancePage: React.FC = () => {
     ],
     []
   )
-
-  const updateManualWarmupTarget = useCallback((index: number, patch: Partial<ICacheGovernanceManualWarmupTarget>) => {
-    setManualWarmupTargets((current) => current.map((item, itemIndex) => {
-      if (itemIndex !== index) {
-        return item
-      }
-      return { ...item, ...patch }
-    }))
-  }, [])
-
-  const addManualWarmupTarget = useCallback(() => {
-    setManualWarmupTargets((current) => [...current, { ...DEFAULT_MANUAL_WARMUP_TARGET }])
-  }, [])
-
-  const removeManualWarmupTarget = useCallback((index: number) => {
-    setManualWarmupTargets((current) => {
-      if (current.length <= 1) {
-        return current
-      }
-      return current.filter((_item, itemIndex) => itemIndex !== index)
-    })
-  }, [])
-
-  const openManualWarmupModal = useCallback(() => {
-    setManualWarmupVisible(true)
-    setManualWarmupError('')
-    setManualWarmupResult(null)
-    setManualWarmupTargets([{ ...DEFAULT_MANUAL_WARMUP_TARGET }])
-  }, [])
-
-  const closeManualWarmupModal = useCallback(() => {
-    if (manualWarmupSubmitting) {
-      return
-    }
-    setManualWarmupVisible(false)
-  }, [manualWarmupSubmitting])
-
-  const submitManualWarmup = useCallback(async () => {
-    const validation = validateManualWarmupTargets(manualWarmupTargets, currentOrgId)
-    if (!validation.validTargets) {
-      const validationMessage = validation.message || '手工预热请求不合法'
-      setManualWarmupError(validationMessage)
-      message.error(validationMessage)
-      return
-    }
-
-    setManualWarmupSubmitting(true)
-    setManualWarmupError('')
-    const [error, response] = await postCacheGovernanceWarmupTargets({ targets: validation.validTargets })
-    if (error || !response?.data) {
-      const errorMessage = extractErrorMessage(error, '手工预热执行失败')
-      setManualWarmupError(errorMessage)
-      setManualWarmupSubmitting(false)
-      return
-    }
-
-    setManualWarmupResult(response.data)
-    await loadStatus(true)
-    setManualWarmupSubmitting(false)
-
-    if (response.data.summary.result === 'ok') {
-      message.success('手工预热执行完成')
-      return
-    }
-    if (response.data.summary.result === 'partial') {
-      message.warning('手工预热已执行完成，但存在部分失败项')
-      return
-    }
-    if (response.data.summary.result === 'skipped') {
-      message.info('手工预热已执行完成，目标全部被跳过')
-      return
-    }
-    message.warning('手工预热已执行完成，请检查明细结果')
-  }, [currentOrgId, loadStatus, manualWarmupTargets])
-
-  const warmupRuns = status?.warmup?.latest_runs || []
-  const summary = status?.summary
-  const queryDegraded = families.some((item) => item.family === 'query_result' && item.degraded)
-  const metaDegraded = families.some((item) => item.family === 'meta_hotset' && item.degraded)
-  const disableHotsetPreview = Boolean(statusError)
-  const pollingPausedByVisibility = pollingEnabled && !pageVisible
 
   return (
     <div className="cache-governance-page">
@@ -809,7 +516,7 @@ const CacheGovernancePage: React.FC = () => {
         okText="执行预热"
         cancelText="关闭"
         confirmLoading={manualWarmupSubmitting}
-        onOk={submitManualWarmup}
+        onOk={() => { void submitManualWarmup() }}
         onCancel={closeManualWarmupModal}
       >
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -837,7 +544,7 @@ const CacheGovernancePage: React.FC = () => {
                   style={{ width: 220 }}
                   onChange={(value) => updateManualWarmupTarget(index, { kind: value, scope: '' })}
                 >
-                  {CACHE_GOVERNANCE_HOTSET_KINDS.map((kind) => (
+                  {CACHE_GOVERNANCE_WARMUP_KINDS.map((kind) => (
                     <Select.Option key={kind} value={kind}>
                       {kind}
                     </Select.Option>
