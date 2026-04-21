@@ -20,6 +20,39 @@
     margin-bottom: 16px;
   }
 
+  &__polling-control {
+    padding: 6px 10px;
+    border: 1px solid #f0f0f0;
+    border-radius: 8px;
+    background: #fafafa;
+  }
+
+  &__manual-target-row {
+    display: flex;
+    width: 100%;
+    margin-bottom: 12px;
+  }
+
+  &__manual-target-input {
+    flex: 1;
+    min-width: 280px;
+  }
+
+  &__manual-target-actions {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 8px;
+    margin-bottom: 8px;
+  }
+
+  &__manual-result {
+    margin-top: 8px;
+  }
+
+  &__manual-result-summary {
+    margin-bottom: 16px;
+  }
+
   &__row--degraded td {
     background: #fff7e6;
   }
@@ -37,6 +70,29 @@
       flex-direction: column;
       align-items: flex-start;
       gap: 12px;
+    }
+
+    &__polling-control {
+      width: 100%;
+      justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+
+    &__manual-target-row {
+      display: block;
+
+      .ant-select,
+      .ant-input,
+      .ant-btn {
+        width: 100% !important;
+        margin-bottom: 8px;
+      }
+    }
+
+    &__manual-target-actions {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 8px;
     }
   }
 }

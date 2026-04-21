@@ -1,4 +1,4 @@
-import { internalGet } from '../qsServer'
+import { internalGet, internalPost } from '../qsServer'
 import { config } from '@/config/config'
 import type { QSResponse } from '@/types/qs'
 
@@ -12,14 +12,14 @@ export const CACHE_GOVERNANCE_HOTSET_KINDS = [
 ] as const
 
 export type CacheGovernanceHotsetKind = typeof CACHE_GOVERNANCE_HOTSET_KINDS[number]
+export type CacheGovernanceWarmupKind = typeof CACHE_GOVERNANCE_HOTSET_KINDS[number]
 
 export interface ICacheGovernanceSummary {
   family_total: number
   available_count: number
   degraded_count: number
   unavailable_count: number
-  warmup_enabled: boolean
-  hotset_enabled: boolean
+  ready: boolean
 }
 
 export interface ICacheGovernanceFamilyStatus {
@@ -66,6 +66,7 @@ export interface ICacheGovernanceWarmupConfig {
 
 export interface ICacheGovernanceStatusResponse {
   generated_at?: string
+  component?: string
   summary: ICacheGovernanceSummary
   families: ICacheGovernanceFamilyStatus[]
   warmup: ICacheGovernanceWarmupConfig
@@ -84,6 +85,39 @@ export interface ICacheGovernanceHotsetResponse {
   degraded: boolean
   message?: string
   items: ICacheGovernanceHotsetItem[]
+}
+
+export interface ICacheGovernanceManualWarmupTarget {
+  kind: CacheGovernanceWarmupKind
+  scope: string
+}
+
+export interface ICacheGovernanceManualWarmupRequest {
+  targets: ICacheGovernanceManualWarmupTarget[]
+}
+
+export interface ICacheGovernanceManualWarmupSummary {
+  target_count: number
+  ok_count: number
+  skipped_count: number
+  error_count: number
+  result: string
+}
+
+export interface ICacheGovernanceManualWarmupItemResult {
+  family: string
+  kind: string
+  scope: string
+  status: 'ok' | 'skipped' | 'error'
+  message: string
+}
+
+export interface ICacheGovernanceManualWarmupResult {
+  trigger: string
+  started_at?: string
+  finished_at?: string
+  summary: ICacheGovernanceManualWarmupSummary
+  items: ICacheGovernanceManualWarmupItemResult[]
 }
 
 export interface ICacheGovernanceLinks {
@@ -131,6 +165,11 @@ export const getCacheGovernanceHotset = (
   limit = 20
 ): Promise<[any, QSResponse<ICacheGovernanceHotsetResponse> | undefined]> =>
   internalGet<ICacheGovernanceHotsetResponse>('/cache/governance/hotset', { kind, limit })
+
+export const postCacheGovernanceWarmupTargets = (
+  data: ICacheGovernanceManualWarmupRequest
+): Promise<[any, QSResponse<ICacheGovernanceManualWarmupResult> | undefined]> =>
+  internalPost<ICacheGovernanceManualWarmupResult>('/cache/governance/warmup-targets', data)
 
 export const getCacheGovernanceLinks = (): ICacheGovernanceLinks => ({
   overview: resolveGrafanaLink(process.env.REACT_APP_GRAFANA_CACHE_OVERVIEW_URL, GRAFANA_DASHBOARD_PATHS.overview),
