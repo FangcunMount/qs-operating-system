@@ -21,10 +21,18 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
+  AppstoreOutlined,
+  AreaChartOutlined,
+  ClusterOutlined,
   DashboardOutlined,
   DeleteOutlined,
+  FireOutlined,
+  InfoCircleOutlined,
+  LockOutlined,
   PlusOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  SyncOutlined,
+  ThunderboltOutlined
 } from '@ant-design/icons'
 import moment from 'moment'
 import {
@@ -33,6 +41,7 @@ import {
   CacheGovernanceHotsetKind,
   CacheGovernanceWarmupKind,
   getCacheGovernanceLinks,
+  ICacheGovernanceLinks,
   ICacheGovernanceFamilyStatus,
   ICacheGovernanceManualWarmupItemResult,
   ICacheGovernanceWarmupRun
@@ -44,28 +53,57 @@ import { useManualWarmup } from './hooks/useManualWarmup'
 import { getWarmupScopePlaceholder } from './utils'
 import './index.scss'
 
-const { Text, Title } = Typography
+const { Paragraph, Text, Title } = Typography
 
 const STATUS_POLL_INTERVAL_MS = 30000
 const DEFAULT_STATUS_POLL_LIMIT = 10
 
 const FAMILY_LABELS: Record<string, string> = {
-  static_meta: 'Static',
-  object_view: 'Object',
-  query_result: 'Query',
-  meta_hotset: 'Meta',
-  sdk_token: 'SDK',
-  lock_lease: 'Lock',
-  ops_runtime: 'Ops'
+  static_meta: '静态元数据',
+  object_view: '对象视图',
+  query_result: '查询结果',
+  meta_hotset: '热点元数据',
+  sdk_token: 'SDK 令牌',
+  lock_lease: '锁租约',
+  ops_runtime: '运行态'
 }
 
-const GRAFANA_LINK_LABELS: Record<string, string> = {
-  overview: '查看 Grafana 缓存总览',
-  family: 'Family 状态趋势',
-  warmup: 'Warmup 运行趋势',
-  hotset: 'Hotset 热度趋势',
-  query_version: 'Version Token 观测',
-  worker_lock: '查看 Grafana Worker 锁治理'
+const COMPONENT_LABELS: Record<string, string> = {
+  apiserver: 'qs-apiserver',
+  worker: 'qs-worker',
+  'collection-server': 'qs-collection-server'
+}
+
+const KIND_LABELS: Record<string, string> = {
+  'static.scale': '静态量表',
+  'static.questionnaire': '静态问卷',
+  'static.scale_list': '量表列表',
+  'query.stats_system': '系统统计查询',
+  'query.stats_questionnaire': '问卷统计查询',
+  'query.stats_plan': '计划统计查询'
+}
+
+const GRAFANA_LINK_ORDER: Array<keyof ICacheGovernanceLinks> = [
+  'overview',
+  'family',
+  'warmup',
+  'hotset',
+  'query_version',
+  'worker_lock'
+]
+
+const GRAFANA_LINK_META: Record<keyof ICacheGovernanceLinks, { label: string; icon: React.ReactNode }> = {
+  overview: { label: 'Grafana 全局缓存趋势', icon: <AreaChartOutlined /> },
+  family: { label: 'Grafana 缓存族趋势', icon: <AppstoreOutlined /> },
+  warmup: { label: 'Grafana 预热趋势', icon: <ThunderboltOutlined /> },
+  hotset: { label: 'Grafana 热点趋势', icon: <FireOutlined /> },
+  query_version: { label: 'Grafana 版本令牌趋势', icon: <SyncOutlined /> },
+  worker_lock: { label: 'Grafana Worker 锁趋势', icon: <LockOutlined /> }
+}
+
+const formatComponentLabel = (value?: string) => {
+  if (!value) return 'qs-apiserver'
+  return COMPONENT_LABELS[value] || value
 }
 
 const formatDateTime = (value?: string) => {
@@ -81,15 +119,15 @@ const renderBooleanTag = (value: boolean, positiveText = '是', negativeText = '
 const renderModeTag = (mode: string) => {
   switch (mode) {
   case 'named_profile':
-    return <Tag color="blue">named_profile</Tag>
+    return <Tag color="blue">命名配置</Tag>
   case 'fallback_default':
-    return <Tag color="orange">fallback_default</Tag>
+    return <Tag color="orange">回退默认</Tag>
   case 'degraded':
-    return <Tag color="red">degraded</Tag>
+    return <Tag color="red">降级</Tag>
   case 'disabled':
-    return <Tag color="default">disabled</Tag>
+    return <Tag color="default">已禁用</Tag>
   default:
-    return <Tag color="green">{mode || 'default'}</Tag>
+    return <Tag color="green">{mode || '默认'}</Tag>
   }
 }
 
@@ -101,12 +139,14 @@ const renderTooltipText = (value?: string) => (
 
 const renderWarmupResultTag = (value: string) => {
   const color = value === 'ok' ? 'green' : value === 'partial' ? 'orange' : value === 'skipped' ? 'default' : 'red'
-  return <Tag color={color}>{value}</Tag>
+  const label = value === 'ok' ? '成功' : value === 'partial' ? '部分成功' : value === 'skipped' ? '已跳过' : '失败'
+  return <Tag color={color}>{label}</Tag>
 }
 
 const renderManualWarmupItemStatusTag = (value: ICacheGovernanceManualWarmupItemResult['status']) => {
   const color = value === 'ok' ? 'green' : value === 'skipped' ? 'default' : 'red'
-  return <Tag color={color}>{value}</Tag>
+  const label = value === 'ok' ? '成功' : value === 'skipped' ? '跳过' : '失败'
+  return <Tag color={color}>{label}</Tag>
 }
 
 const renderHotsetScope = (value: string) => (
@@ -172,15 +212,15 @@ const CacheGovernancePage: React.FC = () => {
   const familyColumns = useMemo<ColumnsType<ICacheGovernanceFamilyStatus>>(
     () => [
       {
-        title: 'Family',
+        title: '缓存族',
         dataIndex: 'family',
         key: 'family',
         width: 150,
         render: (value: string) => FAMILY_LABELS[value] || value
       },
-      { title: 'Profile', dataIndex: 'profile', key: 'profile', width: 140, render: (value: string) => value || '-' },
+      { title: '配置档', dataIndex: 'profile', key: 'profile', width: 140, render: (value: string) => value || '-' },
       {
-        title: 'Namespace',
+        title: '命名空间',
         dataIndex: 'namespace',
         key: 'namespace',
         width: 220,
@@ -188,55 +228,55 @@ const CacheGovernancePage: React.FC = () => {
         render: renderTooltipText
       },
       {
-        title: 'Mode',
+        title: '路由模式',
         dataIndex: 'mode',
         key: 'mode',
         width: 140,
         render: (value: string) => renderModeTag(value)
       },
       {
-        title: 'Available',
+        title: '可用',
         dataIndex: 'available',
         key: 'available',
         width: 110,
         render: (value: boolean) => renderBooleanTag(value)
       },
       {
-        title: 'Degraded',
+        title: '降级',
         dataIndex: 'degraded',
         key: 'degraded',
         width: 110,
         render: (value: boolean) => renderBooleanTag(value)
       },
       {
-        title: 'Configured',
+        title: '已配置',
         dataIndex: 'configured',
         key: 'configured',
         width: 110,
         render: (value: boolean) => renderBooleanTag(value)
       },
       {
-        title: 'Last Success',
+        title: '最近成功',
         dataIndex: 'last_success_at',
         key: 'last_success_at',
         width: 180,
         render: (value?: string) => formatDateTime(value)
       },
       {
-        title: 'Last Failure',
+        title: '最近失败',
         dataIndex: 'last_failure_at',
         key: 'last_failure_at',
         width: 180,
         render: (value?: string) => formatDateTime(value)
       },
       {
-        title: 'Consecutive Failures',
+        title: '连续失败次数',
         dataIndex: 'consecutive_failures',
         key: 'consecutive_failures',
         width: 160
       },
       {
-        title: 'Last Error',
+        title: '最近错误',
         dataIndex: 'last_error',
         key: 'last_error',
         ellipsis: true,
@@ -248,20 +288,20 @@ const CacheGovernancePage: React.FC = () => {
 
   const warmupColumns = useMemo<ColumnsType<ICacheGovernanceWarmupRun>>(
     () => [
-      { title: 'Trigger', dataIndex: 'trigger', key: 'trigger', width: 140 },
-      { title: 'Started At', dataIndex: 'started_at', key: 'started_at', width: 180, render: (value?: string) => formatDateTime(value) },
-      { title: 'Finished At', dataIndex: 'finished_at', key: 'finished_at', width: 180, render: (value?: string) => formatDateTime(value) },
+      { title: '触发来源', dataIndex: 'trigger', key: 'trigger', width: 140 },
+      { title: '开始时间', dataIndex: 'started_at', key: 'started_at', width: 180, render: (value?: string) => formatDateTime(value) },
+      { title: '结束时间', dataIndex: 'finished_at', key: 'finished_at', width: 180, render: (value?: string) => formatDateTime(value) },
       {
-        title: 'Result',
+        title: '结果',
         dataIndex: 'result',
         key: 'result',
         width: 120,
         render: renderWarmupResultTag
       },
-      { title: 'Targets', dataIndex: 'target_count', key: 'target_count', width: 100 },
-      { title: 'OK', dataIndex: 'ok_count', key: 'ok_count', width: 80 },
-      { title: 'Errors', dataIndex: 'error_count', key: 'error_count', width: 80 },
-      { title: 'Skipped', dataIndex: 'skipped_count', key: 'skipped_count', width: 90 }
+      { title: '目标数', dataIndex: 'target_count', key: 'target_count', width: 100 },
+      { title: '成功', dataIndex: 'ok_count', key: 'ok_count', width: 80 },
+      { title: '失败', dataIndex: 'error_count', key: 'error_count', width: 80 },
+      { title: '跳过', dataIndex: 'skipped_count', key: 'skipped_count', width: 90 }
     ],
     []
   )
@@ -269,12 +309,12 @@ const CacheGovernancePage: React.FC = () => {
   const hotsetColumns = useMemo<ColumnsType<{ scope: string; score: number }>>(
     () => [
       {
-        title: 'Scope',
+        title: '作用域',
         dataIndex: 'scope',
         key: 'scope',
         render: renderHotsetScope
       },
-      { title: 'Score', dataIndex: 'score', key: 'score', width: 120 }
+      { title: '热度分数', dataIndex: 'score', key: 'score', width: 120 }
     ],
     []
   )
@@ -282,28 +322,34 @@ const CacheGovernancePage: React.FC = () => {
   const manualWarmupColumns = useMemo<ColumnsType<ICacheGovernanceManualWarmupItemResult>>(
     () => [
       {
-        title: 'Family',
+        title: '缓存族',
         dataIndex: 'family',
         key: 'family',
         width: 140,
         render: (value: string) => FAMILY_LABELS[value] || value
       },
-      { title: 'Kind', dataIndex: 'kind', key: 'kind', width: 180 },
       {
-        title: 'Scope',
+        title: '预热类型',
+        dataIndex: 'kind',
+        key: 'kind',
+        width: 180,
+        render: (value: string) => KIND_LABELS[value] || value
+      },
+      {
+        title: '作用域',
         dataIndex: 'scope',
         key: 'scope',
         render: renderTooltipText
       },
       {
-        title: 'Status',
+        title: '状态',
         dataIndex: 'status',
         key: 'status',
         width: 120,
         render: renderManualWarmupItemStatusTag
       },
       {
-        title: 'Message',
+        title: '结果说明',
         dataIndex: 'message',
         key: 'message',
         render: renderTooltipText
@@ -314,30 +360,65 @@ const CacheGovernancePage: React.FC = () => {
 
   return (
     <div className="cache-governance-page">
-      <Space wrap align="center">
-        <Title level={4}>
-          缓存统计报表：
-        </Title>
+      <div className="cache-governance-page__hero">
+        <div className="cache-governance-page__hero-main">
+          <Space className="cache-governance-page__hero-eyebrow" size={8}>
+            <ClusterOutlined />
+            <Text strong>缓存治理 · 三进程协同观测</Text>
+          </Space>
+          <Title level={3} className="cache-governance-page__hero-title">
+            缓存治理与全局趋势
+          </Title>
+          <Paragraph className="cache-governance-page__hero-description">
+            当前页中的摘要、缓存族状态、预热记录与热点预览来自
+            <Text strong> {formatComponentLabel(status?.component)} </Text>
+            的实时治理接口，适合快速定位当前问题；下方 Grafana 按钮用于查看
+            <Text strong> qs-apiserver / qs-collection-server / qs-worker </Text>
+            三进程的全局缓存趋势，便于做时序对比和跨进程排查。
+          </Paragraph>
+          <Space wrap className="cache-governance-page__hero-tags">
+            <Tag color="blue">
+              <Space size={4}>
+                <InfoCircleOutlined />
+                <span>实时治理面：{formatComponentLabel(status?.component)}</span>
+              </Space>
+            </Tag>
+            <Tag color="geekblue">
+              <Space size={4}>
+                <AreaChartOutlined />
+                <span>趋势覆盖：三进程全局趋势</span>
+              </Space>
+            </Tag>
+            <Tag color="default">当前组织：{currentOrgId || '未识别'}</Tag>
+            <Tag color="default">最近更新时间：{formatDateTime(status?.generated_at)}</Tag>
+          </Space>
+        </div>
 
         <Space className="cache-governance-page__grafana-links">
-          {Object.entries(grafanaLinks).map(([key, href]) => (
-            <Button
-              key={key}
-              href={href}
-              target="_blank"
-              rel="noreferrer"
-              icon={<DashboardOutlined />}
-              disabled={!href}
-            >
-              {GRAFANA_LINK_LABELS[key] || key}
-            </Button>
-          ))}
+          {GRAFANA_LINK_ORDER.map((key) => {
+            const href = grafanaLinks[key]
+            const meta = GRAFANA_LINK_META[key]
+            return (
+              <Button
+                key={key}
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                icon={meta.icon}
+                type={key === 'overview' ? 'primary' : 'default'}
+                disabled={!href}
+              >
+                {meta.label}
+              </Button>
+            )
+          })}
         </Space>
-      </Space>
+      </div>
 
       <Space className="cache-governance-page__header" align="start">
         <Space wrap>
           <Space className="cache-governance-page__polling-control" align="center">
+            <SyncOutlined />
             <Text>状态轮询</Text>
             <Switch checked={pollingEnabled} onChange={handlePollingToggle} checkedChildren="开" unCheckedChildren="关" />
             <Text type="secondary">已轮询 {pollingCount}/{pollingLimit} 次</Text>
@@ -354,7 +435,7 @@ const CacheGovernancePage: React.FC = () => {
 
           <Space>
             <Text type="secondary">
-              更新时间：{formatDateTime(status?.generated_at)}
+              当前治理源：{formatComponentLabel(status?.component)}
             </Text>
           </Space>
 
@@ -362,15 +443,24 @@ const CacheGovernancePage: React.FC = () => {
         </Space>
 
         <Space wrap>
-          <Button type="primary" onClick={openManualWarmupModal}>
+          <Button type="primary" icon={<ThunderboltOutlined />} onClick={openManualWarmupModal}>
             手工预热
           </Button>
           <Button icon={<ReloadOutlined />} onClick={refreshAll} loading={statusLoading || hotsetLoading}>
-            刷新
+            刷新当前治理状态
           </Button>
         </Space>
         
       </Space>
+
+      <Alert
+        className="cache-governance-page__alert"
+        type="info"
+        showIcon
+        icon={<InfoCircleOutlined />}
+        message="页面语义说明"
+        description="本页上半部分是当前治理面实时状态，下方 Grafana 按钮查看三进程全局历史趋势。这样可以兼顾“看现在”与“看走势”，避免把单进程即时状态与全局时序趋势混为一谈。"
+      />
       
 
       {statusError ? (
@@ -396,43 +486,52 @@ const CacheGovernancePage: React.FC = () => {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} md={8} lg={6}>
-          <Card>
-            <Statistic title="Family 总数" value={summary?.family_total || 0} />
+          <Card className="cache-governance-page__stat-card">
+            <Statistic title="缓存族总数" value={summary?.family_total || 0} prefix={<AppstoreOutlined />} />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
-          <Card>
-            <Statistic title="Available" value={summary?.available_count || 0} valueStyle={{ color: '#389e0d' }} />
+          <Card className="cache-governance-page__stat-card">
+            <Statistic title="可用" value={summary?.available_count || 0} valueStyle={{ color: '#389e0d' }} prefix={<DashboardOutlined />} />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
-          <Card>
-            <Statistic title="Degraded" value={summary?.degraded_count || 0} valueStyle={{ color: '#d46b08' }} />
+          <Card className="cache-governance-page__stat-card">
+            <Statistic title="降级" value={summary?.degraded_count || 0} valueStyle={{ color: '#d46b08' }} prefix={<InfoCircleOutlined />} />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
-          <Card>
-            <Statistic title="Unavailable" value={summary?.unavailable_count || 0} valueStyle={{ color: '#cf1322' }} />
+          <Card className="cache-governance-page__stat-card">
+            <Statistic title="不可用" value={summary?.unavailable_count || 0} valueStyle={{ color: '#cf1322' }} prefix={<LockOutlined />} />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8} lg={8}>
-          <Card>
-            <Statistic title="Runtime Ready" value={summary?.ready ? 'Ready' : 'Not Ready'} />
+          <Card className="cache-governance-page__stat-card">
+            <Statistic title="运行态就绪" value={summary?.ready ? '就绪' : '未就绪'} prefix={<ClusterOutlined />} />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8} lg={8}>
-          <Card>
-            <Statistic title="Warmup" value={status?.warmup?.enabled ? 'Enabled' : 'Disabled'} />
+          <Card className="cache-governance-page__stat-card">
+            <Statistic title="预热开关" value={status?.warmup?.enabled ? '已启用' : '已关闭'} prefix={<ThunderboltOutlined />} />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8} lg={8}>
-          <Card>
-            <Statistic title="Hotset" value={status?.warmup?.hotset?.enable ? 'Enabled' : 'Disabled'} />
+          <Card className="cache-governance-page__stat-card">
+            <Statistic title="热点驱动预热" value={status?.warmup?.hotset?.enable ? '已启用' : '已关闭'} prefix={<FireOutlined />} />
           </Card>
         </Col>
       </Row>
 
-      <Card className="cache-governance-page__section" title="Family 状态" loading={statusLoading && !status}>
+      <Card
+        className="cache-governance-page__section"
+        title={(
+          <Space size={8}>
+            <AppstoreOutlined />
+            <span>缓存族状态（当前治理面）</span>
+          </Space>
+        )}
+        loading={statusLoading && !status}
+      >
         <Table
           rowKey={(record) => `${record.component}:${record.family}`}
           columns={familyColumns}
@@ -445,18 +544,27 @@ const CacheGovernancePage: React.FC = () => {
             if (!record.available) return 'cache-governance-page__row--unavailable'
             return ''
           }}
-          locale={{ emptyText: <Empty description="暂无 family 状态" /> }}
+          locale={{ emptyText: <Empty description="暂无缓存族状态" /> }}
         />
       </Card>
 
-      <Card className="cache-governance-page__section" title="Warmup 状态" loading={statusLoading && !status}>
+      <Card
+        className="cache-governance-page__section"
+        title={(
+          <Space size={8}>
+            <ThunderboltOutlined />
+            <span>预热状态（当前治理面）</span>
+          </Space>
+        )}
+        loading={statusLoading && !status}
+      >
         <Descriptions className="cache-governance-page__descriptions" size="small" column={{ xs: 1, sm: 2, md: 3 }}>
-          <Descriptions.Item label="Enabled">{renderBooleanTag(status?.warmup?.enabled || false)}</Descriptions.Item>
-          <Descriptions.Item label="Startup.Static">{renderBooleanTag(status?.warmup?.startup?.static || false)}</Descriptions.Item>
-          <Descriptions.Item label="Startup.Query">{renderBooleanTag(status?.warmup?.startup?.query || false)}</Descriptions.Item>
-          <Descriptions.Item label="Hotset.Enable">{renderBooleanTag(status?.warmup?.hotset?.enable || false)}</Descriptions.Item>
-          <Descriptions.Item label="Hotset.Top N">{status?.warmup?.hotset?.top_n ?? '-'}</Descriptions.Item>
-          <Descriptions.Item label="Hotset.Max Items">{status?.warmup?.hotset?.max_items_per_kind ?? '-'}</Descriptions.Item>
+          <Descriptions.Item label="预热总开关">{renderBooleanTag(status?.warmup?.enabled || false)}</Descriptions.Item>
+          <Descriptions.Item label="启动时静态预热">{renderBooleanTag(status?.warmup?.startup?.static || false)}</Descriptions.Item>
+          <Descriptions.Item label="启动时查询预热">{renderBooleanTag(status?.warmup?.startup?.query || false)}</Descriptions.Item>
+          <Descriptions.Item label="热点驱动预热">{renderBooleanTag(status?.warmup?.hotset?.enable || false)}</Descriptions.Item>
+          <Descriptions.Item label="热点榜单 Top N">{status?.warmup?.hotset?.top_n ?? '-'}</Descriptions.Item>
+          <Descriptions.Item label="单类最大条数">{status?.warmup?.hotset?.max_items_per_kind ?? '-'}</Descriptions.Item>
         </Descriptions>
 
         <Table
@@ -466,13 +574,18 @@ const CacheGovernancePage: React.FC = () => {
           pagination={false}
           size="small"
           scroll={{ x: 900 }}
-          locale={{ emptyText: <Empty description="暂无 warmup 执行记录" /> }}
+          locale={{ emptyText: <Empty description="暂无预热执行记录" /> }}
         />
       </Card>
 
       <Card
         className="cache-governance-page__section"
-        title="Hotset 预览"
+        title={(
+          <Space size={8}>
+            <FireOutlined />
+            <span>热点预览（当前治理面）</span>
+          </Space>
+        )}
         extra={(
           <Space>
             <Select<CacheGovernanceHotsetKind>
@@ -482,12 +595,12 @@ const CacheGovernancePage: React.FC = () => {
             >
               {CACHE_GOVERNANCE_HOTSET_KINDS.map((kind) => (
                 <Select.Option key={kind} value={kind}>
-                  {kind}
+                  {KIND_LABELS[kind] || kind}
                 </Select.Option>
               ))}
             </Select>
             <Button onClick={() => loadHotset(selectedKind)} loading={hotsetLoading}>
-              刷新热点
+              刷新热点预览
             </Button>
           </Space>
         )}
@@ -510,9 +623,9 @@ const CacheGovernancePage: React.FC = () => {
         ) : null}
 
         <Descriptions className="cache-governance-page__descriptions" size="small" column={{ xs: 1, sm: 3 }}>
-          <Descriptions.Item label="Family">{FAMILY_LABELS[hotset?.family || ''] || hotset?.family || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Available">{renderBooleanTag(hotset?.available || false)}</Descriptions.Item>
-          <Descriptions.Item label="Degraded">{renderBooleanTag(hotset?.degraded || false)}</Descriptions.Item>
+          <Descriptions.Item label="缓存族">{FAMILY_LABELS[hotset?.family || ''] || hotset?.family || '-'}</Descriptions.Item>
+          <Descriptions.Item label="可用">{renderBooleanTag(hotset?.available || false)}</Descriptions.Item>
+          <Descriptions.Item label="降级">{renderBooleanTag(hotset?.degraded || false)}</Descriptions.Item>
         </Descriptions>
 
         <Table
@@ -562,7 +675,7 @@ const CacheGovernancePage: React.FC = () => {
                 >
                   {CACHE_GOVERNANCE_WARMUP_KINDS.map((kind) => (
                     <Select.Option key={kind} value={kind}>
-                      {kind}
+                      {KIND_LABELS[kind] || kind}
                     </Select.Option>
                   ))}
                 </Select>
@@ -598,14 +711,14 @@ const CacheGovernancePage: React.FC = () => {
                 size="small"
                 column={{ xs: 1, sm: 2, md: 3 }}
               >
-                <Descriptions.Item label="Trigger">{manualWarmupResult.trigger}</Descriptions.Item>
-                <Descriptions.Item label="Started At">{formatDateTime(manualWarmupResult.started_at)}</Descriptions.Item>
-                <Descriptions.Item label="Finished At">{formatDateTime(manualWarmupResult.finished_at)}</Descriptions.Item>
-                <Descriptions.Item label="Result">{renderWarmupResultTag(manualWarmupResult.summary.result)}</Descriptions.Item>
-                <Descriptions.Item label="Targets">{manualWarmupResult.summary.target_count}</Descriptions.Item>
-                <Descriptions.Item label="OK">{manualWarmupResult.summary.ok_count}</Descriptions.Item>
-                <Descriptions.Item label="Skipped">{manualWarmupResult.summary.skipped_count}</Descriptions.Item>
-                <Descriptions.Item label="Errors">{manualWarmupResult.summary.error_count}</Descriptions.Item>
+                <Descriptions.Item label="触发来源">{manualWarmupResult.trigger}</Descriptions.Item>
+                <Descriptions.Item label="开始时间">{formatDateTime(manualWarmupResult.started_at)}</Descriptions.Item>
+                <Descriptions.Item label="结束时间">{formatDateTime(manualWarmupResult.finished_at)}</Descriptions.Item>
+                <Descriptions.Item label="执行结果">{renderWarmupResultTag(manualWarmupResult.summary.result)}</Descriptions.Item>
+                <Descriptions.Item label="目标数">{manualWarmupResult.summary.target_count}</Descriptions.Item>
+                <Descriptions.Item label="成功">{manualWarmupResult.summary.ok_count}</Descriptions.Item>
+                <Descriptions.Item label="跳过">{manualWarmupResult.summary.skipped_count}</Descriptions.Item>
+                <Descriptions.Item label="失败">{manualWarmupResult.summary.error_count}</Descriptions.Item>
               </Descriptions>
 
               <Table

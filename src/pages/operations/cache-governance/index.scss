@@ -1,6 +1,45 @@
 .cache-governance-page {
   padding: 24px;
 
+  &__hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 16px;
+    padding: 20px 24px;
+    border: 1px solid #e6f4ea;
+    border-radius: 16px;
+    background:
+      radial-gradient(circle at top right, rgba(255, 214, 102, 0.24), transparent 34%),
+      linear-gradient(135deg, #f6ffed 0%, #fffdf6 100%);
+    box-shadow: 0 10px 24px rgba(31, 119, 89, 0.06);
+  }
+
+  &__hero-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__hero-eyebrow {
+    margin-bottom: 10px;
+    color: #237804;
+  }
+
+  &__hero-title {
+    margin-bottom: 8px !important;
+  }
+
+  &__hero-description {
+    max-width: 860px;
+    margin-bottom: 12px !important;
+    color: rgba(0, 0, 0, 0.72);
+  }
+
+  &__hero-tags {
+    gap: 8px;
+  }
+
   &__header {
     width: 100%;
     justify-content: space-between;
@@ -28,11 +67,17 @@
   }
 
   &__grafana-links {
-    width: 100%;
-    justify-content: center;
+    max-width: 520px;
+    justify-content: flex-end;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 12px;
+
+    .ant-btn {
+      min-width: 190px;
+      height: 38px;
+      border-radius: 10px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+    }
   }
 
   &__manual-target-row {
@@ -61,6 +106,11 @@
     margin-bottom: 16px;
   }
 
+  &__stat-card {
+    border-radius: 14px;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.04);
+  }
+
   &__row--degraded td {
     background: #fff7e6;
   }
@@ -74,6 +124,11 @@
   .cache-governance-page {
     padding: 16px;
 
+    &__hero {
+      flex-direction: column;
+      padding: 18px;
+    }
+
     &__header {
       flex-direction: column;
       align-items: flex-start;
@@ -84,6 +139,17 @@
       width: 100%;
       justify-content: flex-start;
       flex-wrap: wrap;
+    }
+
+    &__grafana-links {
+      width: 100%;
+      max-width: none;
+      justify-content: flex-start;
+
+      .ant-btn {
+        min-width: 0;
+        width: 100%;
+      }
     }
 
     &__manual-target-row {
