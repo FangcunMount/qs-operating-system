@@ -1,6 +1,14 @@
 import React, { lazy } from 'react'
 import { IRoute } from '../types/router'
-import { HomeOutlined, SettingOutlined, TeamOutlined, AuditOutlined, FolderOutlined, BarChartOutlined } from '@ant-design/icons'
+import {
+  HomeOutlined,
+  SettingOutlined,
+  TeamOutlined,
+  AuditOutlined,
+  FolderOutlined,
+  BarChartOutlined,
+  SafetyCertificateOutlined
+} from '@ant-design/icons'
 
 // 图标创建辅助函数，确保 React 被使用
 const createIcon = (Icon: React.ComponentType) => React.createElement(Icon)
@@ -34,6 +42,7 @@ const AdminAssessmentEntryDetail = lazy(() => import('../pages/admin/clinician/e
 const AdminResource = lazy(() => import('../pages/admin/resource'))
 const ClinicianWorkbench = lazy(() => import('../pages/clinician/workbench'))
 const AssessmentList = lazy(() => import('../pages/evaluation/assessment-list'))
+const SecurityJWKS = lazy(() => import('../pages/security/jwks'))
 
 // 新增页面组件
 const SubjectList = lazy(() => import('../pages/subject/list'))
@@ -473,6 +482,24 @@ export const routes: Array<IRoute> = [
         name: 'cache-governance',
         path: '/operations/cache-governance',
         component: CacheGovernance,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['org_admin']
+      }
+    ]
+  },
+  {
+    title: '平台安全',
+    name: 'platform-security',
+    path: '/security',
+    icon: createIcon(SafetyCertificateOutlined),
+    menuScope: 'org_admin',
+    requiredCapabilities: ['org_admin'],
+    children: [
+      {
+        title: 'JWKS Security',
+        name: 'security-jwks',
+        path: '/security/jwks',
+        component: SecurityJWKS,
         menuScope: 'org_admin',
         requiredCapabilities: ['org_admin']
       }

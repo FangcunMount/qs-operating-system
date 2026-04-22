@@ -12,6 +12,7 @@ import { statisticsApi } from './path/statistics'
 import { templateApi } from './path/template'
 import { surveyApi } from './path/survey'
 import { idpApi } from './path/idp'
+import { jwksApi } from './path/jwks'
 
 // 导出新的 API
 export { testeeApi } from './path/subject'
@@ -32,7 +33,8 @@ export const api = {
   ...statisticsApi,
   ...templateApi,
   ...surveyApi,
-  ...idpApi
+  ...idpApi,
+  ...jwksApi
 }
 
 // 导出类型
@@ -41,3 +43,4 @@ export * from './path/admin'
 export * from './path/authz'
 export * from './path/statistics'
 export * from './path/idp'
+export * from './path/jwks'

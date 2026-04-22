@@ -30,13 +30,26 @@ apiAxios.interceptors.request.use((cfg) => {
 })
 apiAxios.interceptors.response.use(
   (response) => {
-    if (response.status !== 200) {
+    if (response.status < 200 || response.status >= 300) {
       return Promise.reject(response.data)
     }
 
     const data = response.data
+    if (typeof data === 'undefined' || data === null || data === '') {
+      return response
+    }
+
+    const isObjectPayload = typeof data === 'object'
+    const hasCode = isObjectPayload && typeof data.code !== 'undefined'
+    const hasErrno = isObjectPayload && typeof data.errno !== 'undefined'
+
+    // 兼容返回原始 JSON 的接口（例如 201 创建资源、公开配置快照等）
+    if (!hasCode && !hasErrno) {
+      return response
+    }
+
     // 支持新格式 (code) 和旧格式 (errno)
-    const isNewFormat = typeof data.code !== 'undefined'
+    const isNewFormat = hasCode
     // 新格式支持 code === 0 或 code === 200（HTTP风格）
     const isSuccess = isNewFormat ? (data.code === 0 || data.code === 200) : data.errno === '0'
 
