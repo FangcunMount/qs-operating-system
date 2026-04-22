@@ -44,7 +44,7 @@ import { useManualWarmup } from './hooks/useManualWarmup'
 import { getWarmupScopePlaceholder } from './utils'
 import './index.scss'
 
-const { Title, Text } = Typography
+const { Text, Title } = Typography
 
 const STATUS_POLL_INTERVAL_MS = 30000
 const DEFAULT_STATUS_POLL_LIMIT = 10
@@ -314,13 +314,28 @@ const CacheGovernancePage: React.FC = () => {
 
   return (
     <div className="cache-governance-page">
+      <Space wrap align="center">
+        <Title level={4}>
+          缓存统计报表：
+        </Title>
+
+        <Space className="cache-governance-page__grafana-links">
+          {Object.entries(grafanaLinks).map(([key, href]) => (
+            <Button
+              key={key}
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              icon={<DashboardOutlined />}
+              disabled={!href}
+            >
+              {GRAFANA_LINK_LABELS[key] || key}
+            </Button>
+          ))}
+        </Space>
+      </Space>
+
       <Space className="cache-governance-page__header" align="start">
-        <div>
-          <Title level={3}>缓存治理</Title>
-          <Text type="secondary">
-            更新时间：{formatDateTime(status?.generated_at)}
-          </Text>
-        </div>
         <Space wrap>
           <Space className="cache-governance-page__polling-control" align="center">
             <Text>状态轮询</Text>
@@ -336,26 +351,27 @@ const CacheGovernancePage: React.FC = () => {
             />
             <Text type="secondary">次后自动停止</Text>
           </Space>
+
+          <Space>
+            <Text type="secondary">
+              更新时间：{formatDateTime(status?.generated_at)}
+            </Text>
+          </Space>
+
+      
+        </Space>
+
+        <Space wrap>
           <Button type="primary" onClick={openManualWarmupModal}>
             手工预热
           </Button>
           <Button icon={<ReloadOutlined />} onClick={refreshAll} loading={statusLoading || hotsetLoading}>
             刷新
           </Button>
-          {Object.entries(grafanaLinks).map(([key, href]) => (
-            <Button
-              key={key}
-              href={href}
-              target="_blank"
-              rel="noreferrer"
-              icon={<DashboardOutlined />}
-              disabled={!href}
-            >
-              {GRAFANA_LINK_LABELS[key] || key}
-            </Button>
-          ))}
         </Space>
+        
       </Space>
+      
 
       {statusError ? (
         <Alert

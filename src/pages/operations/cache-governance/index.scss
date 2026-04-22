@@ -27,6 +27,14 @@
     background: #fafafa;
   }
 
+  &__grafana-links {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
   &__manual-target-row {
     display: flex;
     width: 100%;
