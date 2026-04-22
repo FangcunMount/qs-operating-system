@@ -11,6 +11,7 @@ import { authApi as authzApi } from './path/authz'
 import { statisticsApi } from './path/statistics'
 import { templateApi } from './path/template'
 import { surveyApi } from './path/survey'
+import { idpApi } from './path/idp'
 
 // 导出新的 API
 export { testeeApi } from './path/subject'
@@ -30,7 +31,8 @@ export const api = {
   ...authzApi,
   ...statisticsApi,
   ...templateApi,
-  ...surveyApi
+  ...surveyApi,
+  ...idpApi
 }
 
 // 导出类型
@@ -38,3 +40,4 @@ export * from './path/user'
 export * from './path/admin'
 export * from './path/authz'
 export * from './path/statistics'
+export * from './path/idp'

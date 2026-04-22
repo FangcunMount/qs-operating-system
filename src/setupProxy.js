@@ -74,7 +74,7 @@ module.exports = function (app) {
   )
   // IAM 相关接口（登录、身份、授权、联想搜索等）在开发时代理到 IAM 服务，避免浏览器 CORS
   app.use(
-    ['/authn', '/identity', '/authz', '/suggest'],
+    ['/authn', '/identity', '/authz', '/suggest', '/idp'],
     createProxyMiddleware({
       target: process.env.REACT_APP_IAM_HOST || 'https://iam.fangcunmount.cn/api/v1',
       changeOrigin: true,
