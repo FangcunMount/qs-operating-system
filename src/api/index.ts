@@ -18,6 +18,7 @@ import { jwksApi } from './path/jwks'
 export { testeeApi } from './path/subject'
 export { assessmentApi } from './path/assessment'
 export { planApi, taskApi } from './path/plan'
+export * from './path/eventGovernance'
 
 export const api = {
   ...answerSheetApi,

@@ -133,6 +133,41 @@ REACT_APP_GRAFANA_CACHE_QUERY_VERSION_URL=https://grafana.example.com/d/cache-qu
 - 浏览器请求 `/internal/v1/cache/governance/status` 是否返回 `code=0`
 - 当前登录态是否能访问 internal 接口
 
+## 事件观测页
+
+项目已新增事件系统只读观测页：
+
+- 页面路由：`/operations/event-governance`
+- 依赖接口：
+  - `GET /internal/v1/events/status`
+
+页面职责固定为：
+
+- 展示事件 catalog 摘要
+- 展示 MySQL / Mongo outbox 的 `pending`、`failed`、`publishing` backlog 与 oldest age
+- 标记单个 outbox status reader 降级
+- 提供 Grafana 深链接查看 publish、outbox、worker consume 趋势
+
+事件观测页不提供 replay、repair、dead-letter、手工 mark published/failed 等治理动作。
+
+### Event Grafana 环境变量
+
+事件观测页默认复用全局 Grafana 地址：
+
+```bash
+REACT_APP_GRAFANA_URL=https://grafana.example.com
+```
+
+如需覆盖单个 dashboard 地址，可设置：
+
+```bash
+REACT_APP_GRAFANA_EVENT_OVERVIEW_URL=https://grafana.example.com/d/event-overview/qs-event-overview
+REACT_APP_GRAFANA_EVENT_OUTBOX_URL=https://grafana.example.com/d/event-outbox/qs-event-outbox
+REACT_APP_GRAFANA_EVENT_WORKER_URL=https://grafana.example.com/d/event-worker/qs-event-worker
+```
+
+如果只配置 `REACT_APP_GRAFANA_URL`，页面会按固定 dashboard UID 自动拼出 3 个默认链接；如果上述变量都未配置，对应按钮会自动禁用。
+
 ## 项目结构
 
 ```text

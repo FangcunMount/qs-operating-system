@@ -55,6 +55,7 @@ const PlanCreate = lazy(() => import('../pages/plan/create'))
 const TaskDetail = lazy(() => import('../pages/plan/tasks'))
 const StatisticsCenter = lazy(() => import('../pages/statistics/center'))
 const CacheGovernance = lazy(() => import('../pages/operations/cache-governance'))
+const EventGovernance = lazy(() => import('../pages/operations/event-governance'))
 
 export const routes: Array<IRoute> = [
   {
@@ -482,6 +483,14 @@ export const routes: Array<IRoute> = [
         name: 'cache-governance',
         path: '/operations/cache-governance',
         component: CacheGovernance,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['org_admin']
+      },
+      {
+        title: '事件观测',
+        name: 'event-governance',
+        path: '/operations/event-governance',
+        component: EventGovernance,
         menuScope: 'org_admin',
         requiredCapabilities: ['org_admin']
       }

@@ -91,6 +91,11 @@ export const qsInternalAxios = axios.create({
   baseURL: internalBaseURL
 })
 
+export const qsInternalRawAxios = axios.create({
+  timeout: 50000,
+  baseURL: internalBaseURL
+})
+
 // 使用真实后端 QS API
 const attachCommonHeaders = (cfg: AxiosRequestConfig) => {
   cfg.headers = cfg.headers || {}
@@ -153,6 +158,7 @@ const createResponseErrorHandler = (
 qsAxios.interceptors.request.use(attachCommonHeaders)
 qsSilentAxios.interceptors.request.use(attachCommonHeaders)
 qsInternalAxios.interceptors.request.use(attachCommonHeaders)
+qsInternalRawAxios.interceptors.request.use(attachCommonHeaders)
 
 qsAxios.interceptors.response.use(
   handleQSResponse,
@@ -162,6 +168,11 @@ qsAxios.interceptors.response.use(
 qsInternalAxios.interceptors.response.use(
   handleQSResponse,
   createResponseErrorHandler(qsInternalAxios)
+)
+
+qsInternalRawAxios.interceptors.response.use(
+  (response) => response,
+  createResponseErrorHandler(qsInternalRawAxios)
 )
 
 type Fn<T> = (data: QSResponse<T>) => unknown
@@ -243,6 +254,14 @@ export const qsInternalGet = <T>(url: string, params: any = {}, clearFn?: Fn<T>)
       .catch((err) => resolve([err, undefined]))
   })
 
+export const qsInternalRawGet = <T>(url: string, params: any = {}): Promise<[any, T | undefined]> =>
+  new Promise((resolve) => {
+    qsInternalRawAxios
+      .get(url, { params })
+      .then((result) => resolve([null, result.data as T]))
+      .catch((err) => resolve([err, undefined]))
+  })
+
 export const qsInternalPost = <T>(url: string, data: any = {}, params: any = {}): Promise<[any, QSResponse<T> | undefined]> =>
   new Promise((resolve) => {
     const requestData = data === undefined || data === null ? undefined : data
@@ -294,3 +313,4 @@ export const put = qsPut
 export const del = qsDelete
 export const internalGet = qsInternalGet
 export const internalPost = qsInternalPost
+export const internalRawGet = qsInternalRawGet
