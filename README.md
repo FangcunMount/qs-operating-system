@@ -168,6 +168,52 @@ REACT_APP_GRAFANA_EVENT_WORKER_URL=https://grafana.example.com/d/event-worker/qs
 
 如果只配置 `REACT_APP_GRAFANA_URL`，页面会按固定 dashboard UID 自动拼出 3 个默认链接；如果上述变量都未配置，对应按钮会自动禁用。
 
+## 高并发治理页
+
+项目已新增 Resilience Plane 只读摘要页：
+
+- 页面路由：`/operations/resilience-governance`
+- 依赖接口：
+  - `GET /internal/v1/resilience/status`
+  - `GET {REACT_APP_QS_COLLECTION_GOVERNANCE_URL}/governance/resilience`
+  - `GET {REACT_APP_QS_WORKER_GOVERNANCE_URL}/governance/resilience`
+
+页面职责固定为：
+
+- 展示 apiserver / collection-server / worker 的当前 resilience snapshot
+- 展示 Rate Limit、SubmitQueue、Backpressure、Redis Lock、幂等与重复抑制能力状态
+- 标记单个组件 governance endpoint 降级
+- 提供 Grafana 深链接查看限流、队列、背压、锁的历史趋势
+
+高并发治理页不提供限流动态调参、队列 drain、锁释放、重试或 repair 动作。
+
+### Resilience Grafana 与多进程端点环境变量
+
+最少建议配置全局 Grafana 地址：
+
+```bash
+REACT_APP_GRAFANA_URL=https://grafana.example.com
+```
+
+collection-server 与 worker 的只读治理面需要显式配置：
+
+```bash
+REACT_APP_QS_COLLECTION_GOVERNANCE_URL=https://collection.example.com
+REACT_APP_QS_WORKER_GOVERNANCE_URL=https://worker.example.com
+```
+
+如需覆盖单个 dashboard 地址，可设置：
+
+```bash
+REACT_APP_GRAFANA_RESILIENCE_OVERVIEW_URL=https://grafana.example.com/d/resilience-overview/qs-resilience-overview
+REACT_APP_GRAFANA_RESILIENCE_RATELIMIT_URL=https://grafana.example.com/d/resilience-ratelimit/qs-resilience-ratelimit
+REACT_APP_GRAFANA_RESILIENCE_SUBMITQUEUE_URL=https://grafana.example.com/d/resilience-submitqueue/qs-resilience-submitqueue
+REACT_APP_GRAFANA_RESILIENCE_BACKPRESSURE_URL=https://grafana.example.com/d/resilience-backpressure/qs-resilience-backpressure
+REACT_APP_GRAFANA_RESILIENCE_LOCKS_URL=https://grafana.example.com/d/resilience-locks/qs-resilience-locks
+```
+
+如果 collection / worker governance URL 未配置，页面会把对应组件标记为 degraded，但仍展示 apiserver 和已可用组件。
+
 ## 项目结构
 
 ```text

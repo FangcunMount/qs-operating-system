@@ -19,6 +19,7 @@ export { testeeApi } from './path/subject'
 export { assessmentApi } from './path/assessment'
 export { planApi, taskApi } from './path/plan'
 export * from './path/eventGovernance'
+export * from './path/resilienceGovernance'
 
 export const api = {
   ...answerSheetApi,
