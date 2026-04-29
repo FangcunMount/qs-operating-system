@@ -23,36 +23,87 @@ export interface IStatisticsQueryParams {
   sort?: string
 }
 
-export interface IStatisticsOverviewSnapshot {
+export interface IOrganizationOverviewStatistics {
   testee_count: number
   clinician_count: number
   active_entry_count: number
   assessment_count: number
-  interpreted_assessment_count: number
+  report_count: number
 }
 
-export interface IStatisticsOverviewWindow {
-  new_testees: number
-  entry_created_count: number
-  entry_resolved_count: number
-  entry_intake_count: number
-  relation_assigned_count: number
+export interface IAccessFunnelWindow {
+  entry_opened_count: number
+  intake_confirmed_count: number
+  testee_created_count: number
+  care_relationship_established_count: number
+}
+
+export interface IAccessFunnelTrend {
+  entry_opened: IDailyCount[]
+  intake_confirmed: IDailyCount[]
+  testee_created: IDailyCount[]
+  care_relationship_established: IDailyCount[]
+}
+
+export interface IAccessFunnelStatistics {
+  window: IAccessFunnelWindow
+  trend: IAccessFunnelTrend
+}
+
+export interface IAssessmentServiceWindow {
+  answersheet_submitted_count: number
   assessment_created_count: number
-  assessment_completed_count: number
+  report_generated_count: number
+  assessment_failed_count: number
 }
 
-export interface IStatisticsOverviewTrend {
-  assessments: IDailyCount[]
-  intakes: IDailyCount[]
-  assignments: IDailyCount[]
+export interface IAssessmentServiceTrend {
+  answersheet_submitted: IDailyCount[]
+  assessment_created: IDailyCount[]
+  report_generated: IDailyCount[]
+  assessment_failed: IDailyCount[]
+}
+
+export interface IAssessmentServiceStatistics {
+  window: IAssessmentServiceWindow
+  trend: IAssessmentServiceTrend
+}
+
+export interface IDimensionAnalysisSummary {
+  clinician_count: number
+  entry_count: number
+  content_count: number
+}
+
+export interface IPlanTaskWindow {
+  task_created_count: number
+  task_opened_count: number
+  task_completed_count: number
+  task_expired_count: number
+  enrolled_testees: number
+  active_testees: number
+}
+
+export interface IPlanTaskTrend {
+  task_created: IDailyCount[]
+  task_opened: IDailyCount[]
+  task_completed: IDailyCount[]
+  task_expired: IDailyCount[]
+}
+
+export interface IPlanDomainStatistics {
+  window: IPlanTaskWindow
+  trend: IPlanTaskTrend
 }
 
 export interface IStatisticsOverviewResponse {
   org_id: number
   time_range: IStatisticsTimeRange
-  snapshot: IStatisticsOverviewSnapshot
-  window: IStatisticsOverviewWindow
-  trend: IStatisticsOverviewTrend
+  organization_overview: IOrganizationOverviewStatistics
+  access_funnel: IAccessFunnelStatistics
+  assessment_service: IAssessmentServiceStatistics
+  dimension_analysis: IDimensionAnalysisSummary
+  plan: IPlanDomainStatistics
 }
 
 export interface IClinicianStatisticsSubject {
@@ -229,6 +280,8 @@ export interface IPlanStatistics {
   pending_tasks: number
   expired_tasks: number
   completion_rate: number
+  window: IPlanTaskWindow
+  trend: IPlanTaskTrend
 }
 
 export interface ITesteeStatistics {

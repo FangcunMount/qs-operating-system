@@ -17,7 +17,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -33,12 +32,50 @@ import { routes } from '@/router/map'
 import { filterRoutesForMenu } from '@/utils/menuAccess'
 import { getRouteDisplayTitle } from '@/utils/routeDisplay'
 import { getOverviewStatistics } from '@/api/path/statistics'
-import type { IStatisticsOverviewResponse } from '@/api/path/statistics'
+import type { IDailyCount, IStatisticsOverviewResponse } from '@/api/path/statistics'
 import ClinicianWorkbenchPage from '@/pages/clinician/workbench'
 import './index.scss'
 
 const { Title, Text } = Typography
 const CHART_COLORS = ['#1677ff', '#00b578', '#faad14', '#ff7a45', '#722ed1', '#13c2c2', '#eb2f96']
+
+type DailySeries = {
+  key: string
+  source: IDailyCount[]
+}
+
+type BarDatum = {
+  name: string
+  value: number
+  fill: string
+}
+
+function mergeDailySeries(series: DailySeries[]) {
+  const maps = series.map((item) => ({
+    key: item.key,
+    values: new Map(item.source.map((point) => [point.date, point.count]))
+  }))
+  const dates = Array.from(new Set(series.flatMap((item) => item.source.map((point) => point.date)))).sort()
+
+  return dates.map((date) => {
+    const row: Record<string, string | number> = {
+      date,
+      label: date.slice(5, 10)
+    }
+    maps.forEach((item) => {
+      row[item.key] = item.values.get(date) || 0
+    })
+    return row
+  })
+}
+
+function formatNumber(value: number) {
+  return value.toLocaleString()
+}
+
+function hasBarData(data: BarDatum[]) {
+  return data.some((item) => item.value > 0)
+}
 
 const Home: React.FC = observer(() => {
   const history = useHistory()
@@ -90,105 +127,47 @@ const Home: React.FC = observer(() => {
     setExpandedTips(newExpanded)
   }
 
-  const summaryStats = [
-    {
-      title: '受试者总数',
-      value: overviewStats?.snapshot.testee_count || 0,
-      icon: <TeamOutlined />,
-      color: '#faad14',
-      action: () => history.push('/subject/list')
-    },
-  
-    {
-      title: '测评总数',
-      value: overviewStats?.snapshot.assessment_count || 0,
-      icon: <BarChartOutlined />,
-      color: '#722ed1',
-      action: () => history.push('/assessment/list')
-    },
-    {
-      title: '临床人员总数',
-      value: overviewStats?.snapshot.clinician_count || 0,
-      icon: <TeamOutlined />,
-      color: '#13c2c2',
-      action: () => history.push('/admin/clinicians')
-    },
-  ]
-
-  const windowStats = [
-    {
-      title: '近 30 天入口打开',
-      value: overviewStats?.window.entry_resolved_count || 0,
-      icon: <BarChartOutlined />,
-      color: '#4096ff',
-      action: () => history.push('/statistics/center')
-    },
-    {
-      title: '近 30 天完成接入',
-      value: overviewStats?.window.entry_intake_count || 0,
-      icon: <BarChartOutlined />,
-      color: '#722ed1',
-      action: () => history.push('/statistics/center')
-    },
-    {
-      title: '近 30 天新建档案',
-      value: overviewStats?.window.new_testees || 0,
-      icon: <TeamOutlined />,
-      color: '#fa8c16',
-      action: () => history.push('/statistics/center')
-    },
-    {
-      title: '近 30 天建立照护',
-      value: overviewStats?.window.relation_assigned_count || 0,
-      icon: <TeamOutlined />,
-      color: '#eb2f96',
-      action: () => history.push('/statistics/center')
-    },
-    {
-      title: '近 30 天形成测评',
-      value: overviewStats?.window.assessment_created_count || 0,
-      icon: <BarChartOutlined />,
-      color: '#00b578',
-      action: () => history.push('/statistics/center')
-    },
-    {
-      title: '近 30 天产出报告',
-      value: overviewStats?.window.assessment_completed_count || 0,
-      icon: <FormOutlined />,
-      color: '#13c2c2',
-      action: () => history.push('/statistics/center')
-    }
-  ]
-
-  const trendData = useMemo(() => {
-    if (!overviewStats) return []
-    const assessmentMap = new Map(overviewStats.trend.assessments.map((item) => [item.date, item.count]))
-    const intakeMap = new Map(overviewStats.trend.intakes.map((item) => [item.date, item.count]))
-    const assignmentMap = new Map(overviewStats.trend.assignments.map((item) => [item.date, item.count]))
-    const allDates = Array.from(new Set([
-      ...overviewStats.trend.assessments.map((item) => item.date),
-      ...overviewStats.trend.intakes.map((item) => item.date),
-      ...overviewStats.trend.assignments.map((item) => item.date)
-    ])).sort()
-
-    return allDates.map((date) => ({
-      date,
-      label: date.slice(5, 10),
-      assessments: assessmentMap.get(date) || 0,
-      intakes: intakeMap.get(date) || 0,
-      assignments: assignmentMap.get(date) || 0
-    }))
+  const organizationBarData = useMemo<BarDatum[]>(() => {
+    return [
+      { name: '测评', value: overviewStats?.organization_overview.assessment_count || 0, fill: CHART_COLORS[4] },
+      { name: '报告', value: overviewStats?.organization_overview.report_count || 0, fill: CHART_COLORS[5] }
+    ]
   }, [overviewStats])
 
-  const windowMetricData = useMemo(() => {
+  const accessFunnelData = useMemo<BarDatum[]>(() => {
     return [
-      { name: '入口打开', value: overviewStats?.window.entry_resolved_count || 0, fill: CHART_COLORS[0] },
-      { name: '完成接入', value: overviewStats?.window.entry_intake_count || 0, fill: CHART_COLORS[1] },
-      { name: '新建档案', value: overviewStats?.window.new_testees || 0, fill: CHART_COLORS[2] },
-      { name: '建立照护关系', value: overviewStats?.window.relation_assigned_count || 0, fill: CHART_COLORS[3] },
-      { name: '形成测评', value: overviewStats?.window.assessment_created_count || 0, fill: CHART_COLORS[4] },
-      { name: '产出报告', value: overviewStats?.window.assessment_completed_count || 0, fill: CHART_COLORS[5] }
-    ].filter((item) => item.value > 0)
+      { name: '入口打开', value: overviewStats?.access_funnel.window.entry_opened_count || 0, fill: CHART_COLORS[0] },
+      { name: '完成接入', value: overviewStats?.access_funnel.window.intake_confirmed_count || 0, fill: CHART_COLORS[1] },
+      { name: '新建档案', value: overviewStats?.access_funnel.window.testee_created_count || 0, fill: CHART_COLORS[2] },
+      { name: '建立照护', value: overviewStats?.access_funnel.window.care_relationship_established_count || 0, fill: CHART_COLORS[3] }
+    ]
+  }, [overviewStats])
+
+  const assessmentTrendData = useMemo(() => {
+    if (!overviewStats) return []
+    return mergeDailySeries([
+      { key: 'submitted', source: overviewStats.assessment_service.trend.answersheet_submitted },
+      { key: 'assessments', source: overviewStats.assessment_service.trend.assessment_created },
+      { key: 'reports', source: overviewStats.assessment_service.trend.report_generated }
+    ])
+  }, [overviewStats])
+
+  const assessmentMetricData = useMemo<BarDatum[]>(() => {
+    return [
+      { name: '提交答卷', value: overviewStats?.assessment_service.window.answersheet_submitted_count || 0, fill: CHART_COLORS[4] },
+      { name: '产生测评', value: overviewStats?.assessment_service.window.assessment_created_count || 0, fill: CHART_COLORS[5] },
+      { name: '产出报告', value: overviewStats?.assessment_service.window.report_generated_count || 0, fill: CHART_COLORS[6] },
+      { name: '失败测评', value: overviewStats?.assessment_service.window.assessment_failed_count || 0, fill: '#f5222d' }
+    ]
+  }, [overviewStats])
+
+  const planTaskData = useMemo<BarDatum[]>(() => {
+    return [
+      { name: '任务发放', value: overviewStats?.plan.window.task_created_count || 0, fill: '#faad14' },
+      { name: '任务打开', value: overviewStats?.plan.window.task_opened_count || 0, fill: '#4096ff' },
+      { name: '计划完成', value: overviewStats?.plan.window.task_completed_count || 0, fill: '#ff7a45' },
+      { name: '任务逾期', value: overviewStats?.plan.window.task_expired_count || 0, fill: '#f5222d' }
+    ]
   }, [overviewStats])
 
   const quickLinkMeta: Record<string, { description: string; color: string }> = {
@@ -292,127 +271,184 @@ const Home: React.FC = observer(() => {
         {showAdminStats && (
           <Spin spinning={overviewLoading}>
             <div className="stats-section">
-              <Row gutter={[16, 16]} className="stats-row">
-                {summaryStats.map((stat, index) => (
-                  <Col xs={24} sm={12} lg={8} key={`summary-${index}`}>
-                    <Card
-                      className="stat-card stat-card-summary"
-                      hoverable
-                      onClick={stat.action}
-                    >
-                      <div className="stat-card-topline" style={{ background: stat.color }} />
-                      <div className="stat-content">
-                        <div className="stat-icon" style={{ color: stat.color }}>
-                          {stat.icon}
-                        </div>
-                        <div className="stat-info">
-                          <div className="stat-title">{stat.title}</div>
-                          <div className="stat-value-wrapper">
-                            <div className="stat-value" style={{ color: stat.color }}>
-                              {stat.value.toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
+              <Row gutter={[16, 16]} className="home-stat-modules">
+                <Col xs={24} lg={12} xl={6}>
+                  <Card className="home-stat-module" hoverable onClick={() => history.push('/statistics/center')}>
+                    <div className="module-header">
+                      <div>
+                        <Text className="module-title">机构规模</Text>
+                        <Text type="secondary" className="module-subtitle">当前资源基线</Text>
                       </div>
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
-
-              <Row gutter={[16, 16]} className="stats-row">
-                {windowStats.map((stat, index) => (
-                  <Col xs={24} sm={12} lg={4} key={`window-${index}`}>
-                    <Card
-                      className="stat-card stat-card-window"
-                      hoverable
-                      onClick={stat.action}
-                    >
-                      <div className="stat-card-topline stat-card-topline-soft" style={{ background: stat.color }} />
-                      <div className="stat-content">
-                        <div className="stat-icon" style={{ color: stat.color }}>
-                          {stat.icon}
-                        </div>
-                        <div className="stat-info">
-                          <div className="stat-title">{stat.title}</div>
-                          <div className="stat-value-wrapper">
-                            <div className="stat-value" style={{ color: stat.color }}>
-                              {stat.value.toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
-
-              <Row gutter={[16, 16]} className="stats-chart-row">
-                <Col xs={24} lg={15}>
-                  <Card
-                    className="overview-chart-card"
-                    title="近 30 天接入与服务趋势"
-                    extra={(
-                      <Button type="link" onClick={() => history.push('/statistics/center')}>
-                        查看统计中心
-                      </Button>
-                    )}
-                  >
-                    {trendData.length ? (
-                      <div className="overview-chart">
+                      <TeamOutlined className="module-icon" />
+                    </div>
+                    <div className="module-primary">
+                      <span className="module-primary-value">
+                        {formatNumber(overviewStats?.organization_overview.testee_count || 0)}
+                      </span>
+                      <span className="module-primary-label">受试者总数</span>
+                    </div>
+                    <div className="module-meta-grid">
+                      <span>临床人员 <b>{formatNumber(overviewStats?.organization_overview.clinician_count || 0)}</b></span>
+                      <span>活跃入口 <b>{formatNumber(overviewStats?.organization_overview.active_entry_count || 0)}</b></span>
+                    </div>
+                    <div className="module-chart module-chart-compact">
+                      {hasBarData(organizationBarData) ? (
                         <ResponsiveContainer>
-                          <LineChart data={trendData} margin={{ top: 16, right: 16, left: 0, bottom: 8 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis dataKey="label" />
-                            <YAxis allowDecimals={false} />
-                            <Tooltip />
-                            <Legend />
-                            <Line type="monotone" dataKey="intakes" name="完成接入" stroke={CHART_COLORS[2]} strokeWidth={2} dot={false} />
-                            <Line type="monotone" dataKey="assignments" name="建立照护关系" stroke={CHART_COLORS[4]} strokeWidth={2} dot={false} />
-                            <Line type="monotone" dataKey="assessments" name="形成测评" stroke={CHART_COLORS[5]} strokeWidth={2} dot={false} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ) : (
-                      <div className="overview-chart-empty">
-                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无趋势数据" />
-                      </div>
-                    )}
-                  </Card>
-                </Col>
-                <Col xs={24} lg={9}>
-                  <Card
-                    className="overview-chart-card"
-                    title="近 30 天关键指标"
-                    extra={(
-                      <Button type="link" onClick={() => history.push('/statistics/center')}>
-                        查看详情
-                      </Button>
-                    )}
-                  >
-                    {windowMetricData.length ? (
-                      <div className="overview-chart">
-                        <ResponsiveContainer>
-                          <BarChart data={windowMetricData} layout="vertical" margin={{ top: 8, right: 16, left: 24, bottom: 8 }}>
-                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                            <XAxis type="number" allowDecimals={false} />
-                            <YAxis type="category" dataKey="name" width={84} />
-                            <Tooltip formatter={(value: number) => [value, '数量']} />
-                            <Bar dataKey="value" radius={[0, 6, 6, 0]}>
-                              {windowMetricData.map((item) => (
+                          <BarChart data={organizationBarData} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                            <XAxis type="number" allowDecimals={false} hide />
+                            <YAxis type="category" dataKey="name" width={40} tickLine={false} axisLine={false} />
+                            <Tooltip formatter={(value: number) => [value, '累计']} />
+                            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                              {organizationBarData.map((item) => (
                                 <Cell key={item.name} fill={item.fill} />
                               ))}
                             </Bar>
                           </BarChart>
                         </ResponsiveContainer>
+                      ) : (
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无累计数据" />
+                      )}
+                    </div>
+                  </Card>
+                </Col>
+
+                <Col xs={24} lg={12} xl={6}>
+                  <Card className="home-stat-module" hoverable onClick={() => history.push('/statistics/center')}>
+                    <div className="module-header">
+                      <div>
+                        <Text className="module-title">接入漏斗</Text>
+                        <Text type="secondary" className="module-subtitle">近 30 天</Text>
                       </div>
-                    ) : (
-                      <div className="overview-chart-empty">
-                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无窗口统计" />
+                      <BarChartOutlined className="module-icon" />
+                    </div>
+                    <div className="module-primary">
+                      <span className="module-primary-value">
+                        {formatNumber(overviewStats?.access_funnel.window.testee_created_count || 0)}
+                      </span>
+                      <span className="module-primary-label">新建档案</span>
+                    </div>
+                    <div className="module-note">首页只看漏斗是否有有效转化，细节进入统计中心拆维度。</div>
+                    <div className="module-chart">
+                      {hasBarData(accessFunnelData) ? (
+                        <ResponsiveContainer>
+                          <BarChart data={accessFunnelData} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                            <XAxis type="number" allowDecimals={false} hide />
+                            <YAxis type="category" dataKey="name" width={68} tickLine={false} axisLine={false} />
+                            <Tooltip formatter={(value: number) => [value, '数量']} />
+                            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                              {accessFunnelData.map((item) => (
+                                <Cell key={item.name} fill={item.fill} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无接入数据" />
+                      )}
+                    </div>
+                  </Card>
+                </Col>
+
+                <Col xs={24} lg={12} xl={6}>
+                  <Card className="home-stat-module" hoverable onClick={() => history.push('/statistics/center')}>
+                    <div className="module-header">
+                      <div>
+                        <Text className="module-title">测评服务</Text>
+                        <Text type="secondary" className="module-subtitle">近 30 天</Text>
                       </div>
-                    )}
+                      <FormOutlined className="module-icon" />
+                    </div>
+                    <div className="module-primary">
+                      <span className="module-primary-value">
+                        {formatNumber(overviewStats?.assessment_service.window.report_generated_count || 0)}
+                      </span>
+                      <span className="module-primary-label">产出报告</span>
+                    </div>
+                    <div className="module-meta-grid">
+                      <span>提交答卷 <b>{formatNumber(overviewStats?.assessment_service.window.answersheet_submitted_count || 0)}</b></span>
+                      <span>产生测评 <b>{formatNumber(overviewStats?.assessment_service.window.assessment_created_count || 0)}</b></span>
+                    </div>
+                    <div className="module-chart">
+                      {assessmentTrendData.length ? (
+                        <ResponsiveContainer>
+                          <LineChart data={assessmentTrendData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="label" interval="preserveStartEnd" tickLine={false} />
+                            <YAxis allowDecimals={false} hide />
+                            <Tooltip />
+                            <Line type="monotone" dataKey="submitted" name="提交答卷" stroke={CHART_COLORS[4]} strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="assessments" name="产生测评" stroke={CHART_COLORS[5]} strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="reports" name="产出报告" stroke={CHART_COLORS[6]} strokeWidth={2} dot={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : hasBarData(assessmentMetricData) ? (
+                        <ResponsiveContainer>
+                          <BarChart data={assessmentMetricData} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                            <XAxis type="number" allowDecimals={false} hide />
+                            <YAxis type="category" dataKey="name" width={68} tickLine={false} axisLine={false} />
+                            <Tooltip formatter={(value: number) => [value, '数量']} />
+                            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                              {assessmentMetricData.map((item) => (
+                                <Cell key={item.name} fill={item.fill} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无服务数据" />
+                      )}
+                    </div>
+                  </Card>
+                </Col>
+
+                <Col xs={24} lg={12} xl={6}>
+                  <Card className="home-stat-module" hoverable onClick={() => history.push('/statistics/center')}>
+                    <div className="module-header">
+                      <div>
+                        <Text className="module-title">Plan 任务</Text>
+                        <Text type="secondary" className="module-subtitle">近 30 天</Text>
+                      </div>
+                      <CalendarOutlined className="module-icon" />
+                    </div>
+                    <div className="module-primary">
+                      <span className="module-primary-value">
+                        {formatNumber(overviewStats?.plan.window.task_completed_count || 0)}
+                      </span>
+                      <span className="module-primary-label">任务完成</span>
+                    </div>
+                    <div className="module-meta-grid">
+                      <span>参与受试者 <b>{formatNumber(overviewStats?.plan.window.enrolled_testees || 0)}</b></span>
+                      <span>活跃受试者 <b>{formatNumber(overviewStats?.plan.window.active_testees || 0)}</b></span>
+                    </div>
+                    <div className="module-chart">
+                      {hasBarData(planTaskData) ? (
+                        <ResponsiveContainer>
+                          <BarChart data={planTaskData} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                            <XAxis type="number" allowDecimals={false} hide />
+                            <YAxis type="category" dataKey="name" width={68} tickLine={false} axisLine={false} />
+                            <Tooltip formatter={(value: number) => [value, '数量']} />
+                            <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                              {planTaskData.map((item) => (
+                                <Cell key={item.name} fill={item.fill} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无计划数据" />
+                      )}
+                    </div>
                   </Card>
                 </Col>
               </Row>
+
+              <div className="stats-section-footer">
+                <Button type="link" onClick={() => history.push('/statistics/center')}>
+                  查看完整统计中心
+                </Button>
+              </div>
             </div>
           </Spin>
         )}

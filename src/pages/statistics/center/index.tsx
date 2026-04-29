@@ -25,10 +25,12 @@ import {
 import type {
   IAssessmentEntryStatisticsResponse,
   IClinicianStatisticsResponse,
+  IDailyCount,
   IStatisticsOverviewResponse,
   IStatisticsQueryParams
 } from '@/api/path/statistics'
 import { extractErrorMessage } from '@/utils/apiError'
+import './index.scss'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -37,6 +39,12 @@ const { TabPane } = Tabs
 type PresetValue = 'today' | '7d' | '30d'
 
 const CHART_COLORS = ['#1677ff', '#00b578', '#faad14', '#ff7a45', '#722ed1', '#13c2c2', '#eb2f96']
+
+type BarDatum = {
+  name: string
+  value: number
+  fill: string
+}
 
 function formatChartDate(raw: string): string {
   if (!raw) return '-'
@@ -65,10 +73,43 @@ function renderCardTitle(title: string, question: string, note?: string) {
   )
 }
 
+type DailySeries = {
+  key: string
+  source: IDailyCount[]
+}
+
+function mergeDailySeries(series: DailySeries[]) {
+  const maps = series.map((item) => ({
+    key: item.key,
+    values: new Map(item.source.map((point) => [point.date, point.count]))
+  }))
+  const dates = Array.from(new Set(series.flatMap((item) => item.source.map((point) => point.date)))).sort()
+
+  return dates.map((date) => {
+    const row: Record<string, string | number> = {
+      date,
+      label: formatChartDate(date)
+    }
+    maps.forEach((item) => {
+      row[item.key] = item.values.get(date) || 0
+    })
+    return row
+  })
+}
+
+function formatNumber(value: number): string {
+  return value.toLocaleString()
+}
+
+function hasBarData(data: BarDatum[]): boolean {
+  return data.some((item) => item.value > 0)
+}
+
 const StatisticsCenterPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [preset, setPreset] = useState<PresetValue>('30d')
   const [customRange, setCustomRange] = useState<any[] | null>(null)
+  const [activeTab, setActiveTab] = useState('overview')
   const [overview, setOverview] = useState<IStatisticsOverviewResponse | null>(null)
   const [clinicians, setClinicians] = useState<IClinicianStatisticsResponse[]>([])
   const [entries, setEntries] = useState<IAssessmentEntryStatisticsResponse[]>([])
@@ -149,69 +190,49 @@ const StatisticsCenterPage: React.FC = () => {
     []
   )
 
-  const overviewTrendData = useMemo(() => {
-    if (!overview) return []
-    const assessmentMap = new Map(overview.trend.assessments.map((item) => [item.date, item.count]))
-    const intakeMap = new Map(overview.trend.intakes.map((item) => [item.date, item.count]))
-    const assignmentMap = new Map(overview.trend.assignments.map((item) => [item.date, item.count]))
-    const allDates = Array.from(new Set([
-      ...overview.trend.assessments.map((item) => item.date),
-      ...overview.trend.intakes.map((item) => item.date),
-      ...overview.trend.assignments.map((item) => item.date)
-    ])).sort()
-
-    return allDates.map((date) => ({
-      date,
-      label: formatChartDate(date),
-      assessments: assessmentMap.get(date) || 0,
-      intakes: intakeMap.get(date) || 0,
-      assignments: assignmentMap.get(date) || 0
-    }))
-  }, [overview])
-
-  const overviewWindowData = useMemo(() => {
-    if (!overview) return []
+  const resourceCompositionData = useMemo<BarDatum[]>(() => {
     return [
-      { name: '入口打开', value: overview.window.entry_resolved_count, fill: CHART_COLORS[0] },
-      { name: '完成接入', value: overview.window.entry_intake_count, fill: CHART_COLORS[1] },
-      { name: '新建档案', value: overview.window.new_testees, fill: CHART_COLORS[2] },
-      { name: '建立照护关系', value: overview.window.relation_assigned_count, fill: CHART_COLORS[3] },
-      { name: '形成测评', value: overview.window.assessment_created_count, fill: CHART_COLORS[4] },
-      { name: '产出报告', value: overview.window.assessment_completed_count, fill: CHART_COLORS[5] }
+      { name: '累计测评', value: overview?.organization_overview.assessment_count || 0, fill: CHART_COLORS[4] },
+      { name: '累计报告', value: overview?.organization_overview.report_count || 0, fill: CHART_COLORS[5] }
     ]
   }, [overview])
 
-  const overviewMetricData = useMemo(() => {
-    return overviewWindowData.filter((item) => item.value > 0)
-  }, [overviewWindowData])
-
-  const overviewSectionCards = useMemo(() => {
+  const accessFunnelData = useMemo<BarDatum[]>(() => {
     return [
-      {
-        title: '接入行为',
-        items: [
-          { label: '近 30 天入口打开', value: overview?.window.entry_resolved_count || 0 },
-          { label: '近 30 天完成接入', value: overview?.window.entry_intake_count || 0 },
-          { label: '近 30 天新建档案', value: overview?.window.new_testees || 0 },
-          { label: '近 30 天建立照护关系', value: overview?.window.relation_assigned_count || 0 }
-        ]
-      },
-      {
-        title: '测评服务过程',
-        items: [
-          { label: '近 30 天形成测评', value: overview?.window.assessment_created_count || 0 },
-          { label: '近 30 天产出报告', value: overview?.window.assessment_completed_count || 0 },
-          { label: '累计测评数', value: overview?.snapshot.assessment_count || 0 }
-        ]
-      },
-      {
-        title: '资源现状',
-        items: [
-          { label: '当前活跃入口', value: overview?.snapshot.active_entry_count || 0 },
-          { label: '临床人员总数', value: overview?.snapshot.clinician_count || 0 }
-        ]
-      }
+      { name: '入口打开', value: overview?.access_funnel.window.entry_opened_count || 0, fill: CHART_COLORS[0] },
+      { name: '完成接入', value: overview?.access_funnel.window.intake_confirmed_count || 0, fill: CHART_COLORS[1] },
+      { name: '新建档案', value: overview?.access_funnel.window.testee_created_count || 0, fill: CHART_COLORS[2] },
+      { name: '建立照护', value: overview?.access_funnel.window.care_relationship_established_count || 0, fill: CHART_COLORS[3] }
     ]
+  }, [overview])
+
+  const assessmentTrendData = useMemo(() => {
+    if (!overview) return []
+    return mergeDailySeries([
+      { key: 'submitted', source: overview.assessment_service.trend.answersheet_submitted },
+      { key: 'created', source: overview.assessment_service.trend.assessment_created },
+      { key: 'reports', source: overview.assessment_service.trend.report_generated },
+      { key: 'failed', source: overview.assessment_service.trend.assessment_failed }
+    ])
+  }, [overview])
+
+  const planTaskData = useMemo<BarDatum[]>(() => {
+    return [
+      { name: '任务发放', value: overview?.plan.window.task_created_count || 0, fill: '#faad14' },
+      { name: '任务打开', value: overview?.plan.window.task_opened_count || 0, fill: '#4096ff' },
+      { name: '任务完成', value: overview?.plan.window.task_completed_count || 0, fill: '#ff7a45' },
+      { name: '任务逾期', value: overview?.plan.window.task_expired_count || 0, fill: '#cf1322' }
+    ]
+  }, [overview])
+
+  const planTrendData = useMemo(() => {
+    if (!overview) return []
+    return mergeDailySeries([
+      { key: 'created', source: overview.plan.trend.task_created },
+      { key: 'opened', source: overview.plan.trend.task_opened },
+      { key: 'completed', source: overview.plan.trend.task_completed },
+      { key: 'expired', source: overview.plan.trend.task_expired }
+    ])
   }, [overview])
 
   const clinicianResourceData = useMemo(() => {
@@ -302,6 +323,31 @@ const StatisticsCenterPage: React.FC = () => {
     return Object.entries(counts).map(([name, value]) => ({ name, value }))
   }, [entries])
 
+  const clinicianDimensionTotals = useMemo(() => {
+    return clinicians.reduce(
+      (acc, item) => ({
+        accessible: acc.accessible + item.snapshot.total_accessible_testees,
+        activeEntries: acc.activeEntries + item.snapshot.active_entry_count,
+        intake: acc.intake + item.window.intake_count,
+        reports: acc.reports + item.window.completed_assessment_count
+      }),
+      { accessible: 0, activeEntries: 0, intake: 0, reports: 0 }
+    )
+  }, [clinicians])
+
+  const entryDimensionTotals = useMemo(() => {
+    return entries.reduce(
+      (acc, item) => ({
+        active: acc.active + (item.entry.is_active ? 1 : 0),
+        opened: acc.opened + item.window.resolve_count,
+        intake: acc.intake + item.window.intake_count,
+        connected: acc.connected + item.window.assigned_count,
+        assessments: acc.assessments + item.window.assessment_count
+      }),
+      { active: 0, opened: 0, intake: 0, connected: 0, assessments: 0 }
+    )
+  }, [entries])
+
   const renderEmptyChart = (description: string) => (
     <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={description} />
@@ -314,7 +360,7 @@ const StatisticsCenterPage: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
           <div>
             <Title level={3} style={{ marginBottom: 4 }}>统计中心</Title>
-            <Text type="secondary">统一查看资源供给、接入行为和测评服务过程。</Text>
+            <Text type="secondary">按机构总览、接入漏斗、测评服务、维度分析和 Plan 维度查看运营数据。</Text>
           </div>
           <Space wrap>
             <Select
@@ -342,109 +388,215 @@ const StatisticsCenterPage: React.FC = () => {
           </Space>
         </div>
 
-        <Tabs>
-          <TabPane tab="运营概览" key="overview">
-            <Space direction="vertical" size={16} style={{ width: '100%' }}>
-              <Card size="small" style={{ background: '#fafafa' }}>
-                <Space direction="vertical" size={4}>
-                  <Text strong>阅读顺序</Text>
-                  <Text type="secondary">1. 先看资源基线，确认当前组织手上有多少受试者、临床人员和活跃入口。</Text>
-                  <Text type="secondary">2. 再看窗口内的接入行为，判断最近这段时间是否真的有用户在打开入口、完成接入和建立照护关系。</Text>
-                  <Text type="secondary">3. 最后看服务过程，确认这些接入是否进一步转成了测评和报告产出。</Text>
-                </Space>
+        <Tabs activeKey={activeTab} onChange={setActiveTab}>
+          <TabPane tab="统计中心概览" key="overview">
+            <Space direction="vertical" size={16} className="statistics-dashboard">
+              <Card className="dashboard-summary" loading={loading}>
+                <div className="dashboard-summary__header">
+                  <div>
+                    <Text strong className="dashboard-summary__title">核心指标模块</Text>
+                    <Text type="secondary" className="dashboard-summary__range">
+                      {overview?.time_range.from ? formatChartDate(overview.time_range.from) : '-'} 至{' '}
+                      {overview?.time_range.to ? formatChartDate(overview.time_range.to) : '-'}
+                    </Text>
+                  </div>
+                  <Text type="secondary">每个模块只展示一个主指标和对应报表</Text>
+                </div>
               </Card>
 
-              <Row gutter={[16, 16]}>
-                <Col xs={24} sm={12} lg={6}>
-                  <Card loading={loading}><Statistic title="受试者总数" value={overview?.snapshot.testee_count || 0} /></Card>
+              <Row gutter={[16, 16]} className="overview-module-grid">
+                <Col xs={24} lg={12}>
+                  <Card className="overview-module-card" loading={loading}>
+                    <div className="overview-module-card__header">
+                      <div>
+                        <Text strong>机构规模</Text>
+                        <Text type="secondary">资源底盘</Text>
+                      </div>
+                      <Statistic title="受试者总数" value={overview?.organization_overview.testee_count || 0} />
+                    </div>
+                    <div className="overview-module-card__meta">
+                      临床人员 {formatNumber(overview?.organization_overview.clinician_count || 0)} · 活跃入口{' '}
+                      {formatNumber(overview?.organization_overview.active_entry_count || 0)}
+                    </div>
+                    <div className="dashboard-chart dashboard-chart--small">
+                      {hasBarData(resourceCompositionData) ? (
+                        <ResponsiveContainer>
+                          <BarChart data={resourceCompositionData} layout="vertical" margin={{ top: 8, right: 16, left: 24, bottom: 8 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                            <XAxis type="number" allowDecimals={false} />
+                            <YAxis type="category" dataKey="name" width={80} />
+                            <Tooltip formatter={(value: number) => [value, '累计']} />
+                            <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                              {resourceCompositionData.map((item) => (
+                                <Cell key={item.name} fill={item.fill} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : renderEmptyChart('暂无累计数据')}
+                    </div>
+                  </Card>
                 </Col>
-                <Col xs={24} sm={12} lg={6}>
-                  <Card loading={loading}><Statistic title="临床人员总数" value={overview?.snapshot.clinician_count || 0} /></Card>
+
+                <Col xs={24} lg={12}>
+                  <Card className="overview-module-card" loading={loading}>
+                    <div className="overview-module-card__header">
+                      <div>
+                        <Text strong>接入漏斗</Text>
+                        <Text type="secondary">窗口转化</Text>
+                      </div>
+                      <Statistic title="新建档案" value={overview?.access_funnel.window.testee_created_count || 0} />
+                    </div>
+                    <div className="overview-module-card__meta">
+                      入口打开 {formatNumber(overview?.access_funnel.window.entry_opened_count || 0)} · 完成接入{' '}
+                      {formatNumber(overview?.access_funnel.window.intake_confirmed_count || 0)}
+                    </div>
+                    <div className="dashboard-chart dashboard-chart--small">
+                      {hasBarData(accessFunnelData) ? (
+                        <ResponsiveContainer>
+                          <BarChart data={accessFunnelData} layout="vertical" margin={{ top: 8, right: 16, left: 16, bottom: 8 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                            <XAxis type="number" allowDecimals={false} />
+                            <YAxis type="category" dataKey="name" width={82} />
+                            <Tooltip formatter={(value: number) => [value, '数量']} />
+                            <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                              {accessFunnelData.map((item) => (
+                                <Cell key={item.name} fill={item.fill} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : renderEmptyChart('暂无接入数据')}
+                    </div>
+                  </Card>
                 </Col>
-                <Col xs={24} sm={12} lg={6}>
-                  <Card loading={loading}><Statistic title="活跃入口" value={overview?.snapshot.active_entry_count || 0} /></Card>
+
+                <Col xs={24} lg={12}>
+                  <Card className="overview-module-card" loading={loading}>
+                    <div className="overview-module-card__header">
+                      <div>
+                        <Text strong>测评服务</Text>
+                        <Text type="secondary">服务交付</Text>
+                      </div>
+                      <Statistic title="产出报告" value={overview?.assessment_service.window.report_generated_count || 0} />
+                    </div>
+                    <div className="overview-module-card__meta">
+                      提交答卷 {formatNumber(overview?.assessment_service.window.answersheet_submitted_count || 0)} · 产生测评{' '}
+                      {formatNumber(overview?.assessment_service.window.assessment_created_count || 0)}
+                    </div>
+                    <div className="dashboard-chart dashboard-chart--small">
+                      {assessmentTrendData.length ? (
+                        <ResponsiveContainer>
+                          <LineChart data={assessmentTrendData} margin={{ top: 12, right: 16, left: 0, bottom: 8 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="label" />
+                            <YAxis allowDecimals={false} />
+                            <Tooltip />
+                            <Legend />
+                            <Line type="monotone" dataKey="submitted" name="提交答卷" stroke={CHART_COLORS[4]} strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="created" name="产生测评" stroke={CHART_COLORS[5]} strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="reports" name="产出报告" stroke={CHART_COLORS[6]} strokeWidth={2} dot={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : renderEmptyChart('暂无测评服务趋势')}
+                    </div>
+                  </Card>
                 </Col>
-                <Col xs={24} sm={12} lg={6}>
-                  <Card loading={loading}><Statistic title="累计测评数" value={overview?.snapshot.assessment_count || 0} /></Card>
+
+                <Col xs={24} lg={12}>
+                  <Card className="overview-module-card" loading={loading}>
+                    <div className="overview-module-card__header">
+                      <div>
+                        <Text strong>Plan 执行</Text>
+                        <Text type="secondary">任务履约</Text>
+                      </div>
+                      <Statistic title="任务完成" value={overview?.plan.window.task_completed_count || 0} />
+                    </div>
+                    <div className="overview-module-card__meta">
+                      参与受试者 {formatNumber(overview?.plan.window.enrolled_testees || 0)} · 活跃受试者{' '}
+                      {formatNumber(overview?.plan.window.active_testees || 0)}
+                    </div>
+                    <div className="dashboard-chart dashboard-chart--small">
+                      {hasBarData(planTaskData) ? (
+                        <ResponsiveContainer>
+                          <BarChart data={planTaskData} layout="vertical" margin={{ top: 8, right: 16, left: 16, bottom: 8 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                            <XAxis type="number" allowDecimals={false} />
+                            <YAxis type="category" dataKey="name" width={82} />
+                            <Tooltip formatter={(value: number) => [value, '数量']} />
+                            <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                              {planTaskData.map((item) => (
+                                <Cell key={item.name} fill={item.fill} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : renderEmptyChart('暂无 Plan 数据')}
+                    </div>
+                  </Card>
                 </Col>
               </Row>
 
-              <Row gutter={[16, 16]}>
-                {overviewSectionCards.map((section) => (
-                  <Col xs={24} lg={8} key={section.title}>
-                    <Card loading={loading} title={section.title}>
-                      <Row gutter={[12, 12]}>
-                        {section.items.map((item) => (
-                          <Col span={section.items.length >= 4 ? 12 : 24} key={item.label}>
-                            <Statistic title={item.label} value={item.value} />
-                          </Col>
-                        ))}
-                      </Row>
-                    </Card>
+              <Card className="dashboard-section" loading={loading} title={<span className="dashboard-section__title">维度 dashboard</span>}>
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} md={8}>
+                    <div className="dimension-tile">
+                      <Statistic title="临床人员维度" value={overview?.dimension_analysis.clinician_count || 0} />
+                      <Button type="link" onClick={() => setActiveTab('clinicians')}>查看临床人员维度</Button>
+                    </div>
                   </Col>
-                ))}
-              </Row>
-
-              <Card
-                loading={loading}
-                title={renderCardTitle('第一步：接入与服务趋势', '最近一段时间，接入动作和服务动作是在升温还是收缩？')}
-              >
-                {overviewTrendData.length ? (
-                  <div style={{ width: '100%', height: 340 }}>
-                    <ResponsiveContainer>
-                      <LineChart data={overviewTrendData} margin={{ top: 16, right: 16, left: 0, bottom: 8 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="label" />
-                        <YAxis allowDecimals={false} />
-                        <Tooltip />
-                        <Legend />
-                        <Line type="monotone" dataKey="intakes" name="完成接入" stroke={CHART_COLORS[2]} strokeWidth={2} />
-                        <Line type="monotone" dataKey="assignments" name="建立照护关系" stroke={CHART_COLORS[4]} strokeWidth={2} />
-                        <Line type="monotone" dataKey="assessments" name="形成测评" stroke={CHART_COLORS[5]} strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : renderEmptyChart('暂无趋势数据')}
-              </Card>
-
-              <Card
-                loading={loading}
-                title={renderCardTitle('第二步：当前窗口关键指标', '把当前统计窗口拆开看，业务量主要集中在哪些环节？')}
-              >
-                {overviewMetricData.length ? (
-                  <div style={{ width: '100%', height: 340 }}>
-                    <ResponsiveContainer>
-                      <BarChart data={overviewMetricData} layout="vertical" margin={{ top: 8, right: 16, left: 24, bottom: 8 }}>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                        <XAxis type="number" allowDecimals={false} />
-                        <YAxis type="category" dataKey="name" width={96} />
-                        <Tooltip formatter={(value: number) => [value, '数量']} />
-                        <Bar dataKey="value" radius={[0, 6, 6, 0]}>
-                          {overviewMetricData.map((item) => (
-                            <Cell key={item.name} fill={item.fill} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : renderEmptyChart('当前窗口暂无统计数据')}
+                  <Col xs={24} md={8}>
+                    <div className="dimension-tile">
+                      <Statistic title="入口维度" value={overview?.dimension_analysis.entry_count || 0} />
+                      <Button type="link" onClick={() => setActiveTab('entries')}>查看入口维度</Button>
+                    </div>
+                  </Col>
+                  <Col xs={24} md={8}>
+                    <div className="dimension-tile">
+                      <Statistic title="Plan 维度" value={overview?.plan.window.task_created_count || 0} />
+                      <Button type="link" onClick={() => setActiveTab('plans')}>查看 Plan 维度</Button>
+                    </div>
+                  </Col>
+                </Row>
               </Card>
             </Space>
           </TabPane>
-          <TabPane tab="临床人员统计" key="clinicians">
+          <TabPane tab="临床人员维度" key="clinicians">
             <Space direction="vertical" size={16} style={{ width: '100%' }}>
-              <Card size="small" style={{ background: '#fafafa' }}>
-                <Space direction="vertical" size={4}>
-                  <Text strong>阅读顺序</Text>
-                  <Text type="secondary">1. 先看资源分布，知道服务资源目前主要握在哪些临床人员手里。</Text>
-                  <Text type="secondary">2. 再看接入承接，判断最近谁真正接住了入口打开和完成接入。</Text>
-                  <Text type="secondary">3. 最后看服务结果，确认谁把接入进一步转成了测评和报告。</Text>
-                </Space>
+              <Card className="dashboard-summary" loading={loading}>
+                <div className="dashboard-summary__header">
+                  <div>
+                    <Text strong className="dashboard-summary__title">临床人员维度总览</Text>
+                    <Text type="secondary" className="dashboard-summary__range">先看总体承载，再拆资源、接入和服务产出。</Text>
+                  </div>
+                </div>
+                <div className="dashboard-kpi-grid dashboard-kpi-grid--four">
+                  <div className="dashboard-kpi">
+                    <div className="dashboard-kpi__label">临床人员维度</div>
+                    <div className="dashboard-kpi__value">{formatNumber(overview?.dimension_analysis.clinician_count || 0)}</div>
+                    <div className="dashboard-kpi__hint">当前可分析人数</div>
+                  </div>
+                  <div className="dashboard-kpi">
+                    <div className="dashboard-kpi__label">样本可访问受试者</div>
+                    <div className="dashboard-kpi__value">{formatNumber(clinicianDimensionTotals.accessible)}</div>
+                    <div className="dashboard-kpi__hint">当前表格样本合计</div>
+                  </div>
+                  <div className="dashboard-kpi">
+                    <div className="dashboard-kpi__label">窗口完成接入</div>
+                    <div className="dashboard-kpi__value">{formatNumber(clinicianDimensionTotals.intake)}</div>
+                    <div className="dashboard-kpi__hint">样本窗口合计</div>
+                  </div>
+                  <div className="dashboard-kpi">
+                    <div className="dashboard-kpi__label">窗口产出报告</div>
+                    <div className="dashboard-kpi__value">{formatNumber(clinicianDimensionTotals.reports)}</div>
+                    <div className="dashboard-kpi__hint">样本窗口合计</div>
+                  </div>
+                </div>
               </Card>
 
               <Card
                 loading={loading}
-                title={renderCardTitle('第一步：临床人员资源分布', '当前服务资源主要分布在哪些临床人员手里？')}
+                title={renderCardTitle('1. 资源分布拆解', '当前服务资源主要分布在哪些临床人员手里？')}
               >
                 {clinicianResourceData.length ? (
                   <div style={{ width: '100%', height: 360 }}>
@@ -466,7 +618,7 @@ const StatisticsCenterPage: React.FC = () => {
 
               <Card
                 loading={loading}
-                title={renderCardTitle('第二步：临床人员接入承接', '最近谁在承接更多入口打开、完成接入和建立照护关系？')}
+                title={renderCardTitle('2. 接入承接拆解', '最近谁在承接更多入口打开、完成接入和建立照护关系？')}
               >
                 {clinicianAccessData.length ? (
                   <div style={{ width: '100%', height: 360 }}>
@@ -488,7 +640,7 @@ const StatisticsCenterPage: React.FC = () => {
 
               <Card
                 loading={loading}
-                title={renderCardTitle('第三步：临床人员服务结果', '最近谁把接入进一步转成了测评和报告？')}
+                title={renderCardTitle('3. 服务产出拆解', '最近谁把接入进一步转成了测评和报告？')}
               >
                 {clinicianServiceData.length ? (
                   <div style={{ width: '100%', height: 360 }}>
@@ -518,20 +670,42 @@ const StatisticsCenterPage: React.FC = () => {
               </Card>
             </Space>
           </TabPane>
-          <TabPane tab="入口接入与服务" key="entries">
+          <TabPane tab="入口维度" key="entries">
             <Space direction="vertical" size={16} style={{ width: '100%' }}>
-              <Card size="small" style={{ background: '#fafafa' }}>
-                <Space direction="vertical" size={4}>
-                  <Text strong>阅读顺序</Text>
-                  <Text type="secondary">1. 先看入口资源现状，确认当前有多少入口处于启用状态，以及它们主要指向什么目标类型。</Text>
-                  <Text type="secondary">2. 再看窗口内接入效果，判断哪些入口最近真正被打开、完成接入并建立了照护关系。</Text>
-                  <Text type="secondary">3. 最后看服务承接，确认这些入口有没有继续带来测评服务。</Text>
-                </Space>
+              <Card className="dashboard-summary" loading={loading}>
+                <div className="dashboard-summary__header">
+                  <div>
+                    <Text strong className="dashboard-summary__title">入口维度总览</Text>
+                    <Text type="secondary" className="dashboard-summary__range">先看入口供给，再拆入口接入和服务承接。</Text>
+                  </div>
+                </div>
+                <div className="dashboard-kpi-grid dashboard-kpi-grid--four">
+                  <div className="dashboard-kpi">
+                    <div className="dashboard-kpi__label">入口维度</div>
+                    <div className="dashboard-kpi__value">{formatNumber(overview?.dimension_analysis.entry_count || 0)}</div>
+                    <div className="dashboard-kpi__hint">当前可分析入口数</div>
+                  </div>
+                  <div className="dashboard-kpi">
+                    <div className="dashboard-kpi__label">样本启用入口</div>
+                    <div className="dashboard-kpi__value">{formatNumber(entryDimensionTotals.active)}</div>
+                    <div className="dashboard-kpi__hint">当前表格样本</div>
+                  </div>
+                  <div className="dashboard-kpi">
+                    <div className="dashboard-kpi__label">窗口入口打开</div>
+                    <div className="dashboard-kpi__value">{formatNumber(entryDimensionTotals.opened)}</div>
+                    <div className="dashboard-kpi__hint">样本窗口合计</div>
+                  </div>
+                  <div className="dashboard-kpi">
+                    <div className="dashboard-kpi__label">窗口形成测评</div>
+                    <div className="dashboard-kpi__value">{formatNumber(entryDimensionTotals.assessments)}</div>
+                    <div className="dashboard-kpi__hint">样本窗口合计</div>
+                  </div>
+                </div>
               </Card>
 
               <Card
                 loading={loading}
-                title={renderCardTitle('第一步：入口资源现状', '当前有哪些入口在运行，它们主要指向什么目标类型？')}
+                title={renderCardTitle('1. 入口供给拆解', '当前有哪些入口在运行，它们主要指向什么目标类型？')}
               >
                 <Row gutter={[16, 16]}>
                   <Col xs={24} lg={12}>
@@ -573,7 +747,7 @@ const StatisticsCenterPage: React.FC = () => {
 
               <Card
                 loading={loading}
-                title={renderCardTitle('第二步：入口接入效果', '最近哪些入口真正被打开，并继续转成了完成接入和建立照护关系？')}
+                title={renderCardTitle('2. 接入效果拆解', '最近哪些入口真正被打开，并继续转成了完成接入和建立照护关系？')}
               >
                 {entryAccessData.length ? (
                   <div style={{ width: '100%', height: 360 }}>
@@ -596,7 +770,7 @@ const StatisticsCenterPage: React.FC = () => {
               <Card
                 loading={loading}
                 title={renderCardTitle(
-                  '第三步：入口服务承接',
+                  '3. 服务承接拆解',
                   '最近哪些入口已经开始把接入转成测评服务？',
                   '当前入口维度还没有报告产出统计，因此先用“形成测评”观察服务承接效果。'
                 )}
@@ -624,6 +798,88 @@ const StatisticsCenterPage: React.FC = () => {
                   pagination={false}
                   scroll={{ x: 1400 }}
                 />
+              </Card>
+            </Space>
+          </TabPane>
+          <TabPane tab="Plan 维度" key="plans">
+            <Space direction="vertical" size={16} style={{ width: '100%' }}>
+              <Card className="dashboard-summary" loading={loading}>
+                <div className="dashboard-summary__header">
+                  <div>
+                    <Text strong className="dashboard-summary__title">Plan 维度总览</Text>
+                    <Text type="secondary" className="dashboard-summary__range">先看任务履约，再拆任务节点和趋势。</Text>
+                  </div>
+                </div>
+                <div className="dashboard-kpi-grid dashboard-kpi-grid--four">
+                  <div className="dashboard-kpi">
+                    <div className="dashboard-kpi__label">任务发放</div>
+                    <div className="dashboard-kpi__value">{formatNumber(overview?.plan.window.task_created_count || 0)}</div>
+                    <div className="dashboard-kpi__hint">当前窗口</div>
+                  </div>
+                  <div className="dashboard-kpi">
+                    <div className="dashboard-kpi__label">任务完成</div>
+                    <div className="dashboard-kpi__value">{formatNumber(overview?.plan.window.task_completed_count || 0)}</div>
+                    <div className="dashboard-kpi__hint">当前窗口</div>
+                  </div>
+                  <div className="dashboard-kpi">
+                    <div className="dashboard-kpi__label">参与受试者</div>
+                    <div className="dashboard-kpi__value">{formatNumber(overview?.plan.window.enrolled_testees || 0)}</div>
+                    <div className="dashboard-kpi__hint">当前窗口</div>
+                  </div>
+                  <div className="dashboard-kpi">
+                    <div className="dashboard-kpi__label">活跃受试者</div>
+                    <div className="dashboard-kpi__value">{formatNumber(overview?.plan.window.active_testees || 0)}</div>
+                    <div className="dashboard-kpi__hint">当前窗口</div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card
+                className="dashboard-section"
+                loading={loading}
+                title={renderCardTitle('1. 任务节点拆解', 'Plan 任务发放、打开、完成和逾期分别贡献了多少？')}
+              >
+                <div className="dashboard-chart dashboard-chart--small">
+                  {hasBarData(planTaskData) ? (
+                    <ResponsiveContainer>
+                      <BarChart data={planTaskData} layout="vertical" margin={{ top: 8, right: 16, left: 16, bottom: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                        <XAxis type="number" allowDecimals={false} />
+                        <YAxis type="category" dataKey="name" width={82} />
+                        <Tooltip formatter={(value: number) => [value, '数量']} />
+                        <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                          {planTaskData.map((item) => (
+                            <Cell key={item.name} fill={item.fill} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : renderEmptyChart('暂无 Plan 数据')}
+                </div>
+              </Card>
+
+              <Card
+                className="dashboard-section"
+                loading={loading}
+                title={renderCardTitle('2. 任务趋势拆解', 'Plan 任务在当前窗口内是集中发放、持续完成，还是出现逾期堆积？')}
+              >
+                <div className="dashboard-chart">
+                  {planTrendData.length ? (
+                    <ResponsiveContainer>
+                      <LineChart data={planTrendData} margin={{ top: 16, right: 16, left: 0, bottom: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="label" />
+                        <YAxis allowDecimals={false} />
+                        <Tooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="created" name="任务发放" stroke="#faad14" strokeWidth={2} />
+                        <Line type="monotone" dataKey="opened" name="任务打开" stroke="#4096ff" strokeWidth={2} />
+                        <Line type="monotone" dataKey="completed" name="任务完成" stroke="#ff7a45" strokeWidth={2} />
+                        <Line type="monotone" dataKey="expired" name="任务逾期" stroke="#cf1322" strokeWidth={2} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : renderEmptyChart('暂无 Plan 趋势')}
+                </div>
               </Card>
             </Space>
           </TabPane>
