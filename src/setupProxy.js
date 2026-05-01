@@ -1,7 +1,28 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { createProxyMiddleware } = require('http-proxy-middleware')
 
+const DEFAULT_IAM_HOST = 'https://iam.fangcunmount.cn/api/v2'
+const DEFAULT_IAM_API_PREFIX = '/api/v2'
+
+function resolveIamProxyConfig() {
+  const rawHost = (process.env.REACT_APP_IAM_HOST || DEFAULT_IAM_HOST).replace(/\/$/, '')
+  const match = rawHost.match(/^(.*?)(\/api\/v\d+)$/)
+  if (!match) {
+    return {
+      target: rawHost,
+      apiPrefix: DEFAULT_IAM_API_PREFIX
+    }
+  }
+
+  return {
+    target: match[1],
+    apiPrefix: match[2]
+  }
+}
+
 module.exports = function (app) {
+  const iamProxy = resolveIamProxyConfig()
+
   // QS 服务相关接口（员工、问卷、量表等）代理到 QS 服务器
   // 注意：代理路径需要包含 /api/v1 前缀，因为后端 API 路径是 /api/v1/xxx
   app.use(
@@ -76,9 +97,20 @@ module.exports = function (app) {
   app.use(
     ['/.well-known', '/authn', '/identity', '/authz', '/suggest', '/idp'],
     createProxyMiddleware({
-      target: process.env.REACT_APP_IAM_HOST || 'https://iam.fangcunmount.cn/api/v2',
+      target: iamProxy.target,
       changeOrigin: true,
-      pathRewrite: (path) => path // 保持路径不变（例如 /authn/login, /identity/me, /authz/roles）
+      pathRewrite: (path) => `${iamProxy.apiPrefix}${path}`,
+      logLevel: 'debug',
+      onProxyReq: (proxyReq, req) => {
+        console.log('[Proxy] IAM Request:', req.method, req.url, '-> ', proxyReq.path)
+        const authHeader = req.headers.authorization
+        if (authHeader) {
+          proxyReq.setHeader('Authorization', authHeader)
+        }
+      },
+      onProxyRes: (proxyRes, req) => {
+        console.log('[Proxy] IAM Response:', proxyRes.statusCode, req.url)
+      }
     })
   )
 }
