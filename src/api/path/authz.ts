@@ -1,4 +1,4 @@
-import { get, post, put } from '../server'
+import { del, get, post, put } from '../server'
 import { FcResponse } from '../../types/server'
 
 // ==================== 类型定义 ====================
@@ -45,7 +45,7 @@ export interface IListResponse<T> {
 // 角色分配
 export interface IAssignment {
   id: string
-  subject_type: 'user' | 'group'
+  subject_type: 'user'
   subject_id: string
   role_id: string
   granted_by: string
@@ -53,7 +53,7 @@ export interface IAssignment {
 }
 
 export interface IGrantRequest {
-  subject_type: 'user' | 'group'
+  subject_type: 'user'
   subject_id: string
   role_id: string
   granted_by: string
@@ -61,7 +61,7 @@ export interface IGrantRequest {
 }
 
 export interface IRevokeRequest {
-  subject_type: 'user' | 'group'
+  subject_type: 'user'
   subject_id: string
   role_id: string
   [key: string]: any
@@ -75,12 +75,16 @@ export interface IPolicyRule {
   object?: string
   domain?: string
   action: string
+  scope_type?: string
+  scope_value?: string
 }
 
 export interface IAddPolicyRequest {
   role_id: string
   resource_id: string
   action: string
+  scope_type?: string
+  scope_value?: string
   changed_by: string
   reason?: string
   [key: string]: any
@@ -90,6 +94,8 @@ export interface IRemovePolicyRequest {
   role_id: string
   resource_id: string
   action: string
+  scope_type?: string
+  scope_value?: string
   changed_by: string
   reason?: string
   [key: string]: any
@@ -103,6 +109,7 @@ export interface IResource {
   app_name: string
   type: string
   actions: string[]
+  scope_kinds?: string[]
   createdAt?: string
   display_name: string
   description?: string
@@ -114,6 +121,7 @@ export interface ICreateResourceRequest {
   app_name: string
   type: string
   actions: string[]
+  scope_kinds?: string[]
   display_name: string
   description?: string
   [key: string]: any
@@ -121,6 +129,7 @@ export interface ICreateResourceRequest {
 
 export interface IUpdateResourceRequest {
   actions?: string[]
+  scope_kinds?: string[]
   display_name?: string
   description?: string
   [key: string]: any
@@ -129,6 +138,22 @@ export interface IUpdateResourceRequest {
 // 消息响应
 export interface IMessage {
   message: string
+}
+
+function withDefaultScope<T extends { scope_type?: string; scope_value?: string }>(data: T): T & { scope_type: string; scope_value: string } {
+  return {
+    ...data,
+    scope_type: data.scope_type || 'all',
+    scope_value: data.scope_value || '*'
+  }
+}
+
+function withDefaultScopeKinds<T extends { scope_kinds?: string[] }>(data: T): T & { scope_kinds: string[] } {
+  const scopeKinds = (data.scope_kinds || []).map(item => item.trim()).filter(Boolean)
+  return {
+    ...data,
+    scope_kinds: scopeKinds.length > 0 ? scopeKinds : ['all']
+  }
 }
 
 // ==================== API 方法 ====================
@@ -173,9 +198,7 @@ export const updateRole = async (id: string, data: IUpdateRoleRequest): Promise<
  * 删除角色
  */
 export const deleteRole = async (id: string): Promise<[any, FcResponse<IMessage> | undefined]> => {
-  const response = await fetch(`/authz/roles/${id}`, { method: 'DELETE' })
-  const data = await response.json()
-  return [response.ok ? null : data, response.ok ? data : undefined]
+  return del<IMessage>(`/authz/roles/${id}`)
 }
 
 /**
@@ -229,16 +252,14 @@ export const revokeRole = async (data: IRevokeRequest): Promise<[any, FcResponse
  * 根据分配ID撤销角色
  */
 export const revokeAssignmentById = async (id: string): Promise<[any, FcResponse<IMessage> | undefined]> => {
-  const response = await fetch(`/authz/assignments/${id}`, { method: 'DELETE' })
-  const data = await response.json()
-  return [response.ok ? null : data, response.ok ? data : undefined]
+  return del<IMessage>(`/authz/assignments/${id}`)
 }
 
 /**
  * 列出主体的角色分配
  */
 export const listAssignmentsBySubject = async (
-  params: { subject_type: string; subject_id: string; offset?: number; limit?: number }
+  params: { subject_type: 'user'; subject_id: string; offset?: number; limit?: number }
 ): Promise<[any, IListResponse<IAssignment> | undefined]> => {
   const [error, response] = await get<IListResponse<IAssignment>>('/authz/assignments/subject', params)
   if (error || !response) {
@@ -253,20 +274,14 @@ export const listAssignmentsBySubject = async (
  * 添加策略规则
  */
 export const addPolicyRule = async (data: IAddPolicyRequest): Promise<[any, FcResponse<IMessage> | undefined]> => {
-  return post<IMessage>('/authz/policies', data)
+  return post<IMessage>('/authz/policies', withDefaultScope(data))
 }
 
 /**
  * 移除策略规则
  */
 export const removePolicyRule = async (data: IRemovePolicyRequest): Promise<[any, FcResponse<IMessage> | undefined]> => {
-  const response = await fetch('/authz/policies', { 
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  })
-  const responseData = await response.json()
-  return [response.ok ? null : responseData, response.ok ? responseData : undefined]
+  return del<IMessage>('/authz/policies', withDefaultScope(data))
 }
 
 /**
@@ -295,7 +310,7 @@ export const listResources = async (
  * 创建资源
  */
 export const createResource = async (data: ICreateResourceRequest): Promise<[any, FcResponse<IResource> | undefined]> => {
-  return post<IResource>('/authz/resources', data)
+  return post<IResource>('/authz/resources', withDefaultScopeKinds(data))
 }
 
 /**
@@ -316,16 +331,14 @@ export const getResourceByKey = async (key: string): Promise<[any, FcResponse<IR
  * 更新资源
  */
 export const updateResource = async (id: string, data: IUpdateResourceRequest): Promise<[any, FcResponse<IResource> | undefined]> => {
-  return put<IResource>(`/authz/resources/${id}`, data)
+  return put<IResource>(`/authz/resources/${id}`, data.scope_kinds === undefined ? data : withDefaultScopeKinds(data))
 }
 
 /**
  * 删除资源
  */
 export const deleteResource = async (id: string): Promise<[any, FcResponse<IMessage> | undefined]> => {
-  const response = await fetch(`/authz/resources/${id}`, { method: 'DELETE' })
-  const data = await response.json()
-  return [response.ok ? null : data, response.ok ? data : undefined]
+  return del<IMessage>(`/authz/resources/${id}`)
 }
 
 /**

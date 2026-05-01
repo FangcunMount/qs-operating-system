@@ -56,7 +56,7 @@ const ResourceManagement: React.FC = observer(() => {
   const handleAdd = () => {
     setEditingResource(null)
     form.resetFields()
-    form.setFieldsValue({ actions: [] })
+    form.setFieldsValue({ actions: [], scope_kinds: ['all'] })
     setModalVisible(true)
   }
 
@@ -64,7 +64,8 @@ const ResourceManagement: React.FC = observer(() => {
     setEditingResource(record)
     form.setFieldsValue({
       ...record,
-      actions: record.actions || []
+      actions: record.actions || [],
+      scope_kinds: record.scope_kinds?.length ? record.scope_kinds : ['all']
     })
     setModalVisible(true)
   }
@@ -83,10 +84,12 @@ const ResourceManagement: React.FC = observer(() => {
     try {
       const values = await form.validateFields()
       const actions = (values.actions || []).map((item: string) => item.trim()).filter(Boolean)
+      const scopeKinds = (values.scope_kinds || []).map((item: string) => item.trim()).filter(Boolean)
       const payload = {
         display_name: values.display_name,
         description: values.description,
         actions,
+        scope_kinds: scopeKinds.length > 0 ? scopeKinds : ['all'],
         key: values.key,
         domain: values.domain,
         app_name: values.app_name,
@@ -98,7 +101,8 @@ const ResourceManagement: React.FC = observer(() => {
         success = await authStore.updateResource(editingResource.id, {
           display_name: payload.display_name,
           description: payload.description,
-          actions: payload.actions
+          actions: payload.actions,
+          scope_kinds: payload.scope_kinds
         })
       } else {
         success = await authStore.createResource(payload)
@@ -125,6 +129,14 @@ const ResourceManagement: React.FC = observer(() => {
     <Space wrap size={[4, 4]}>
       {(actions || []).length > 0 ? actions.map(action => (
         <Tag color="blue" key={action}>{action}</Tag>
+      )) : <Text type="secondary">-</Text>}
+    </Space>
+  )
+
+  const renderScopeKinds = (scopeKinds: string[]) => (
+    <Space wrap size={[4, 4]}>
+      {(scopeKinds || []).length > 0 ? scopeKinds.map(scopeKind => (
+        <Tag color="green" key={scopeKind}>{scopeKind}</Tag>
       )) : <Text type="secondary">-</Text>}
     </Space>
   )
@@ -185,6 +197,13 @@ const ResourceManagement: React.FC = observer(() => {
       key: 'actions',
       width: 220,
       render: renderActions
+    },
+    {
+      title: '范围类型',
+      dataIndex: 'scope_kinds',
+      key: 'scope_kinds',
+      width: 180,
+      render: renderScopeKinds
     },
     {
       title: '描述',
@@ -328,6 +347,21 @@ const ResourceManagement: React.FC = observer(() => {
               open={false}
             >
               {/* 使用 tags 模式手动输入动作 */}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="范围类型"
+            name="scope_kinds"
+            rules={[{ required: true, message: '请至少添加一个范围类型' }]}
+          >
+            <Select
+              mode="tags"
+              tokenSeparators={[',']}
+              placeholder="输入范围类型并回车，例如 all、tenant、profile"
+              open={false}
+            >
+              {/* 使用 tags 模式手动输入范围类型 */}
             </Select>
           </Form.Item>
 

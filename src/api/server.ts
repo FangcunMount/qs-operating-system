@@ -147,4 +147,17 @@ export const patch = <T>(url: string, data: IAnyObj, params: IAnyObj = {}): Prom
   })
 }
 
+export const del = <T>(url: string, data: IAnyObj = {}, params: IAnyObj = {}): Promise<[any, FcResponse<T> | undefined]> => {
+  return new Promise((resolve) => {
+    apiAxios
+      .delete(url, { data, params })
+      .then((result) => {
+        resolve([null, result.data as FcResponse<T>])
+      })
+      .catch((err) => {
+        resolve([err, undefined])
+      })
+  })
+}
+
 // 如需在运行时模拟，请使用独立的 mock 层或本地代理。当前已完全使用后端 API。

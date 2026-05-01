@@ -16,6 +16,7 @@ const AuthzConfig: React.FC = observer(() => {
   const [policyForm] = Form.useForm()
   const [policyModalVisible, setPolicyModalVisible] = useState(false)
   const [actionOptions, setActionOptions] = useState<string[]>([])
+  const [scopeKindOptions, setScopeKindOptions] = useState<string[]>(['all'])
 
   useEffect(() => {
     authStore.fetchRoleList({ limit: 100, offset: 0 })
@@ -71,14 +72,19 @@ const AuthzConfig: React.FC = observer(() => {
 
   const handleRemovePolicy = async (rule: IPolicyRule) => {
     if (!authStore.selectedRole?.id) return
-    if (!rule.resource_id) {
+    const resourceId = rule.resource_id || authStore.resourceList.find(
+      item => item.key === rule.object || String(item.id) === String(rule.object)
+    )?.id
+    if (!resourceId) {
       message.warning('缺少资源标识，无法删除')
       return
     }
     await authStore.removePolicyRule({
       role_id: authStore.selectedRole.id,
-      resource_id: rule.resource_id,
+      resource_id: resourceId,
       action: rule.action,
+      scope_type: rule.scope_type || 'all',
+      scope_value: rule.scope_value || '*',
       changed_by: 'system'
     })
     authStore.fetchRolePolicies(authStore.selectedRole.id)
@@ -97,8 +103,20 @@ const AuthzConfig: React.FC = observer(() => {
     </Space>
   )
 
+  const renderPolicyScope = (_: unknown, record: IPolicyRule) => (
+    <Tag>{record.scope_type || 'all'}:{record.scope_value || '*'}</Tag>
+  )
+
+  const getPolicyRowKey = (record: IPolicyRule, index?: number) => [
+    record.resource_id || record.object || 'policy',
+    record.action,
+    record.scope_type || 'all',
+    record.scope_value || '*',
+    index
+  ].join('-')
+
   const getResourceLabel = (resourceId?: string) => {
-    const res = authStore.resourceList.find(item => String(item.id) === String(resourceId))
+    const res = authStore.resourceList.find(item => String(item.id) === String(resourceId) || item.key === resourceId)
     if (!res) return resourceId || '-'
     return `${res.display_name}（${res.key}）`
   }
@@ -185,7 +203,9 @@ const AuthzConfig: React.FC = observer(() => {
                     icon={<PlusOutlined />}
                     onClick={() => {
                       policyForm.resetFields()
+                      policyForm.setFieldsValue({ scope_type: 'all', scope_value: '*' })
                       setActionOptions([])
+                      setScopeKindOptions(['all'])
                       setPolicyModalVisible(true)
                     }}
                     disabled={!authStore.selectedRole}
@@ -196,7 +216,7 @@ const AuthzConfig: React.FC = observer(() => {
               >
                 <Table
                   dataSource={authStore.currentRolePolicies}
-                  rowKey={(record, index) => `${record.resource_id || record.object || 'policy'}-${record.action}-${index}`}
+                  rowKey={getPolicyRowKey}
                   pagination={false}
                   loading={authStore.loading}
                   columns={[
@@ -222,6 +242,11 @@ const AuthzConfig: React.FC = observer(() => {
                       title: '动作',
                       dataIndex: 'action',
                       key: 'action',
+                    },
+                    {
+                      title: '范围',
+                      key: 'scope',
+                      render: renderPolicyScope
                     },
                     {
                       title: '管理',
@@ -293,6 +318,8 @@ const AuthzConfig: React.FC = observer(() => {
               role_id: authStore.selectedRole.id,
               resource_id: values.resource_id,
               action: values.action,
+              scope_type: values.scope_type || 'all',
+              scope_value: values.scope_value || '*',
               changed_by: 'system',
               reason: values.reason
             })
@@ -300,6 +327,7 @@ const AuthzConfig: React.FC = observer(() => {
               setPolicyModalVisible(false)
               policyForm.resetFields()
               setActionOptions([])
+              setScopeKindOptions(['all'])
               authStore.fetchRolePolicies(authStore.selectedRole.id)
             }
           } catch (error) {
@@ -310,6 +338,7 @@ const AuthzConfig: React.FC = observer(() => {
           setPolicyModalVisible(false)
           policyForm.resetFields()
           setActionOptions([])
+          setScopeKindOptions(['all'])
         }}
         destroyOnClose
       >
@@ -325,8 +354,10 @@ const AuthzConfig: React.FC = observer(() => {
               optionFilterProp="children"
               onChange={(value: string) => {
                 const resource = authStore.resourceList.find(r => String(r.id) === String(value))
+                const scopeKinds = resource?.scope_kinds?.length ? resource.scope_kinds : ['all']
                 setActionOptions(resource?.actions || [])
-                policyForm.setFieldsValue({ action: undefined })
+                setScopeKindOptions(scopeKinds)
+                policyForm.setFieldsValue({ action: undefined, scope_type: scopeKinds[0], scope_value: '*' })
               }}
             >
               {authStore.resourceList.map(res => (
@@ -347,6 +378,28 @@ const AuthzConfig: React.FC = observer(() => {
                 <Option key={action} value={action}>{action}</Option>
               ))}
             </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="范围类型"
+            name="scope_type"
+            initialValue="all"
+            rules={[{ required: true, message: '请选择范围类型' }]}
+          >
+            <Select placeholder="请选择范围类型">
+              {scopeKindOptions.map(scopeKind => (
+                <Option key={scopeKind} value={scopeKind}>{scopeKind}</Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="范围值"
+            name="scope_value"
+            initialValue="*"
+            rules={[{ required: true, message: '请输入范围值' }]}
+          >
+            <Input placeholder="默认 * 表示全部范围" />
           </Form.Item>
 
           <Form.Item label="原因" name="reason">

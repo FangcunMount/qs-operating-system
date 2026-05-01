@@ -238,7 +238,7 @@ const SubjectList: React.FC = () => {
         }
         setChildSuggests(response.data || [])
       } catch (error) {
-        console.warn('儿童联想搜索失败', error)
+        console.warn('档案联想搜索失败', error)
         setChildSuggests([])
       } finally {
         setSuggestLoading(false)
@@ -505,7 +505,7 @@ const SubjectList: React.FC = () => {
             value={keyword}
           >
             <Input
-              placeholder="搜索姓名 / 儿童ID / 手机号"
+              placeholder="搜索姓名 / 档案ID / 手机号"
               prefix={<SearchOutlined />}
               allowClear
               onChange={(e) => handleSuggestSearch(e.target.value)}

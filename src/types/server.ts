@@ -1,6 +1,8 @@
 export interface FcResponse<T> {
-  errno: string
-  errmsg: string
+  errno?: string
+  errmsg?: string
+  code?: number
+  message?: string
   data: T
 }
 

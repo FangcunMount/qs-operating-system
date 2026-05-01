@@ -13,6 +13,16 @@ import type {
 // 导出类型供其他模块使用
 export type { IRole, IResource, IPolicyRule, IAssignment }
 
+interface PolicyRuleMutationData {
+  role_id: string
+  resource_id: string
+  action: string
+  scope_type?: string
+  scope_value?: string
+  changed_by: string
+  reason?: string
+}
+
 class AuthStore {
   // 角色列表
   roleList: IRole[] = []
@@ -212,13 +222,15 @@ class AuthStore {
   // ===== 策略管理 =====
 
   // 添加策略规则
-  async addPolicyRule(data: { role_id: string; resource_id: string; action: string; changed_by: string; reason?: string }) {
+  async addPolicyRule(data: PolicyRuleMutationData) {
     this.loading = true
     try {
       const [error] = await api.addPolicyRule({
         role_id: data.role_id,
         resource_id: data.resource_id,
         action: data.action,
+        scope_type: data.scope_type,
+        scope_value: data.scope_value,
         changed_by: data.changed_by,
         reason: data.reason
       })
@@ -243,13 +255,15 @@ class AuthStore {
   }
 
   // 移除策略规则
-  async removePolicyRule(data: { role_id: string; resource_id: string; action: string; changed_by: string; reason?: string }) {
+  async removePolicyRule(data: PolicyRuleMutationData) {
     this.loading = true
     try {
       const [error] = await api.removePolicyRule({
         role_id: data.role_id,
         resource_id: data.resource_id,
         action: data.action,
+        scope_type: data.scope_type,
+        scope_value: data.scope_value,
         changed_by: data.changed_by,
         reason: data.reason
       })

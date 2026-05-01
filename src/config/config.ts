@@ -13,17 +13,17 @@ interface IConfigBase {
 const configMap: Record<EnvVersion, Partial<IConfigBase> & { appID?: string; agentID?: string }> = {
   develop: {
     domain: 'fangcunmount.cn',
-    iamHost: 'https://iam.fangcunmount.cn/api/v1',
+    iamHost: 'https://iam.fangcunmount.cn/api/v2',
     qsHost: 'https://qs.fangcunmount.cn/api/v1',
   },
   trial: {
     domain: 'fangcunmount.cn',
-    iamHost: 'https://iam.fangcunmount.cn/api/v1',
+    iamHost: 'https://iam.fangcunmount.cn/api/v2',
     qsHost: 'https://qs.staging.fangcunmount.cn/api/v1',
   },
   release: {
     domain: 'fangcunmount.cn',
-    iamHost: 'https://iam.fangcunmount.cn/api/v1',
+    iamHost: 'https://iam.fangcunmount.cn/api/v2',
     qsHost: 'https://qs.fangcunmount.cn/api/v1',
   }
 }
@@ -52,7 +52,7 @@ const hostFromEnv = process.env.REACT_APP_HOST
 const grafanaURLFromEnv = process.env.REACT_APP_GRAFANA_URL
 
 const domain = base.domain || 'fangcunmount.cn'
-const iamHost = iamHostFromEnv || base.iamHost || `https://iam.${domain}/api/v1`
+const iamHost = iamHostFromEnv || base.iamHost || `https://iam.${domain}/api/v2`
 const qsHost = qsHostFromEnv || base.qsHost || `https://qs.${domain}/api/v1`
 const grafanaURL = grafanaURLFromEnv || ''
 

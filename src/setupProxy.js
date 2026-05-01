@@ -76,7 +76,7 @@ module.exports = function (app) {
   app.use(
     ['/.well-known', '/authn', '/identity', '/authz', '/suggest', '/idp'],
     createProxyMiddleware({
-      target: process.env.REACT_APP_IAM_HOST || 'https://iam.fangcunmount.cn/api/v1',
+      target: process.env.REACT_APP_IAM_HOST || 'https://iam.fangcunmount.cn/api/v2',
       changeOrigin: true,
       pathRewrite: (path) => path // 保持路径不变（例如 /authn/login, /identity/me, /authz/roles）
     })

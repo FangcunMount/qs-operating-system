@@ -1,14 +1,18 @@
 import { ApiResponse } from '@/types/server'
-import { get, post } from '../server'
+import { post } from '../server'
 
 export interface ILoginRequest {
-  method: 'password' | 'phone_otp' | 'wechat' | 'wecom'
-  tenant_id?: string
-  credentials: {
+  auth_method: 'password' | 'phone_otp' | 'wechat' | 'wecom'
+  method_payload: {
     username?: string
     password?: string
     phone?: string
+    otp_code?: string
+    app_id?: string
     code?: string
+    corp_id?: string
+    auth_code?: string
+    tenant_id?: number
   }
   device_id?: string
 }
@@ -25,9 +29,12 @@ export function login<T = ITokenPair>(
   password: string
 ): ApiResponse<T> {
   return post<T>('/authn/login', {
-    method: 'password',
-    tenant_id: '1',
-    credentials: { username: username, password }
+    auth_method: 'password',
+    method_payload: {
+      username,
+      password,
+      tenant_id: 1
+    }
   })
 }
 
@@ -49,10 +56,17 @@ export function logout<T = { message: string }>(
   })
 }
 
-export function getToken<T = { token: string }>(
-  code: string
+export function getToken<T = ITokenPair>(
+  code: string,
+  appId: string
 ): ApiResponse<T> {
-  return get<T>('/authn/login', { code })
+  return post<T>('/authn/login', {
+    auth_method: 'wechat',
+    method_payload: {
+      app_id: appId,
+      code
+    }
+  })
 }
 
 export const authApi = {
