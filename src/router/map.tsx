@@ -41,6 +41,7 @@ const AdminClinicianDetail = lazy(() => import('../pages/admin/clinician/detail'
 const AdminAssessmentEntryDetail = lazy(() => import('../pages/admin/clinician/entry-detail'))
 const AdminResource = lazy(() => import('../pages/admin/resource'))
 const ClinicianWorkbench = lazy(() => import('../pages/clinician/workbench'))
+const OrgWorkbench = lazy(() => import('../pages/workbench'))
 const AssessmentList = lazy(() => import('../pages/evaluation/assessment-list'))
 const SecurityJWKS = lazy(() => import('../pages/security/jwks'))
 
@@ -85,6 +86,14 @@ export const routes: Array<IRoute> = [
     requiredCapabilities: ['read_subjects'],
     allowClinicianAccess: true,
     children: [
+      {
+        title: '全院工作台',
+        name: 'org-workbench',
+        path: '/workbench',
+        component: OrgWorkbench,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['org_admin']
+      },
       {
         title: '受试者列表',
         name: 'subject-list',

@@ -1,4 +1,13 @@
 import type { ITestee } from './subject'
+import { getMyWorkbenchQueueSummary, listMyWorkbenchQueue } from './workbench'
+import type {
+  IWorkbenchQueueCounts,
+  IWorkbenchQueueItem,
+  IWorkbenchQueueResponse,
+  IWorkbenchQueueSummaryResponse,
+  IWorkbenchTaskSummary,
+  WorkbenchQueueType
+} from './workbench'
 import { get, post, put, silentGet } from '../qsServer'
 
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
@@ -131,6 +140,13 @@ export interface IClinicianRelationListResponse {
   total_pages: number
 }
 
+export type ClinicianWorkbenchQueueType = WorkbenchQueueType
+export type IClinicianWorkbenchQueueCounts = IWorkbenchQueueCounts
+export type IClinicianWorkbenchQueueSummaryResponse = IWorkbenchQueueSummaryResponse
+export type IClinicianWorkbenchTaskSummary = IWorkbenchTaskSummary
+export type IClinicianWorkbenchQueueItem = IWorkbenchQueueItem
+export type IClinicianWorkbenchQueueResponse = IWorkbenchQueueResponse
+
 export const clinicianApi = {
   listClinicians: (params: { org_id?: number; page?: number; page_size?: number }) => get<IClinicianListResponse>('/clinicians', params),
 
@@ -199,5 +215,9 @@ export const clinicianApi = {
 
   deactivateMyAssessmentEntry: (id: number | string) => post<IAssessmentEntry>(`/clinicians/me/assessment-entries/${id}/deactivate`, undefined),
 
-  reactivateMyAssessmentEntry: (id: number | string) => post<IAssessmentEntry>(`/clinicians/me/assessment-entries/${id}/reactivate`, undefined)
+  reactivateMyAssessmentEntry: (id: number | string) => post<IAssessmentEntry>(`/clinicians/me/assessment-entries/${id}/reactivate`, undefined),
+
+  getMyWorkbenchQueueSummary,
+
+  listMyWorkbenchQueue
 }

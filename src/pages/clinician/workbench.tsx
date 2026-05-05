@@ -1,9 +1,32 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useHistory, useLocation } from 'react-router-dom'
-import { Button, Card, Col, DatePicker, Descriptions, Form, Input, Modal, Row, Select, Space, Statistic, Table, Tabs, Tag, message } from 'antd'
+import {
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Descriptions,
+  Form,
+  Input,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Table,
+  Tabs,
+  Tag,
+  message
+} from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { clinicianApi, IAssessmentEntry, IClinician, IClinicianRelationItem } from '@/api/path/clinician'
+import {
+  clinicianApi,
+  IAssessmentEntry,
+  IClinician,
+  IClinicianRelationItem
+} from '@/api/path/clinician'
 import type { ITestee } from '@/api/path/subject'
+import QueuePanel from '@/components/workbench/QueuePanel'
 import {
   getMyClinicianOverviewStatistics,
   getMyClinicianTesteeSummaryStatistics,
@@ -432,6 +455,8 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
         <Tabs activeKey={activeTab} onChange={handleTabChange}>
           <TabPane tab="概览" key="overview">
             <Space direction="vertical" size={16} style={{ width: '100%' }}>
+              <QueuePanel mode="personal" scopeDescription="按当前医生可访问受试者实时生成" />
+
               <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12} lg={8}>
                   <Statistic title="当前可访问受试者" value={accessibleTesteeCount} />
