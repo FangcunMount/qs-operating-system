@@ -78,6 +78,26 @@ macOS/Linux 用户需要使用：
 
 如需修改代理配置，请编辑 `src/setupProxy.js` 文件。
 
+## IAM V2 REST 接入
+
+qs-operating-system 继续使用 IAM V2 REST API，不迁移 V3。后台登录、token 刷新、JWKS、AuthZ、Identity suggest 和 IDP 微信应用管理路径保持当前形态。
+
+固定契约：
+
+- 密码登录使用 `POST /api/v2/authn/login`，请求体固定为 `auth_method: "password"` 和 `method_payload.username/password/tenant_id`。
+- token 刷新和登出分别使用 `/authn/refresh_token`、`/authn/logout`。
+- IDP 微信应用管理使用 `/idp/wechat-apps/*`，微信 access token 使用 `/idp/wechat-apps/{app_id}/access-token` 和 `/idp/wechat-apps/refresh-access-token`。
+- public JWKS 使用 `/.well-known/jwks.json`；admin JWKS 使用 `/authn/admin/jwks/keys/*`。
+- dev 环境通过 `setupProxy.js` 将 `/.well-known`、`/authn`、`/identity`、`/authz`、`/suggest`、`/idp` 转发到 IAM。
+
+IAM IDP 找不到微信应用时会返回结构化 404 错误。前端继续通过 `extractErrorMessage` 读取 `message` 或 `errmsg`，页面不解析错误文本或内部错误码。
+
+防漂移检查使用：
+
+```bash
+CI=true npm test -- --watchAll=false
+```
+
 ## 缓存治理页
 
 项目已新增只读缓存治理页：
