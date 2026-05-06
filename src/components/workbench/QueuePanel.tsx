@@ -22,7 +22,7 @@ const workbenchQueueOptions: Array<{
   icon: React.ReactNode
 }> = [
   { value: 'high_risk', label: '高风险', icon: <ExclamationCircleOutlined /> },
-  { value: 'follow_up', label: '复诊', icon: <ClockCircleOutlined /> },
+  { value: 'follow_up', label: '测评计划', icon: <ClockCircleOutlined /> },
   { value: 'key_focus', label: '重点关注', icon: <StarOutlined /> }
 ]
 
@@ -258,8 +258,8 @@ const QueuePanel: React.FC<QueuePanelProps> = ({
   const queueColumns: ColumnsType<IWorkbenchQueueItem> = [
     { title: '受试者', key: 'testee', width: 220, render: renderQueueTestee },
     { title: '入队原因', key: 'reason', render: renderQueueReason },
-    { title: '复诊任务', key: 'task', width: 260, render: renderQueueTask },
-    ...(mode === 'admin' ? [{ title: '责任医生', key: 'assignment', width: 260, render: renderAssignment }] : []),
+    { title: '测评计划', key: 'task', width: 260, render: renderQueueTask },
+    ...(mode === 'admin' ? [{ title: '责任人', key: 'assignment', width: 260, render: renderAssignment }] : []),
     { title: '操作', key: 'action', width: 110, render: renderQueueAction }
   ]
 
