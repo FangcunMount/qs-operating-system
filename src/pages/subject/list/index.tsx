@@ -337,29 +337,6 @@ const SubjectList: React.FC = () => {
         }
       },
       {
-        title: '标签',
-        dataIndex: 'tags',
-        key: 'tags',
-        width: 200,
-        render: function renderTags(tags: string[] | undefined, record: ITesteeWithStats) {
-          const displayTags = record.tags_label || tags
-          return (
-            <div className="tag-list">
-              {displayTags && displayTags.length > 0 ? (
-                displayTags.slice(0, 3).map((tag, index) => <Tag key={index}>{tag}</Tag>)
-              ) : (
-                <span className="no-tags">暂无标签</span>
-              )}
-              {displayTags && displayTags.length > 3 && (
-                <Tooltip title={displayTags.slice(3).join('、')}>
-                  <Tag>+{displayTags.length - 3}</Tag>
-                </Tooltip>
-              )}
-            </div>
-          )
-        }
-      },
-      {
         title: '测评统计',
         key: 'assessment_stats',
         width: 200,

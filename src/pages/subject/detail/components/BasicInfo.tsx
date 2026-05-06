@@ -7,7 +7,6 @@ import {
   TeamOutlined,
   ManOutlined,
   WomanOutlined,
-  TagsOutlined,
   StarOutlined
 } from '@ant-design/icons'
 
@@ -21,7 +20,6 @@ interface SubjectData {
   name?: string
   gender?: string
   age?: number
-  tags?: string[]
   attentionLevel?: string
   guardians?: Guardian[]
 }
@@ -85,17 +83,6 @@ const BasicInfo: React.FC<BasicInfoProps> = ({ data, loading }) => {
             </Descriptions.Item>
             <Descriptions.Item label="年龄">
               {data?.age ? `${data.age}岁` : '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label={<><TagsOutlined /> 标签</>} span={2}>
-              {data?.tags && data.tags.length > 0 ? (
-                data.tags.map((tag, index) => (
-                  <Tag key={index} color="blue" style={{ marginBottom: 4 }}>
-                    {tag}
-                  </Tag>
-                ))
-              ) : (
-                '-'
-              )}
             </Descriptions.Item>
             <Descriptions.Item label={<><StarOutlined /> 关注程度</>}>
               {renderAttentionLevel()}

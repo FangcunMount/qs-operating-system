@@ -17,7 +17,6 @@ export interface SubjectBasicInfo {
   name: string
   gender: string
   age: number
-  tags: string[]
   attentionLevel: string
   guardians: Guardian[]
 }
@@ -347,7 +346,6 @@ class SubjectStore {
       name: this.testeeInfo.name,
       gender: this.testeeInfo.gender_label || formatGender(this.testeeInfo.gender),
       age: this.calculateAge(this.testeeInfo.birthday),
-      tags: this.testeeInfo.tags_label || this.testeeInfo.tags || [],
       attentionLevel: this.testeeInfo.is_key_focus ? 'high' : 'low',
       guardians: (this.testeeInfo.guardians || []).map(g => ({
         name: g.name,

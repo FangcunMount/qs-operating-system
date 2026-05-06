@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
 import React from 'react'
 import { Card, Tabs, Descriptions, Tag } from 'antd'
-import { UserOutlined, TeamOutlined, ManOutlined, WomanOutlined, TagsOutlined } from '@ant-design/icons'
+import { UserOutlined, TeamOutlined, ManOutlined, WomanOutlined } from '@ant-design/icons'
 
 const { TabPane } = Tabs
 
@@ -15,7 +15,6 @@ interface BasicInfo {
   name?: string
   gender?: string
   age?: number
-  tags?: string[]
   guardians?: Guardian[]
 }
 
@@ -57,15 +56,6 @@ const SubjectInfoCard: React.FC<SubjectInfoCardProps> = ({ basicInfo }) => {
             </Descriptions.Item>
             <Descriptions.Item label="年龄">
               {basicInfo?.age ? `${basicInfo.age}岁` : '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label={<><TagsOutlined /> 标签</>} span={3}>
-              {basicInfo?.tags && basicInfo.tags.length > 0 ? (
-                basicInfo.tags.map((tag: string, index: number) => (
-                  <Tag key={index} color="blue" style={{ marginBottom: 4 }}>
-                    {tag}
-                  </Tag>
-                ))
-              ) : '-'}
             </Descriptions.Item>
           </Descriptions>
         </TabPane>

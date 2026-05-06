@@ -180,9 +180,6 @@ const QueuePanel: React.FC<QueuePanelProps> = ({
       <Space size={4} wrap>
         <span style={{ color: '#8c8c8c', fontSize: 12 }}>#{record.testee.id}</span>
         {record.testee.is_key_focus && <Tag color="gold">重点关注</Tag>}
-        {(record.testee.tags || []).slice(0, 3).map((tag) => (
-          <Tag key={tag}>{tag}</Tag>
-        ))}
       </Space>
     </Space>
   )

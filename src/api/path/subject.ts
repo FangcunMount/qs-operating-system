@@ -49,8 +49,6 @@ export interface ITesteeDetail {
   // ===== 扩展信息 =====
   is_key_focus: boolean // 是否重点关注
   is_key_focus_label?: string // 是否重点关注中文
-  tags?: string[] // 标签列表
-  tags_label?: string[] // 标签中文
   source?: string // 来源
   source_label?: string // 来源中文
 
@@ -79,8 +77,6 @@ export interface ITestee {
   is_key_focus_label?: string
   source?: string
   source_label?: string
-  tags?: string[]
-  tags_label?: string[]
   assessment_stats?: IAssessmentStats
   created_at: string
   updated_at: string
@@ -100,7 +96,6 @@ export interface IUpdateTesteeRequest {
   gender?: string
   birthday?: string
   is_key_focus?: boolean
-  tags?: string[]
 }
 
 // ==================== GET /testees/{id}/scale-analysis - 量表趋势分析 ====================
@@ -213,7 +208,6 @@ interface Subject {
   gender: string
   age: number
   businessScenes: string[]
-  tags: string[]
   totalTestCount: number
   lastTestCompletedAt: string
   lastTestRiskLevel: 'normal' | 'medium' | 'high'
@@ -259,7 +253,6 @@ export const getSubjectList = async (params: { page?: number; pageSize?: number;
       gender: testee.gender === 'male' ? '男' : testee.gender === 'female' ? '女' : testee.gender,
       age: testee.birthday ? calculateAge(testee.birthday) : 0,
       businessScenes: [], // API 没有此字段
-      tags: testee.tags || [],
       totalTestCount: testee.assessment_stats?.total_count || 0,
       lastTestCompletedAt: testee.assessment_stats?.last_assessment_at || '',
       lastTestRiskLevel: 'normal' // API 没有此字段，默认normal
@@ -320,7 +313,6 @@ interface SubjectBasicInfo {
   name: string
   gender: string
   age: number
-  tags: string[]
   attentionLevel: string
   guardians: Guardian[]
 }

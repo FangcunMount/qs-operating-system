@@ -89,22 +89,6 @@
     font-size: 13px;
   }
 
-  .tag-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    
-    .ant-tag {
-      margin: 0;
-      font-size: 12px;
-    }
-    
-    .no-tags {
-      color: #bfbfbf;
-      font-size: 12px;
-    }
-  }
-
   .stats-container {
     .stats-badge {
       display: inline-block;
