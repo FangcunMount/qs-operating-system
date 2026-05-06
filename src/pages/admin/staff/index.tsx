@@ -51,7 +51,7 @@ const StaffManagement: React.FC = observer(() => {
     const [error, response] = await clinicianApi.listClinicians({
       org_id: currentOrgId,
       page: 1,
-      page_size: 100
+      page_size: 200
     })
     if (!error && response?.data) {
       setClinicians(response.data.items || [])

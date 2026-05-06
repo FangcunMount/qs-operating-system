@@ -39,7 +39,7 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
       const [[activeErr, activeRes], [historyErr, historyRes], [clinicianErr, clinicianRes]] = await Promise.all([
         clinicianApi.getTesteeClinicians(testeeId),
         clinicianApi.listTesteeClinicianRelations(testeeId),
-        clinicianApi.listClinicians({ org_id: currentOrgId, page: 1, page_size: 100 })
+        clinicianApi.listClinicians({ org_id: currentOrgId, page: 1, page_size: 200 })
       ])
 
       if (!activeErr && activeRes?.data) {

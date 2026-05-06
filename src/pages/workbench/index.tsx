@@ -29,7 +29,7 @@ const OrgWorkbenchPage: React.FC = () => {
       const [error, response] = await clinicianApi.listClinicians({
         org_id: currentOrgId,
         page: 1,
-        page_size: 100
+        page_size: 200
       })
       if (error || !response?.data) {
         throw error || new Error('获取临床人员列表失败')
