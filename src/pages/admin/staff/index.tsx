@@ -8,7 +8,6 @@ import type { ICreateStaffRequest, IStaff, IUpdateStaffRequest } from '@/api/pat
 import type { IClinician } from '@/api/path/clinician'
 import { clinicianApi } from '@/api/path/clinician'
 import { OPERATOR_ROLE_COLOR_MAP, OPERATOR_ROLE_OPTIONS } from '@/constants/operatorRoles'
-import { getCurrentOrgId } from '@/utils/jwtClaims'
 import { extractErrorMessage } from '@/utils/apiError'
 import './index.scss'
 
@@ -22,34 +21,20 @@ const StaffManagement: React.FC = observer(() => {
   const [accountMode, setAccountMode] = useState<AccountMode>('create')
   const [form] = Form.useForm()
 
-  const currentOrgId = getCurrentOrgId()
-
   useEffect(() => {
-    if (!currentOrgId) {
-      return
-    }
     fetchStaffList()
     fetchClinicians()
-  }, [currentOrgId])
+  }, [])
 
   const fetchStaffList = (page = 1, pageSize = 20) => {
-    if (!currentOrgId) {
-      return
-    }
     staffStore.fetchStaffList({
-      org_id: currentOrgId,
       page,
       page_size: pageSize
     })
   }
 
   const fetchClinicians = async () => {
-    if (!currentOrgId) {
-      return
-    }
-
     const [error, response] = await clinicianApi.listClinicians({
-      org_id: currentOrgId,
       page: 1,
       page_size: 200
     })
@@ -95,10 +80,6 @@ const StaffManagement: React.FC = observer(() => {
   }
 
   const handleSubmit = async () => {
-    if (!currentOrgId) {
-      return
-    }
-
     try {
       const values = await form.validateFields()
 
@@ -121,7 +102,6 @@ const StaffManagement: React.FC = observer(() => {
 
       const data: ICreateStaffRequest = {
         name: values.name,
-        org_id: currentOrgId,
         roles: values.roles,
         phone: values.phone || undefined,
         email: values.email || undefined,
@@ -245,19 +225,10 @@ const StaffManagement: React.FC = observer(() => {
       <Card>
         <div className="page-header">
           <h2>员工管理</h2>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} disabled={!currentOrgId}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
             添加员工
           </Button>
         </div>
-
-        {!currentOrgId && (
-          <Alert
-            type="error"
-            showIcon
-            style={{ marginBottom: 16 }}
-            message="当前登录态缺少机构上下文，无法管理员工"
-          />
-        )}
 
         <Table
           columns={columns}

@@ -85,6 +85,7 @@ qs-operating-system 继续使用 IAM V2 REST API，不迁移 V3。后台登录�
 固定契约：
 
 - 密码登录使用 `POST /api/v2/authn/login`，请求体固定为 `auth_method: "password"` 和 `method_payload.username/password/tenant_id`。
+- 组织上下文（`org_id`）由 **qs-server 内部**从登录态解析，不在 IAM JWT 与前端请求间传递。
 - token 刷新和登出分别使用 `/authn/refresh_token`、`/authn/logout`。
 - IDP 微信应用管理使用 `/idp/wechat-apps/*`，微信 access token 使用 `/idp/wechat-apps/{app_id}/access-token` 和 `/idp/wechat-apps/refresh-access-token`。
 - public JWKS 使用 `/.well-known/jwks.json`；admin JWKS 使用 `/authn/admin/jwks/keys/*`。

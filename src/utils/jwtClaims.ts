@@ -9,6 +9,13 @@ export interface IJwtClaims {
   nbf?: number
   user_id?: string
   tenant_id?: string
+  /** IAM V2：数字组织/租户 ID，与登录 method_payload.tenant_id 对应 */
+  realm?: string
+  attributes?: {
+    realm?: string
+    tenant_domain?: string
+    [key: string]: unknown
+  }
   roles?: string[]
   uid?: string
   scope?: string
@@ -37,13 +44,16 @@ export function normalizeUserId(claims: IJwtClaims): string {
   return String(claims.user_id || claims.uid || claims.sub || '').trim()
 }
 
+/** IAM V2 JWT：tenant_id 常为租户域名，数字租户 ID 在 realm */
+export function normalizeRealmId(claims: IJwtClaims): string {
+  return String(claims.realm || claims.attributes?.realm || '').trim()
+}
+
 export function validateJwtClaims(claims: IJwtClaims): { valid: boolean; reason?: string } {
   const tenantId = String(claims.tenant_id || '').trim()
-  if (!tenantId) {
+  const realmId = normalizeRealmId(claims)
+  if (!tenantId && !realmId) {
     return { valid: false, reason: 'tenant_id 缺失' }
-  }
-  if (!/^\d+$/.test(tenantId)) {
-    return { valid: false, reason: 'tenant_id 必须是数字字符串' }
   }
 
   const userId = normalizeUserId(claims)
@@ -96,17 +106,4 @@ export function getCurrentTenantId(): string | undefined {
   const claims = getStoredJwtClaims()
   const tenantId = String(claims?.tenant_id || '').trim()
   return tenantId || undefined
-}
-
-export function getCurrentOrgId(): number | undefined {
-  const tenantId = getCurrentTenantId()
-  if (!tenantId) {
-    return undefined
-  }
-
-  const orgId = Number(tenantId)
-  if (!Number.isSafeInteger(orgId) || orgId <= 0) {
-    return undefined
-  }
-  return orgId
 }

@@ -8,7 +8,6 @@ import { statisticsApi, ITesteeStatistics } from '@/api/path/statistics'
 import { identityApi, IChildSuggestItem } from '@/api/path/identity'
 import { clinicianApi, IClinician } from '@/api/path/clinician'
 import { LazyTable } from '@/components/lazyTable'
-import { getCurrentOrgId } from '@/utils/jwtClaims'
 import { extractErrorMessage } from '@/utils/apiError'
 import { rootStore } from '@/store'
 import { formatClinicianType, formatGender } from '@/utils/display'
@@ -37,7 +36,6 @@ const SubjectList: React.FC = () => {
   const [suggestLoading, setSuggestLoading] = useState(false)
   const [clinicianOptions, setClinicianOptions] = useState<IClinician[]>([])
   const suggestTimer = useRef<number | null>(null)
-  const currentOrgId = getCurrentOrgId()
   const canFilterByClinician = rootStore.userStore.accessContext.capabilities.has('org_admin')
 
   const calculateAge = (birthday?: string): number => {
@@ -96,12 +94,7 @@ const SubjectList: React.FC = () => {
 
       setLoading(true)
       try {
-        if (!currentOrgId) {
-          message.error('当前登录态缺少机构上下文')
-          return
-        }
         const queryParams = {
-          org_id: currentOrgId,
           profile_id: targetProfileId,
           clinician_id: selectedClinicianId,
           is_key_focus: isKeyFocusFilter,
@@ -142,11 +135,10 @@ const SubjectList: React.FC = () => {
 
   useEffect(() => {
     const fetchClinicians = async () => {
-      if (!currentOrgId || !canFilterByClinician) {
+      if (!canFilterByClinician) {
         return
       }
       const [error, response] = await clinicianApi.listClinicians({
-        org_id: currentOrgId,
         page: 1,
         page_size: 200
       })
@@ -156,7 +148,7 @@ const SubjectList: React.FC = () => {
     }
 
     fetchClinicians()
-  }, [currentOrgId, canFilterByClinician])
+  }, [canFilterByClinician])
 
   useEffect(() => {
     return () => {

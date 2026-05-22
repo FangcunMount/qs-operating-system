@@ -32,7 +32,6 @@ const PlanList: React.FC = () => {
     setLoading(true)
     try {
       const [err, response] = await planApi.list({
-        org_id: 1, // TODO: 从用户信息中获取
         scale_code: keyword || undefined,
         status: statusFilter,
         page,

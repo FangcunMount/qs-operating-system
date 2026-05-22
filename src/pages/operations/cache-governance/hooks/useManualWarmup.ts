@@ -9,7 +9,6 @@ import { extractErrorMessage } from '@/utils/apiError'
 import { DEFAULT_MANUAL_WARMUP_TARGET, validateManualWarmupTargets } from '../utils'
 
 interface UseManualWarmupOptions {
-  currentOrgId?: number
   onFinished?: () => Promise<void> | void
 }
 
@@ -31,7 +30,6 @@ interface UseManualWarmupResult {
  * 管理手工预热弹窗、目标编辑和提交流程。
  */
 export const useManualWarmup = ({
-  currentOrgId,
   onFinished
 }: UseManualWarmupOptions): UseManualWarmupResult => {
   const [manualWarmupVisible, setManualWarmupVisible] = useState(false)
@@ -79,7 +77,7 @@ export const useManualWarmup = ({
   }, [manualWarmupSubmitting])
 
   const submitManualWarmup = useCallback(async () => {
-    const validation = validateManualWarmupTargets(manualWarmupTargets, currentOrgId)
+    const validation = validateManualWarmupTargets(manualWarmupTargets)
     if (!validation.validTargets) {
       const validationMessage = validation.message || '手工预热请求不合法'
       setManualWarmupError(validationMessage)
@@ -116,7 +114,7 @@ export const useManualWarmup = ({
       return
     }
     message.warning('手工预热已执行完成，请检查明细结果')
-  }, [currentOrgId, manualWarmupTargets, onFinished])
+  }, [manualWarmupTargets, onFinished])
 
   return {
     manualWarmupVisible,

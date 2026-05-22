@@ -46,7 +46,6 @@ import {
   ICacheGovernanceManualWarmupItemResult,
   ICacheGovernanceWarmupRun
 } from '@/api/path/cacheGovernance'
-import { getCurrentOrgId } from '@/utils/jwtClaims'
 import { useBoundedPolling } from './hooks/useBoundedPolling'
 import { useCacheGovernanceStatus } from './hooks/useCacheGovernanceStatus'
 import { useManualWarmup } from './hooks/useManualWarmup'
@@ -156,7 +155,6 @@ const renderHotsetScope = (value: string) => (
 )
 
 const CacheGovernancePage: React.FC = () => {
-  const currentOrgId = getCurrentOrgId()
   const grafanaLinks = useMemo(() => getCacheGovernanceLinks(), [])
 
   const {
@@ -205,7 +203,6 @@ const CacheGovernancePage: React.FC = () => {
     updateManualWarmupTarget,
     submitManualWarmup
   } = useManualWarmup({
-    currentOrgId,
     onFinished: () => loadStatus(true)
   })
 
@@ -389,7 +386,7 @@ const CacheGovernancePage: React.FC = () => {
                 <span>趋势覆盖：三进程全局趋势</span>
               </Space>
             </Tag>
-            <Tag color="default">当前组织：{currentOrgId || '未识别'}</Tag>
+            <Tag color="default">组织上下文由 qs-server 解析</Tag>
             <Tag color="default">最近更新时间：{formatDateTime(status?.generated_at)}</Tag>
           </Space>
         </div>
@@ -653,7 +650,7 @@ const CacheGovernancePage: React.FC = () => {
             type="info"
             showIcon
             message="手工预热会同步调用 qs-server 的 warmup-targets 内部接口"
-            description={`当前组织：${currentOrgId || '未识别'}。查询类 scope 必须带 org:<id> 且必须与当前组织一致；静态类 target 不要求 org。`}
+            description="查询类 scope 使用 org:<id> 形态；组织归属由 qs-server 根据登录态解析，前端无需传 org_id。"
           />
 
           {manualWarmupError ? (
@@ -682,7 +679,7 @@ const CacheGovernancePage: React.FC = () => {
                 <Input
                   value={item.scope}
                   className="cache-governance-page__manual-target-input"
-                  placeholder={getWarmupScopePlaceholder(item.kind, currentOrgId)}
+                  placeholder={getWarmupScopePlaceholder(item.kind)}
                   onChange={(event) => updateManualWarmupTarget(index, { scope: event.target.value })}
                 />
                 <Button
@@ -699,7 +696,7 @@ const CacheGovernancePage: React.FC = () => {
                 添加目标
               </Button>
               <Text type="secondary">
-                例：<code>scale:S-001</code>、<code>questionnaire:Q-001</code>、<code>published</code>、<code>{`org:${currentOrgId || 1}`}</code>
+                例：<code>scale:S-001</code>、<code>questionnaire:Q-001</code>、<code>published</code>、<code>org:1</code>
               </Text>
             </Space>
           </div>

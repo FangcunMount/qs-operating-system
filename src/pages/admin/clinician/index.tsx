@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Card, Form, Input, Modal, Popconfirm, Radio, Select, Space, Table, Tag, message } from 'antd'
+import { Button, Card, Form, Input, Modal, Popconfirm, Radio, Select, Space, Table, Tag, message } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { useHistory } from 'react-router-dom'
 import type { ColumnsType } from 'antd/es/table'
 import { clinicianApi, IAssessmentEntry, IClinician } from '@/api/path/clinician'
 import { staffApi, IStaff } from '@/api/path/staff'
-import { getCurrentOrgId } from '@/utils/jwtClaims'
 import { extractErrorMessage } from '@/utils/apiError'
 import { buildAssessmentEntryPublicLink, copyAssessmentEntryPublicLink, triggerAssessmentEntryQRCodeDownload } from '@/utils/assessmentEntry'
 import './index.scss'
@@ -30,8 +29,6 @@ const ClinicianManagement: React.FC = () => {
   const [staffOptions, setStaffOptions] = useState<IStaff[]>([])
   const [form] = Form.useForm()
   const [bindForm] = Form.useForm()
-
-  const currentOrgId = getCurrentOrgId()
 
   const clinicianTypeOptions = useMemo(
     () => [
@@ -61,14 +58,9 @@ const ClinicianManagement: React.FC = () => {
   }, [bindingItem, items, staffOptions])
 
   const fetchClinicians = async (nextPage = page, nextPageSize = pageSize) => {
-    if (!currentOrgId) {
-      return
-    }
-
     setLoading(true)
     try {
       const [error, response] = await clinicianApi.listClinicians({
-        org_id: currentOrgId,
         page: nextPage,
         page_size: nextPageSize
       })
@@ -88,12 +80,7 @@ const ClinicianManagement: React.FC = () => {
   }
 
   const fetchStaff = async () => {
-    if (!currentOrgId) {
-      return
-    }
-
     const [error, response] = await staffApi.listStaff({
-      org_id: currentOrgId,
       page: 1,
       page_size: 100
     })
@@ -103,12 +90,9 @@ const ClinicianManagement: React.FC = () => {
   }
 
   useEffect(() => {
-    if (!currentOrgId) {
-      return
-    }
     fetchClinicians()
     fetchStaff()
-  }, [currentOrgId])
+  }, [])
 
   const handleOpenCreate = () => {
     setEditingItem(null)
@@ -132,14 +116,9 @@ const ClinicianManagement: React.FC = () => {
   }
 
   const handleSubmit = async () => {
-    if (!currentOrgId) {
-      return
-    }
-
     try {
       const values = await form.validateFields()
       const payload = {
-        org_id: currentOrgId,
         name: values.name,
         department: values.department,
         title: values.title,
@@ -352,19 +331,10 @@ const ClinicianManagement: React.FC = () => {
       <Card>
         <div className="page-header">
           <h2>临床人员管理</h2>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate} disabled={!currentOrgId}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
             新建临床人员
           </Button>
         </div>
-
-        {!currentOrgId && (
-          <Alert
-            type="error"
-            showIcon
-            style={{ marginBottom: 16 }}
-            message="当前登录态缺少机构上下文，无法管理临床人员"
-          />
-        )}
 
         <Table
           rowKey="id"

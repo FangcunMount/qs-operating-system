@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react'
 import { Button, Card, Form, Modal, Popconfirm, Select, Table, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { clinicianApi, IClinician, ITesteeClinicianRelationItem } from '@/api/path/clinician'
-import { getCurrentOrgId } from '@/utils/jwtClaims'
 import { extractErrorMessage } from '@/utils/apiError'
 import { formatClinicianType, formatRelationSource, formatRelationType } from '@/utils/display'
 
@@ -11,7 +10,6 @@ interface Props {
 }
 
 const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
-  const currentOrgId = getCurrentOrgId()
   const [loading, setLoading] = useState(false)
   const [assignVisible, setAssignVisible] = useState(false)
   const [transferVisible, setTransferVisible] = useState(false)
@@ -28,18 +26,12 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
     item?.source_type_label || formatRelationSource(item?.source_type)
 
   const fetchData = async () => {
-    if (!currentOrgId) {
-      setActiveRelations([])
-      setHistoryRelations([])
-      setClinicians([])
-      return
-    }
     setLoading(true)
     try {
       const [[activeErr, activeRes], [historyErr, historyRes], [clinicianErr, clinicianRes]] = await Promise.all([
         clinicianApi.getTesteeClinicians(testeeId),
         clinicianApi.listTesteeClinicianRelations(testeeId),
-        clinicianApi.listClinicians({ org_id: currentOrgId, page: 1, page_size: 200 })
+        clinicianApi.listClinicians({ page: 1, page_size: 200 })
       ])
 
       if (!activeErr && activeRes?.data) {
@@ -72,7 +64,6 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
     try {
       const values = await form.validateFields()
       const [error] = await clinicianApi.assignTestee({
-        org_id: currentOrgId,
         clinician_id: String(values.clinician_id),
         testee_id: testeeId,
         relation_type: values.relation_type,
@@ -104,7 +95,6 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
     try {
       const values = await transferForm.validateFields()
       const [error] = await clinicianApi.transferPrimary({
-        org_id: currentOrgId,
         to_clinician_id: String(values.to_clinician_id),
         testee_id: testeeId,
         source_type: 'transfer'
@@ -133,7 +123,6 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
           onClick={() =>
             clinicianApi
               .transferPrimary({
-                org_id: currentOrgId,
                 to_clinician_id: record.clinician.id,
                 testee_id: testeeId,
                 source_type: 'transfer'

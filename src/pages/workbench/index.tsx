@@ -3,13 +3,10 @@ import { Card, Select, Space, message } from 'antd'
 import { clinicianApi, IClinician } from '@/api/path/clinician'
 import QueuePanel from '@/components/workbench/QueuePanel'
 import { extractErrorMessage } from '@/utils/apiError'
-import { getCurrentOrgId } from '@/utils/jwtClaims'
-
 const OrgWorkbenchPage: React.FC = () => {
   const [clinicians, setClinicians] = useState<IClinician[]>([])
   const [clinicianLoading, setClinicianLoading] = useState(false)
   const [selectedClinicianId, setSelectedClinicianId] = useState<string | undefined>()
-  const currentOrgId = getCurrentOrgId()
 
   const clinicianOptions = useMemo(
     () =>
@@ -21,13 +18,9 @@ const OrgWorkbenchPage: React.FC = () => {
   )
 
   const fetchClinicians = async () => {
-    if (!currentOrgId) {
-      return
-    }
     setClinicianLoading(true)
     try {
       const [error, response] = await clinicianApi.listClinicians({
-        org_id: currentOrgId,
         page: 1,
         page_size: 200
       })
@@ -45,7 +38,7 @@ const OrgWorkbenchPage: React.FC = () => {
 
   useEffect(() => {
     fetchClinicians()
-  }, [currentOrgId])
+  }, [])
 
   return (
     <div>

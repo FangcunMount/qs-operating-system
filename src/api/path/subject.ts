@@ -1,7 +1,6 @@
 import { get, post, put } from '../qsServer'
 import type { QSResponse } from '@/types/qs'
 import type { FcResponse, ListResponse } from '../../types/server'
-import { getCurrentOrgId } from '@/utils/jwtClaims'
 
 // ==================== 新API接口定义 ====================
 
@@ -235,7 +234,6 @@ export const getSubjectList = async (params: { page?: number; pageSize?: number;
 
   // 调用新的 testeeApi
   const [err, res] = await testeeApi.listTestees({
-    org_id: getCurrentOrgId(),
     name: keyword,
     page,
     page_size: pageSize
