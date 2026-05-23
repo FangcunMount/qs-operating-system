@@ -15,6 +15,7 @@ import { Select } from 'antd'
 import { surveyApi } from '@/api/path/survey'
 import { statisticsApi } from '@/api/path/statistics'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
+import { QuestionnaireType } from '@/constants/questionnaireType'
 import { message } from 'antd'
 // 列表页面暂时不使用提取的组件，保持原有实现
 
@@ -43,7 +44,7 @@ const List: React.FC = observer(() => {
       const [err, res] = await surveyApi.listQuestionnaires({
         page: num,
         page_size: size,
-        type: 'survey',
+        type: QuestionnaireType.Survey,
         title: searchKey !== undefined ? searchKey : (keyWord || undefined),
         status: status !== undefined ? status : statusFilter
       })

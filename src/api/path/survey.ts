@@ -2,6 +2,7 @@ import { get, post, put, del } from '../qsServer'
 import type { QSResponse } from '@/types/qs'
 import { IQuestion, IQuestionShowController } from '@/models/question'
 import { convertQuestionToDTO } from './questionConverter'
+import { QuestionnaireType, normalizeQuestionnaireType } from '@/constants/questionnaireType'
 
 // ============ 类型定义 ============
 
@@ -16,7 +17,7 @@ export interface IQuestionnaireResponse {
   updated_by?: string
   updated_at?: string
   status: string // draft/published/archived
-  type: string
+  type: QuestionnaireType
   version: string
   questions: any[] // QuestionDTO[]
 }
@@ -34,7 +35,7 @@ export interface ICreateQuestionnaireRequest {
   title: string
   description?: string
   img_url?: string
-  type: string
+  type: QuestionnaireType
 }
 
 // 更新问卷基本信息请求
@@ -42,7 +43,7 @@ export interface IUpdateQuestionnaireBasicInfoRequest {
   title?: string
   description?: string
   img_url?: string
-  type?: string
+  type?: QuestionnaireType
 }
 
 // 显示控制器条件 DTO
@@ -129,7 +130,7 @@ export async function createSurvey(data: {
     title: data.title,
     description: data.desc,
     img_url: data.img_url,
-    type: data.type || 'survey'
+    type: normalizeQuestionnaireType(data.type)
   }
   return post<IQuestionnaireResponse>('/questionnaires', requestData)
 }
@@ -149,7 +150,7 @@ export async function updateSurvey(data: {
     title: data.title,
     description: data.desc,
     img_url: data.img_url,
-    type: data.type
+    type: data.type ? normalizeQuestionnaireType(data.type) : undefined
   }
   return put<IQuestionnaireResponse>(`/questionnaires/${data.questionsheetid}/basic-info`, requestData)
 }
@@ -284,7 +285,10 @@ export async function listQuestionnaires(params: {
   status?: string
   title?: string
 }): Promise<[any, QSResponse<IQuestionnaireListResponse> | undefined]> {
-  return get<IQuestionnaireListResponse>('/questionnaires', params)
+  return get<IQuestionnaireListResponse>('/questionnaires', {
+    ...params,
+    type: params.type ? normalizeQuestionnaireType(params.type) : undefined
+  })
 }
 
 /**

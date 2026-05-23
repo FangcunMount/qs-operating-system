@@ -18,6 +18,7 @@ import { delShowController, postShowController } from '@/api/path/showController
 import { IQuestionShowController } from '@/models/question'
 import type { IQuestionDTO } from '@/api/path/survey'
 import { convertQuestionFromDTO } from '@/api/path/questionConverter'
+import { QuestionnaireType } from '@/constants/questionnaireType'
 
 // 问卷编辑步骤
 export type SurveyStep = 'create' | 'edit-questions' | 'set-routing' | 'publish'
@@ -613,7 +614,7 @@ export const surveyStore = makeObservable(
       if (!this.id || this.id === '') {
         const [e, r] = await api.createSurvey({
           ...params,
-          type: 'survey'
+          type: QuestionnaireType.Survey
         })
         if (e) throw e
 
@@ -687,7 +688,7 @@ export const surveyStore = makeObservable(
           title: this.title,
           desc: this.desc,
           img_url: this.img_url,
-          type: 'survey'
+          type: QuestionnaireType.Survey
         })
         if (e) throw e
         // 新 API 返回格式：IQuestionnaireResponse，code 字段是问卷编码
@@ -703,28 +704,13 @@ export const surveyStore = makeObservable(
       // 此时 this.id 一定存在，使用类型断言
       const surveyId = this.id as string
 
-      // 先获取当前问卷状态，如果已发布则先取消发布
-      try {
-        const [statusErr, statusRes] = await api.getSurvey(surveyId)
-        if (!statusErr && statusRes?.data?.status === 'published') {
-          // 如果已经是发布状态，先取消发布
-          console.log('问卷已发布，先取消发布再重新发布')
-          const [unpublishErr] = await api.unpublishSurvey(surveyId)
-          if (unpublishErr) {
-            console.warn('取消发布失败，继续尝试发布:', unpublishErr)
-          }
-        }
-      } catch (error) {
-        // 获取状态失败不影响发布流程，继续执行
-        console.warn('获取问卷状态失败，继续发布流程:', error)
-      }
-
       // 更新基本信息
       const [infoErr] = await api.updateSurvey({
         questionsheetid: surveyId,
         title: this.title,
         desc: this.desc,
-        img_url: this.img_url
+        img_url: this.img_url,
+        type: QuestionnaireType.Survey
       })
       if (infoErr) throw infoErr
 

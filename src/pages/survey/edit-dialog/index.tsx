@@ -3,6 +3,7 @@ import PropTypes from 'prop-types'
 import { Modal, Button, Input, message } from 'antd'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
 import { surveyApi } from '@/api/path/survey'
+import { QuestionnaireType } from '@/constants/questionnaireType'
 import useSubmit from '@/components/useSubmit'
 import '@/styles/theme-survey.scss'
 
@@ -66,7 +67,7 @@ const EditQuestionSheetDialog: React.FC<{
           title: questionsheet.title,
           desc: questionsheet.desc,
           img_url: questionsheet.img_url,
-          type: 'survey'
+          type: QuestionnaireType.Survey
         })
         if (e) throw e
       }
@@ -136,4 +137,3 @@ EditQuestionSheetDialog.propTypes = {
 }
 
 export default EditQuestionSheetDialog
-

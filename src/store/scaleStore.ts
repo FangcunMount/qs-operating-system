@@ -21,6 +21,7 @@ import { delShowController, postShowController } from '@/api/path/showController
 import { convertQuestionFromDTO, ensureDefaultValidateRules } from '@/api/path/questionConverter'
 import type { IQuestionDTO } from '@/api/path/survey'
 import { getScaleCategories } from '@/api/path/scale'
+import { QuestionnaireType } from '@/constants/questionnaireType'
 
 // 量表编辑步骤
 export type ScaleStep = 'create' | 'edit-questions' | 'set-routing' | 'edit-factors' | 'set-interpretation' | 'publish'
@@ -608,6 +609,93 @@ export const scaleStore = makeObservable(
       }
     },
 
+    async persistScaleDraftBeforePublish(questionnaireCode: string) {
+      const { scaleApi } = await import('@/api/path/scale')
+
+      const [surveyInfoErr] = await api.updateSurvey({
+        questionsheetid: questionnaireCode,
+        title: this.title,
+        desc: this.desc,
+        img_url: this.img_url,
+        type: QuestionnaireType.MedicalScale
+      })
+      if (surveyInfoErr) throw surveyInfoErr
+
+      const [questionErr] = await api.saveSurveyQuestions(questionnaireCode, this.questions, this.showControllers)
+      if (questionErr) throw questionErr
+
+      let scaleCode = this.scaleCode
+      if (!scaleCode) {
+        const [getErr, getRes] = await scaleApi.getScaleByQuestionnaire(questionnaireCode)
+        if (!getErr && getRes?.data?.code) {
+          scaleCode = getRes.data.code
+        }
+      }
+
+      if (!scaleCode) {
+        const [createErr, createRes] = await scaleApi.createScale({
+          title: this.title,
+          description: this.desc,
+          questionnaire_code: questionnaireCode,
+          category: this.category || undefined,
+          stages: this.stages.length > 0 ? this.stages : undefined,
+          applicable_ages: this.applicable_ages.length > 0 ? this.applicable_ages : undefined,
+          reporters: this.reporters.length > 0 ? this.reporters : undefined,
+          tags: this.tags.length > 0 ? this.tags : undefined
+        })
+        if (createErr) throw createErr
+        if (!createRes?.data?.code) {
+          throw new Error('创建量表失败，无法发布')
+        }
+        scaleCode = createRes.data.code
+      }
+
+      runInAction(() => {
+        this.scaleCode = scaleCode
+      })
+
+      const [scaleInfoErr] = await scaleApi.updateScaleBasicInfo(scaleCode, {
+        title: this.title,
+        description: this.desc,
+        category: this.category || undefined,
+        stages: this.stages.length > 0 ? this.stages : undefined,
+        applicable_ages: this.applicable_ages.length > 0 ? this.applicable_ages : undefined,
+        reporters: this.reporters.length > 0 ? this.reporters : undefined,
+        tags: this.tags.length > 0 ? this.tags : undefined
+      })
+      if (scaleInfoErr) throw scaleInfoErr
+
+      if (this.factors.length > 0) {
+        const { factorApi } = await import('@/api/path/facotr')
+        const factorsWithRules = this.factors.map((factor) => {
+          const factorRule = this.factor_rules.find(rule => rule.code === factor.code)
+          const factorWithRules: any = { ...factor }
+
+          if (factorRule) {
+            factorWithRules.is_show = factorRule.interpret_rule.is_show === '1'
+          }
+
+          if (factorRule && factorRule.interpret_rule.interpretation.length > 0) {
+            factorWithRules.interpret_rules = factorRule.interpret_rule.interpretation.map(item => ({
+              min_score: Number(item.start) || 0,
+              max_score: Number(item.end) || 0,
+              conclusion: item.conclusion || '',
+              suggestion: item.suggestion || '',
+              risk_level: item.risk_level || 'none'
+            }))
+            factorWithRules.risk_level = factorWithRules.interpret_rules[0]?.risk_level || 'none'
+          }
+
+          return factorWithRules
+        })
+
+        const [factorErr] = await factorApi.modifyFactorList(scaleCode, factorsWithRules, false, this.questions)
+        if (factorErr) throw factorErr
+      }
+
+      return scaleCode
+    },
+
     /**
      * 发布量表到线上
      */
@@ -618,7 +706,7 @@ export const scaleStore = makeObservable(
           title: this.title,
           desc: this.desc,
           img_url: this.img_url,
-          type: 'scale'
+          type: QuestionnaireType.MedicalScale
         })
         if (e) throw e
         // 新 API 返回格式：IQuestionnaireResponse，code 字段是问卷编码
@@ -634,41 +722,10 @@ export const scaleStore = makeObservable(
       // 此时 this.id 一定存在，使用类型断言
       const scaleId = this.id as string
 
-      // 保存题目列表
-      const [qsErr] = await api.saveSurveyQuestions(scaleId, this.questions)
-      if (qsErr) throw qsErr
-
-      // 同步本地暂存的题目显隐规则
-      await this.syncShowControllers()
-
-      // 获取量表编码（如果还没有）
-      let scaleCode = this.scaleCode
-      if (!scaleCode) {
-        const { scaleApi } = await import('@/api/path/scale')
-        const [se, sr] = await scaleApi.getScaleByQuestionnaire(scaleId)
-        if (se || !sr?.data?.code) {
-          throw new Error('获取量表编码失败，无法发布')
-        }
-        scaleCode = sr.data.code
-        runInAction(() => {
-          this.scaleCode = scaleCode
-        })
-      }
-
-      // 更新量表基本信息（使用量表的 basic-info 接口）
-      const { scaleApi } = await import('@/api/path/scale')
-      const [infoErr] = await scaleApi.updateScaleBasicInfo(scaleCode, {
-        title: this.title,
-        description: this.desc,
-        category: this.category || undefined,
-        stages: this.stages.length > 0 ? this.stages : undefined,
-        applicable_ages: this.applicable_ages.length > 0 ? this.applicable_ages : undefined,
-        reporters: this.reporters.length > 0 ? this.reporters : undefined,
-        tags: this.tags.length > 0 ? this.tags : undefined
-      })
-      if (infoErr) throw infoErr
+      const scaleCode = await this.persistScaleDraftBeforePublish(scaleId)
 
       // 使用量表编码调用发布接口
+      const { scaleApi } = await import('@/api/path/scale')
       const [e] = await scaleApi.publishScale(scaleCode)
       if (e) throw e
 
@@ -722,7 +779,7 @@ export const scaleStore = makeObservable(
           title: this.title,
           desc: this.desc,
           img_url: this.img_url,
-          type: 'scale'
+          type: QuestionnaireType.MedicalScale
         })
         if (qe) throw qe
 
@@ -761,10 +818,29 @@ export const scaleStore = makeObservable(
         return questionnaireCode
       }
 
-      // 编辑模式：更新量表基本信息
-      if (this.scaleCode) {
-        const { scaleApi } = await import('@/api/path/scale')
-        const [e] = await scaleApi.updateScaleBasicInfo(this.scaleCode, {
+      // 编辑模式：同时更新问卷 head 和量表 head 的展示信息
+      const [qe] = await api.updateSurvey({
+        questionsheetid: this.id,
+        title: this.title,
+        desc: this.desc,
+        img_url: this.img_url,
+        type: QuestionnaireType.MedicalScale
+      })
+      if (qe) throw qe
+
+      const { scaleApi } = await import('@/api/path/scale')
+      let scaleCode = this.scaleCode
+      if (!scaleCode) {
+        const [se, sr] = await scaleApi.getScaleByQuestionnaire(this.id)
+        if (se) throw se
+        scaleCode = sr?.data?.code || ''
+        runInAction(() => {
+          this.scaleCode = scaleCode
+        })
+      }
+
+      if (scaleCode) {
+        const [e] = await scaleApi.updateScaleBasicInfo(scaleCode, {
           title: this.title,
           description: this.desc,
           category: this.category || undefined,
@@ -1273,6 +1349,7 @@ export const scaleStore = makeObservable(
     delFactorRulesInterpretation: action,
     fetchScaleInfo: action,
     syncShowControllers: action,
+    persistScaleDraftBeforePublish: action,
     publish: action,
     unpublish: action,
     saveBasicInfo: action,
