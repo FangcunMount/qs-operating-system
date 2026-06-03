@@ -2,7 +2,7 @@ import { ApiResponse } from '@/types/server'
 import { post } from '../server'
 
 export interface ILoginRequest {
-  auth_method: 'password' | 'phone_otp' | 'wechat' | 'wecom'
+  auth_method: 'password' | 'phone_otp' | 'wechat' | 'wechat_scan' | 'wecom'
   method_payload: {
     username?: string
     password?: string
@@ -10,6 +10,7 @@ export interface ILoginRequest {
     otp_code?: string
     app_id?: string
     code?: string
+    state?: string
     corp_id?: string
     auth_code?: string
     tenant_id?: number
@@ -69,9 +70,26 @@ export function getToken<T = ITokenPair>(
   })
 }
 
+/** 微信开放平台扫码登录（OAuth code + state） */
+export function loginWithWechatScan<T = ITokenPair>(
+  code: string,
+  state: string,
+  appId: string
+): ApiResponse<T> {
+  return post<T>('/authn/login', {
+    auth_method: 'wechat_scan',
+    method_payload: {
+      app_id: appId,
+      code,
+      state
+    }
+  })
+}
+
 export const authApi = {
   login,
   refreshToken,
   logout,
-  getToken
+  getToken,
+  loginWithWechatScan
 }

@@ -1,4 +1,4 @@
-import { getToken, login, logout, refreshToken } from './auth'
+import { getToken, login, loginWithWechatScan, logout, refreshToken } from './auth'
 import { post } from '../server'
 
 jest.mock('../server', () => ({
@@ -46,6 +46,19 @@ describe('IAM AuthN REST contract', () => {
       method_payload: {
         app_id: 'wx-app',
         code: 'js-code'
+      }
+    })
+  })
+
+  it('uses wechat_scan login payload for open platform OAuth', () => {
+    loginWithWechatScan('oauth-code', 'oauth-state', 'wx-open-app')
+
+    expect(postMock).toHaveBeenCalledWith('/authn/login', {
+      auth_method: 'wechat_scan',
+      method_payload: {
+        app_id: 'wx-open-app',
+        code: 'oauth-code',
+        state: 'oauth-state'
       }
     })
   })

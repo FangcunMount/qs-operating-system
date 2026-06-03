@@ -1,4 +1,4 @@
-# 问卷系统管理后台 (QS Operating System)
+# Qlume 测评系统管理后台 (QS Operating System)
 
 一个基于 React + TypeScript + Ant Design 的问卷管理系统，支持问卷创建、编辑、答卷管理、数据分析等功能。
 

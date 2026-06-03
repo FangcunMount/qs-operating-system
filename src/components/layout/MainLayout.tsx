@@ -12,7 +12,8 @@ import {
   BellOutlined,
   QuestionCircleOutlined,
   GithubOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  SafetyCertificateOutlined
 } from '@ant-design/icons'
 import { useHistory, useLocation } from 'react-router-dom'
 import { routes } from '../../router/map'
@@ -21,6 +22,7 @@ import { rootStore } from '@/store'
 import { filterRoutesForMenu } from '@/utils/menuAccess'
 import { getDefaultLandingPath } from '@/utils/accessControl'
 import { getRouteDisplayTitle } from '@/utils/routeDisplay'
+import { brandAlt, brandAssets } from '@/config/brand'
 import './mainLayout.scss'
 
 const { Header, Sider, Content } = Layout
@@ -288,6 +290,13 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
       >
         个人资料
       </Menu.Item>
+      <Menu.Item
+        key="account-security"
+        icon={<SafetyCertificateOutlined />}
+        onClick={() => history.push('/account/security')}
+      >
+        账号安全
+      </Menu.Item>
       {userStore.accessContext.isClinician && (
         <Menu.Item
           key="workbench"
@@ -347,7 +356,11 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
             role="button"
             tabIndex={0}
           >
-            <FileTextOutlined className="logo-icon" />
+            <img
+              className="logo-mark"
+              src={brandAssets.mark}
+              alt={brandAlt}
+            />
             {!collapsed && <span className="logo-text">问卷系统</span>}
           </div>
           <Menu

@@ -11,6 +11,7 @@ import { hasStoredAuthSession } from '@/utils/jwtClaims'
 import type { IRoute } from '@/types/router'
 
 const NoPermission = lazy(() => import('@/pages/no-permission'))
+const WechatCallback = lazy(() => import('@/pages/auth/wechat/callback'))
 
 const RouteAccess: React.FC<{ route: IRoute; children: React.ReactNode }> = observer(
   ({ route, children }) => {
@@ -118,6 +119,10 @@ const RouteView: React.FC = () => {
               const loginRoute = routes.find(r => r.path === '/user/login')
               return loginRoute?.component ? React.createElement(loginRoute.component) : null
             })()}
+          </Route>
+
+          <Route path="/auth/wechat/callback">
+            <WechatCallback />
           </Route>
 
           <Route path="/no-permission">

@@ -173,6 +173,42 @@ class UserStore {
     }
   }
 
+  // 微信开放平台扫码登录
+  async loginWithWechatScan(code: string, state: string, appId: string) {
+    this.loading = true
+    try {
+      const [error, resp] = await api.loginWithWechatScan(code, state, appId)
+
+      if (error || !resp?.data) {
+        throw new Error(resp?.message || resp?.errmsg || '微信登录失败')
+      }
+
+      const claims = parseJwtClaims(resp.data.access_token)
+      const claimCheck = claims ? validateJwtClaims(claims) : { valid: false, reason: 'access_token 非法 JWT' }
+      if (!claimCheck.valid) {
+        throw new Error(`登录凭证不符合规范: ${claimCheck.reason}`)
+      }
+
+      persistTokenPair(resp.data.access_token, resp.data.refresh_token)
+
+      runInAction(() => {
+        this.isLoggedIn = true
+        this.loading = false
+        this.clinicianIdentity = null
+        this.clinicianResolved = false
+      })
+      await this.fetchUserProfile()
+      message.success('登录成功')
+      return true
+    } catch (error: any) {
+      runInAction(() => {
+        this.loading = false
+      })
+      message.error(error?.message || '微信登录失败')
+      return false
+    }
+  }
+
   // 登录
   async login(username: string, password: string) {
     this.loading = true

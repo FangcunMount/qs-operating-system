@@ -33,6 +33,7 @@ const AsList = lazy(() => import('../pages/as/list'))
 const AsDetail = lazy(() => import('../pages/as/detail'))
 const Login = lazy(() => import('../pages/user/login'))
 const UserProfile = lazy(() => import('../pages/user/profile'))
+const AccountSecurity = lazy(() => import('../pages/account/security'))
 const AdminAuthz = lazy(() => import('../pages/admin/authz'))
 const AdminStaff = lazy(() => import('../pages/admin/staff'))
 const AdminWechatApp = lazy(() => import('../pages/admin/wechat-app'))
@@ -361,6 +362,13 @@ export const routes: Array<IRoute> = [
         name: 'user-profile',
         path: '/user/profile',
         component: UserProfile,
+        menuScope: 'public'
+      },
+      {
+        title: '账号安全',
+        name: 'account-security',
+        path: '/account/security',
+        component: AccountSecurity,
         menuScope: 'public'
       }
     ]
