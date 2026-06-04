@@ -12,10 +12,6 @@ const UserProfile: React.FC = observer(() => {
   const [editing, setEditing] = useState(false)
 
   useEffect(() => {
-    userStore.fetchUserProfile()
-  }, [])
-
-  useEffect(() => {
     if (userStore.currentUser) {
       // 将 contacts 数组转换为表单字段
       const phone = userStore.getContact('phone')

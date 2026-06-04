@@ -42,7 +42,8 @@ const AuthenticatedApp: React.FC = observer(() => {
     return <Redirect to={{ pathname: '/user/login', state: { from: location } }} />
   }
 
-  if (!userStore.profileFetchDone || userStore.loading) {
+  // 仅首次拉取用户信息时全屏 loading；后续页面内 refresh 不应卸载路由树
+  if (!userStore.profileFetchDone) {
     return (
       <div style={{ width: '100vw', height: '100vh' }} className="s-row-center">
         <Spin size="large" tip="加载中..." />
