@@ -86,10 +86,45 @@ export function loginWithWechatScan<T = ITokenPair>(
   })
 }
 
+/** IAM 规范：E.164；输入可为国内 11 位或已带 +86 */
+export function normalizePhoneForIam(phone: string): string {
+  const trimmed = phone.trim().replace(/\s/g, '')
+  if (trimmed.startsWith('+')) {
+    return trimmed
+  }
+  if (/^86\d{11}$/.test(trimmed)) {
+    return `+${trimmed}`
+  }
+  return `+86${trimmed}`
+}
+
+export function sendLoginPhoneOtp<T = { message: string }>(
+  phone: string
+): ApiResponse<T> {
+  return post<T>('/authn/challenges/phone-otp', {
+    phone: normalizePhoneForIam(phone)
+  })
+}
+
+export function loginWithPhoneOtp<T = ITokenPair>(
+  phone: string,
+  otpCode: string
+): ApiResponse<T> {
+  return post<T>('/authn/login', {
+    auth_method: 'phone_otp',
+    method_payload: {
+      phone: normalizePhoneForIam(phone),
+      otp_code: otpCode
+    }
+  })
+}
+
 export const authApi = {
   login,
   refreshToken,
   logout,
   getToken,
-  loginWithWechatScan
+  loginWithWechatScan,
+  sendLoginPhoneOtp,
+  loginWithPhoneOtp
 }

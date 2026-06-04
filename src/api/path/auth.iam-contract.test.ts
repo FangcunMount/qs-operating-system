@@ -1,4 +1,13 @@
-import { getToken, login, loginWithWechatScan, logout, refreshToken } from './auth'
+import {
+  getToken,
+  login,
+  loginWithPhoneOtp,
+  loginWithWechatScan,
+  logout,
+  normalizePhoneForIam,
+  refreshToken,
+  sendLoginPhoneOtp
+} from './auth'
 import { post } from '../server'
 
 jest.mock('../server', () => ({
@@ -59,6 +68,32 @@ describe('IAM AuthN REST contract', () => {
         app_id: 'wx-open-app',
         code: 'oauth-code',
         state: 'oauth-state'
+      }
+    })
+  })
+
+  it('normalizes domestic phone to E.164 for IAM', () => {
+    expect(normalizePhoneForIam('13811112222')).toBe('+8613811112222')
+    expect(normalizePhoneForIam('+8613811112222')).toBe('+8613811112222')
+    expect(normalizePhoneForIam('8613811112222')).toBe('+8613811112222')
+  })
+
+  it('uses phone-otp challenge route for login SMS', () => {
+    sendLoginPhoneOtp('13811112222')
+
+    expect(postMock).toHaveBeenCalledWith('/authn/challenges/phone-otp', {
+      phone: '+8613811112222'
+    })
+  })
+
+  it('uses explicit V2 phone_otp login payload', () => {
+    loginWithPhoneOtp('13811112222', '123456')
+
+    expect(postMock).toHaveBeenCalledWith('/authn/login', {
+      auth_method: 'phone_otp',
+      method_payload: {
+        phone: '+8613811112222',
+        otp_code: '123456'
       }
     })
   })

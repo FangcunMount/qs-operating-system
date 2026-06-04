@@ -209,6 +209,42 @@ class UserStore {
     }
   }
 
+  // 手机号 + 短信验证码登录
+  async loginWithPhoneOtp(phone: string, otpCode: string) {
+    this.loading = true
+    try {
+      const [error, resp] = await api.loginWithPhoneOtp(phone, otpCode)
+
+      if (error || !resp?.data) {
+        throw new Error(resp?.message || resp?.errmsg || '登录失败')
+      }
+
+      const claims = parseJwtClaims(resp.data.access_token)
+      const claimCheck = claims ? validateJwtClaims(claims) : { valid: false, reason: 'access_token 非法 JWT' }
+      if (!claimCheck.valid) {
+        throw new Error(`登录凭证不符合规范: ${claimCheck.reason}`)
+      }
+
+      persistTokenPair(resp.data.access_token, resp.data.refresh_token)
+
+      runInAction(() => {
+        this.isLoggedIn = true
+        this.loading = false
+        this.clinicianIdentity = null
+        this.clinicianResolved = false
+      })
+      await this.fetchUserProfile()
+      message.success('登录成功')
+      return true
+    } catch (error: any) {
+      runInAction(() => {
+        this.loading = false
+      })
+      message.error(error?.message || '登录失败')
+      return false
+    }
+  }
+
   // 登录
   async login(username: string, password: string) {
     this.loading = true

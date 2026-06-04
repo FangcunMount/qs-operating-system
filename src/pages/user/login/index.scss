@@ -415,7 +415,6 @@ $login-ease: cubic-bezier(0.4, 0, 0.2, 1);
 
 .login-method-switch {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   padding: 5px;
   margin-bottom: 24px;
@@ -529,6 +528,43 @@ $login-ease: cubic-bezier(0.4, 0, 0.2, 1);
   &__icon {
     color: #94a3b8;
     margin-right: 4px;
+  }
+
+  &__otp-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+
+    .ant-form-item {
+      flex: 1;
+      margin-bottom: 0;
+    }
+
+    .ant-input-affix-wrapper {
+      width: 100%;
+    }
+  }
+
+  &__otp-send {
+    flex: 0 0 auto;
+    min-width: 108px;
+    height: 48px;
+    padding: 0 12px;
+    border-color: $login-border;
+    border-radius: $login-radius;
+    font-size: 14px;
+    font-weight: 600;
+    color: $login-primary;
+    white-space: nowrap;
+
+    &:hover:not(:disabled) {
+      color: $login-primary-dark;
+      border-color: $login-primary;
+    }
+
+    &:disabled {
+      color: #94a3b8;
+    }
   }
 
   &__submit {

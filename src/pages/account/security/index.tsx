@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Button, Card, Popconfirm, Space, Table, Tag, message } from 'antd'
-import { WechatOutlined, ReloadOutlined } from '@ant-design/icons'
+import { WechatOutlined, ReloadOutlined, MobileOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { api } from '@/api'
 import type { ILoginIdentity } from '@/api/path/loginIdentity'
 import { startWechatScan } from '@/utils/wechatScan'
+import LinkPhoneModal from './LinkPhoneModal'
 import './index.scss'
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -20,6 +21,7 @@ function renderProvider(provider: string) {
   return (
     <Space>
       {provider === 'wechat_open' && <WechatOutlined style={{ color: '#07c160' }} />}
+      {provider === 'phone' && <MobileOutlined style={{ color: '#2563eb' }} />}
       <span>{PROVIDER_LABELS[provider] || provider}</span>
     </Space>
   )
@@ -44,6 +46,7 @@ const AccountSecurity: React.FC = () => {
   const [items, setItems] = useState<ILoginIdentity[]>([])
   const [loading, setLoading] = useState(false)
   const [linking, setLinking] = useState(false)
+  const [phoneModalOpen, setPhoneModalOpen] = useState(false)
 
   const loadIdentities = useCallback(async () => {
     setLoading(true)
@@ -81,6 +84,7 @@ const AccountSecurity: React.FC = () => {
   }
 
   const hasWechatOpen = items.some((item) => item.provider === 'wechat_open')
+  const hasPhone = items.some((item) => item.provider === 'phone')
 
   const columns: ColumnsType<ILoginIdentity> = [
     {
@@ -129,19 +133,36 @@ const AccountSecurity: React.FC = () => {
           locale={{ emptyText: '暂无已绑定的登录方式' }}
         />
         <div className="account-security-actions">
-          {!hasWechatOpen && (
-            <Button
-              type="primary"
-              icon={<WechatOutlined />}
-              loading={linking}
-              onClick={handleBindWechat}
-            >
-              绑定微信
-            </Button>
-          )}
-          {hasWechatOpen && <Tag color="success">已绑定微信开放平台</Tag>}
+          <Space wrap>
+            {!hasPhone && (
+              <Button
+                icon={<MobileOutlined />}
+                onClick={() => setPhoneModalOpen(true)}
+              >
+                绑定手机号
+              </Button>
+            )}
+            {hasPhone && <Tag color="success">已绑定手机号登录</Tag>}
+            {!hasWechatOpen && (
+              <Button
+                type="primary"
+                icon={<WechatOutlined />}
+                loading={linking}
+                onClick={handleBindWechat}
+              >
+                绑定微信
+              </Button>
+            )}
+            {hasWechatOpen && <Tag color="success">已绑定微信开放平台</Tag>}
+          </Space>
         </div>
       </Card>
+
+      <LinkPhoneModal
+        open={phoneModalOpen}
+        onClose={() => setPhoneModalOpen(false)}
+        onSuccess={() => loadIdentities()}
+      />
     </div>
   )
 }

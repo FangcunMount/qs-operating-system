@@ -1,7 +1,9 @@
 import {
   deleteLoginIdentity,
+  linkPhone,
   linkWechatOpen,
   listLoginIdentities,
+  sendLinkPhoneChallenge,
   wechatOpenAuthorizeLink,
   wechatOpenAuthorizeLogin
 } from './loginIdentity'
@@ -43,5 +45,18 @@ describe('IAM LoginIdentity REST contract', () => {
       state: 'oauth-state'
     })
     expect(delMock).toHaveBeenCalledWith('/authn/login-identities/li-1')
+  })
+
+  it('uses phone link challenge and bind routes on IAM V2', () => {
+    sendLinkPhoneChallenge('13811112222')
+    linkPhone('13811112222', '123456')
+
+    expect(postMock).toHaveBeenNthCalledWith(1, '/authn/login-identities/phone/challenge', {
+      phone: '+8613811112222'
+    })
+    expect(postMock).toHaveBeenNthCalledWith(2, '/authn/login-identities/phone', {
+      phone: '+8613811112222',
+      otp_code: '123456'
+    })
   })
 })

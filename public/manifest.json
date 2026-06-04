@@ -3,12 +3,12 @@
   "name": "Qlume 测评系统管理后台",
   "icons": [
     {
-      "src": "qlume-app-icon-light.png",
+      "src": "qlume-app-icon-dark.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "qlume-app-icon-light.png",
+      "src": "qlume-app-icon-dark.png",
       "type": "image/png",
       "sizes": "512x512"
     }
