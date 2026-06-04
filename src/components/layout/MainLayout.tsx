@@ -202,7 +202,7 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
           return getRouteDisplayTitle(route.name, route.title, access)
         }
       }
-      return '问卷系统'
+      return 'Qlume 测评系统管理后台'
     }
 
     return findTitle(routes)
@@ -358,10 +358,10 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
           >
             <img
               className="logo-mark"
-              src={brandAssets.mark}
+              src={brandAssets.appIconDark}
               alt={brandAlt}
             />
-            {!collapsed && <span className="logo-text">问卷系统</span>}
+            {!collapsed && <span className="logo-text">测评管理后台</span>}
           </div>
           <Menu
             theme="dark"
