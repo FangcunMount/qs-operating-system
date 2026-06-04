@@ -3,9 +3,7 @@ import { Form, Input, Button, Spin, message } from 'antd'
 import {
   UserOutlined,
   LockOutlined,
-  WechatOutlined,
-  EyeOutlined,
-  EyeInvisibleOutlined
+  WechatOutlined
 } from '@ant-design/icons'
 import { useHistory } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
@@ -13,6 +11,7 @@ import { rootStore } from '@/store'
 import { startWechatScan } from '@/utils/wechatScan'
 import { brandAlt, brandAssets } from '@/config/brand'
 import AnimatedCharacters from '@/components/login/AnimatedCharacters'
+import { PasswordVisibilityIcon } from '@/components/login/PasswordVisibilityIcon'
 import './index.scss'
 
 interface LoginFormValues {
@@ -155,20 +154,13 @@ const Login: React.FC = observer(() => {
                   name="password"
                   rules={[{ required: true, message: '请输入密码' }]}
                 >
-                  <Input
-                    type={passwordVisible ? 'text' : 'password'}
+                  <Input.Password
                     prefix={<LockOutlined className="login-form__icon" />}
-                    suffix={(
-                      <button
-                        type="button"
-                        className="login-form__password-toggle"
-                        aria-label={passwordVisible ? '隐藏密码' : '显示密码'}
-                        aria-pressed={passwordVisible}
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => setPasswordVisible((visible) => !visible)}
-                      >
-                        {passwordVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-                      </button>
+                    iconRender={(visible) => (
+                      <PasswordVisibilityIcon
+                        visible={visible}
+                        onVisibleChange={setPasswordVisible}
+                      />
                     )}
                     placeholder="请输入密码"
                     autoComplete="current-password"

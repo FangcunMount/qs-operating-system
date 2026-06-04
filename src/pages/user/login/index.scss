@@ -517,6 +517,15 @@ $login-ease: cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
   }
 
+  .ant-input-password-icon {
+    color: #94a3b8;
+    transition: color 0.2s $login-ease;
+
+    &:hover {
+      color: $login-primary;
+    }
+  }
+
   &__icon {
     color: #94a3b8;
     margin-right: 4px;
@@ -547,28 +556,6 @@ $login-ease: cubic-bezier(0.4, 0, 0.2, 1);
       &:active {
         transform: translateY(0);
       }
-    }
-  }
-
-  &__password-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    border: none;
-    border-radius: 6px;
-    background: transparent;
-    color: #94a3b8;
-    cursor: pointer;
-    transition: color 0.2s $login-ease, background 0.2s $login-ease;
-
-    &:hover,
-    &:focus-visible {
-      color: $login-primary;
-      background: $login-primary-soft;
-      outline: none;
     }
   }
 }
