@@ -81,18 +81,54 @@ export interface ICacheGovernanceStatusResponse {
   warmup: ICacheGovernanceWarmupConfig
 }
 
-export interface ICacheGovernanceHotsetItem {
-  scope: string
+export interface ICacheGovernanceHotsetTarget {
+  family?: string
+  Family?: string
+  kind?: string
+  Kind?: string
+  scope?: string
+  Scope?: string
+}
+
+/** qs-apiserver 原始 hotset item（Go 导出字段为 PascalCase） */
+export interface ICacheGovernanceHotsetItemRaw {
+  target?: ICacheGovernanceHotsetTarget
+  scope?: string
   score: number
 }
 
-export interface ICacheGovernanceHotsetResponse {
+export interface ICacheGovernanceHotsetItem {
+  scope: string
+  score: number
+  family?: string
+  kind?: string
+}
+
+export const normalizeHotsetItem = (item: ICacheGovernanceHotsetItemRaw): ICacheGovernanceHotsetItem => {
+  const target = item.target
+  return {
+    scope: item.scope || target?.scope || target?.Scope || '',
+    family: target?.family || target?.Family,
+    kind: target?.kind || target?.Kind,
+    score: item.score
+  }
+}
+
+export const normalizeHotsetItems = (
+  items: ICacheGovernanceHotsetItemRaw[] = []
+): ICacheGovernanceHotsetItem[] => items.map((item) => normalizeHotsetItem(item))
+
+export interface ICacheGovernanceHotsetResponseRaw {
   family: string
   kind: CacheGovernanceHotsetKind | string
   limit: number
   available: boolean
   degraded: boolean
   message?: string
+  items: ICacheGovernanceHotsetItemRaw[]
+}
+
+export interface ICacheGovernanceHotsetResponse extends Omit<ICacheGovernanceHotsetResponseRaw, 'items'> {
   items: ICacheGovernanceHotsetItem[]
 }
 
@@ -172,8 +208,8 @@ export const getCacheGovernanceStatus = (): Promise<[any, QSResponse<ICacheGover
 export const getCacheGovernanceHotset = (
   kind: CacheGovernanceHotsetKind,
   limit = 20
-): Promise<[any, QSResponse<ICacheGovernanceHotsetResponse> | undefined]> =>
-  internalGet<ICacheGovernanceHotsetResponse>('/cache/governance/hotset', { kind, limit })
+): Promise<[any, QSResponse<ICacheGovernanceHotsetResponseRaw> | undefined]> =>
+  internalGet<ICacheGovernanceHotsetResponseRaw>('/cache/governance/hotset', { kind, limit })
 
 export const postCacheGovernanceWarmupTargets = (
   data: ICacheGovernanceManualWarmupRequest

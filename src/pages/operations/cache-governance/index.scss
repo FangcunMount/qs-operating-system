@@ -118,6 +118,11 @@
   &__row--unavailable td {
     background: #fff1f0;
   }
+
+  &__column-tip-icon {
+    color: rgba(0, 0, 0, 0.45);
+    cursor: help;
+  }
 }
 
 @media (max-width: 768px) {

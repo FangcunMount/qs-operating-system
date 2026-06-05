@@ -4,7 +4,8 @@ import {
   getCacheGovernanceHotset,
   getCacheGovernanceStatus,
   ICacheGovernanceHotsetResponse,
-  ICacheGovernanceStatusResponse
+  ICacheGovernanceStatusResponse,
+  normalizeHotsetItems
 } from '@/api/path/cacheGovernance'
 import { extractErrorMessage } from '@/utils/apiError'
 
@@ -77,7 +78,10 @@ export const useCacheGovernanceStatus = (): UseCacheGovernanceStatusResult => {
       }
       return
     }
-    setHotset(response.data)
+    setHotset({
+      ...response.data,
+      items: normalizeHotsetItems(response.data.items)
+    })
     setHotsetError('')
     if (!silent) {
       setHotsetLoading(false)

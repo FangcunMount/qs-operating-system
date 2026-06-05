@@ -148,9 +148,20 @@ const renderManualWarmupItemStatusTag = (value: ICacheGovernanceManualWarmupItem
   return <Tag color={color}>{label}</Tag>
 }
 
-const renderHotsetScope = (value: string) => (
-  <Tooltip title={value}>
-    <span>{value}</span>
+const HOTSET_SCORE_TIP = 'meta hotset 中该作用域的累计访问热度，用于 Top-N 排序；分数越高表示近期访问越频繁，越优先进入热点驱动预热。'
+
+const renderColumnTitleWithTip = (label: string, tip: string) => (
+  <Space size={4}>
+    <span>{label}</span>
+    <Tooltip title={tip}>
+      <InfoCircleOutlined className="cache-governance-page__column-tip-icon" />
+    </Tooltip>
+  </Space>
+)
+
+const renderHotsetScope = (value?: string) => (
+  <Tooltip title={value || '-'}>
+    <span>{value || '-'}</span>
   </Tooltip>
 )
 
@@ -311,7 +322,12 @@ const CacheGovernancePage: React.FC = () => {
         key: 'scope',
         render: renderHotsetScope
       },
-      { title: '热度分数', dataIndex: 'score', key: 'score', width: 120 }
+      {
+        title: renderColumnTitleWithTip('热度分数', HOTSET_SCORE_TIP),
+        dataIndex: 'score',
+        key: 'score',
+        width: 140
+      }
     ],
     []
   )
@@ -530,7 +546,7 @@ const CacheGovernancePage: React.FC = () => {
         loading={statusLoading && !status}
       >
         <Table
-          rowKey={(record) => `${record.component}:${record.family}`}
+          rowKey={(record, index) => `${record.component ?? ''}:${record.family}:${index}`}
           columns={familyColumns}
           dataSource={families}
           pagination={false}
@@ -565,7 +581,7 @@ const CacheGovernancePage: React.FC = () => {
         </Descriptions>
 
         <Table
-          rowKey={(record) => `${record.trigger}:${record.started_at || 'unknown'}`}
+          rowKey={(record, index) => `${record.trigger}:${record.started_at ?? ''}:${record.finished_at ?? ''}:${index}`}
           columns={warmupColumns}
           dataSource={warmupRuns}
           pagination={false}
@@ -626,7 +642,7 @@ const CacheGovernancePage: React.FC = () => {
         </Descriptions>
 
         <Table
-          rowKey={(record) => record.scope}
+          rowKey={(record, index) => `${record.scope}:${index}`}
           columns={hotsetColumns}
           dataSource={disableHotsetPreview ? [] : hotset?.items || []}
           pagination={false}
@@ -719,7 +735,7 @@ const CacheGovernancePage: React.FC = () => {
               </Descriptions>
 
               <Table
-                rowKey={(record) => `${record.kind}:${record.scope}`}
+                rowKey={(record, index) => `${record.kind}:${record.scope}:${index}`}
                 columns={manualWarmupColumns}
                 dataSource={manualWarmupResult.items}
                 pagination={false}
