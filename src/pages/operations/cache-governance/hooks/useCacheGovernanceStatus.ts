@@ -30,7 +30,7 @@ interface UseCacheGovernanceStatusResult {
 }
 
 const HOTSET_LIMIT = 20
-const DEFAULT_HOTSET_KIND: CacheGovernanceHotsetKind = 'query.stats_system'
+const DEFAULT_HOTSET_KIND: CacheGovernanceHotsetKind = 'static.scale'
 const FAMILY_ORDER = ['static_meta', 'object_view', 'query_result', 'meta_hotset', 'sdk_token', 'lock_lease']
 
 /**

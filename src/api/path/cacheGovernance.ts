@@ -2,15 +2,14 @@ import { internalGet, internalPost } from '../qsServer'
 import { config } from '@/config/config'
 import type { QSResponse } from '@/types/qs'
 
+/** 热点预览支持的 kind（meta hotset / static_meta） */
 export const CACHE_GOVERNANCE_HOTSET_KINDS = [
   'static.scale',
   'static.questionnaire',
-  'static.scale_list',
-  'query.stats_system',
-  'query.stats_questionnaire',
-  'query.stats_plan'
+  'static.scale_list'
 ] as const
 
+/** 手工预热支持的 kind（含 query_result 查询统计类） */
 export const CACHE_GOVERNANCE_WARMUP_KINDS = [
   'static.scale',
   'static.questionnaire',
