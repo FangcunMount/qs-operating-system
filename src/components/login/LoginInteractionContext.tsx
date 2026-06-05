@@ -71,8 +71,13 @@ export function useLoginInteraction(): LoginInteractionContextValue {
   return ctx
 }
 
+export interface LoginFocusHandlers {
+  onFocus: () => void
+  onBlur: () => void
+}
+
 /** 输入框聚焦时驱动左侧角色动画 */
-export function useLoginFocusHandlers() {
+export function useLoginFocusHandlers(): LoginFocusHandlers {
   const { setIsTyping } = useLoginInteraction()
   return {
     onFocus: () => setIsTyping(true),

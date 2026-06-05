@@ -83,6 +83,18 @@ const AccountSecurity: React.FC = () => {
     void loadIdentities()
   }
 
+  const handleOpenPhoneModal = useCallback(() => {
+    setPhoneModalOpen(true)
+  }, [])
+
+  const handleClosePhoneModal = useCallback(() => {
+    setPhoneModalOpen(false)
+  }, [])
+
+  const handlePhoneBindSuccess = useCallback(() => {
+    void loadIdentities()
+  }, [loadIdentities])
+
   const hasWechatOpen = items.some((item) => item.provider === 'wechat_open')
   const hasPhone = items.some((item) => item.provider === 'phone')
 
@@ -135,10 +147,7 @@ const AccountSecurity: React.FC = () => {
         <div className="account-security-actions">
           <Space wrap>
             {!hasPhone && (
-              <Button
-                icon={<MobileOutlined />}
-                onClick={() => setPhoneModalOpen(true)}
-              >
+              <Button icon={<MobileOutlined />} onClick={handleOpenPhoneModal}>
                 绑定手机号
               </Button>
             )}
@@ -160,8 +169,8 @@ const AccountSecurity: React.FC = () => {
 
       <LinkPhoneModal
         open={phoneModalOpen}
-        onClose={() => setPhoneModalOpen(false)}
-        onSuccess={() => loadIdentities()}
+        onClose={handleClosePhoneModal}
+        onSuccess={handlePhoneBindSuccess}
       />
     </div>
   )
