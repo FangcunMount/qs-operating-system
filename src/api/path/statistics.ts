@@ -75,7 +75,8 @@ export interface IDimensionAnalysisSummary {
   content_count: number
 }
 
-export interface IPlanTaskWindow {
+/** 事件活动窗口指标，语义同 IPlanTaskWindow */
+export type IPlanTaskActivityWindow = {
   task_created_count: number
   task_opened_count: number
   task_completed_count: number
@@ -84,16 +85,56 @@ export interface IPlanTaskWindow {
   active_testees: number
 }
 
-export interface IPlanTaskTrend {
+/** 事件活动趋势，语义同 IPlanTaskTrend */
+export type IPlanTaskActivityTrend = {
   task_created: IDailyCount[]
   task_opened: IDailyCount[]
   task_completed: IDailyCount[]
   task_expired: IDailyCount[]
 }
 
+/** @deprecated 使用 IPlanTaskActivityWindow */
+export type IPlanTaskWindow = IPlanTaskActivityWindow
+
+/** @deprecated 使用 IPlanTaskActivityTrend */
+export type IPlanTaskTrend = IPlanTaskActivityTrend
+
+export interface IPlanTaskActivityStatistics {
+  window: IPlanTaskActivityWindow
+  trend: IPlanTaskActivityTrend
+}
+
+export interface IPlanTaskFulfillmentWindow {
+  planned_task_count: number
+  due_task_count: number
+  completed_task_count: number
+  overdue_task_count: number
+  on_time_completed_count: number
+  /** 0-100，completed / due * 100 */
+  completion_rate: number
+  /** 0-100，on_time_completed / due * 100 */
+  on_time_completion_rate: number
+}
+
+export interface IPlanTaskFulfillmentTrend {
+  planned: IDailyCount[]
+  due: IDailyCount[]
+  completed: IDailyCount[]
+  overdue: IDailyCount[]
+}
+
+export interface IPlanTaskFulfillmentStatistics {
+  window: IPlanTaskFulfillmentWindow
+  trend: IPlanTaskFulfillmentTrend
+}
+
 export interface IPlanDomainStatistics {
-  window: IPlanTaskWindow
-  trend: IPlanTaskTrend
+  activity: IPlanTaskActivityStatistics
+  fulfillment: IPlanTaskFulfillmentStatistics
+  /** @deprecated 使用 activity.window */
+  window?: IPlanTaskWindow
+  /** @deprecated 使用 activity.trend */
+  trend?: IPlanTaskTrend
 }
 
 export interface IStatisticsOverviewResponse {
@@ -280,8 +321,12 @@ export interface IPlanStatistics {
   pending_tasks: number
   expired_tasks: number
   completion_rate: number
-  window: IPlanTaskWindow
-  trend: IPlanTaskTrend
+  activity: IPlanTaskActivityStatistics
+  fulfillment: IPlanTaskFulfillmentStatistics
+  /** @deprecated 使用 activity.window */
+  window?: IPlanTaskWindow
+  /** @deprecated 使用 activity.trend */
+  trend?: IPlanTaskTrend
 }
 
 export interface ITesteeStatistics {

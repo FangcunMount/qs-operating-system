@@ -7,6 +7,7 @@ import {
   AuditOutlined,
   FolderOutlined,
   BarChartOutlined,
+  LineChartOutlined,
   SafetyCertificateOutlined
 } from '@ant-design/icons'
 
@@ -183,16 +184,18 @@ export const routes: Array<IRoute> = [
         menuScope: 'hidden',
         requiredCapabilities: ['manage_evaluation_plans'],
         activeMenuName: 'plan-list'
-      },
-      {
-        title: '统计中心',
-        name: 'statistics-center',
-        path: '/statistics/center',
-        component: StatisticsCenter,
-        menuScope: 'org_admin',
-        requiredCapabilities: ['org_admin']
       }
     ]
+  },
+  {
+    title: '统计中心',
+    name: 'statistics-center',
+    path: '/statistics/center',
+    exact: true,
+    component: StatisticsCenter,
+    icon: createIcon(LineChartOutlined),
+    menuScope: 'org_admin',
+    requiredCapabilities: ['org_admin']
   },
   {
     title: '内容管理',

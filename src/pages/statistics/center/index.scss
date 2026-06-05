@@ -31,6 +31,43 @@
   font-size: 12px;
 }
 
+.access-service-toolbar__note {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.entry-supplement {
+  background: #fafafa;
+  border-style: dashed;
+}
+
+.entry-supplement__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.entry-supplement__title {
+  display: block;
+  font-size: 15px;
+}
+
+.entry-supplement__desc {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  max-width: 520px;
+}
+
+.entry-supplement__table {
+  margin-top: 16px;
+}
+
 .dashboard-kpi-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -76,6 +113,47 @@
   font-weight: 600;
 }
 
+.overview-org-scale {
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
+
+  .ant-card-body {
+    padding: 20px 22px;
+  }
+}
+
+.overview-org-scale__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.overview-org-scale__metric {
+  padding: 16px 18px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  background: #fafafa;
+  color: rgba(0, 0, 0, 0.58);
+  font-size: 14px;
+
+  b {
+    display: block;
+    margin-top: 8px;
+    color: rgba(0, 0, 0, 0.88);
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1.15;
+  }
+}
+
+@media (max-width: 767px) {
+  .overview-org-scale__metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
 .overview-module-grid {
   width: 100%;
 }
@@ -88,6 +166,10 @@
   min-height: 380px;
   display: flex;
   flex-direction: column;
+}
+
+.overview-module-card--text-only .ant-card-body {
+  min-height: auto;
 }
 
 .overview-module-card__header {
@@ -108,6 +190,34 @@
   line-height: 1.5;
 }
 
+.overview-module-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.overview-module-metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid #f0f0f0;
+  color: rgba(0, 0, 0, 0.58);
+  font-size: 14px;
+}
+
+.overview-module-metric:last-child {
+  border-bottom: 0;
+}
+
+.overview-module-metric b {
+  color: rgba(0, 0, 0, 0.88);
+  font-size: 24px;
+  font-weight: 600;
+}
+
 .overview-module-card .dashboard-chart {
   margin-top: auto;
 }
@@ -119,6 +229,10 @@
 
 .dashboard-chart--small {
   height: 220px;
+}
+
+.dashboard-chart--plan-dual {
+  height: 260px;
 }
 
 .reason-list {

@@ -8,23 +8,12 @@ import {
   DownOutlined,
   UpOutlined,
   PlusOutlined,
+  AuditOutlined,
   BarChartOutlined,
   CalendarOutlined,
   FolderOutlined,
   SettingOutlined
 } from '@ant-design/icons'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  Cell
-} from 'recharts'
 import { useHistory } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
 import { rootStore } from '@/store'
@@ -32,49 +21,23 @@ import { routes } from '@/router/map'
 import { filterRoutesForMenu } from '@/utils/menuAccess'
 import { getRouteDisplayTitle } from '@/utils/routeDisplay'
 import { getOverviewStatistics } from '@/api/path/statistics'
-import type { IDailyCount, IStatisticsOverviewResponse } from '@/api/path/statistics'
+import type { IStatisticsOverviewResponse } from '@/api/path/statistics'
+import AccessFunnelChart from '@/components/statistics/AccessFunnelChart'
+import AssessmentReportTrendChart from '@/components/statistics/AssessmentReportTrendChart'
+import HomeStatModuleHeader from '@/components/statistics/HomeStatModuleHeader'
+import { ACCESS_FUNNEL_PARALLEL_NOTE, buildAccessFunnelSteps, hasFunnelData } from '@/components/statistics/accessFunnel'
+import { formatAssessmentFailureRate, hasReportTrendData } from '@/components/statistics/assessmentService'
+import PlanActivityMetricsPanel from '@/components/statistics/PlanActivityMetricsPanel'
+import PlanFulfillmentMetricsPanel from '@/components/statistics/PlanFulfillmentMetricsPanel'
+import { formatPlanRate, resolvePlanActivity, resolvePlanFulfillment } from '@/components/statistics/planStatistics'
 import ClinicianWorkbenchPage from '@/pages/clinician/workbench'
 import './index.scss'
 
 const { Title, Text } = Typography
 const CHART_COLORS = ['#1677ff', '#00b578', '#faad14', '#ff7a45', '#722ed1', '#13c2c2', '#eb2f96']
 
-type DailySeries = {
-  key: string
-  source: IDailyCount[]
-}
-
-type BarDatum = {
-  name: string
-  value: number
-  fill: string
-}
-
-function mergeDailySeries(series: DailySeries[]) {
-  const maps = series.map((item) => ({
-    key: item.key,
-    values: new Map(item.source.map((point) => [point.date, point.count]))
-  }))
-  const dates = Array.from(new Set(series.flatMap((item) => item.source.map((point) => point.date)))).sort()
-
-  return dates.map((date) => {
-    const row: Record<string, string | number> = {
-      date,
-      label: date.slice(5, 10)
-    }
-    maps.forEach((item) => {
-      row[item.key] = item.values.get(date) || 0
-    })
-    return row
-  })
-}
-
 function formatNumber(value: number) {
   return value.toLocaleString()
-}
-
-function hasBarData(data: BarDatum[]) {
-  return data.some((item) => item.value > 0)
 }
 
 const Home: React.FC = observer(() => {
@@ -127,48 +90,22 @@ const Home: React.FC = observer(() => {
     setExpandedTips(newExpanded)
   }
 
-  const organizationBarData = useMemo<BarDatum[]>(() => {
-    return [
-      { name: '测评', value: overviewStats?.organization_overview.assessment_count || 0, fill: CHART_COLORS[4] },
-      { name: '报告', value: overviewStats?.organization_overview.report_count || 0, fill: CHART_COLORS[5] }
-    ]
+  const accessFunnelChart = useMemo(() => {
+    if (!overviewStats) return { steps: [], conversions: [], outcomes: [] }
+    return buildAccessFunnelSteps(overviewStats.access_funnel.window, CHART_COLORS)
   }, [overviewStats])
 
-  const accessFunnelData = useMemo<BarDatum[]>(() => {
-    return [
-      { name: '入口打开', value: overviewStats?.access_funnel.window.entry_opened_count || 0, fill: CHART_COLORS[0] },
-      { name: '完成接入', value: overviewStats?.access_funnel.window.intake_confirmed_count || 0, fill: CHART_COLORS[1] },
-      { name: '新建档案', value: overviewStats?.access_funnel.window.testee_created_count || 0, fill: CHART_COLORS[2] },
-      { name: '建立照护', value: overviewStats?.access_funnel.window.care_relationship_established_count || 0, fill: CHART_COLORS[3] }
-    ]
+  const assessmentFailureMeta = useMemo(() => {
+    const failed = overviewStats?.assessment_service.window.assessment_failed_count || 0
+    const created = overviewStats?.assessment_service.window.assessment_created_count || 0
+    return {
+      failed,
+      rate: formatAssessmentFailureRate(failed, created)
+    }
   }, [overviewStats])
 
-  const assessmentTrendData = useMemo(() => {
-    if (!overviewStats) return []
-    return mergeDailySeries([
-      { key: 'submitted', source: overviewStats.assessment_service.trend.answersheet_submitted },
-      { key: 'assessments', source: overviewStats.assessment_service.trend.assessment_created },
-      { key: 'reports', source: overviewStats.assessment_service.trend.report_generated }
-    ])
-  }, [overviewStats])
-
-  const assessmentMetricData = useMemo<BarDatum[]>(() => {
-    return [
-      { name: '提交答卷', value: overviewStats?.assessment_service.window.answersheet_submitted_count || 0, fill: CHART_COLORS[4] },
-      { name: '产生测评', value: overviewStats?.assessment_service.window.assessment_created_count || 0, fill: CHART_COLORS[5] },
-      { name: '产出报告', value: overviewStats?.assessment_service.window.report_generated_count || 0, fill: CHART_COLORS[6] },
-      { name: '失败测评', value: overviewStats?.assessment_service.window.assessment_failed_count || 0, fill: '#f5222d' }
-    ]
-  }, [overviewStats])
-
-  const planTaskData = useMemo<BarDatum[]>(() => {
-    return [
-      { name: '任务发放', value: overviewStats?.plan.window.task_created_count || 0, fill: '#faad14' },
-      { name: '任务打开', value: overviewStats?.plan.window.task_opened_count || 0, fill: '#4096ff' },
-      { name: '计划完成', value: overviewStats?.plan.window.task_completed_count || 0, fill: '#ff7a45' },
-      { name: '任务逾期', value: overviewStats?.plan.window.task_expired_count || 0, fill: '#f5222d' }
-    ]
-  }, [overviewStats])
+  const planActivity = useMemo(() => resolvePlanActivity(overviewStats?.plan), [overviewStats])
+  const planFulfillment = useMemo(() => resolvePlanFulfillment(overviewStats?.plan), [overviewStats])
 
   const quickLinkMeta: Record<string, { description: string; color: string }> = {
     operations: {
@@ -271,78 +208,63 @@ const Home: React.FC = observer(() => {
         {showAdminStats && (
           <Spin spinning={overviewLoading}>
             <div className="stats-section">
-              <Row gutter={[16, 16]} className="home-stat-modules">
-                <Col xs={24} lg={12} xl={6}>
-                  <Card className="home-stat-module" hoverable onClick={() => history.push('/statistics/center')}>
-                    <div className="module-header">
-                      <div>
-                        <Text className="module-title">机构规模</Text>
-                        <Text type="secondary" className="module-subtitle">当前资源基线</Text>
-                      </div>
-                      <TeamOutlined className="module-icon" />
-                    </div>
-                    <div className="module-primary">
-                      <span className="module-primary-value">
-                        {formatNumber(overviewStats?.organization_overview.testee_count || 0)}
-                      </span>
-                      <span className="module-primary-label">受试者总数</span>
-                    </div>
-                    <div className="module-meta-grid">
-                      <span>临床人员 <b>{formatNumber(overviewStats?.organization_overview.clinician_count || 0)}</b></span>
-                      <span>活跃入口 <b>{formatNumber(overviewStats?.organization_overview.active_entry_count || 0)}</b></span>
-                    </div>
-                    <div className="module-chart module-chart-compact">
-                      {hasBarData(organizationBarData) ? (
-                        <ResponsiveContainer>
-                          <BarChart data={organizationBarData} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                            <XAxis type="number" allowDecimals={false} hide />
-                            <YAxis type="category" dataKey="name" width={40} tickLine={false} axisLine={false} />
-                            <Tooltip formatter={(value: number) => [value, '累计']} />
-                            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                              {organizationBarData.map((item) => (
-                                <Cell key={item.name} fill={item.fill} />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无累计数据" />
-                      )}
-                    </div>
-                  </Card>
-                </Col>
+              <Card
+                className="home-org-scale"
+                hoverable
+                onClick={() => history.push('/statistics/center')}
+              >
+                <HomeStatModuleHeader
+                  tone="organization"
+                  title="机构规模"
+                  subtitle="资源底盘"
+                  icon={<TeamOutlined />}
+                />
+                <div className="home-org-scale__metrics">
+                  <div className="home-org-scale__metric">
+                    <span className="home-org-scale__label">受试者总数</span>
+                    <b className="home-org-scale__value">
+                      {formatNumber(overviewStats?.organization_overview.testee_count || 0)}
+                    </b>
+                  </div>
+                  <div className="home-org-scale__metric">
+                    <span className="home-org-scale__label">临床人员</span>
+                    <b className="home-org-scale__value">
+                      {formatNumber(overviewStats?.organization_overview.clinician_count || 0)}
+                    </b>
+                  </div>
+                  <div className="home-org-scale__metric">
+                    <span className="home-org-scale__label">活跃入口</span>
+                    <b className="home-org-scale__value">
+                      {formatNumber(overviewStats?.organization_overview.active_entry_count || 0)}
+                    </b>
+                  </div>
+                </div>
+              </Card>
 
-                <Col xs={24} lg={12} xl={6}>
-                  <Card className="home-stat-module" hoverable onClick={() => history.push('/statistics/center')}>
-                    <div className="module-header">
-                      <div>
-                        <Text className="module-title">接入漏斗</Text>
-                        <Text type="secondary" className="module-subtitle">近 30 天</Text>
-                      </div>
-                      <BarChartOutlined className="module-icon" />
-                    </div>
+              <Row gutter={[20, 20]} className="home-stat-modules">
+                <Col xs={24} lg={12}>
+                  <Card className="home-stat-module home-stat-module--funnel" hoverable onClick={() => history.push('/statistics/center')}>
+                    <HomeStatModuleHeader
+                      tone="funnel"
+                      title="接入漏斗"
+                      subtitle="近 30 天"
+                      icon={<BarChartOutlined />}
+                    />
                     <div className="module-primary">
                       <span className="module-primary-value">
                         {formatNumber(overviewStats?.access_funnel.window.testee_created_count || 0)}
                       </span>
                       <span className="module-primary-label">新建档案</span>
                     </div>
-                    <div className="module-note">首页只看漏斗是否有有效转化，细节进入统计中心拆维度。</div>
+                    <div className="module-note">{ACCESS_FUNNEL_PARALLEL_NOTE}</div>
                     <div className="module-chart">
-                      {hasBarData(accessFunnelData) ? (
-                        <ResponsiveContainer>
-                          <BarChart data={accessFunnelData} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                            <XAxis type="number" allowDecimals={false} hide />
-                            <YAxis type="category" dataKey="name" width={68} tickLine={false} axisLine={false} />
-                            <Tooltip formatter={(value: number) => [value, '数量']} />
-                            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                              {accessFunnelData.map((item) => (
-                                <Cell key={item.name} fill={item.fill} />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
+                      {hasFunnelData(accessFunnelChart.steps) ? (
+                        <AccessFunnelChart
+                          steps={accessFunnelChart.steps}
+                          conversions={accessFunnelChart.conversions}
+                          outcomes={accessFunnelChart.outcomes}
+                          compact
+                        />
                       ) : (
                         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无接入数据" />
                       )}
@@ -350,15 +272,14 @@ const Home: React.FC = observer(() => {
                   </Card>
                 </Col>
 
-                <Col xs={24} lg={12} xl={6}>
-                  <Card className="home-stat-module" hoverable onClick={() => history.push('/statistics/center')}>
-                    <div className="module-header">
-                      <div>
-                        <Text className="module-title">测评服务</Text>
-                        <Text type="secondary" className="module-subtitle">近 30 天</Text>
-                      </div>
-                      <FormOutlined className="module-icon" />
-                    </div>
+                <Col xs={24} lg={12}>
+                  <Card className="home-stat-module home-stat-module--assessment" hoverable onClick={() => history.push('/statistics/center')}>
+                    <HomeStatModuleHeader
+                      tone="assessment"
+                      title="测评服务"
+                      subtitle="近 30 天"
+                      icon={<FormOutlined />}
+                    />
                     <div className="module-primary">
                       <span className="module-primary-value">
                         {formatNumber(overviewStats?.assessment_service.window.report_generated_count || 0)}
@@ -366,79 +287,75 @@ const Home: React.FC = observer(() => {
                       <span className="module-primary-label">产出报告</span>
                     </div>
                     <div className="module-meta-grid">
-                      <span>提交答卷 <b>{formatNumber(overviewStats?.assessment_service.window.answersheet_submitted_count || 0)}</b></span>
-                      <span>产生测评 <b>{formatNumber(overviewStats?.assessment_service.window.assessment_created_count || 0)}</b></span>
+                      <span>测评失败 <b>{formatNumber(assessmentFailureMeta.failed)}</b></span>
+                      <span>失败率 <b>{assessmentFailureMeta.rate}</b></span>
                     </div>
                     <div className="module-chart">
-                      {assessmentTrendData.length ? (
-                        <ResponsiveContainer>
-                          <LineChart data={assessmentTrendData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis dataKey="label" interval="preserveStartEnd" tickLine={false} />
-                            <YAxis allowDecimals={false} hide />
-                            <Tooltip />
-                            <Line type="monotone" dataKey="submitted" name="提交答卷" stroke={CHART_COLORS[4]} strokeWidth={2} dot={false} />
-                            <Line type="monotone" dataKey="assessments" name="产生测评" stroke={CHART_COLORS[5]} strokeWidth={2} dot={false} />
-                            <Line type="monotone" dataKey="reports" name="产出报告" stroke={CHART_COLORS[6]} strokeWidth={2} dot={false} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      ) : hasBarData(assessmentMetricData) ? (
-                        <ResponsiveContainer>
-                          <BarChart data={assessmentMetricData} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                            <XAxis type="number" allowDecimals={false} hide />
-                            <YAxis type="category" dataKey="name" width={68} tickLine={false} axisLine={false} />
-                            <Tooltip formatter={(value: number) => [value, '数量']} />
-                            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                              {assessmentMetricData.map((item) => (
-                                <Cell key={item.name} fill={item.fill} />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
+                      {hasReportTrendData(overviewStats?.assessment_service.trend.report_generated || []) ? (
+                        <AssessmentReportTrendChart
+                          reportGenerated={overviewStats?.assessment_service.trend.report_generated || []}
+                          strokeColor={CHART_COLORS[6]}
+                          compact
+                        />
                       ) : (
-                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无服务数据" />
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无产出报告趋势" />
                       )}
                     </div>
                   </Card>
                 </Col>
 
-                <Col xs={24} lg={12} xl={6}>
-                  <Card className="home-stat-module" hoverable onClick={() => history.push('/statistics/center')}>
-                    <div className="module-header">
-                      <div>
-                        <Text className="module-title">Plan 任务</Text>
-                        <Text type="secondary" className="module-subtitle">近 30 天</Text>
-                      </div>
-                      <CalendarOutlined className="module-icon" />
-                    </div>
+                <Col xs={24} lg={12}>
+                  <Card
+                    className="home-stat-module home-stat-module--plan-activity"
+                    hoverable
+                    onClick={() => history.push('/statistics/center')}
+                  >
+                    <HomeStatModuleHeader
+                      tone="plan-activity"
+                      title="Plan 事件"
+                      subtitle="近 30 天 · 事件日"
+                      icon={<CalendarOutlined />}
+                    />
                     <div className="module-primary">
                       <span className="module-primary-value">
-                        {formatNumber(overviewStats?.plan.window.task_completed_count || 0)}
+                        {formatNumber(planActivity.window.task_completed_count)}
                       </span>
-                      <span className="module-primary-label">任务完成</span>
+                      <span className="module-primary-label">事件完成</span>
                     </div>
                     <div className="module-meta-grid">
-                      <span>参与受试者 <b>{formatNumber(overviewStats?.plan.window.enrolled_testees || 0)}</b></span>
-                      <span>活跃受试者 <b>{formatNumber(overviewStats?.plan.window.active_testees || 0)}</b></span>
+                      <span>任务发放 <b>{formatNumber(planActivity.window.task_created_count)}</b></span>
+                      <span>任务打开 <b>{formatNumber(planActivity.window.task_opened_count)}</b></span>
                     </div>
                     <div className="module-chart">
-                      {hasBarData(planTaskData) ? (
-                        <ResponsiveContainer>
-                          <BarChart data={planTaskData} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                            <XAxis type="number" allowDecimals={false} hide />
-                            <YAxis type="category" dataKey="name" width={68} tickLine={false} axisLine={false} />
-                            <Tooltip formatter={(value: number) => [value, '数量']} />
-                            <Bar dataKey="value" radius={[0, 6, 6, 0]}>
-                              {planTaskData.map((item) => (
-                                <Cell key={item.name} fill={item.fill} />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无计划数据" />
-                      )}
+                      <PlanActivityMetricsPanel activity={planActivity} compact />
+                    </div>
+                  </Card>
+                </Col>
+
+                <Col xs={24} lg={12}>
+                  <Card
+                    className="home-stat-module home-stat-module--plan-fulfillment"
+                    hoverable
+                    onClick={() => history.push('/statistics/center')}
+                  >
+                    <HomeStatModuleHeader
+                      tone="plan-fulfillment"
+                      title="Plan 履约"
+                      subtitle="近 30 天 · cohort"
+                      icon={<AuditOutlined />}
+                    />
+                    <div className="module-primary">
+                      <span className="module-primary-value">
+                        {formatPlanRate(planFulfillment?.window.completion_rate)}
+                      </span>
+                      <span className="module-primary-label">cohort 完成率</span>
+                    </div>
+                    <div className="module-meta-grid">
+                      <span>应完成 <b>{formatNumber(planFulfillment?.window.due_task_count || 0)}</b></span>
+                      <span>逾期 <b>{formatNumber(planFulfillment?.window.overdue_task_count || 0)}</b></span>
+                    </div>
+                    <div className="module-chart">
+                      <PlanFulfillmentMetricsPanel fulfillment={planFulfillment} compact />
                     </div>
                   </Card>
                 </Col>
