@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Button, Card, Form, Modal, Popconfirm, Select, Table, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { clinicianApi, IClinician, ITesteeClinicianRelationItem } from '@/api/path/clinician'
@@ -10,6 +10,7 @@ interface Props {
 }
 
 const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
+  const mountedRef = useRef(true)
   const [loading, setLoading] = useState(false)
   const [assignVisible, setAssignVisible] = useState(false)
   const [transferVisible, setTransferVisible] = useState(false)
@@ -24,25 +25,27 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
     item?.relation_type_label || formatRelationType(item?.relation_type)
   const renderRelationSourceLabel = (item?: ITesteeClinicianRelationItem['relation']) =>
     item?.source_type_label || formatRelationSource(item?.source_type)
+  const sanitizeHistoryRelations = (items?: ITesteeClinicianRelationItem[]) =>
+    (items || []).filter((item) => item?.relation?.id && item?.clinician?.id)
 
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [[activeErr, activeRes], [historyErr, historyRes], [clinicianErr, clinicianRes]] = await Promise.all([
-        clinicianApi.getTesteeClinicians(testeeId),
+      const [[relationsErr, relationsRes], [clinicianErr, clinicianRes]] = await Promise.all([
         clinicianApi.listTesteeClinicianRelations(testeeId),
         clinicianApi.listClinicians({ page: 1, page_size: 200 })
       ])
 
-      if (!activeErr && activeRes?.data) {
-        setActiveRelations(activeRes.data.items || [])
-      } else {
-        setActiveRelations([])
+      if (!mountedRef.current) {
+        return
       }
 
-      if (!historyErr && historyRes?.data) {
-        setHistoryRelations(historyRes.data.items || [])
+      if (!relationsErr && relationsRes?.data) {
+        const allItems = sanitizeHistoryRelations(relationsRes.data.items)
+        setActiveRelations(allItems.filter((item) => item.relation.is_active))
+        setHistoryRelations(allItems)
       } else {
+        setActiveRelations([])
         setHistoryRelations([])
       }
 
@@ -52,12 +55,18 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
         setClinicians([])
       }
     } finally {
-      setLoading(false)
+      if (mountedRef.current) {
+        setLoading(false)
+      }
     }
   }
 
   useEffect(() => {
+    mountedRef.current = true
     fetchData()
+    return () => {
+      mountedRef.current = false
+    }
   }, [testeeId])
 
   const handleAssign = async () => {
@@ -112,11 +121,11 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
     }
   }
 
-  const primaryRelation = activeRelations.find((item) => item.relation.relation_type === 'primary')
+  const primaryRelation = activeRelations.find((item) => item.relation?.relation_type === 'primary')
 
   const renderActiveRelationAction = (_: unknown, record: ITesteeClinicianRelationItem) => (
     <div>
-      {record.relation.relation_type !== 'primary' && (
+      {record.relation?.relation_type !== 'primary' && (
         <Button
           type="link"
           size="small"
@@ -140,7 +149,7 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
           设为主责
         </Button>
       )}
-      <Popconfirm title="确认解绑该关系？" onConfirm={() => handleUnbind(record.relation.id)}>
+      <Popconfirm title="确认解绑该关系？" onConfirm={() => record.relation?.id && handleUnbind(record.relation.id)}>
         <Button type="link" size="small" danger>
           解绑
         </Button>
@@ -201,7 +210,7 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
         }
       >
         <Table
-          rowKey={(record) => `${record.relation.id}`}
+          rowKey={(record) => `${record.relation?.id || record.clinician?.id || 'relation'}`}
           loading={loading}
           dataSource={activeRelations}
           columns={activeColumns}
@@ -211,7 +220,7 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
 
       <Card title="关系历史" style={{ marginTop: 16 }}>
         <Table
-          rowKey={(record) => `${record.relation.id}`}
+          rowKey={(record) => `${record.relation?.id || record.clinician?.id || 'history'}`}
           loading={loading}
           dataSource={historyRelations}
           columns={historyColumns}
@@ -253,7 +262,7 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
           <Form.Item label="目标临床人员" name="to_clinician_id" rules={[{ required: true, message: '请选择临床人员' }]}>
             <Select showSearch optionFilterProp="children" placeholder="请选择目标临床人员">
               {clinicians
-                .filter((item) => item.is_active && (!primaryRelation || item.id !== primaryRelation.clinician.id))
+                .filter((item) => item.is_active && (!primaryRelation || item.id !== primaryRelation.clinician?.id))
                 .map((item) => (
                   <Select.Option key={item.id} value={item.id}>
                     {item.name} ({renderClinicianTypeLabel(item)})
