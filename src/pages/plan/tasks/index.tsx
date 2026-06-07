@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useHistory } from 'react-router-dom'
-import { Card, Descriptions, Tag, Button, Space, message, Popconfirm, Spin, Modal, Form, Input, DatePicker } from 'antd'
+import { Card, Descriptions, Tag, Button, Space, message, Popconfirm, Spin } from 'antd'
 import { 
   ArrowLeftOutlined,
   CheckCircleOutlined,
@@ -8,7 +8,7 @@ import {
   ClockCircleOutlined,
   LinkOutlined
 } from '@ant-design/icons'
-import { taskApi, ITask, IOpenTaskRequest } from '@/api/path/plan'
+import { taskApi, ITask } from '@/api/path/plan'
 import './index.scss'
 
 const TaskDetail: React.FC = () => {
@@ -16,9 +16,6 @@ const TaskDetail: React.FC = () => {
   const history = useHistory()
   const [loading, setLoading] = useState(false)
   const [task, setTask] = useState<ITask | null>(null)
-  const [openModalVisible, setOpenModalVisible] = useState(false)
-  const [openForm] = Form.useForm()
-
   useEffect(() => {
     if (id) {
       fetchTaskDetail()
@@ -75,22 +72,15 @@ const TaskDetail: React.FC = () => {
     }
   }
 
-  const handleOpen = async (values: any) => {
+  const handleOpen = async () => {
     if (!id) return
     try {
-      const requestData: IOpenTaskRequest = {
-        entry_token: values.entry_token,
-        entry_url: values.entry_url,
-        expire_at: values.expire_at?.format?.('YYYY-MM-DD HH:mm:ss') || values.expire_at
-      }
-      const [err] = await taskApi.open(id, requestData)
+      const [err] = await taskApi.open(id)
       if (err) {
         message.error('开放任务失败')
         return
       }
-      message.success('开放任务成功')
-      setOpenModalVisible(false)
-      openForm.resetFields()
+      message.success('开放任务成功，入口已由系统自动生成')
       fetchTaskDetail()
     } catch (error) {
       console.error('开放任务失败:', error)
@@ -210,13 +200,17 @@ const TaskDetail: React.FC = () => {
         <Card>
           <Space>
             {task.status === 'pending' && (
-              <Button
-                type="primary"
-                icon={<CheckCircleOutlined />}
-                onClick={() => setOpenModalVisible(true)}
+              <Popconfirm
+                title="确定要开放此任务吗？系统将自动生成入口令牌、入口 URL 和过期时间。"
+                onConfirm={handleOpen}
               >
-                开放任务
-              </Button>
+                <Button
+                  type="primary"
+                  icon={<CheckCircleOutlined />}
+                >
+                  开放任务
+                </Button>
+              </Popconfirm>
             )}
             {task.status !== 'expired' && (
               <Popconfirm
@@ -247,67 +241,6 @@ const TaskDetail: React.FC = () => {
         </Card>
       )}
 
-      <Modal
-        title="开放任务"
-        visible={openModalVisible}
-        onCancel={() => {
-          setOpenModalVisible(false)
-          openForm.resetFields()
-        }}
-        footer={null}
-      >
-        <Form
-          form={openForm}
-          layout="vertical"
-          onFinish={handleOpen}
-        >
-          <Form.Item
-            label="入口令牌"
-            name="entry_token"
-            rules={[{ required: true, message: '请输入入口令牌' }]}
-          >
-            <Input placeholder="请输入入口令牌" />
-          </Form.Item>
-
-          <Form.Item
-            label="入口URL"
-            name="entry_url"
-            rules={[
-              { required: true, message: '请输入入口URL' },
-              { type: 'url', message: '请输入有效的URL' }
-            ]}
-          >
-            <Input placeholder="https://example.com/task/xxx" />
-          </Form.Item>
-
-          <Form.Item
-            label="过期时间"
-            name="expire_at"
-            rules={[{ required: true, message: '请选择过期时间' }]}
-          >
-            <DatePicker
-              showTime
-              format="YYYY-MM-DD HH:mm:ss"
-              style={{ width: '100%' }}
-              placeholder="请选择过期时间"
-            />
-          </Form.Item>
-
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                确定
-              </Button>
-              <Button onClick={() => {
-                setOpenModalVisible(false)
-                openForm.resetFields()
-              }}>
-                取消
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   )
 }

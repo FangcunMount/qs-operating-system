@@ -98,13 +98,6 @@ export interface ITaskListResponse {
   stats?: ITaskScheduleStats
 }
 
-// 开放任务请求参数
-export interface IOpenTaskRequest {
-  entry_token: string
-  entry_url: string
-  expire_at: string  // 格式：YYYY-MM-DD HH:mm:ss
-}
-
 // 完成任务请求参数（通过 query 参数传递）
 export interface ICompleteTaskRequest {
   assessment_id: string
@@ -233,9 +226,9 @@ export const taskApi = {
     return post<ITask>(`/plans/tasks/${id}/expire`, {})
   },
 
-  // POST /plans/tasks/{id}/open - 开放任务
-  open: (id: string, data: IOpenTaskRequest): Promise<[any, QSResponse<ITask> | undefined]> => {
-    return post<ITask>(`/plans/tasks/${id}/open`, data)
+  // POST /plans/tasks/{id}/open - 开放任务（服务端自动生成入口）
+  open: (id: string): Promise<[any, QSResponse<ITask> | undefined]> => {
+    return post<ITask>(`/plans/tasks/${id}/open`, {})
   },
 
   // POST /plans/tasks/schedule - 调度待推送任务

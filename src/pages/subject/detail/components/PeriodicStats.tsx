@@ -1,6 +1,9 @@
 /* eslint-disable react/prop-types */
-import React, { useState, useEffect } from 'react'
-import { Card, Row, Col, Statistic, Progress, Timeline, Tag, Collapse, Button, Modal, Form, Select, DatePicker, message } from 'antd'
+import React, { useState, useEffect, useMemo } from 'react'
+import {
+  Card, Row, Col, Statistic, Progress, Timeline, Tag, Collapse, Button,
+  Modal, Form, Select, DatePicker, message, Popconfirm
+} from 'antd'
 import { 
   CheckCircleOutlined, 
   ClockCircleOutlined, 
@@ -8,9 +11,10 @@ import {
   ExclamationCircleOutlined,
   StopOutlined,
   DownOutlined,
-  PlusOutlined
+  PlusOutlined,
+  LinkOutlined
 } from '@ant-design/icons'
-import { planApi, IPlan } from '@/api/path/plan'
+import { planApi, taskApi, IPlan, ITask } from '@/api/path/plan'
 import { extractErrorMessage } from '@/utils/apiError'
 import dayjs, { Dayjs } from 'dayjs'
 
@@ -45,7 +49,37 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
   const [planList, setPlanList] = useState<IPlan[]>([])
   const [planLoading, setPlanLoading] = useState(false)
   const [enrollLoading, setEnrollLoading] = useState(false)
+  const [testeeTasks, setTesteeTasks] = useState<ITask[]>([])
+  const [tasksLoading, setTasksLoading] = useState(false)
+  const [openingTaskId, setOpeningTaskId] = useState<string | null>(null)
   const [form] = Form.useForm()
+
+  const taskMap = useMemo(() => {
+    const map = new Map<string, ITask>()
+    testeeTasks.forEach((task) => {
+      map.set(`${task.plan_id}_${task.seq}`, task)
+    })
+    return map
+  }, [testeeTasks])
+
+  // 每个计划仅允许开放 seq 最小的 pending 任务（第一个待开放）
+  const openableTaskIds = useMemo(() => {
+    const ids = new Set<string>()
+    const pendingByPlan = new Map<string, ITask[]>()
+
+    testeeTasks.forEach((task) => {
+      if (task.status !== 'pending') return
+      const list = pendingByPlan.get(task.plan_id) || []
+      list.push(task)
+      pendingByPlan.set(task.plan_id, list)
+    })
+
+    pendingByPlan.forEach((tasks) => {
+      const firstPending = tasks.reduce((earliest, task) => (task.seq < earliest.seq ? task : earliest))
+      ids.add(firstPending.id)
+    })
+    return ids
+  }, [testeeTasks])
 
   // 渲染项目简要信息
   const renderProjectSummary = (project: PeriodicProject) => {
@@ -132,6 +166,74 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
     )
   }
 
+  const fetchTesteeTasks = async () => {
+    if (!testeeId) return
+    setTasksLoading(true)
+    try {
+      const [err, response] = await planApi.getTesteeTasks(testeeId)
+      if (err || !response?.data) {
+        console.error('获取受试者任务失败:', err)
+        return
+      }
+      setTesteeTasks(response.data.tasks || [])
+    } catch (error) {
+      console.error('获取受试者任务异常:', error)
+    } finally {
+      setTasksLoading(false)
+    }
+  }
+
+  const handleOpenTask = async (taskId: string) => {
+    setOpeningTaskId(taskId)
+    try {
+      const [err] = await taskApi.open(taskId)
+      if (err) {
+        message.error('开放任务失败')
+        return
+      }
+      message.success('开放任务成功，入口已由系统自动生成')
+      await fetchTesteeTasks()
+      onRefresh?.()
+    } catch (error) {
+      console.error('开放任务失败:', error)
+      message.error('开放任务失败')
+    } finally {
+      setOpeningTaskId(null)
+    }
+  }
+
+  const renderTaskActions = (realTask?: ITask, canOpen = false) => {
+    if (!realTask) return null
+
+    if (realTask.status === 'pending' && canOpen) {
+      return (
+        <Popconfirm
+          title="确定要开放此任务吗？系统将自动生成入口令牌、入口 URL 和过期时间。"
+          onConfirm={() => handleOpenTask(realTask.id)}
+        >
+          <Button
+            type="link"
+            size="small"
+            style={{ padding: 0, height: 'auto' }}
+            loading={openingTaskId === realTask.id}
+          >
+            开放任务
+          </Button>
+        </Popconfirm>
+      )
+    }
+
+    if (realTask.status === 'opened' && realTask.entry_url) {
+      return (
+        <a href={realTask.entry_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13 }}>
+          <LinkOutlined /> 打开入口
+        </a>
+      )
+    }
+
+    return null
+  }
+
   // 渲染单个项目的时间轴
   const renderProjectTimeline = (project: PeriodicProject) => {
     return (
@@ -148,6 +250,8 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
         </div>
         <Timeline mode="left">
           {project.tasks.map((task) => {
+            const realTask = taskMap.get(`${project.id}_${task.week}`)
+            const canOpen = !!realTask && openableTaskIds.has(realTask.id)
             let color = 'gray'
             let icon = <ClockCircleOutlined />
             let statusTag = null
@@ -164,6 +268,14 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
               color = 'red'
               icon = <ExclamationCircleOutlined />
               statusTag = <Tag color="error">已逾期</Tag>
+            } else if (realTask?.status === 'opened') {
+              color = 'blue'
+              icon = <ClockCircleOutlined />
+              statusTag = <Tag color="processing">已开放</Tag>
+            } else if (realTask?.status === 'pending') {
+              color = 'blue'
+              icon = <ClockCircleOutlined />
+              statusTag = <Tag color="default">待开放</Tag>
             } else {
               color = 'blue'
               icon = <ClockCircleOutlined />
@@ -173,9 +285,17 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
             return (
               <Timeline.Item key={task.week} color={color} dot={icon}>
                 <div style={{ paddingBottom: 12 }}>
-                  <div style={{ marginBottom: 4 }}>
+                  <div style={{
+                    marginBottom: 4,
+                    display: 'flex',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: 8
+                  }}
+                  >
                     <span style={{ fontSize: 14, fontWeight: 500 }}>第 {task.week} 周</span>
-                    <span style={{ marginLeft: 8 }}>{statusTag}</span>
+                    {statusTag}
+                    {renderTaskActions(realTask, canOpen)}
                   </div>
                   <div style={{ color: '#8c8c8c', fontSize: 13 }}>
                     <CalendarOutlined style={{ marginRight: 4 }} />
@@ -219,6 +339,10 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
   const overallRate = totalStats.totalWeeks > 0 
     ? Math.round((totalStats.completedWeeks / totalStats.totalWeeks) * 100)
     : 0
+
+  useEffect(() => {
+    fetchTesteeTasks()
+  }, [testeeId, data])
 
   // 加载计划列表
   useEffect(() => {
@@ -274,7 +398,8 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
       message.success('加入计划成功')
       setEnrollModalVisible(false)
       form.resetFields()
-      
+      await fetchTesteeTasks()
+
       // 刷新数据
       if (onRefresh) {
         onRefresh()
@@ -322,6 +447,7 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
           </div>
         }
         style={{ marginTop: 16 }}
+        loading={tasksLoading && testeeTasks.length === 0}
       >
         {/* 总体统计 */}
         <Row gutter={16} style={{ marginBottom: 24 }}>
