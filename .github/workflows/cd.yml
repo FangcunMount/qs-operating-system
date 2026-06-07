@@ -1,0 +1,204 @@
+name: Production Deploy
+
+# 组织 Secrets（与 qs-server / iam 共用）:
+#   SVRB_HOST, SVRB_USERNAME, SVRB_SSH_KEY, SVRB_SSH_PORT, SVRB_SUDO_PASSWORD
+#   ALIYUN_ACR_REGISTRY, ALIYUN_ACR_NAMESPACE, ALIYUN_ACR_USERNAME, ALIYUN_ACR_PASSWORD
+#   DOCKERHUB_USERNAME, DOCKERHUB_TOKEN
+# 仓库 Secrets:
+#   QS_OPS_DEPLOY_KEY（本仓库 Deploy Key 私钥，ServerD SSH checkout）
+#   REACT_APP_GRAFANA_URL（可选，build-arg；也可用 vars.REACT_APP_GRAFANA_URL）
+# 组织 Variables:
+#   QS_DEPLOY_RUNNER=serverd
+#   QS_DEPLOY_EXPORT_REGISTRY=acr
+#   QS_DEPLOY_HTTP_PROXY, QS_DEPLOY_NO_PROXY
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qs-operating-system-production-deploy
+  cancel-in-progress: false
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  DOCKER_REPOSITORY: fangcunmount
+  SERVICE: ops
+  DEPLOY_REF: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}
+  DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+  DEPLOY_EXPORT_REGISTRY: ${{ vars.QS_DEPLOY_EXPORT_REGISTRY || 'acr' }}
+  SELF_HOSTED_HTTP_PROXY: ${{ vars.QS_DEPLOY_HTTP_PROXY || 'http://127.0.0.1:7890' }}
+  SELF_HOSTED_HTTPS_PROXY: ${{ vars.QS_DEPLOY_HTTPS_PROXY || vars.QS_DEPLOY_HTTP_PROXY || 'http://127.0.0.1:7890' }}
+  SELF_HOSTED_ALL_PROXY: ${{ vars.QS_DEPLOY_ALL_PROXY || 'socks5://127.0.0.1:7891' }}
+  SELF_HOSTED_NO_PROXY: ${{ vars.QS_DEPLOY_NO_PROXY || '127.0.0.1,localhost,100.64.0.0/10,.aliyuncs.com,.personal.cr.aliyuncs.com' }}
+
+jobs:
+  docker:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       (github.event.workflow_run.head_branch == 'main' ||
+        github.event.workflow_run.head_branch == 'master'))
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      ALIYUN_ACR_REGISTRY: ${{ secrets.ALIYUN_ACR_REGISTRY }}
+      ALIYUN_ACR_NAMESPACE: ${{ secrets.ALIYUN_ACR_NAMESPACE }}
+      REACT_APP_GRAFANA_URL: ${{ vars.REACT_APP_GRAFANA_URL != '' && vars.REACT_APP_GRAFANA_URL || secrets.REACT_APP_GRAFANA_URL }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to Aliyun ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ALIYUN_ACR_REGISTRY }}
+          username: ${{ secrets.ALIYUN_ACR_USERNAME }}
+          password: ${{ secrets.ALIYUN_ACR_PASSWORD }}
+
+      - name: Build and publish image
+        run: |
+          make cd-image \
+            SERVICE="${SERVICE}" \
+            DEPLOY_REF="${DEPLOY_REF}" \
+            DEPLOY_SHA="${DEPLOY_SHA}" \
+            REACT_APP_GRAFANA_URL="${REACT_APP_GRAFANA_URL}"
+
+  deploy:
+    name: Deploy to ServerB
+    needs: [docker]
+    runs-on: ${{ vars.QS_DEPLOY_RUNNER || 'ubuntu-latest' }}
+    environment:
+      name: production
+    if: |
+      always() &&
+      needs.docker.result == 'success'
+    permissions:
+      contents: read
+    steps:
+      - name: Configure runner network (proxy + GitHub SSH)
+        if: vars.QS_DEPLOY_RUNNER != ''
+        env:
+          HTTP_PROXY: ${{ env.SELF_HOSTED_HTTP_PROXY }}
+          HTTPS_PROXY: ${{ env.SELF_HOSTED_HTTPS_PROXY }}
+          ALL_PROXY: ${{ env.SELF_HOSTED_ALL_PROXY }}
+          NO_PROXY: ${{ env.SELF_HOSTED_NO_PROXY }}
+          DEPLOY_SHA: ${{ env.DEPLOY_SHA }}
+        run: |
+          script_ref="${NETWORK_SCRIPT_REF:-${DEPLOY_SHA:-main}}"
+          curl -fsSL --proxy "${HTTP_PROXY}" \
+            "https://raw.githubusercontent.com/FangcunMount/qs-operating-system/${script_ref}/scripts/cd/setup-runner-network.sh" \
+            | bash
+
+      - name: Checkout (self-hosted SSH)
+        if: vars.QS_DEPLOY_RUNNER != ''
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+          fetch-depth: 1
+          ssh-key: ${{ secrets.QS_OPS_DEPLOY_KEY }}
+
+      - name: Checkout (GitHub-hosted HTTPS)
+        if: vars.QS_DEPLOY_RUNNER == ''
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+          fetch-depth: 1
+
+      - name: Login to Aliyun ACR
+        if: env.DEPLOY_EXPORT_REGISTRY == 'acr'
+        env:
+          ALIYUN_ACR_REGISTRY: ${{ secrets.ALIYUN_ACR_REGISTRY }}
+          ALIYUN_ACR_USERNAME: ${{ secrets.ALIYUN_ACR_USERNAME }}
+          ALIYUN_ACR_PASSWORD: ${{ secrets.ALIYUN_ACR_PASSWORD }}
+        run: echo "$ALIYUN_ACR_PASSWORD" | docker login "$ALIYUN_ACR_REGISTRY" -u "$ALIYUN_ACR_USERNAME" --password-stdin
+
+      - name: Export deployment image tarball
+        if: env.DEPLOY_EXPORT_REGISTRY == 'acr'
+        env:
+          DEPLOY_SHA: ${{ env.DEPLOY_SHA }}
+          EXPORT_IMAGE_REGISTRY: acr
+          ALIYUN_ACR_REGISTRY: ${{ secrets.ALIYUN_ACR_REGISTRY }}
+          ALIYUN_ACR_NAMESPACE: ${{ secrets.ALIYUN_ACR_NAMESPACE }}
+        run: make cd-export-image SERVICE="${SERVICE}"
+
+      - name: Setup deploy SSH
+        env:
+          RUNNER_SSH_KEY: ${{ secrets.SVRB_SSH_KEY }}
+          RUNNER_SSH_HOST: ${{ secrets.SVRB_HOST }}
+          RUNNER_SSH_USER: ${{ secrets.SVRB_USERNAME }}
+          RUNNER_SSH_PORT: ${{ secrets.SVRB_SSH_PORT || 22 }}
+          RUNNER_SSH_ALIAS: deploy-target
+        run: bash scripts/cd/setup-runner-ssh.sh
+
+      - name: Upload and deploy
+        env:
+          RUNNER_SSH_ALIAS: deploy-target
+          SERVICE: ${{ env.SERVICE }}
+          DEPLOY_SHA: ${{ env.DEPLOY_SHA }}
+          DOCKER_REGISTRY: ${{ env.DOCKER_REGISTRY }}
+          DOCKER_REPOSITORY: ${{ env.DOCKER_REPOSITORY }}
+          ALIYUN_ACR_REGISTRY: ${{ secrets.ALIYUN_ACR_REGISTRY }}
+          ALIYUN_ACR_NAMESPACE: ${{ secrets.ALIYUN_ACR_NAMESPACE }}
+          SUDO_PASSWORD: ${{ secrets.SVRB_SUDO_PASSWORD }}
+        run: bash scripts/cd/runner-upload-and-deploy.sh
+
+  notify:
+    name: Deployment Summary
+    needs: [docker, deploy]
+    runs-on: ubuntu-latest
+    if: |
+      always() && (
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'workflow_run' &&
+         github.event.workflow_run.conclusion == 'success' &&
+         (github.event.workflow_run.head_branch == 'main' ||
+          github.event.workflow_run.head_branch == 'master'))
+      )
+    steps:
+      - name: Log deployment status
+        run: |
+          echo "=========================================="
+          echo "Deployment Summary"
+          echo "=========================================="
+          echo "Docker: ${{ needs.docker.result }}"
+          echo "Deploy: ${{ needs.deploy.result }}"
+          echo "Ref: ${DEPLOY_REF}"
+          echo "SHA: ${DEPLOY_SHA}"
+          echo "Service: ${SERVICE}"
+          if [ "${{ needs.docker.result }}" != "success" ] || [ "${{ needs.deploy.result }}" != "success" ]; then
+            echo "Production deploy failed or was skipped."
+            exit 1
+          fi
+          echo "Production deploy completed."
