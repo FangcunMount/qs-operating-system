@@ -30,6 +30,12 @@ const ScaleQuestionRouting = lazy(() => import('../pages/scale/question-routing/
 const ScaleFactor = lazy(() => import('../pages/scale/Factor/Factor'))
 const ScaleAnalysis = lazy(() => import('../pages/scale/Analysis/Analysis'))
 const ScalePublish = lazy(() => import('../pages/scale/publish/index'))
+const PersonalityList = lazy(() => import('../pages/personality/list/index'))
+const PersonalityBasicInfo = lazy(() => import('../pages/personality/basic-info/index'))
+const PersonalityQuestionEdit = lazy(() => import('../pages/personality/question-edit/index'))
+const PersonalityQuestionRouting = lazy(() => import('../pages/personality/question-routing/index'))
+const PersonalityDefinition = lazy(() => import('../pages/personality/definition/index'))
+const PersonalityPublish = lazy(() => import('../pages/personality/publish/index'))
 const AsList = lazy(() => import('../pages/as/list'))
 const AsDetail = lazy(() => import('../pages/as/detail'))
 const Login = lazy(() => import('../pages/user/login'))
@@ -222,6 +228,14 @@ export const routes: Array<IRoute> = [
         requiredCapabilities: ['manage_content']
       },
       {
+        title: '人格测评',
+        name: 'personality-list',
+        path: '/personality/list',
+        component: PersonalityList,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['manage_content']
+      },
+      {
         title: '问卷编辑',
         name: 'survey-edit',
         path: '/qs/edit/:questionsheetid/:answercnt',
@@ -350,6 +364,56 @@ export const routes: Array<IRoute> = [
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
         activeMenuName: 'scale-list'
+      },
+      {
+        title: '人格测评基本信息',
+        name: 'personality-info',
+        path: '/personality/info/:modelCode',
+        component: PersonalityBasicInfo,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'personality-list'
+      },
+      {
+        title: '人格测评题目',
+        name: 'personality-create',
+        path: '/personality/create/:modelCode/:answercnt',
+        component: PersonalityQuestionEdit,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'personality-list'
+      },
+      {
+        title: '人格测评路由',
+        name: 'personality-routing',
+        path: '/personality/routing/:modelCode',
+        component: PersonalityQuestionRouting,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'personality-list'
+      },
+      {
+        title: '人格测评定义',
+        name: 'personality-definition',
+        path: '/personality/definition/:modelCode',
+        component: PersonalityDefinition,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'personality-list'
+      },
+      {
+        title: '发布人格测评',
+        name: 'personality-publish',
+        path: '/personality/publish/:modelCode',
+        component: PersonalityPublish,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'personality-list'
       }
     ]
   },

@@ -6,14 +6,13 @@ import PropTypes from 'prop-types'
 
 import './setting.scss'
 
-import { questionSheetStore, surveyStore, scaleStore } from '@/store'
+import { questionSheetStore } from '@/store'
 import { api } from '@/api'
 import { deepCopy } from '@/utils'
 import { getSettingComponent } from '@/tools/question'
+import { QuestionEditorStore } from './types'
 
-type StoreType = typeof questionSheetStore | typeof surveyStore | typeof scaleStore
-
-const QuestionSetting: React.FC<{ store?: StoreType }> = ({ store = questionSheetStore }) => {
+const QuestionSetting: React.FC<{ store?: QuestionEditorStore }> = ({ store = questionSheetStore }) => {
   const delQuestion = async () => {
     // if question has answer, cannot be deleted
     const [e, r] = await api.getQueryAnsweredCnt(store.id as string, store.currentCode)

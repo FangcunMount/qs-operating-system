@@ -32,18 +32,17 @@ import CreateUpload from './widget/upload/Create'
 
 import './create.scss'
 import { IQuestion } from '@/models/question'
-import { questionSheetStore, surveyStore, scaleStore } from '@/store'
+import { questionSheetStore } from '@/store'
 import { api } from '@/api'
+import { QuestionEditorStore } from './types'
 
 const IconFont = createFromIconfontCN({
   scriptUrl: '//at.alicdn.com/t/font_2758274_u8jryrvrw1q.js'
 })
 
-type StoreType = typeof questionSheetStore | typeof surveyStore | typeof scaleStore
-
 const QuestionCreate: React.FC<{ 
   showToBottom: () => void
-  store?: StoreType
+  store?: QuestionEditorStore
 }> = ({ showToBottom, store = questionSheetStore }) => {
   const handleAddQuestion = async (v: IQuestion, i?: number) => {
     const [, r] = await api.getCodeByType('question', store.id as string)

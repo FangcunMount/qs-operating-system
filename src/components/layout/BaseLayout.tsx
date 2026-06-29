@@ -83,7 +83,11 @@ const BaseLayout: React.FC<BaseLayoutProps> = ({
               {footerButtons?.includes('backToList') ? (
                 <Button onClick={() => {
                   // 根据主题判断跳转到哪个列表页面
-                  const listUrl = themeClass === 'survey-page-theme' ? '/survey/list' : '/scale/list'
+                  const listUrl = themeClass === 'survey-page-theme'
+                    ? '/survey/list'
+                    : themeClass === 'personality-page-theme'
+                      ? '/personality/list'
+                      : '/scale/list'
                   history.push(listUrl)
                 }}>
                   <UnorderedListOutlined />

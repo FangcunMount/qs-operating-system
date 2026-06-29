@@ -3,16 +3,15 @@ import { observer } from 'mobx-react'
 import { Divider } from 'antd'
 import PropTypes from 'prop-types'
 
-import { questionSheetStore, surveyStore, scaleStore } from '@/store'
+import { questionSheetStore, surveyStore } from '@/store'
 import './show.scss'
 import ShowQuestionItem, { SortableGifsContainer } from './widget/ShowQuestionItem'
 import ShowQuestionShowHeader from './widget/ShowQuestionHeader'
-
-type StoreType = typeof questionSheetStore | typeof surveyStore | typeof scaleStore
+import { QuestionEditorStore } from './types'
 
 const QuestionShow: React.FC<{ 
   showContainerRef: any
-  store?: StoreType
+  store?: QuestionEditorStore
 }> = ({ showContainerRef, store }) => {
   // 如果没有传入 store，使用默认值
   const actualStore = store || questionSheetStore

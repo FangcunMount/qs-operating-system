@@ -11,6 +11,7 @@ import { subjectStore } from './subject'
 import { surveyStore } from './surveyStore'
 import { scaleStore } from './scaleStore'
 import { staffStore } from './staffStore'
+import { personalityModelStore } from './personalityModelStore'
 
 // 单独导出各个 store（方便直接引用）
 export {
@@ -25,6 +26,7 @@ export {
   subjectStore,
   surveyStore,
   scaleStore,
+  personalityModelStore,
   staffStore
 }
 
@@ -48,6 +50,7 @@ export const rootStore = {
   // 问卷和量表的 store
   surveyStore,
   scaleStore,
+  personalityModelStore,
   
   // 员工管理
   staffStore
@@ -56,6 +59,7 @@ export const rootStore = {
 // 开发环境下暴露到 window 对象方便调试
 if (process.env.NODE_ENV === 'development') {
   (window as any).surveyStore = surveyStore;
+  (window as any).personalityModelStore = personalityModelStore;
   (window as any).rootStore = rootStore
 }
 

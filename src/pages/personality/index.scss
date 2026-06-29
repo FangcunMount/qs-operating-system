@@ -1,0 +1,65 @@
+.personality-page-theme {
+  --personality-primary: #255f85;
+  --personality-soft: #eef6f8;
+  --personality-border: #d8e4e8;
+}
+
+.personality-page {
+  min-height: 100vh;
+  padding: 24px;
+  background: #f5f7f8;
+}
+
+.personality-page-title {
+  margin-bottom: 16px;
+}
+
+.personality-page-title h2 {
+  margin: 0;
+  color: #1f2329;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.personality-page-title div {
+  margin-top: 4px;
+  color: #646a73;
+  font-size: 14px;
+}
+
+.personality-form-shell,
+.personality-definition-shell,
+.personality-publish-shell,
+.personality-routing-shell {
+  padding: 24px;
+  min-height: calc(100vh - 72px);
+  background: #f5f7f8;
+}
+
+.personality-card {
+  border: 1px solid var(--personality-border);
+  border-radius: 8px;
+}
+
+.personality-question-edit {
+  display: grid;
+  grid-template-columns: 220px minmax(360px, 1fr) 360px;
+  min-height: calc(100vh - 120px);
+  background: #f5f7f8;
+}
+
+.personality-publish-grid {
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) 390px;
+  gap: 24px;
+}
+
+.personality-definition-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.personality-definition-json {
+  font-family: Menlo, Monaco, Consolas, monospace;
+}
