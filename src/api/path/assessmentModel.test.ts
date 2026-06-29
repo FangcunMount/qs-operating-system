@@ -33,7 +33,7 @@ describe('assessmentModelApi', () => {
     })
     await assessmentModelApi.getAssessmentModel('m1')
     await assessmentModelApi.updateAssessmentModelBasicInfo('m1', { title: '人格 v2' })
-    await assessmentModelApi.updateAssessmentModelQuestionnaire('m1', { questionnaire_code: 'q1' })
+    await assessmentModelApi.updateAssessmentModelQuestionnaire('m1', { questionnaire_code: 'q1', questionnaire_version: 'v1' })
     await assessmentModelApi.getAssessmentModelDefinition('m1')
     await assessmentModelApi.saveAssessmentModelDefinition('m1', {
       kind: 'personality',
@@ -59,7 +59,10 @@ describe('assessmentModelApi', () => {
     })
     expect(getMock).toHaveBeenNthCalledWith(2, '/assessment-models/m1')
     expect(putMock).toHaveBeenNthCalledWith(1, '/assessment-models/m1/basic-info', { title: '人格 v2' })
-    expect(putMock).toHaveBeenNthCalledWith(2, '/assessment-models/m1/questionnaire', { questionnaire_code: 'q1' })
+    expect(putMock).toHaveBeenNthCalledWith(2, '/assessment-models/m1/questionnaire', {
+      questionnaire_code: 'q1',
+      questionnaire_version: 'v1'
+    })
     expect(getMock).toHaveBeenNthCalledWith(3, '/assessment-models/m1/definition')
     expect(postMock).toHaveBeenNthCalledWith(2, '/assessment-models/m1/publish', undefined)
     expect(postMock).toHaveBeenNthCalledWith(3, '/assessment-models/m1/unpublish', undefined)

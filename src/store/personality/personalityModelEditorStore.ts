@@ -158,11 +158,21 @@ export class PersonalityModelEditorStore {
     runInAction(() => this.applyModel(model))
   }
 
-  async resolveQuestionnaireCode(): Promise<{ code: string; version?: string }> {
+  ensureQuestionnaireVersion(version?: string): string {
+    if (!version) {
+      throw new Error('绑定问卷缺少版本号，请先选择带版本的问卷')
+    }
+    return version
+  }
+
+  async resolveQuestionnaireCode(): Promise<{ code: string; version: string }> {
     if (this.questionnaireStrategy === 'bind' && this.bindQuestionnaireCode) {
       const [err, res] = await surveyApi.getSurvey(this.bindQuestionnaireCode)
       if (err) throw err
-      return { code: this.bindQuestionnaireCode, version: res?.data?.version }
+      return {
+        code: this.bindQuestionnaireCode,
+        version: this.ensureQuestionnaireVersion(res?.data?.version)
+      }
     }
 
     if (this.questionnaireCode) {
@@ -173,7 +183,10 @@ export class PersonalityModelEditorStore {
         type: QuestionnaireType.Survey
       })
       if (surveyErr) throw surveyErr
-      return { code: this.questionnaireCode, version: surveyRes?.data?.version }
+      return {
+        code: this.questionnaireCode,
+        version: this.ensureQuestionnaireVersion(surveyRes?.data?.version)
+      }
     }
 
     const [surveyErr, surveyRes] = await api.createSurvey({
@@ -183,7 +196,10 @@ export class PersonalityModelEditorStore {
     })
     if (surveyErr) throw surveyErr
     if (!surveyRes?.data?.code) throw new Error('创建题目问卷失败')
-    return { code: surveyRes.data.code, version: surveyRes.data.version }
+    return {
+      code: surveyRes.data.code,
+      version: this.ensureQuestionnaireVersion(surveyRes.data.version)
+    }
   }
 
   async saveBasicInfo(): Promise<string> {
@@ -242,14 +258,15 @@ export class PersonalityModelEditorStore {
 
   async bindQuestionnaire(code: string, version?: string) {
     if (!this.modelCode) throw new Error('人格测评编码不能为空')
+    const questionnaireVersion = this.ensureQuestionnaireVersion(version)
     const [err] = await assessmentModelApi.updateAssessmentModelQuestionnaire(this.modelCode, {
       questionnaire_code: code,
-      questionnaire_version: version
+      questionnaire_version: questionnaireVersion
     })
     if (err) throw err
     runInAction(() => {
       this.questionnaireCode = code
-      this.questionnaireVersion = version
+      this.questionnaireVersion = questionnaireVersion
     })
   }
 }

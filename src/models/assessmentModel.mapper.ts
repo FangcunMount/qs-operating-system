@@ -12,6 +12,8 @@ import {
   PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT,
   PersonalityDimension,
   PersonalityPayloadV1,
+  PersonalityFactorSpec,
+  PersonalityQuestionContribution,
   PersonalityTypologyRuntimeSpec
 } from './assessmentModel'
 
@@ -65,10 +67,10 @@ export const mapSimplePayloadToRuntimeSpec = (
   payload.dimensions.forEach((dim) => {
     dimensions[dim.code] = dim
     factors[dim.code] = {
+      id: dim.code,
       code: dim.code,
       name: dim.title,
-      kind: 'leaf',
-      is_root: true
+      kind: 'leaf'
     }
   })
 
@@ -140,10 +142,15 @@ export const normalizePayload = (
   questionnaireVersion?: string
 ): PersonalityTypologyRuntimeSpec => {
   if (isRuntimeSpecPayload(raw)) {
+    const emptySpec = createEmptyRuntimeSpec(questionnaireCode, questionnaireVersion)
     return {
-      ...createEmptyRuntimeSpec(questionnaireCode, questionnaireVersion),
+      ...emptySpec,
       ...raw,
-      factor_graph: { ...createEmptyRuntimeSpec().factor_graph, ...raw.factor_graph },
+      factor_graph: {
+        ...emptySpec.factor_graph,
+        ...raw.factor_graph,
+        factors: normalizeRuntimeSpecFactors(raw.factor_graph?.factors || {})
+      },
       outcome_mapping: { ...(raw.outcome_mapping || {}), outcomes: raw.outcome_mapping?.outcomes || [] }
     }
   }
@@ -152,6 +159,16 @@ export const normalizePayload = (
   }
   return createEmptyRuntimeSpec(questionnaireCode, questionnaireVersion)
 }
+
+const normalizeRuntimeSpecFactors = (
+  factors: Record<string, PersonalityFactorSpec>
+): Record<string, PersonalityFactorSpec> => (
+  Object.entries(factors).reduce<Record<string, PersonalityFactorSpec>>((acc, [key, factor]) => {
+    const id = factor.id || key
+    acc[id] = { ...factor, id }
+    return acc
+  }, {})
+)
 
 const createEmptyRuntimeSpec = (
   questionnaireCode = '',
@@ -260,5 +277,58 @@ export const buildDefinitionForSave = (
   sub_kind: subKind,
   algorithm,
   payload_format: PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT,
-  payload: runtimeSpec
+  payload: normalizeRuntimeSpecForSave(runtimeSpec)
 })
+
+const normalizeRuntimeSpecForSave = (
+  runtimeSpec: PersonalityTypologyRuntimeSpec
+): PersonalityTypologyRuntimeSpec => {
+  const rawFactors = runtimeSpec.factor_graph?.factors || {}
+  const nextFactors: Record<string, PersonalityFactorSpec> = {}
+
+  Object.entries(rawFactors).forEach(([key, factor]) => {
+    const id = factor.id || key
+    nextFactors[id] = {
+      ...factor,
+      id,
+      children: factor.children || [],
+      contributions: factor.contributions || []
+    }
+  })
+
+  ;(runtimeSpec.factor_graph?.question_mappings || []).forEach((mapping) => {
+    if (!mapping.question_code || !mapping.factor_code) return
+    const matchedKey = Object.keys(nextFactors).find((key) => {
+      const factor = nextFactors[key]
+      return key === mapping.factor_code || factor.id === mapping.factor_code || factor.code === mapping.factor_code
+    })
+    if (!matchedKey) return
+
+    const contribution: PersonalityQuestionContribution = {
+      question_code: mapping.question_code,
+      sign: mapping.sign,
+      option_scores: mapping.option_scores
+    }
+    const factor = nextFactors[matchedKey]
+    const existing = factor.contributions || []
+    const nextContributions = existing.filter((item) => item.question_code !== mapping.question_code)
+    nextFactors[matchedKey] = {
+      ...factor,
+      contributions: [...nextContributions, contribution]
+    }
+  })
+
+  return {
+    ...runtimeSpec,
+    factor_graph: {
+      ...runtimeSpec.factor_graph,
+      factors: nextFactors,
+      roots: (runtimeSpec.factor_graph?.roots || []).map((root) => {
+        const matched = nextFactors[root]
+        if (matched) return matched.id
+        const found = Object.values(nextFactors).find((factor) => factor.code === root)
+        return found?.id || root
+      })
+    }
+  }
+}

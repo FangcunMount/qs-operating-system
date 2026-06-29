@@ -274,8 +274,9 @@ class PersonalityModelStoreFacade {
           dimension_order: payload.dimensions.map((d) => d.code),
           dimensions: Object.fromEntries(payload.dimensions.map((d) => [d.code, d])),
           factors: Object.fromEntries(payload.dimensions.map((d) => [d.code, {
-            code: d.code, name: d.title, kind: 'leaf' as const, is_root: true
-          }]))
+            id: d.code, code: d.code, name: d.title, kind: 'leaf' as const
+          }])),
+          roots: payload.dimensions.map((d) => d.code)
         },
         outcome_mapping: { outcomes: payload.outcomes },
         questionnaire_binding: payload.questionnaire_binding,

@@ -81,12 +81,22 @@ export interface PersonalityPayloadV1 {
 // --- RuntimeSpec (backend authoritative) ---
 
 export interface PersonalityFactorSpec {
-  code: string
-  name: string
+  id: string
+  code?: string
+  name?: string
   kind: 'leaf' | 'composite'
   children?: string[]
   aggregation?: 'sum' | 'avg' | 'weighted_avg'
-  is_root?: boolean
+  weights?: Record<string, number>
+  constant?: number
+  contributions?: PersonalityQuestionContribution[]
+  option_scoring?: 'strict' | 'compat'
+}
+
+export interface PersonalityQuestionContribution {
+  question_code: string
+  sign?: 1 | -1
+  option_scores?: Record<string, number>
 }
 
 export interface PersonalityQuestionMapping {
@@ -295,6 +305,27 @@ export const validateRuntimeSpec = (
   const outcomes = spec.outcome_mapping?.outcomes || []
   if (outcomes.some((item) => !item.code || !item.title)) {
     issues.push({ field: 'outcome_mapping', message: '结果类型 code 和名称不能为空' })
+  }
+
+  const factorAliases = new Set(
+    Object.entries(factors).flatMap(([id, factor]) => [id, factor.id, factor.code].filter(Boolean) as string[])
+  )
+  const roots = spec.factor_graph?.roots || []
+  const unknownRoots = roots.filter((root) => !factorAliases.has(root))
+  if (unknownRoots.length > 0) {
+    issues.push({ field: 'factor_graph.roots', message: `根因子不存在：${unknownRoots.join(', ')}` })
+  }
+
+  const mappings = spec.factor_graph?.question_mappings || []
+  if (mappings.length === 0) {
+    issues.push({ field: 'question_mapping', message: '至少需要配置一条题目映射' })
+  }
+
+  const invalidMappings = mappings.filter(
+    (item) => !item.question_code || !item.factor_code || !factorAliases.has(item.factor_code)
+  )
+  if (invalidMappings.length > 0) {
+    issues.push({ field: 'question_mapping', message: '题目映射必须选择有效题目和因子' })
   }
 
   return issues

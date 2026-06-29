@@ -51,6 +51,7 @@ const PersonalityPublish: React.FC = observer(() => {
   const outcomeCount = spec.outcome_mapping?.outcomes?.length || 0
   const mappingCount = spec.factor_graph?.question_mappings?.length || 0
   const mappedQuestions = (spec.factor_graph?.question_mappings || []).filter((m) => m.question_code && m.factor_code).length
+  const questionMappingDone = mappingCount > 0 && mappedQuestions === mappingCount
 
   const checklist = useMemo(() => [
     { label: '基本信息', done: Boolean(personalityModelStore.title && personalityModelStore.modelCode) },
@@ -59,12 +60,12 @@ const PersonalityPublish: React.FC = observer(() => {
     { label: '模型定义', done: factorCount > 0 && outcomeCount > 0, detail: `${factorCount} 个因子 / ${outcomeCount} 个结果` },
     {
       label: '题目映射',
-      done: mappingCount === 0 || mappedQuestions === mappingCount,
+      done: questionMappingDone,
       detail: `${mappedQuestions}/${mappingCount || personalityModelStore.questions.length} 已映射`
     },
     { label: '报告配置', done: Boolean(spec.report?.kind) },
     { label: '后端校验', done: personalityPublishStore.validation?.passed === true }
-  ], [factorCount, outcomeCount, mappingCount, mappedQuestions, spec.report?.kind])
+  ], [factorCount, outcomeCount, mappingCount, mappedQuestions, questionMappingDone, spec.report?.kind])
 
   const handleValidate = async () => {
     const result = await personalityPublishStore.validate(personalityModelStore.modelCode)

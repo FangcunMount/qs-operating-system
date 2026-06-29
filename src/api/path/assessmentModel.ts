@@ -61,7 +61,15 @@ export interface UpdateAssessmentModelBasicInfoRequest {
 
 export interface UpdateAssessmentModelQuestionnaireRequest {
   questionnaire_code: string
-  questionnaire_version?: string
+  questionnaire_version: string
+}
+
+export interface AssessmentModelQuestionnaireResponse {
+  model_code?: string
+  questionnaire_code: string
+  questionnaire_version: string
+  title?: string
+  question_count?: number
 }
 
 export interface ApplyAssessmentModelCodesRequest {
@@ -119,9 +127,8 @@ export async function updateAssessmentModelBasicInfo(
 export async function updateAssessmentModelQuestionnaire(
   code: string,
   data: UpdateAssessmentModelQuestionnaireRequest
-): Promise<[any, QSResponse<AssessmentModelDetail> | undefined]> {
-  const [err, res] = await put<any>(`/assessment-models/${code}/questionnaire`, data)
-  return [err, mapResponse(res, normalizeAssessmentModelDetail)]
+): Promise<[any, QSResponse<AssessmentModelQuestionnaireResponse> | undefined]> {
+  return put<AssessmentModelQuestionnaireResponse>(`/assessment-models/${code}/questionnaire`, data)
 }
 
 export async function getAssessmentModelDefinition(

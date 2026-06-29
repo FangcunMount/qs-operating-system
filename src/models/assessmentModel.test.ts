@@ -6,6 +6,7 @@ import {
   validateRuntimeSpec
 } from './assessmentModel'
 import {
+  buildDefinitionForSave,
   mapRuntimeSpecToFormState,
   mapSimplePayloadToRuntimeSpec,
   normalizeAssessmentModelDefinition,
@@ -76,7 +77,7 @@ describe('assessment model mappers', () => {
       factor_graph: {
         dimension_order: ['E'],
         dimensions: { E: { code: 'E', title: '外向' } },
-        factors: { E: { code: 'E', name: '外向', kind: 'leaf' as const } },
+        factors: { E: { id: 'E', code: 'E', name: '外向', kind: 'leaf' as const } },
         question_mappings: [],
         roots: ['E']
       },
@@ -103,6 +104,30 @@ describe('assessment model mappers', () => {
     expect(def.payload_format).toBe('assessmentmodel.personality.typology.v1')
     expect((def.payload as PersonalityTypologyRuntimeSpec).factor_graph.factors?.E).toBeDefined()
   })
+
+  it('projects flat question mappings into factor contributions before save', () => {
+    const spec: PersonalityTypologyRuntimeSpec = {
+      ...createEmptyRuntimeSpec('q1', 'v1'),
+      factor_graph: {
+        ...createEmptyRuntimeSpec('q1', 'v1').factor_graph,
+        factors: {
+          E: { id: 'E', code: 'E', name: '外向', kind: 'leaf' }
+        },
+        roots: ['E'],
+        question_mappings: [
+          { question_code: 'q_e_1', factor_code: 'E', sign: 1, option_scores: { yes: 1 } }
+        ]
+      },
+      outcome_mapping: { outcomes: [{ code: 'ENFP', title: '竞选者' }] }
+    }
+
+    const def = buildDefinitionForSave(createEmptyRuntimeSpecDefinition(), spec, 'typology', 'mbti')
+    const savedSpec = def.payload as PersonalityTypologyRuntimeSpec
+
+    expect(savedSpec.factor_graph.factors?.E.contributions).toEqual([
+      { question_code: 'q_e_1', sign: 1, option_scores: { yes: 1 } }
+    ])
+  })
 })
 
 describe('runtime spec validation', () => {
@@ -110,4 +135,27 @@ describe('runtime spec validation', () => {
     const issues = validateRuntimeSpec(createEmptyRuntimeSpec())
     expect(issues.length).toBeGreaterThan(0)
   })
+
+  it('requires at least one complete question mapping', () => {
+    const spec = {
+      ...createEmptyRuntimeSpec('q1'),
+      factor_graph: {
+        ...createEmptyRuntimeSpec('q1').factor_graph,
+        factors: { E: { id: 'E', code: 'E', name: '外向', kind: 'leaf' as const } },
+        roots: ['E'],
+        question_mappings: []
+      },
+      outcome_mapping: { outcomes: [{ code: 'ENFP', title: '竞选者' }] }
+    }
+
+    expect(validateRuntimeSpec(spec).map((issue) => issue.field)).toContain('question_mapping')
+  })
+})
+
+const createEmptyRuntimeSpecDefinition = () => ({
+  kind: 'personality' as const,
+  sub_kind: 'typology',
+  algorithm: 'mbti',
+  payload_format: 'assessmentmodel.personality.typology.v1',
+  payload: createEmptyRuntimeSpec()
 })
