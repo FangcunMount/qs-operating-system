@@ -1,13 +1,22 @@
-import React, { useEffect, useState } from 'react'
-import { Alert, Button, Card, Descriptions, Image, List, message, Space, Tag } from 'antd'
+import React, { useEffect, useMemo, useState } from 'react'
+import { Alert, Button, Card, Descriptions, Image, message, Space, Tag } from 'antd'
 import { observer } from 'mobx-react-lite'
 import { useParams } from 'react-router'
 import BaseLayout from '@/components/layout/BaseLayout'
 import { MobilePreview } from '@/components/preview'
-import { assessmentModelApi } from '@/api/path/assessmentModel'
-import { AssessmentModelValidationIssue } from '@/models/assessmentModel'
-import { personalityModelStore } from '@/store'
-import { PERSONALITY_STEPS, personalityEditorFlowConfig, useEditorFlow } from '@/utils/editorFlow'
+import ValidationIssuesPanel, { PublishChecklist } from '@/components/personality/publish/PublishPanels'
+import { personalityModelStore, personalityPublishStore } from '@/store/personality'
+import { getApiErrorMessage } from '@/utils/apiError'
+import {
+  buildPersonalityFlowContext,
+  PERSONALITY_STEPS,
+  personalityEditorFlowConfig,
+  useEditorFlow
+} from '@/utils/editorFlow'
+import {
+  canPublishPersonalityModel,
+  canUnpublishPersonalityModel
+} from '@/utils/personalityPermissions'
 import '../index.scss'
 
 const statusText: Record<string, { label: string; color: string }> = {
@@ -18,17 +27,9 @@ const statusText: Record<string, { label: string; color: string }> = {
 
 const PersonalityPublish: React.FC = observer(() => {
   const { modelCode } = useParams<{ modelCode: string }>()
-  const [issues, setIssues] = useState<AssessmentModelValidationIssue[]>([])
-  const [qrCode, setQrCode] = useState('')
   const [loading, setLoading] = useState(false)
-  const { currentStepIndex, handleStepChange } = useEditorFlow(personalityEditorFlowConfig, personalityModelStore.modelCode || modelCode)
-
-  const loadQrCode = async () => {
-    const [err, res] = await assessmentModelApi.getAssessmentModelQRCode(modelCode)
-    if (!err && res?.data) {
-      setQrCode(res.data.qrcode_url || res.data.qrcode || res.data.url || '')
-    }
-  }
+  const flowCtx = buildPersonalityFlowContext(personalityModelStore)
+  const editorFlow = useEditorFlow(personalityEditorFlowConfig, personalityModelStore.modelCode || modelCode, flowCtx)
 
   useEffect(() => {
     personalityModelStore.setCurrentStep('publish')
@@ -36,24 +37,42 @@ const PersonalityPublish: React.FC = observer(() => {
       try {
         await personalityModelStore.initEditor(modelCode)
         if (personalityModelStore.status === 'published') {
-          await loadQrCode()
+          await personalityPublishStore.loadQRCode(modelCode)
         }
-      } catch (error) {
+      } catch {
         message.error('加载人格测评发布信息失败')
       }
     }
     init()
   }, [modelCode])
 
+  const spec = personalityModelStore.runtimeSpec
+  const factorCount = Object.keys(spec.factor_graph?.factors || {}).length
+  const outcomeCount = spec.outcome_mapping?.outcomes?.length || 0
+  const mappingCount = spec.factor_graph?.question_mappings?.length || 0
+  const mappedQuestions = (spec.factor_graph?.question_mappings || []).filter((m) => m.question_code && m.factor_code).length
+
+  const checklist = useMemo(() => [
+    { label: '基本信息', done: Boolean(personalityModelStore.title && personalityModelStore.modelCode) },
+    { label: '题目配置', done: personalityModelStore.questions.length > 0, detail: `${personalityModelStore.questions.length} 道题` },
+    { label: '路由配置', done: true, detail: `${personalityModelStore.showControllers.length} 条显隐规则` },
+    { label: '模型定义', done: factorCount > 0 && outcomeCount > 0, detail: `${factorCount} 个因子 / ${outcomeCount} 个结果` },
+    {
+      label: '题目映射',
+      done: mappingCount === 0 || mappedQuestions === mappingCount,
+      detail: `${mappedQuestions}/${mappingCount || personalityModelStore.questions.length} 已映射`
+    },
+    { label: '报告配置', done: Boolean(spec.report?.kind) },
+    { label: '后端校验', done: personalityPublishStore.validation?.passed === true }
+  ], [factorCount, outcomeCount, mappingCount, mappedQuestions, spec.report?.kind])
+
   const handleValidate = async () => {
-    const result = await personalityModelStore.validateForPublish()
-    setIssues(result.issues || [])
+    const result = await personalityPublishStore.validate(personalityModelStore.modelCode)
     return result.passed
   }
 
   const handlePublish = async () => {
     setLoading(true)
-    setIssues([])
     try {
       const passed = await handleValidate()
       if (!passed) {
@@ -61,14 +80,10 @@ const PersonalityPublish: React.FC = observer(() => {
         return
       }
       await personalityModelStore.publish()
-      await loadQrCode()
+      await personalityPublishStore.loadQRCode(personalityModelStore.modelCode)
       message.success('人格测评发布成功')
     } catch (error: any) {
-      const validationIssues = error?.validation?.issues
-      if (validationIssues) {
-        setIssues(validationIssues)
-      }
-      message.error(`发布失败 -- ${error?.errmsg || error?.message || error}`)
+      message.error(getApiErrorMessage(error, '发布失败'))
     } finally {
       setLoading(false)
     }
@@ -78,46 +93,38 @@ const PersonalityPublish: React.FC = observer(() => {
     setLoading(true)
     try {
       await personalityModelStore.unpublish()
+      personalityPublishStore.setQrCode(null)
       message.success('已下架')
     } catch (error: any) {
-      message.error(`下架失败 -- ${error?.errmsg || error?.message || error}`)
+      message.error(getApiErrorMessage(error, '下架失败'))
     } finally {
       setLoading(false)
     }
   }
 
   const status = statusText[personalityModelStore.status] || statusText.draft
+  const qr = personalityPublishStore.qrCode
+  const issues = personalityPublishStore.validation?.issues || []
 
   return (
     <BaseLayout
       footerButtons={['backToList', 'break']}
       steps={PERSONALITY_STEPS}
-      currentStep={currentStepIndex}
-      onStepChange={handleStepChange}
+      currentStep={editorFlow.currentStepIndex}
+      onStepChange={editorFlow.handleStepChange}
       themeClass="personality-page-theme"
     >
       <div className="personality-publish-shell personality-page-theme">
         <div className="personality-publish-grid">
           <div>
             {issues.length > 0 ? (
-              <Alert
-                type="error"
-                showIcon
-                style={{ marginBottom: 16 }}
-                message="发布校验未通过"
-                description={(
-                  <List
-                    size="small"
-                    dataSource={issues}
-                    renderItem={(issue) => (
-                      <List.Item>
-                        <strong>{issue.field}</strong>：{issue.message}
-                      </List.Item>
-                    )}
-                  />
-                )}
-              />
+              <Alert type="error" showIcon style={{ marginBottom: 16 }} message="发布校验未通过"
+                description={<ValidationIssuesPanel issues={issues} />} />
             ) : null}
+
+            <Card title="发布前检查" className="personality-card" style={{ marginBottom: 16 }}>
+              <PublishChecklist items={checklist} />
+            </Card>
 
             <Card title="发布状态" className="personality-card" style={{ marginBottom: 16 }}>
               <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -126,30 +133,35 @@ const PersonalityPublish: React.FC = observer(() => {
                   <Descriptions.Item label="测评名称">{personalityModelStore.title || '-'}</Descriptions.Item>
                   <Descriptions.Item label="模型编码">{personalityModelStore.modelCode || '-'}</Descriptions.Item>
                   <Descriptions.Item label="绑定问卷">{personalityModelStore.id || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="题目数量">{personalityModelStore.questions.length}</Descriptions.Item>
-                  <Descriptions.Item label="维度数量">{personalityModelStore.payload.dimensions.length}</Descriptions.Item>
-                  <Descriptions.Item label="结果类型">{personalityModelStore.payload.outcomes.length}</Descriptions.Item>
+                  <Descriptions.Item label="算法">{personalityModelStore.algorithm}</Descriptions.Item>
                 </Descriptions>
                 <Space>
-                  <Button onClick={handleValidate}>校验</Button>
-                  {personalityModelStore.status === 'published' ? (
-                    <>
-                      <Button type="primary" loading={loading} onClick={handlePublish}>重新发布</Button>
-                      <Button danger loading={loading} onClick={handleUnpublish}>下架</Button>
-                    </>
-                  ) : (
-                    <Button type="primary" loading={loading} onClick={handlePublish}>发布</Button>
-                  )}
+                  <Button onClick={handleValidate} loading={personalityPublishStore.validating}>校验</Button>
+                  {canPublishPersonalityModel({ status: personalityModelStore.status }) ? (
+                    <Button type="primary" loading={loading} onClick={handlePublish}>
+                      {personalityModelStore.status === 'published' ? '重新发布' : '发布'}
+                    </Button>
+                  ) : null}
+                  {canUnpublishPersonalityModel({ status: personalityModelStore.status }) ? (
+                    <Button danger loading={loading} onClick={handleUnpublish}>下架</Button>
+                  ) : null}
                 </Space>
               </Space>
             </Card>
 
-            <Card title="二维码" className="personality-card">
-              {qrCode ? (
-                <Image width={180} src={qrCode} />
+            <Card title="二维码与入口" className="personality-card">
+              {qr?.qrcode_url ? (
+                <Space direction="vertical">
+                  <Image width={180} src={qr.qrcode_url} />
+                  {qr.entry_url ? <div>C 端入口：<a href={qr.entry_url} target="_blank" rel="noreferrer">{qr.entry_url}</a></div> : null}
+                </Space>
               ) : (
                 <div style={{ color: '#8c8c8c' }}>发布后展示二维码</div>
               )}
+            </Card>
+
+            <Card title="报告预览" className="personality-card" style={{ marginTop: 16 }}>
+              <Alert type="info" showIcon message="报告预览待后端 preview-report 接口接入后开启" />
             </Card>
           </div>
 

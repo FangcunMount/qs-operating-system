@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { message } from 'antd'
+import { Alert, message } from 'antd'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { observer } from 'mobx-react-lite'
@@ -10,7 +10,14 @@ import QuestionSetting from '@/components/questionEdit/Setting'
 import QuestionShow from '@/components/questionEdit/Show'
 import { IQuestion } from '@/models/question'
 import { personalityModelStore } from '@/store'
-import { PERSONALITY_STEPS, personalityEditorFlowConfig, useEditorFlow } from '@/utils/editorFlow'
+import { getApiErrorMessage } from '@/utils/apiError'
+import {
+  buildPersonalityFlowContext,
+  PERSONALITY_STEPS,
+  personalityEditorFlowConfig,
+  useEditorFlow
+} from '@/utils/editorFlow'
+import { needsRepublishHint } from '@/utils/personalityPermissions'
 import { checkText } from '@/components/questionEdit/widget/text/Setting'
 import { checkRadio } from '@/components/questionEdit/widget/radio/Setting'
 import { checkSection } from '@/components/questionEdit/widget/section/Setting'
@@ -29,33 +36,23 @@ import '@/components/questionEdit/index.scss'
 import '../index.scss'
 
 const checkMap = {
-  Text: checkText,
-  Radio: checkRadio,
-  Section: checkSection,
-  Textarea: checkTextarea,
-  Number: checkNumber,
-  Date: checkDate,
-  CheckBox: checkCheckBox,
-  Checkbox: checkCheckBox,
-  ScoreRadio: checkScoreRadio,
-  Select: checkSelect,
-  AddressSelect: checkAddressSelect,
-  CascaderSelect: checkCascaderSelect,
-  ImageCheckBox: checkImageCheckBox,
-  ImageRadio: checkImageRadio,
-  Upload: checkUpload
+  Text: checkText, Radio: checkRadio, Section: checkSection, Textarea: checkTextarea,
+  Number: checkNumber, Date: checkDate, CheckBox: checkCheckBox, Checkbox: checkCheckBox,
+  ScoreRadio: checkScoreRadio, Select: checkSelect, AddressSelect: checkAddressSelect,
+  CascaderSelect: checkCascaderSelect, ImageCheckBox: checkImageCheckBox, ImageRadio: checkImageRadio, Upload: checkUpload
 }
+
+const RECOMMENDED_TYPES = new Set(['Radio', 'ScoreRadio'])
 
 const PersonalityQuestionEdit: React.FC = observer(() => {
   const { modelCode } = useParams<{ modelCode: string; answercnt: string }>()
   const showContainerRef = useRef<HTMLInputElement>(null)
-  const { currentStepIndex, handleStepChange } = useEditorFlow(personalityEditorFlowConfig, personalityModelStore.modelCode || modelCode)
+  const flowCtx = buildPersonalityFlowContext(personalityModelStore)
+  const editorFlow = useEditorFlow(personalityEditorFlowConfig, personalityModelStore.modelCode || modelCode, flowCtx)
 
   useEffect(() => {
     personalityModelStore.setCurrentStep('edit-questions')
-    personalityModelStore.initEditor(modelCode).catch(() => {
-      message.error('加载人格测评题目失败')
-    })
+    personalityModelStore.initEditor(modelCode).catch(() => message.error('加载人格测评题目失败'))
   }, [modelCode])
 
   const verifyQuestionSheet = (questions: IQuestion[]): boolean => {
@@ -63,6 +60,9 @@ const PersonalityQuestionEdit: React.FC = observer(() => {
       const question = questions[index]
       const checker = (checkMap as any)[question.type]
       if (checker && !checker(question as any, index)) return false
+      if (!RECOMMENDED_TYPES.has(question.type)) {
+        message.warning(`题目「${question.title || question.code}」题型 ${question.type} 可能不适合人格因子映射`)
+      }
     }
     return true
   }
@@ -78,13 +78,13 @@ const PersonalityQuestionEdit: React.FC = observer(() => {
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
     if (status === 'success') {
       message.success('问题保存成功')
-      personalityModelStore.nextStep()
+      editorFlow.goStep('set-routing')
     } else {
-      message.error(`问题更新失败 -- ${error?.errmsg || error?.message || error}`)
+      message.error(getApiErrorMessage(error, '问题更新失败'))
     }
   }
 
-  const showToBottom = () => {
+  const scrollToBottom = () => {
     if (showContainerRef.current) {
       showContainerRef.current.scroll(0, showContainerRef.current.scrollHeight)
     }
@@ -95,16 +95,19 @@ const PersonalityQuestionEdit: React.FC = observer(() => {
       beforeSubmit={() => verifyQuestionSheet(personalityModelStore.questions)}
       submitFn={handleSave}
       afterSubmit={handleAfterSubmit}
-      footerButtons={['backToList', 'break', 'saveToNext']}
-      nextUrl={`/personality/routing/${modelCode}`}
+      footerButtons={personalityModelStore.canEdit ? ['backToList', 'break', 'saveToNext'] : ['backToList']}
       steps={PERSONALITY_STEPS}
-      currentStep={currentStepIndex}
-      onStepChange={handleStepChange}
+      currentStep={editorFlow.currentStepIndex}
+      onStepChange={editorFlow.handleStepChange}
       themeClass="personality-page-theme"
     >
       <div className="personality-question-edit personality-page-theme">
+        {needsRepublishHint({ status: personalityModelStore.status }) ? (
+          <Alert type="info" showIcon style={{ marginBottom: 16 }}
+            message="保存后需重新发布才会影响 C 端" />
+        ) : null}
         <DndProvider backend={HTML5Backend}>
-          <QuestionCreate showToBottom={showToBottom} store={personalityModelStore} />
+          <QuestionCreate showToBottom={scrollToBottom} store={personalityModelStore} />
           <QuestionShow showContainerRef={showContainerRef} store={personalityModelStore} />
           <QuestionSetting store={personalityModelStore} />
         </DndProvider>

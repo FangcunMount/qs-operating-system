@@ -1,5 +1,6 @@
 import { assessmentModelApi } from './assessmentModel'
 import { del, get, post, put } from '../qsServer'
+import { PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT } from '@/models/assessmentModel'
 
 jest.mock('../qsServer', () => ({
   del: jest.fn(() => Promise.resolve([null, { data: {} }])),
@@ -26,8 +27,10 @@ describe('assessmentModelApi', () => {
   })
 
   it('keeps assessment model backend routes stable', async () => {
-    await assessmentModelApi.listAssessmentModels({ kind: 'personality', status: 'draft' })
-    await assessmentModelApi.createAssessmentModel({ title: '人格', kind: 'personality' })
+    await assessmentModelApi.listAssessmentModels({ kind: 'personality', status: 'draft', sub_kind: 'typology' })
+    await assessmentModelApi.createAssessmentModel({
+      title: '人格', kind: 'personality', sub_kind: 'typology', algorithm: 'mbti'
+    })
     await assessmentModelApi.getAssessmentModel('m1')
     await assessmentModelApi.updateAssessmentModelBasicInfo('m1', { title: '人格 v2' })
     await assessmentModelApi.updateAssessmentModelQuestionnaire('m1', { questionnaire_code: 'q1' })
@@ -35,9 +38,9 @@ describe('assessmentModelApi', () => {
     await assessmentModelApi.saveAssessmentModelDefinition('m1', {
       kind: 'personality',
       sub_kind: 'typology',
-      algorithm: 'typology_v1',
-      payload_format: 'personality_payload_v1',
-      payload: {}
+      algorithm: 'mbti',
+      payload_format: PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT,
+      payload: { factor_graph: {}, decision: { kind: 'mbti' }, outcome_mapping: { outcomes: [] }, report: { kind: 'default' } }
     })
     await assessmentModelApi.publishAssessmentModel('m1')
     await assessmentModelApi.unpublishAssessmentModel('m1')
@@ -48,8 +51,12 @@ describe('assessmentModelApi', () => {
     await assessmentModelApi.validateAssessmentModel('m1')
     await assessmentModelApi.deleteAssessmentModel('m1')
 
-    expect(getMock).toHaveBeenNthCalledWith(1, '/assessment-models', { kind: 'personality', status: 'draft' })
-    expect(postMock).toHaveBeenNthCalledWith(1, '/assessment-models', { title: '人格', kind: 'personality' })
+    expect(getMock).toHaveBeenNthCalledWith(1, '/assessment-models', {
+      kind: 'personality', status: 'draft', sub_kind: 'typology'
+    })
+    expect(postMock).toHaveBeenNthCalledWith(1, '/assessment-models', {
+      title: '人格', kind: 'personality', sub_kind: 'typology', algorithm: 'mbti'
+    })
     expect(getMock).toHaveBeenNthCalledWith(2, '/assessment-models/m1')
     expect(putMock).toHaveBeenNthCalledWith(1, '/assessment-models/m1/basic-info', { title: '人格 v2' })
     expect(putMock).toHaveBeenNthCalledWith(2, '/assessment-models/m1/questionnaire', { questionnaire_code: 'q1' })
@@ -66,27 +73,34 @@ describe('assessmentModelApi', () => {
 
   it('normalizes list responses for pages', async () => {
     getMock.mockResolvedValueOnce([null, {
-      code: 0,
-      message: 'ok',
+      code: 0, message: 'ok',
       data: {
         list: [{ code: 'm1', title: '人格', desc: 'desc', status: 'published', tags: ['a'] }],
-        pagenum: '2',
-        pagesize: '20',
-        total_count: '45'
+        pagenum: '2', pagesize: '20', total_count: '45'
       }
     }])
-
     const [, res] = await assessmentModelApi.listAssessmentModels()
-
     expect(res?.data.models[0]).toMatchObject({
-      code: 'm1',
-      title: '人格',
-      description: 'desc',
-      status: 'published',
-      tags: ['a']
+      code: 'm1', title: '人格', description: 'desc', status: 'published', tags: ['a']
     })
     expect(res?.data.page).toBe(2)
     expect(res?.data.page_size).toBe(20)
     expect(res?.data.total_count).toBe(45)
+  })
+
+  it('normalizes validation and qrcode responses', async () => {
+    postMock.mockResolvedValueOnce([null, { data: { valid: false, errors: ['缺因子'] } }])
+    getMock.mockResolvedValueOnce([null, { data: { code: 'm1', qrcode_url: 'http://qr', url: 'http://entry' } }])
+
+    const [, validateRes] = await assessmentModelApi.validateAssessmentModel('m1')
+    const [, qrRes] = await assessmentModelApi.getAssessmentModelQRCode('m1')
+
+    expect(validateRes?.data).toEqual({
+      passed: false,
+      issues: [{ field: 'unknown', message: '缺因子' }]
+    })
+    expect(qrRes?.data).toMatchObject({
+      code: 'm1', qrcode_url: 'http://qr', entry_url: 'http://entry'
+    })
   })
 })

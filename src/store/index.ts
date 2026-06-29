@@ -11,7 +11,7 @@ import { subjectStore } from './subject'
 import { surveyStore } from './surveyStore'
 import { scaleStore } from './scaleStore'
 import { staffStore } from './staffStore'
-import { personalityModelStore } from './personalityModelStore'
+import { personalityModelStore } from './personality'
 
 // 单独导出各个 store（方便直接引用）
 export {

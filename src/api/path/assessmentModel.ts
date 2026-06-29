@@ -5,18 +5,26 @@ import {
   AssessmentModelDetail,
   AssessmentModelKind,
   AssessmentModelOptions,
+  AssessmentModelSubKind,
   AssessmentModelSummary,
   AssessmentModelValidationResult,
-  normalizeAssessmentModelDetail,
-  normalizeAssessmentModelOptions,
-  normalizeAssessmentModelSummary
+  AssessmentQRCodeResponse
 } from '@/models/assessmentModel'
+import {
+  normalizeAssessmentModelDetail,
+  normalizeAssessmentModelDefinition,
+  normalizeAssessmentModelOptions,
+  normalizeListResponse,
+  normalizeQRCodeResponse,
+  normalizeValidationResult
+} from '@/models/assessmentModel.mapper'
 
 export interface AssessmentModelListParams {
   kind?: AssessmentModelKind
   status?: string
   keyword?: string
   algorithm?: string
+  sub_kind?: AssessmentModelSubKind
   category?: string
   page?: number
   page_size?: number
@@ -30,11 +38,12 @@ export interface AssessmentModelListResponse {
 }
 
 export interface CreateAssessmentModelRequest {
+  code?: string
   title: string
   description?: string
   kind: AssessmentModelKind
-  sub_kind?: string
-  algorithm?: string
+  sub_kind: AssessmentModelSubKind
+  algorithm: string
   questionnaire_code?: string
   questionnaire_version?: string
   category?: string
@@ -65,22 +74,7 @@ export interface ApplyAssessmentModelCodesResponse {
   count: number
 }
 
-export interface AssessmentQRCodeResponse {
-  code: string
-  url?: string
-  qrcode_url?: string
-  qrcode?: string
-}
-
-const normalizeListResponse = (data: any): AssessmentModelListResponse => {
-  const list = data?.models || data?.list || data?.items || []
-  return {
-    models: Array.isArray(list) ? list.map(normalizeAssessmentModelSummary) : [],
-    page: Number(data?.page || data?.pagenum || 1),
-    page_size: Number(data?.page_size || data?.pagesize || 10),
-    total_count: Number(data?.total_count || data?.total || 0)
-  }
-}
+export type { AssessmentQRCodeResponse }
 
 const mapResponse = <T, U>(
   response: QSResponse<T> | undefined,
@@ -122,54 +116,61 @@ export async function updateAssessmentModelBasicInfo(
   return [err, mapResponse(res, normalizeAssessmentModelDetail)]
 }
 
-export function updateAssessmentModelQuestionnaire(
+export async function updateAssessmentModelQuestionnaire(
   code: string,
   data: UpdateAssessmentModelQuestionnaireRequest
 ): Promise<[any, QSResponse<AssessmentModelDetail> | undefined]> {
-  return put<AssessmentModelDetail>(`/assessment-models/${code}/questionnaire`, data)
+  const [err, res] = await put<any>(`/assessment-models/${code}/questionnaire`, data)
+  return [err, mapResponse(res, normalizeAssessmentModelDetail)]
 }
 
-export function getAssessmentModelDefinition(
+export async function getAssessmentModelDefinition(
   code: string
 ): Promise<[any, QSResponse<AssessmentModelDefinition> | undefined]> {
-  return get<AssessmentModelDefinition>(`/assessment-models/${code}/definition`)
+  const [err, res] = await get<any>(`/assessment-models/${code}/definition`)
+  return [err, mapResponse(res, normalizeAssessmentModelDefinition)]
 }
 
-export function saveAssessmentModelDefinition(
+export async function saveAssessmentModelDefinition(
   code: string,
   definition: AssessmentModelDefinition
 ): Promise<[any, QSResponse<AssessmentModelDefinition> | undefined]> {
-  return put<AssessmentModelDefinition>(`/assessment-models/${code}/definition`, definition)
+  const [err, res] = await put<any>(`/assessment-models/${code}/definition`, definition)
+  return [err, mapResponse(res, normalizeAssessmentModelDefinition)]
 }
 
-export function publishAssessmentModel(
+export async function publishAssessmentModel(
   code: string
 ): Promise<[any, QSResponse<AssessmentModelDetail> | undefined]> {
-  return post<AssessmentModelDetail>(`/assessment-models/${code}/publish`, undefined)
+  const [err, res] = await post<any>(`/assessment-models/${code}/publish`, undefined)
+  return [err, mapResponse(res, normalizeAssessmentModelDetail)]
 }
 
-export function unpublishAssessmentModel(
+export async function unpublishAssessmentModel(
   code: string
 ): Promise<[any, QSResponse<AssessmentModelDetail> | undefined]> {
-  return post<AssessmentModelDetail>(`/assessment-models/${code}/unpublish`, undefined)
+  const [err, res] = await post<any>(`/assessment-models/${code}/unpublish`, undefined)
+  return [err, mapResponse(res, normalizeAssessmentModelDetail)]
 }
 
-export function archiveAssessmentModel(
+export async function archiveAssessmentModel(
   code: string
 ): Promise<[any, QSResponse<AssessmentModelDetail> | undefined]> {
-  return post<AssessmentModelDetail>(`/assessment-models/${code}/archive`, undefined)
+  const [err, res] = await post<any>(`/assessment-models/${code}/archive`, undefined)
+  return [err, mapResponse(res, normalizeAssessmentModelDetail)]
 }
 
-export function deleteAssessmentModel(
+export async function deleteAssessmentModel(
   code: string
 ): Promise<[any, QSResponse<unknown> | undefined]> {
   return del<unknown>(`/assessment-models/${code}`)
 }
 
-export function getAssessmentModelQRCode(
+export async function getAssessmentModelQRCode(
   code: string
 ): Promise<[any, QSResponse<AssessmentQRCodeResponse> | undefined]> {
-  return get<AssessmentQRCodeResponse>(`/assessment-models/${code}/qrcode`)
+  const [err, res] = await get<any>(`/assessment-models/${code}/qrcode`)
+  return [err, mapResponse(res, normalizeQRCodeResponse)]
 }
 
 export async function getAssessmentModelOptions(
@@ -189,10 +190,11 @@ export function applyAssessmentModelCodes(
   })
 }
 
-export function validateAssessmentModel(
+export async function validateAssessmentModel(
   code: string
 ): Promise<[any, QSResponse<AssessmentModelValidationResult> | undefined]> {
-  return post<AssessmentModelValidationResult>(`/assessment-models/${code}/validate`, undefined)
+  const [err, res] = await post<any>(`/assessment-models/${code}/validate`, undefined)
+  return [err, mapResponse(res, normalizeValidationResult)]
 }
 
 export const assessmentModelApi = {

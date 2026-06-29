@@ -18,3 +18,14 @@ export function extractErrorMessage(error: unknown, fallback = '请求失败'): 
   const message = candidates.find((item) => typeof item === 'string' && item.trim())
   return message ? String(message).trim() : fallback
 }
+
+export function getApiErrorMessage(error: any, fallback = '操作失败'): string {
+  if (!error) return fallback
+  if (typeof error === 'string') return error
+  const extracted = extractErrorMessage(error, '')
+  if (extracted) return extracted
+  if (error.validation?.issues?.length) {
+    return error.validation.issues.map((i: { message: string }) => i.message).join('；')
+  }
+  return fallback
+}

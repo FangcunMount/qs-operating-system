@@ -1,31 +1,34 @@
 import React, { useEffect, useState } from 'react'
-import { message } from 'antd'
+import { Alert, message } from 'antd'
 import { observer } from 'mobx-react-lite'
 import { useParams } from 'react-router'
 import BaseLayout from '@/components/layout/BaseLayout'
 import ShowControllerEditor from '@/components/showController/ShowControllerEditor'
 import { IQuestion, IQuestionShowController } from '@/models/question'
 import { personalityModelStore } from '@/store'
-import { PERSONALITY_STEPS, personalityEditorFlowConfig, useEditorFlow } from '@/utils/editorFlow'
+import { getApiErrorMessage } from '@/utils/apiError'
+import {
+  buildPersonalityFlowContext,
+  PERSONALITY_STEPS,
+  personalityEditorFlowConfig,
+  useEditorFlow
+} from '@/utils/editorFlow'
 import '@/pages/survey/question-routing/index.scss'
 import '../index.scss'
 
 const EmptyState: React.FC = () => (
-  <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
-    暂无题目，请先在上一步添加题目
-  </div>
+  <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>暂无题目，请先在上一步添加题目</div>
 )
 
 const PersonalityQuestionRouting: React.FC = observer(() => {
   const { modelCode } = useParams<{ modelCode: string }>()
   const [editingQuestionCode, setEditingQuestionCode] = useState<string | null>(null)
-  const { currentStepIndex, handleStepChange } = useEditorFlow(personalityEditorFlowConfig, personalityModelStore.modelCode || modelCode)
+  const flowCtx = buildPersonalityFlowContext(personalityModelStore)
+  const editorFlow = useEditorFlow(personalityEditorFlowConfig, personalityModelStore.modelCode || modelCode, flowCtx)
 
   useEffect(() => {
     personalityModelStore.setCurrentStep('set-routing')
-    personalityModelStore.initEditor(modelCode).catch(() => {
-      message.error('加载人格测评路由失败')
-    })
+    personalityModelStore.initEditor(modelCode).catch(() => message.error('加载人格测评路由失败'))
   }, [modelCode])
 
   const getShowController = (code: string): IQuestionShowController | undefined =>
@@ -35,24 +38,21 @@ const PersonalityQuestionRouting: React.FC = observer(() => {
   const unconfiguredQuestions: IQuestion[] = []
   personalityModelStore.questions.forEach((question) => {
     const controller = getShowController(question.code)
-    if (controller) {
-      configuredQuestions.push({ question, showController: controller })
-    } else {
-      unconfiguredQuestions.push(question)
-    }
+    if (controller) configuredQuestions.push({ question, showController: controller })
+    else unconfiguredQuestions.push(question)
   })
 
   const handleSave = async () => {
     if (personalityModelStore.questions.length === 0) throw new Error('请先添加问题')
-    await personalityModelStore.saveQuestionList({ persist: true })
-    personalityModelStore.setCurrentStep('edit-definition')
+    await personalityModelStore.saveRouting()
   }
 
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
     if (status === 'success') {
       message.success('路由设置已保存成功')
+      editorFlow.goStep('edit-definition')
     } else {
-      message.error(`路由设置保存失败 -- ${error?.errmsg || error?.message || error}`)
+      message.error(getApiErrorMessage(error, '路由设置保存失败'))
     }
   }
 
@@ -60,14 +60,15 @@ const PersonalityQuestionRouting: React.FC = observer(() => {
     <BaseLayout
       submitFn={handleSave}
       afterSubmit={handleAfterSubmit}
-      footerButtons={['backToList', 'break', 'saveToNext']}
-      nextUrl={`/personality/definition/${modelCode}`}
+      footerButtons={personalityModelStore.canEdit ? ['backToList', 'break', 'saveToNext'] : ['backToList']}
       steps={PERSONALITY_STEPS}
-      currentStep={currentStepIndex}
-      onStepChange={handleStepChange}
+      currentStep={editorFlow.currentStepIndex}
+      onStepChange={editorFlow.handleStepChange}
       themeClass="personality-page-theme"
     >
       <div className="personality-routing-shell personality-page-theme">
+        <Alert type="warning" showIcon style={{ marginBottom: 16 }}
+          message="跳题路由可能影响因子完整性，请确认显隐规则不会跳过关键计分题" />
         <div className="qs-router-container personality-page-theme">
           {personalityModelStore.questions.length === 0 ? (
             <EmptyState />
