@@ -12,7 +12,7 @@ import {
   personalityEditorFlowConfig,
   useEditorFlow
 } from '@/utils/editorFlow'
-import { needsRepublishHint } from '@/utils/personalityPermissions'
+import RepublishHint from '@/components/personality/RepublishHint'
 import '../index.scss'
 
 const { TextArea } = Input
@@ -119,10 +119,10 @@ const PersonalityBasicInfo: React.FC = observer(() => {
       themeClass="personality-page-theme"
     >
       <div className="personality-form-shell personality-page-theme">
-        {needsRepublishHint({ status: personalityModelStore.status }) ? (
-          <Alert type="info" showIcon style={{ marginBottom: 16, maxWidth: 860 }}
-            message="该模型已发布，修改后需重新发布才会影响 C 端" />
-        ) : null}
+        <RepublishHint
+          status={personalityModelStore.status}
+          message="该模型已发布，修改后需重新发布才会影响 C 端"
+        />
         {personalityModelStore.isArchived ? (
           <Alert type="warning" showIcon style={{ marginBottom: 16, maxWidth: 860 }}
             message="归档模型仅可查看，不可编辑" />

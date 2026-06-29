@@ -41,6 +41,36 @@
   border-radius: 8px;
 }
 
+.personality-question-edit-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 120px);
+  background: #f5f7f8;
+}
+
+.personality-republish-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: #e6f4ff;
+  border: 1px solid #91caff;
+  color: #0958d9;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.personality-form-shell .personality-republish-hint {
+  margin: 0 0 12px;
+  max-width: 860px;
+}
+
+.personality-question-edit-shell > .personality-republish-hint {
+  margin: 12px 32px 0;
+}
+
 .personality-question-edit {
   display: grid;
   grid-template-columns: 220px minmax(360px, 1fr) 360px;

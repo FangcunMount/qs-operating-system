@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { Alert, message } from 'antd'
+import { message } from 'antd'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { observer } from 'mobx-react-lite'
@@ -17,7 +17,7 @@ import {
   personalityEditorFlowConfig,
   useEditorFlow
 } from '@/utils/editorFlow'
-import { needsRepublishHint } from '@/utils/personalityPermissions'
+import RepublishHint from '@/components/personality/RepublishHint'
 import { checkText } from '@/components/questionEdit/widget/text/Setting'
 import { checkRadio } from '@/components/questionEdit/widget/radio/Setting'
 import { checkSection } from '@/components/questionEdit/widget/section/Setting'
@@ -101,16 +101,15 @@ const PersonalityQuestionEdit: React.FC = observer(() => {
       onStepChange={editorFlow.handleStepChange}
       themeClass="personality-page-theme"
     >
-      <div className="personality-question-edit personality-page-theme">
-        {needsRepublishHint({ status: personalityModelStore.status }) ? (
-          <Alert type="info" showIcon style={{ marginBottom: 16 }}
-            message="保存后需重新发布才会影响 C 端" />
-        ) : null}
-        <DndProvider backend={HTML5Backend}>
-          <QuestionCreate showToBottom={scrollToBottom} store={personalityModelStore} />
-          <QuestionShow showContainerRef={showContainerRef} store={personalityModelStore} />
-          <QuestionSetting store={personalityModelStore} />
-        </DndProvider>
+      <div className="personality-question-edit-shell personality-page-theme">
+        <RepublishHint status={personalityModelStore.status} />
+        <div className="qs-question-edit-container personality-page-theme">
+          <DndProvider backend={HTML5Backend}>
+            <QuestionCreate showToBottom={scrollToBottom} store={personalityModelStore} />
+            <QuestionShow showContainerRef={showContainerRef} store={personalityModelStore} />
+            <QuestionSetting store={personalityModelStore} />
+          </DndProvider>
+        </div>
       </div>
     </BaseLayout>
   )
