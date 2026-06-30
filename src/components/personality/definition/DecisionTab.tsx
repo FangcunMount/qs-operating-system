@@ -1,7 +1,10 @@
 import React from 'react'
 import { Input, InputNumber, Select } from 'antd'
 import type { PersonalityTypologyRuntimeSpec } from '@/models/assessmentModel'
-import { getPersonalityDecisionOptions } from '@/constants/personalityScope'
+import {
+  getPersonalityDecisionOptions,
+  normalizeDecisionKindForAlgorithm
+} from '@/constants/personalityScope'
 
 interface Props {
   spec: PersonalityTypologyRuntimeSpec
@@ -11,6 +14,7 @@ interface Props {
 
 const DecisionTab: React.FC<Props> = ({ spec, algorithm, onChange }) => {
   const options = getPersonalityDecisionOptions(algorithm)
+  const decisionKind = normalizeDecisionKindForAlgorithm(algorithm, spec.decision?.kind)
 
   const updateDecision = (patch: Record<string, unknown>) => {
     onChange({
@@ -24,7 +28,7 @@ const DecisionTab: React.FC<Props> = ({ spec, algorithm, onChange }) => {
       <div>
         <div style={{ marginBottom: 8 }}>决策类型</div>
         <Select
-          value={spec.decision?.kind}
+          value={decisionKind}
           style={{ width: '100%' }}
           options={options}
           onChange={(v) => updateDecision({ kind: v })}

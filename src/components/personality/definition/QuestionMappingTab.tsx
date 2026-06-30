@@ -13,8 +13,8 @@ interface Props {
 const QuestionMappingTab: React.FC<Props> = ({ spec, questions, onChange }) => {
   const mappings = spec.factor_graph?.question_mappings || []
   const factorOptions = Object.values(spec.factor_graph?.factors || {}).map((f) => ({
-    value: f.code || f.id,
-    label: f.name || f.code || f.id
+    value: f.id || f.code || '',
+    label: `${f.name || f.code || f.id}${f.code && f.code !== f.id ? ` (${f.code})` : ''}`
   }))
 
   const updateMapping = (index: number, patch: Partial<PersonalityQuestionMapping>) => {

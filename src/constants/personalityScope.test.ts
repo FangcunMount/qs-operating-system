@@ -4,6 +4,8 @@ import {
   getPersonalityDecisionOptions,
   isPersonalityTypologyAlgorithm,
   isPersonalityTypologyScopeModel,
+  normalizeDecisionKindForAlgorithm,
+  normalizeLegacyDecisionKind,
   normalizePersonalityAlgorithm,
   PERSONALITY_KIND,
   PERSONALITY_SUB_KIND,
@@ -36,11 +38,16 @@ describe('personalityScope', () => {
     expect(isPersonalityTypologyScopeModel({ kind: PERSONALITY_KIND, sub_kind: 'dimension_score' })).toBe(false)
   })
 
-  it('returns decision options only for personality algorithms', () => {
-    expect(getPersonalityDecisionOptions('mbti')).toEqual([{ value: 'pole_composition', label: 'MBTI 极性组合' }])
+  it('returns decision options aligned with backend algorithm kind', () => {
+    expect(getPersonalityDecisionOptions('mbti')).toEqual([{ value: 'mbti', label: 'MBTI 极性组合' }])
     expect(getPersonalityDecisionOptions('score_range')).toEqual(
       getPersonalityDecisionOptions('mbti')
     )
+  })
+
+  it('normalizes legacy decision kind aliases', () => {
+    expect(normalizeLegacyDecisionKind('pole_composition')).toBe('mbti')
+    expect(normalizeDecisionKindForAlgorithm('mbti', 'pole_composition')).toBe('mbti')
   })
 
   it('exports fixed personality typology algorithm list', () => {

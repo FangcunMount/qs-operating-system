@@ -1,4 +1,5 @@
 import type { IQuestion } from '@/models/question'
+import { normalizeLegacyDecisionKind } from '@/constants/personalityScope'
 
 export type AssessmentModelKind = 'personality' | 'behavior_ability'
 export type AssessmentModelStatus = 'draft' | 'published' | 'archived'
@@ -521,7 +522,7 @@ export const validateDecision = (
     algorithm &&
     algorithm !== 'custom_typology' &&
     decisionKind &&
-    decisionKind !== algorithm &&
+    normalizeLegacyDecisionKind(decisionKind) !== algorithm &&
     decisionKind !== 'custom_typology'
   ) {
     issues.push({ field: 'decision.kind', message: `决策类型 ${decisionKind} 与算法 ${algorithm} 不匹配` })

@@ -9,7 +9,7 @@ import {
   PersonalityQuestionMapping,
   PersonalityTypologyRuntimeSpec
 } from './assessmentModel'
-import { PERSONALITY_KIND, PERSONALITY_SUB_KIND } from '@/constants/personalityScope'
+import { normalizeLegacyDecisionKind, PERSONALITY_KIND, PERSONALITY_SUB_KIND } from '@/constants/personalityScope'
 
 const normalizeRuntimeSpecFactors = (
   factors: Record<string, PersonalityFactorSpec>
@@ -174,6 +174,10 @@ export const syncQuestionMappingsToContributions = (
 
   return {
     ...runtimeSpec,
+    decision: {
+      ...runtimeSpec.decision,
+      kind: normalizeLegacyDecisionKind(runtimeSpec.decision?.kind) || runtimeSpec.decision?.kind
+    },
     factor_graph: {
       ...runtimeSpec.factor_graph,
       factors: nextFactors,
@@ -212,7 +216,13 @@ export const normalizeRuntimeSpecForEdit = (
     spec = createEmptyRuntimeSpec(questionnaireCode, questionnaireVersion)
   }
 
-  return syncContributionsToQuestionMappings(spec)
+  return syncContributionsToQuestionMappings({
+    ...spec,
+    decision: {
+      ...spec.decision,
+      kind: normalizeLegacyDecisionKind(spec.decision?.kind) || spec.decision?.kind
+    }
+  })
 }
 
 export const normalizeRuntimeSpecForSave = (
