@@ -4,7 +4,12 @@ import { observer } from 'mobx-react-lite'
 import { useParams } from 'react-router'
 import BaseLayout from '@/components/layout/BaseLayout'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
-import { personalityModelEditorStore, personalityModelStore, personalityEditorWorkflowStore, getPersonalityEditorFlowContext } from '@/store/personality'
+import {
+  personalityModelEditorStore,
+  personalityModelStore,
+  personalityEditorWorkflowStore,
+  getPersonalityEditorFlowContext
+} from '@/store/personality'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
   PERSONALITY_STEPS,

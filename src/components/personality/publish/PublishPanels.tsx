@@ -2,10 +2,8 @@ import React from 'react'
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { Button, List, Tag, Typography } from 'antd'
 import type { AssessmentModelValidationIssue } from '@/models/assessmentModel'
-import {
-  resolveDefinitionIssueTab,
-  type DefinitionIssueTabKey
-} from '@/utils/personalityIssueRouter'
+import { resolveDefinitionIssueTab } from '@/utils/personalityIssueRouter'
+import type { DefinitionIssueTabKey } from '@/utils/personalityIssueRouter'
 
 export type { DefinitionIssueTabKey }
 
@@ -35,7 +33,7 @@ export const getIssueGroupKey = (field?: string): string => {
 }
 
 export const getIssueTargetTab = (field?: string): DefinitionIssueTabKey | undefined => {
-  const tab = resolveDefinitionIssueTab({ field, message: '' })
+  const tab = resolveDefinitionIssueTab({ field: field || '', message: '' })
   return tab === 'json' ? undefined : tab
 }
 

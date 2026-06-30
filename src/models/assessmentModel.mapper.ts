@@ -16,9 +16,7 @@ import {
   PersonalityPayloadV1,
   PersonalityTypologyRuntimeSpec
 } from './assessmentModel'
-import { normalizePreviewAnswersInput } from './assessmentModel.preview'
 import {
-  buildDefinitionForSave,
   normalizeAssessmentModelDefinitionPayload,
   normalizeRuntimeSpecForEdit
 } from './personalityRuntimeSpec.mapper'

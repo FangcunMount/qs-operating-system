@@ -1,4 +1,5 @@
 import { computed, makeObservable, reaction } from 'mobx'
+import type { EditorFlowContext } from '@/utils/editorFlow'
 import {
   PersonalityPayloadV1,
   PersonalityTypologyRuntimeSpec
@@ -168,7 +169,7 @@ export {
   personalityEditorWorkflowStore
 }
 
-export const getPersonalityEditorFlowContext = () => ({
+export const getPersonalityEditorFlowContext = (): EditorFlowContext => ({
   modelCode: personalityModelStore.modelCode,
   ...personalityEditorWorkflowStore.flowContext
 })

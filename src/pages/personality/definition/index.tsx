@@ -6,7 +6,12 @@ import BaseLayout from '@/components/layout/BaseLayout'
 import PersonalityDefinitionEditor, {
   PersonalityDefinitionTabKey
 } from '@/components/personality/definition/PersonalityDefinitionEditor'
-import { personalityDefinitionStore, personalityModelStore, personalityEditorWorkflowStore, getPersonalityEditorFlowContext } from '@/store/personality'
+import {
+  personalityDefinitionStore,
+  personalityModelStore,
+  personalityEditorWorkflowStore,
+  getPersonalityEditorFlowContext
+} from '@/store/personality'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
   PERSONALITY_STEPS,

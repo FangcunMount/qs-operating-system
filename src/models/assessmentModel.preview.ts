@@ -1,6 +1,13 @@
 import type { AssessmentModelPreviewAnswer } from './assessmentModel'
 import type { IQuestion } from './question'
 
+const getQuestionOptions = (question: IQuestion): Array<{ code?: string }> => {
+  if ('options' in question && Array.isArray(question.options)) {
+    return question.options
+  }
+  return []
+}
+
 export const normalizePreviewAnswersInput = (
   raw: unknown
 ): AssessmentModelPreviewAnswer[] => {
@@ -24,7 +31,7 @@ export const buildSamplePreviewAnswersObject = (
   questions: IQuestion[]
 ): Record<string, string> => Object.fromEntries(
   questions.map((question) => {
-    const firstOption = Array.isArray(question.options) ? question.options[0]?.code : undefined
+    const firstOption = getQuestionOptions(question)[0]?.code
     return [question.code, firstOption || '']
   })
 )
@@ -33,7 +40,7 @@ export const buildRandomPreviewAnswersObject = (
   questions: IQuestion[]
 ): Record<string, string> => Object.fromEntries(
   questions.map((question) => {
-    const options = Array.isArray(question.options) ? question.options : []
+    const options = getQuestionOptions(question)
     const picked = options.length > 0
       ? options[Math.floor(Math.random() * options.length)]?.code
       : undefined
