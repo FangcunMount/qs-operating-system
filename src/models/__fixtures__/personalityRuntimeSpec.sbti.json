@@ -57,8 +57,8 @@
   "special_rules": [],
   "outcome_mapping": {
     "outcomes": [
-      { "code": "BALANCED", "title": "平衡型", "summary": "共情与逻辑相对均衡" },
-      { "code": "EMPATHY", "title": "共情型", "summary": "更重视情绪理解" }
+      { "code": "BALANCED", "name": "平衡型", "summary": "共情与逻辑相对均衡" },
+      { "code": "EMPATHY", "name": "共情型", "summary": "更重视情绪理解" }
     ]
   },
   "report": {

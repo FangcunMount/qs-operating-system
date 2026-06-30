@@ -94,7 +94,7 @@ describe('personalityRuntimeSpec.mapper', () => {
         question_mappings: []
       },
       decision: { kind: 'mbti' },
-      outcome_mapping: { outcomes: [{ code: 'ENFP', title: 'ENFP' }] },
+      outcome_mapping: { outcomes: [{ code: 'ENFP', name: 'ENFP' }] },
       report: { kind: 'default' }
     }
 

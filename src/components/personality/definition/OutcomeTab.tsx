@@ -26,7 +26,7 @@ const OutcomeTab: React.FC<Props> = ({ spec, onChange, onApplyCode }) => {
       ...spec,
       outcome_mapping: {
         ...spec.outcome_mapping,
-        outcomes: [...outcomes, { code, title: '', summary: '', suggestions: [] }]
+        outcomes: [...outcomes, { code, name: '', summary: '', suggestions: [] }]
       }
     })
   }
@@ -54,7 +54,7 @@ const OutcomeTab: React.FC<Props> = ({ spec, onChange, onApplyCode }) => {
       )} />
       <Table.Column title="名称与文案" render={(_, r: PersonalityOutcome, i: number) => (
         <Space direction="vertical" style={{ width: '100%' }}>
-          <Input placeholder="结果名称" value={r.title} onChange={(e) => updateOutcome(i, { title: e.target.value })} />
+          <Input placeholder="结果名称" value={r.name} onChange={(e) => updateOutcome(i, { name: e.target.value })} />
           <Input placeholder="概述" value={r.summary} onChange={(e) => updateOutcome(i, { summary: e.target.value })} />
           <Input.TextArea rows={2} placeholder="描述" value={r.description} onChange={(e) => updateOutcome(i, { description: e.target.value })} />
           <Input.TextArea

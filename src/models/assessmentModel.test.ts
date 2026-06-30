@@ -77,8 +77,8 @@ describe('personality payload validation', () => {
         { code: 'd1', title: '内向' }
       ],
       outcomes: [
-        { code: 'o1', title: 'A 型' },
-        { code: 'o1', title: 'B 型' }
+        { code: 'o1', name: 'A 型' },
+        { code: 'o1', name: 'B 型' }
       ]
     }
     const issues = validatePersonalityPayload(payload, '{')
@@ -113,7 +113,7 @@ describe('assessment model mappers', () => {
     const payload = {
       ...createEmptyPersonalityPayload('q1'),
       dimensions: [{ code: 'E', title: '外向' }],
-      outcomes: [{ code: 'ENFP', title: '竞选者' }]
+      outcomes: [{ code: 'ENFP', name: '竞选者' }]
     }
     const spec = mapSimplePayloadToRuntimeSpec(payload)
     expect(spec.factor_graph.factors?.E).toMatchObject({ code: 'E', kind: 'leaf' })
@@ -130,7 +130,7 @@ describe('assessment model mappers', () => {
         question_mappings: [],
         roots: ['E']
       },
-      outcome_mapping: { outcomes: [{ code: 'ENFP', title: '竞选者' }] }
+      outcome_mapping: { outcomes: [{ code: 'ENFP', name: '竞选者' }] }
     }
     const { payload } = mapRuntimeSpecToFormState(spec)
     expect(payload.dimensions).toHaveLength(1)
@@ -145,7 +145,7 @@ describe('assessment model mappers', () => {
       payload_format: 'personality_payload_v1',
       payload: {
         dimensions: [{ code: 'E', title: '外向' }],
-        outcomes: [{ code: 'ENFP', title: '竞选者' }],
+        outcomes: [{ code: 'ENFP', name: '竞选者' }],
         questionnaire_binding: { questionnaire_code: 'q1' },
         scoring_rules: {}
       }
@@ -167,7 +167,7 @@ describe('assessment model mappers', () => {
           { question_code: 'q_e_1', factor_code: 'E', sign: 1, option_scores: { yes: 1 } }
         ]
       },
-      outcome_mapping: { outcomes: [{ code: 'ENFP', title: '竞选者' }] }
+      outcome_mapping: { outcomes: [{ code: 'ENFP', name: '竞选者' }] }
     }
 
     const def = buildDefinitionForSave(createEmptyRuntimeSpecDefinition(), spec, 'typology', 'mbti')
@@ -215,7 +215,7 @@ describe('runtime spec validation', () => {
         roots: ['E'],
         question_mappings: []
       },
-      outcome_mapping: { outcomes: [{ code: 'ENFP', title: '竞选者' }] }
+      outcome_mapping: { outcomes: [{ code: 'ENFP', name: '竞选者' }] }
     }
 
     expect(validateRuntimeSpec(spec).map((issue) => issue.field)).toContain('question_mapping')
@@ -244,7 +244,7 @@ describe('runtime spec validation', () => {
         roots: ['composite'],
         question_mappings: []
       },
-      outcome_mapping: { outcomes: [{ code: 'O1', title: '结果' }] }
+      outcome_mapping: { outcomes: [{ code: 'O1', name: '结果' }] }
     }
 
     const issues = validateFactorGraph(spec)
@@ -274,7 +274,7 @@ describe('runtime spec validation', () => {
         roots: ['parent'],
         question_mappings: []
       },
-      outcome_mapping: { outcomes: [{ code: 'O1', title: '结果' }] }
+      outcome_mapping: { outcomes: [{ code: 'O1', name: '结果' }] }
     }
 
     expect(validateFactorGraph(spec)).toContainEqual(expect.objectContaining({
@@ -306,7 +306,7 @@ describe('runtime spec validation', () => {
           { question_code: 'missing', factor_code: 'f1', option_scores: { A: Number.NaN } }
         ]
       },
-      outcome_mapping: { outcomes: [{ code: 'O1', title: '结果' }] }
+      outcome_mapping: { outcomes: [{ code: 'O1', name: '结果' }] }
     }
 
     const issues = validateQuestionMappings(spec, questions)
@@ -327,7 +327,7 @@ describe('runtime spec validation', () => {
         question_mappings: [{ question_code: 'q1', factor_code: 'f1', option_scores: { A: 1 } }]
       },
       decision: { kind: 'sbti', fallback_code: 'missing' },
-      outcome_mapping: { outcomes: [{ code: 'O1', title: '结果' }] },
+      outcome_mapping: { outcomes: [{ code: 'O1', name: '结果' }] },
       report: { kind: 'default' }
     }
 

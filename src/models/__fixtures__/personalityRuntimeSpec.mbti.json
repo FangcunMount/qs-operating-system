@@ -46,8 +46,8 @@
   "special_rules": [],
   "outcome_mapping": {
     "outcomes": [
-      { "code": "ENFP", "title": "竞选者", "summary": "热情开放" },
-      { "code": "ISTJ", "title": "物流师", "summary": "稳定谨慎" }
+      { "code": "ENFP", "name": "竞选者", "summary": "热情开放" },
+      { "code": "ISTJ", "name": "物流师", "summary": "稳定谨慎" }
     ]
   },
   "report": {

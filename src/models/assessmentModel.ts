@@ -61,7 +61,7 @@ export interface PersonalityDimension {
 
 export interface PersonalityOutcome {
   code: string
-  title: string
+  name: string
   summary?: string
   description?: string
   suggestions?: string[]
@@ -293,7 +293,7 @@ export const validatePersonalityPayload = (
     issues.push({ field: 'dimensions', message: '维度 code 和名称不能为空' })
   }
 
-  if (payload.outcomes.some((item) => !item.code || !item.title)) {
+  if (payload.outcomes.some((item) => !item.code || !item.name)) {
     issues.push({ field: 'outcomes', message: '结果类型 code 和名称不能为空' })
   }
 
@@ -542,7 +542,7 @@ export const validateOutcomeMapping = (
     issues.push({ field: 'outcome_mapping', message: '至少需要配置一个结果类型' })
   }
 
-  if (outcomes.some((item) => !item.code || !item.title)) {
+  if (outcomes.some((item) => !item.code || !item.name)) {
     issues.push({ field: 'outcome_mapping', message: '结果类型 code 和名称不能为空' })
   }
 
