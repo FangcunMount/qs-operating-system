@@ -2,8 +2,12 @@ import React from 'react'
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { Button, List, Tag, Typography } from 'antd'
 import type { AssessmentModelValidationIssue } from '@/models/assessmentModel'
+import {
+  resolveDefinitionIssueTab,
+  type DefinitionIssueTabKey
+} from '@/utils/personalityIssueRouter'
 
-export type DefinitionIssueTabKey = 'factor_graph' | 'question_mapping' | 'decision' | 'outcome' | 'report'
+export type { DefinitionIssueTabKey }
 
 const FIELD_GROUPS: Record<string, string> = {
   basic_info: '基本信息',
@@ -31,13 +35,8 @@ export const getIssueGroupKey = (field?: string): string => {
 }
 
 export const getIssueTargetTab = (field?: string): DefinitionIssueTabKey | undefined => {
-  const key = getIssueGroupKey(field)
-  if (key === 'factor_graph') return 'factor_graph'
-  if (key === 'question_mapping') return 'question_mapping'
-  if (key === 'decision') return 'decision'
-  if (key === 'outcome' || key === 'outcome_mapping' || key === 'outcomes') return 'outcome'
-  if (key === 'report') return 'report'
-  return undefined
+  const tab = resolveDefinitionIssueTab({ field, message: '' })
+  return tab === 'json' ? undefined : tab
 }
 
 const groupIssues = (issues: AssessmentModelValidationIssue[]) => {

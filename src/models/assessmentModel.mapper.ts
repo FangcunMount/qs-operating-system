@@ -11,14 +11,30 @@ import {
   AssessmentModelValidationIssue,
   AssessmentModelValidationResult,
   AssessmentQRCodeResponse,
-  LEGACY_PERSONALITY_PAYLOAD_FORMAT,
   PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT,
   PersonalityDimension,
   PersonalityPayloadV1,
-  PersonalityFactorSpec,
-  PersonalityQuestionContribution,
   PersonalityTypologyRuntimeSpec
 } from './assessmentModel'
+import { normalizePreviewAnswersInput } from './assessmentModel.preview'
+import {
+  buildDefinitionForSave,
+  normalizeAssessmentModelDefinitionPayload,
+  normalizeRuntimeSpecForEdit
+} from './personalityRuntimeSpec.mapper'
+
+export {
+  buildDefinitionForSave,
+  createEmptyRuntimeSpec,
+  isLegacyPayload,
+  isRuntimeSpecPayload,
+  mapSimplePayloadToRuntimeSpec,
+  normalizeRuntimeSpecForEdit,
+  normalizeRuntimeSpecForSave,
+  syncContributionsToQuestionMappings,
+  syncQuestionMappingsToContributions
+} from './personalityRuntimeSpec.mapper'
+export { normalizePreviewAnswersInput } from './assessmentModel.preview'
 
 const normalizeTags = (tags?: unknown): string[] => {
   if (!Array.isArray(tags)) return []
@@ -50,66 +66,6 @@ export const normalizeAssessmentModelDetail = (raw: Record<string, any>): Assess
   definition: raw?.definition ? normalizeAssessmentModelDefinition(raw.definition) : undefined
 })
 
-export const isLegacyPayload = (payload: unknown): payload is PersonalityPayloadV1 => {
-  if (!payload || typeof payload !== 'object') return false
-  const candidate = payload as Record<string, unknown>
-  return 'dimensions' in candidate && Array.isArray(candidate.dimensions)
-}
-
-export const isRuntimeSpecPayload = (payload: unknown): payload is PersonalityTypologyRuntimeSpec => {
-  if (!payload || typeof payload !== 'object') return false
-  return 'factor_graph' in (payload as Record<string, unknown>)
-}
-
-export const mapSimplePayloadToRuntimeSpec = (
-  payload: PersonalityPayloadV1
-): PersonalityTypologyRuntimeSpec => {
-  const dimensions: Record<string, PersonalityDimension> = {}
-  const factors: PersonalityTypologyRuntimeSpec['factor_graph']['factors'] = {}
-
-  payload.dimensions.forEach((dim) => {
-    dimensions[dim.code] = dim
-    factors[dim.code] = {
-      id: dim.code,
-      code: dim.code,
-      name: dim.title,
-      kind: 'leaf'
-    }
-  })
-
-  const scoringRules = payload.scoring_rules || {}
-  const decisionKind = typeof scoringRules.decision_kind === 'string'
-    ? scoringRules.decision_kind
-    : 'custom_typology'
-
-  return {
-    factor_graph: {
-      dimension_order: payload.dimensions.map((d) => d.code),
-      dimensions,
-      factors,
-      roots: payload.dimensions.map((d) => d.code),
-      question_mappings: Array.isArray(scoringRules.question_mappings)
-        ? scoringRules.question_mappings
-        : []
-    },
-    decision: {
-      kind: decisionKind,
-      ...(typeof scoringRules.decision === 'object' ? scoringRules.decision as Record<string, unknown> : {})
-    },
-    special_rules: Array.isArray(scoringRules.special_rules) ? scoringRules.special_rules : [],
-    outcome_mapping: {
-      outcomes: payload.outcomes,
-      mapping_rules: typeof scoringRules.outcome_mapping === 'object'
-        ? scoringRules.outcome_mapping as Record<string, unknown>
-        : undefined
-    },
-    report: typeof scoringRules.report === 'object' && scoringRules.report
-      ? scoringRules.report as PersonalityTypologyRuntimeSpec['report']
-      : { kind: 'default' },
-    questionnaire_binding: payload.questionnaire_binding
-  }
-}
-
 export const mapRuntimeSpecToFormState = (
   spec: PersonalityTypologyRuntimeSpec
 ): { payload: PersonalityPayloadV1; scoringRulesSource: string } => {
@@ -139,59 +95,12 @@ export const mapRuntimeSpecToFormState = (
   }
 }
 
+/** @deprecated use normalizeRuntimeSpecForEdit */
 export const normalizePayload = (
   raw: unknown,
   questionnaireCode = '',
   questionnaireVersion?: string
-): PersonalityTypologyRuntimeSpec => {
-  if (isRuntimeSpecPayload(raw)) {
-    const emptySpec = createEmptyRuntimeSpec(questionnaireCode, questionnaireVersion)
-    return {
-      ...emptySpec,
-      ...raw,
-      factor_graph: {
-        ...emptySpec.factor_graph,
-        ...raw.factor_graph,
-        factors: normalizeRuntimeSpecFactors(raw.factor_graph?.factors || {})
-      },
-      outcome_mapping: { ...(raw.outcome_mapping || {}), outcomes: raw.outcome_mapping?.outcomes || [] }
-    }
-  }
-  if (isLegacyPayload(raw)) {
-    return mapSimplePayloadToRuntimeSpec(raw)
-  }
-  return createEmptyRuntimeSpec(questionnaireCode, questionnaireVersion)
-}
-
-const normalizeRuntimeSpecFactors = (
-  factors: Record<string, PersonalityFactorSpec>
-): Record<string, PersonalityFactorSpec> => (
-  Object.entries(factors).reduce<Record<string, PersonalityFactorSpec>>((acc, [key, factor]) => {
-    const id = factor.id || key
-    acc[id] = { ...factor, id }
-    return acc
-  }, {})
-)
-
-const createEmptyRuntimeSpec = (
-  questionnaireCode = '',
-  questionnaireVersion?: string
-): PersonalityTypologyRuntimeSpec => ({
-  factor_graph: {
-    dimension_order: [],
-    dimensions: {},
-    question_mappings: [],
-    factors: {},
-    roots: []
-  },
-  decision: { kind: 'custom_typology' },
-  special_rules: [],
-  outcome_mapping: { outcomes: [] },
-  report: { kind: 'default' },
-  questionnaire_binding: questionnaireCode
-    ? { questionnaire_code: questionnaireCode, questionnaire_version: questionnaireVersion }
-    : undefined
-})
+): PersonalityTypologyRuntimeSpec => normalizeRuntimeSpecForEdit(raw, questionnaireCode, questionnaireVersion)
 
 export const normalizeAssessmentModelDefinition = (
   raw: Record<string, any>
@@ -201,15 +110,12 @@ export const normalizeAssessmentModelDefinition = (
   const questionnaireCode = binding?.questionnaire_code || ''
   const questionnaireVersion = binding?.questionnaire_version
 
-  let payload: PersonalityTypologyRuntimeSpec
-  if (payloadFormat === LEGACY_PERSONALITY_PAYLOAD_FORMAT || isLegacyPayload(raw?.payload)) {
-    payload = mapSimplePayloadToRuntimeSpec({
-      ...createEmptyLegacyPayload(questionnaireCode, questionnaireVersion),
-      ...(raw?.payload as PersonalityPayloadV1)
-    })
-  } else {
-    payload = normalizePayload(raw?.payload, questionnaireCode, questionnaireVersion)
-  }
+  const payload = normalizeAssessmentModelDefinitionPayload(
+    raw,
+    payloadFormat,
+    questionnaireCode,
+    questionnaireVersion
+  )
 
   return {
     kind: (raw?.kind || 'personality') as AssessmentModelKind,
@@ -219,16 +125,6 @@ export const normalizeAssessmentModelDefinition = (
     payload
   }
 }
-
-const createEmptyLegacyPayload = (
-  questionnaireCode = '',
-  questionnaireVersion?: string
-): PersonalityPayloadV1 => ({
-  dimensions: [],
-  outcomes: [],
-  questionnaire_binding: { questionnaire_code: questionnaireCode, questionnaire_version: questionnaireVersion },
-  scoring_rules: {}
-})
 
 export const normalizeAssessmentModelOptions = (raw: Record<string, any>): AssessmentModelOptions => ({
   algorithms: Array.isArray(raw?.algorithms) ? raw.algorithms : [],
@@ -269,6 +165,15 @@ export const normalizeQRCodeResponse = (raw: unknown): AssessmentQRCodeResponse 
   }
 }
 
+const asRecord = (value: unknown): Record<string, unknown> => (
+  value && typeof value === 'object' ? value as Record<string, unknown> : {}
+)
+
+const normalizeIssues = (raw: unknown): AssessmentModelValidationIssue[] => {
+  if (Array.isArray(raw)) return raw as AssessmentModelValidationIssue[]
+  return normalizeValidationResult({ passed: true, issues: raw }).issues
+}
+
 const normalizeReportSections = (raw: unknown): AssessmentModelPreviewReportSection[] => {
   if (!Array.isArray(raw)) return []
   return raw.map((section, index) => {
@@ -283,22 +188,15 @@ const normalizeReportSections = (raw: unknown): AssessmentModelPreviewReportSect
 }
 
 export const normalizePreviewReportResponse = (raw: unknown): AssessmentModelPreviewReportResponse => {
-  const data = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
-  const report = data.report && typeof data.report === 'object'
-    ? data.report as Record<string, unknown>
-    : {}
-  const result = data.result && typeof data.result === 'object'
-    ? data.result as Record<string, unknown>
-    : {}
+  const data = asRecord(raw)
+  const report = asRecord(data.report)
+  const result = asRecord(data.result)
   return {
-    outcome: (data.outcome || result.outcome || report.outcome) as Record<string, unknown> | undefined,
-    score_detail: (data.score_detail || data.score_details || data.scores || result.score_detail) as
+    outcome: asRecord(data.outcome || result.outcome || report.outcome),
+    score_detail: (data.score_detail || data.scores || result.score_detail) as
       Record<string, unknown> | unknown[] | undefined,
     report_sections: normalizeReportSections(data.report_sections || data.sections || report.sections),
-    issues: normalizeValidationResult({
-      passed: data.passed ?? data.valid ?? true,
-      issues: data.issues || data.errors || []
-    }).issues,
+    issues: normalizeIssues(data.issues || data.errors),
     raw: data
   }
 }
@@ -318,71 +216,5 @@ export const normalizeListResponse = (data: unknown): AssessmentModelListRespons
     page: Number(raw.page || raw.pagenum || 1),
     page_size: Number(raw.page_size || raw.pagesize || 10),
     total_count: Number(raw.total_count || raw.total || 0)
-  }
-}
-
-export const buildDefinitionForSave = (
-  _definition: AssessmentModelDefinition,
-  runtimeSpec: PersonalityTypologyRuntimeSpec,
-  subKind: string,
-  algorithm: string
-): AssessmentModelDefinition<PersonalityTypologyRuntimeSpec> => ({
-  kind: 'personality',
-  sub_kind: subKind,
-  algorithm,
-  payload_format: PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT,
-  payload: normalizeRuntimeSpecForSave(runtimeSpec)
-})
-
-const normalizeRuntimeSpecForSave = (
-  runtimeSpec: PersonalityTypologyRuntimeSpec
-): PersonalityTypologyRuntimeSpec => {
-  const rawFactors = runtimeSpec.factor_graph?.factors || {}
-  const nextFactors: Record<string, PersonalityFactorSpec> = {}
-
-  Object.entries(rawFactors).forEach(([key, factor]) => {
-    const id = factor.id || key
-    nextFactors[id] = {
-      ...factor,
-      id,
-      children: factor.children || [],
-      contributions: factor.contributions || []
-    }
-  })
-
-  ;(runtimeSpec.factor_graph?.question_mappings || []).forEach((mapping) => {
-    if (!mapping.question_code || !mapping.factor_code) return
-    const matchedKey = Object.keys(nextFactors).find((key) => {
-      const factor = nextFactors[key]
-      return key === mapping.factor_code || factor.id === mapping.factor_code || factor.code === mapping.factor_code
-    })
-    if (!matchedKey) return
-
-    const contribution: PersonalityQuestionContribution = {
-      question_code: mapping.question_code,
-      sign: mapping.sign,
-      option_scores: mapping.option_scores
-    }
-    const factor = nextFactors[matchedKey]
-    const existing = factor.contributions || []
-    const nextContributions = existing.filter((item) => item.question_code !== mapping.question_code)
-    nextFactors[matchedKey] = {
-      ...factor,
-      contributions: [...nextContributions, contribution]
-    }
-  })
-
-  return {
-    ...runtimeSpec,
-    factor_graph: {
-      ...runtimeSpec.factor_graph,
-      factors: nextFactors,
-      roots: (runtimeSpec.factor_graph?.roots || []).map((root) => {
-        const matched = nextFactors[root]
-        if (matched) return matched.id
-        const found = Object.values(nextFactors).find((factor) => factor.code === root)
-        return found?.id || root
-      })
-    }
   }
 }

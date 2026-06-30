@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Alert, message } from 'antd'
+import { Alert, Button, message, Space } from 'antd'
 import { observer } from 'mobx-react-lite'
 import { useLocation, useParams } from 'react-router'
 import BaseLayout from '@/components/layout/BaseLayout'
@@ -54,6 +54,16 @@ const PersonalityDefinition: React.FC = observer(() => {
     message.success('模型定义草稿已保存')
   }
 
+  const handleLocalValidate = () => {
+    personalityModelStore.setRuntimeSpec(spec)
+    const issues = personalityModelStore.validateDefinitionLocal()
+    if (issues.length === 0) {
+      message.success('本地校验通过')
+    } else {
+      message.warning(`本地校验发现 ${issues.length} 项问题`)
+    }
+  }
+
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
     if (status === 'success') {
       message.success('模型定义保存成功')
@@ -80,6 +90,12 @@ const PersonalityDefinition: React.FC = observer(() => {
       themeClass="personality-page-theme"
     >
       <div className="personality-definition-shell personality-page-theme">
+        <Space style={{ marginBottom: 16 }}>
+          {personalityModelStore.canEdit ? (
+            <Button onClick={handleLocalValidate}>本地校验</Button>
+          ) : null}
+        </Space>
+
         {personalityDefinitionStore.validationIssues.length > 0 ? (
           <Alert type="error" showIcon style={{ marginBottom: 16 }} message="定义校验未通过"
             description={personalityDefinitionStore.validationIssues.map((i) => `${i.field}: ${i.message}`).join('；')} />

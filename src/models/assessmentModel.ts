@@ -176,9 +176,15 @@ export interface AssessmentQRCodeResponse {
   entry_url: string
 }
 
+export interface AssessmentModelPreviewAnswer {
+  question_code: string
+  value?: unknown
+  score?: number
+}
+
 export interface AssessmentModelPreviewReportRequest {
-  answers: Record<string, unknown>
-  testee_profile?: Record<string, unknown>
+  answers: AssessmentModelPreviewAnswer[]
+  sample_id?: string
 }
 
 export interface AssessmentModelPreviewReportSection {

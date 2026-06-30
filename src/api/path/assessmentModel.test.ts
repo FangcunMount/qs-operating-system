@@ -49,7 +49,9 @@ describe('assessmentModelApi', () => {
     await assessmentModelApi.getAssessmentModelOptions('personality')
     await assessmentModelApi.applyAssessmentModelCodes('m1', { target: 'dimension' })
     await assessmentModelApi.validateAssessmentModel('m1')
-    await assessmentModelApi.previewAssessmentModelReport('m1', { answers: { q1: 'A' } })
+    await assessmentModelApi.previewAssessmentModelReport('m1', {
+      answers: [{ question_code: 'q1', value: 'A' }]
+    })
     await assessmentModelApi.deleteAssessmentModel('m1')
 
     expect(getMock).toHaveBeenNthCalledWith(1, '/assessment-models', {
@@ -72,7 +74,9 @@ describe('assessmentModelApi', () => {
     expect(getMock).toHaveBeenNthCalledWith(5, '/assessment-models/options', { kind: 'personality' })
     expect(postMock).toHaveBeenNthCalledWith(5, '/assessment-models/m1/codes/apply', { target: 'dimension', count: 1 })
     expect(postMock).toHaveBeenNthCalledWith(6, '/assessment-models/m1/validate', undefined)
-    expect(postMock).toHaveBeenNthCalledWith(7, '/assessment-models/m1/preview-report', { answers: { q1: 'A' } })
+    expect(postMock).toHaveBeenNthCalledWith(7, '/assessment-models/m1/preview-report', {
+      answers: [{ question_code: 'q1', value: 'A' }]
+    })
     expect(delMock).toHaveBeenCalledWith('/assessment-models/m1')
   })
 
@@ -119,7 +123,9 @@ describe('assessmentModelApi', () => {
       }
     }])
 
-    const [, res] = await assessmentModelApi.previewAssessmentModelReport('m1', { answers: { q1: 'A' } })
+    const [, res] = await assessmentModelApi.previewAssessmentModelReport('m1', {
+      answers: [{ question_code: 'q1', value: 'A' }]
+    })
 
     expect(res?.data).toMatchObject({
       outcome: { code: 'ENFP' },

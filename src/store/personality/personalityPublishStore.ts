@@ -7,6 +7,7 @@ import {
   AssessmentModelValidationResult,
   AssessmentQRCodeResponse
 } from '@/models/assessmentModel'
+import { normalizePreviewAnswersInput } from '@/models/assessmentModel.preview'
 
 export class PersonalityPublishStore {
   validation: AssessmentModelValidationResult | null = null
@@ -107,9 +108,21 @@ export class PersonalityPublishStore {
     modelCode: string,
     request: AssessmentModelPreviewReportRequest
   ): Promise<AssessmentModelPreviewReportResponse | null> {
+    const answers = normalizePreviewAnswersInput(request.answers)
+    if (answers.filter((item) => item.question_code).length === 0) {
+      const error = new Error('模拟答案不能为空')
+      runInAction(() => {
+        this.setPreviewReport(null)
+        this.setPreviewError(error.message)
+      })
+      throw error
+    }
     this.previewing = true
     try {
-      const [err, res] = await assessmentModelApi.previewAssessmentModelReport(modelCode, request)
+      const [err, res] = await assessmentModelApi.previewAssessmentModelReport(modelCode, {
+        ...request,
+        answers
+      })
       if (err) throw err
       runInAction(() => {
         this.setPreviewReport(res?.data || null)

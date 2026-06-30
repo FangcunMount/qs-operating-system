@@ -10,6 +10,7 @@ import {
   validateRuntimeSpec
 } from '@/models/assessmentModel'
 import { buildDefinitionForSave } from '@/models/assessmentModel.mapper'
+import { validateRuntimeSpecShape } from '@/components/personality/definition/PersonalityDefinitionEditor'
 import type { IQuestion } from '@/models/question'
 
 const hasBlockingIssues = (issues: AssessmentModelValidationIssue[]) =>
@@ -77,8 +78,23 @@ export class PersonalityDefinitionStore {
     })
   }
 
-  validateLocal(): AssessmentModelValidationIssue[] {
-    return this.validateLocalForPublish()
+  validateLocal(questions: IQuestion[] = [], algorithm?: string): AssessmentModelValidationIssue[] {
+    return this.validateLocalForPublish(questions, algorithm)
+  }
+
+  validateDraftDefinition(): AssessmentModelValidationIssue[] {
+    const issues: AssessmentModelValidationIssue[] = []
+    const spec = this.runtimeSpec
+    if (!spec || typeof spec !== 'object') {
+      issues.push({ field: 'payload', message: 'RuntimeSpec 必须是对象' })
+    } else if (!validateRuntimeSpecShape(spec)) {
+      issues.push({
+        field: 'payload',
+        message: 'RuntimeSpec 缺少必要字段 factor_graph / decision / outcome_mapping / report'
+      })
+    }
+    this.setValidationIssues(issues)
+    return issues
   }
 
   validateLocalForPublish(questions: IQuestion[] = [], algorithm?: string): AssessmentModelValidationIssue[] {
@@ -99,6 +115,10 @@ export class PersonalityDefinitionStore {
     subKind: string,
     algorithm: string
   ): Promise<AssessmentModelDefinition<PersonalityTypologyRuntimeSpec> | undefined> {
+    const issues = this.validateDraftDefinition()
+    if (hasBlockingIssues(issues)) {
+      throw new Error(issues.find((issue) => issue.level !== 'warning')?.message || '模型定义草稿校验失败')
+    }
     const nextDefinition = buildDefinitionForSave(this.definition, this.runtimeSpec, subKind, algorithm)
     const [err, res] = await assessmentModelApi.saveAssessmentModelDefinition(modelCode, nextDefinition)
     if (err) throw err
@@ -128,6 +148,10 @@ export class PersonalityDefinitionStore {
     questions: IQuestion[] = []
   ): Promise<AssessmentModelDefinition<PersonalityTypologyRuntimeSpec> | undefined> {
     return this.saveAndValidateDefinition(modelCode, subKind, algorithm, questions)
+  }
+
+  async validateDefinitionOnly(questions: IQuestion[] = [], algorithm?: string): Promise<AssessmentModelValidationIssue[]> {
+    return this.validateLocalForPublish(questions, algorithm)
   }
 }
 

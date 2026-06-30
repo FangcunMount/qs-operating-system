@@ -236,6 +236,10 @@ class PersonalityModelStoreFacade {
     await personalityDefinitionStore.saveDraftDefinition(this.modelCode, this.subKind, this.algorithm)
   }
 
+  async validateDefinitionLocal() {
+    return personalityDefinitionStore.validateLocal(this.questions, this.algorithm)
+  }
+
   async saveAndValidateDefinition() {
     if (!this.modelCode) throw new Error('人格测评编码不能为空')
     await personalityDefinitionStore.saveAndValidateDefinition(
