@@ -130,6 +130,17 @@ describe('personalityRuntimeSpec.mapper', () => {
     }])
   })
 
+  it('aligns decision.kind with model algorithm on edit', () => {
+    const edited = normalizeRuntimeSpecForEdit({
+      decision: { kind: 'trait_profile' },
+      factor_graph: { factors: { f1: { id: 'f1', kind: 'leaf' } } },
+      outcome_mapping: { outcomes: [{ code: 'O1', title: '结果' }] },
+      report: { kind: 'default' }
+    }, '', undefined, 'mbti')
+    expect(edited.decision?.kind).toBe('pole_composition')
+    expect(edited.outcome_mapping?.outcomes).toEqual([{ code: 'O1', name: '结果' }])
+  })
+
   it('roundtrips mappings through sync helpers', () => {
     const original = mbtiRuntimeSpec as PersonalityTypologyRuntimeSpec
     const saved = syncQuestionMappingsToContributions(original)

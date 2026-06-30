@@ -108,17 +108,20 @@ export const normalizeAssessmentModelDefinition = (
   const questionnaireCode = binding?.questionnaire_code || ''
   const questionnaireVersion = binding?.questionnaire_version
 
+  const algorithm = String(raw?.algorithm || 'mbti')
+
   const payload = normalizeAssessmentModelDefinitionPayload(
     raw,
     payloadFormat,
     questionnaireCode,
-    questionnaireVersion
+    questionnaireVersion,
+    algorithm
   )
 
   return {
     kind: (raw?.kind || 'personality') as AssessmentModelKind,
     sub_kind: (raw?.sub_kind || 'typology') as AssessmentModelSubKind,
-    algorithm: String(raw?.algorithm || 'mbti'),
+    algorithm,
     payload_format: PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT,
     payload
   }

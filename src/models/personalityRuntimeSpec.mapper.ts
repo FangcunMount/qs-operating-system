@@ -3,13 +3,38 @@ import {
   LEGACY_PERSONALITY_PAYLOAD_FORMAT,
   PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT,
   PersonalityDimension,
+  PersonalityOutcome,
   PersonalityFactorSpec,
   PersonalityPayloadV1,
   PersonalityQuestionContribution,
   PersonalityQuestionMapping,
   PersonalityTypologyRuntimeSpec
 } from './assessmentModel'
-import { normalizeLegacyDecisionKind, PERSONALITY_KIND, PERSONALITY_SUB_KIND } from '@/constants/personalityScope'
+import { normalizeDecisionKindForAlgorithm, normalizeLegacyDecisionKind, PERSONALITY_KIND, PERSONALITY_SUB_KIND } from '@/constants/personalityScope'
+
+const normalizeOutcomes = (outcomes: unknown): PersonalityOutcome[] => {
+  if (!Array.isArray(outcomes)) return []
+  return outcomes.map((item) => {
+    const raw = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>
+    return {
+      code: String(raw.code || ''),
+      name: String(raw.name || raw.title || ''),
+      summary: raw.summary === undefined ? undefined : String(raw.summary),
+      description: raw.description === undefined ? undefined : String(raw.description),
+      suggestions: Array.isArray(raw.suggestions)
+        ? raw.suggestions.filter((suggestion): suggestion is string => typeof suggestion === 'string')
+        : undefined,
+      rarity_label: raw.rarity_label === undefined ? undefined : String(raw.rarity_label),
+      percentile: raw.percentile === undefined ? undefined : String(raw.percentile)
+    }
+  })
+}
+
+const resolveDecisionKind = (kind: string | undefined, algorithm?: string): string => {
+  const normalizedKind = normalizeLegacyDecisionKind(kind) || kind || 'custom_typology'
+  if (!algorithm) return normalizedKind
+  return normalizeDecisionKindForAlgorithm(algorithm, normalizedKind)
+}
 
 const normalizeQuestionMappings = (mappings: unknown): PersonalityQuestionMapping[] => {
   if (!Array.isArray(mappings)) return []
@@ -100,7 +125,7 @@ export const mapSimplePayloadToRuntimeSpec = (
     },
     special_rules: Array.isArray(scoringRules.special_rules) ? scoringRules.special_rules : [],
     outcome_mapping: {
-      outcomes: payload.outcomes,
+      outcomes: normalizeOutcomes(payload.outcomes),
       mapping_rules: typeof scoringRules.outcome_mapping === 'object'
         ? scoringRules.outcome_mapping as Record<string, unknown>
         : undefined
@@ -187,7 +212,7 @@ export const syncQuestionMappingsToContributions = (
     ...runtimeSpec,
     decision: {
       ...runtimeSpec.decision,
-      kind: normalizeLegacyDecisionKind(runtimeSpec.decision?.kind) || runtimeSpec.decision?.kind
+      kind: resolveDecisionKind(runtimeSpec.decision?.kind),
     },
     factor_graph: {
       ...runtimeSpec.factor_graph,
@@ -205,11 +230,17 @@ export const syncQuestionMappingsToContributions = (
 export const normalizeRuntimeSpecForEdit = (
   raw: unknown,
   questionnaireCode = '',
-  questionnaireVersion?: string
+  questionnaireVersion?: string,
+  algorithm?: string
 ): PersonalityTypologyRuntimeSpec => {
   let spec: PersonalityTypologyRuntimeSpec
 
   if (isRuntimeSpecPayload(raw)) {
+    const rawOutcomeMapping = (
+      raw.outcome_mapping && typeof raw.outcome_mapping === 'object'
+        ? raw.outcome_mapping
+        : {}
+    ) as Record<string, unknown>
     const emptySpec = createEmptyRuntimeSpec(questionnaireCode, questionnaireVersion)
     spec = {
       ...emptySpec,
@@ -220,7 +251,13 @@ export const normalizeRuntimeSpecForEdit = (
         factors: normalizeRuntimeSpecFactors(raw.factor_graph?.factors || {}),
         question_mappings: normalizeQuestionMappings(raw.factor_graph?.question_mappings)
       },
-      outcome_mapping: { ...(raw.outcome_mapping || {}), outcomes: raw.outcome_mapping?.outcomes || [] }
+      outcome_mapping: {
+        ...rawOutcomeMapping,
+        outcomes: normalizeOutcomes(
+          raw.outcome_mapping?.outcomes
+          ?? (raw as unknown as Record<string, unknown>).outcomes
+        )
+      }
     }
   } else if (isLegacyPayload(raw)) {
     spec = mapSimplePayloadToRuntimeSpec(raw)
@@ -232,14 +269,29 @@ export const normalizeRuntimeSpecForEdit = (
     ...spec,
     decision: {
       ...spec.decision,
-      kind: normalizeLegacyDecisionKind(spec.decision?.kind) || spec.decision?.kind
+      kind: resolveDecisionKind(spec.decision?.kind, algorithm)
     }
   })
 }
 
 export const normalizeRuntimeSpecForSave = (
-  runtimeSpec: PersonalityTypologyRuntimeSpec
-): PersonalityTypologyRuntimeSpec => syncQuestionMappingsToContributions(runtimeSpec)
+  runtimeSpec: PersonalityTypologyRuntimeSpec,
+  algorithm?: string
+): PersonalityTypologyRuntimeSpec => {
+  const synced = syncQuestionMappingsToContributions(runtimeSpec)
+  if (!algorithm) return synced
+  return {
+    ...synced,
+    decision: {
+      ...synced.decision,
+      kind: resolveDecisionKind(synced.decision?.kind, algorithm)
+    },
+    outcome_mapping: {
+      ...synced.outcome_mapping,
+      outcomes: normalizeOutcomes(synced.outcome_mapping?.outcomes)
+    }
+  }
+}
 
 export const buildDefinitionForSave = (
   _definition: AssessmentModelDefinition,
@@ -251,7 +303,7 @@ export const buildDefinitionForSave = (
   sub_kind: PERSONALITY_SUB_KIND,
   algorithm,
   payload_format: PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT,
-  payload: normalizeRuntimeSpecForSave(runtimeSpec)
+  payload: normalizeRuntimeSpecForSave(runtimeSpec, algorithm)
 })
 
 const createEmptyLegacyPayload = (
@@ -268,13 +320,14 @@ export const normalizeAssessmentModelDefinitionPayload = (
   raw: Record<string, unknown>,
   payloadFormat: string,
   questionnaireCode: string,
-  questionnaireVersion?: string
+  questionnaireVersion?: string,
+  algorithm?: string
 ): PersonalityTypologyRuntimeSpec => {
   if (payloadFormat === LEGACY_PERSONALITY_PAYLOAD_FORMAT || isLegacyPayload(raw?.payload)) {
     return normalizeRuntimeSpecForEdit({
       ...createEmptyLegacyPayload(questionnaireCode, questionnaireVersion),
       ...(raw?.payload as PersonalityPayloadV1)
-    }, questionnaireCode, questionnaireVersion)
+    }, questionnaireCode, questionnaireVersion, algorithm)
   }
-  return normalizeRuntimeSpecForEdit(raw?.payload, questionnaireCode, questionnaireVersion)
+  return normalizeRuntimeSpecForEdit(raw?.payload, questionnaireCode, questionnaireVersion, algorithm)
 }

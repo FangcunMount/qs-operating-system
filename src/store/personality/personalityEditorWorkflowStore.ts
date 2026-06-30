@@ -12,6 +12,7 @@ import type { EditorFlowContext } from '@/utils/editorFlow'
 import {
   PERSONALITY_SUB_KIND
 } from '@/constants/personalityScope'
+import { normalizeAssessmentModelDefinition } from '@/models/assessmentModel.mapper'
 import { personalityDraftStorage } from './personalityDraftStorage'
 import { personalityDefinitionStore } from './personalityDefinitionStore'
 import { personalityModelEditorStore } from './personalityModelEditorStore'
@@ -159,7 +160,10 @@ export class PersonalityEditorWorkflowStore {
         personalityModelEditorStore.bindQuestionnaireCode = data.editor.bindQuestionnaireCode || ''
         personalityModelEditorStore.customModelCode = data.editor.customModelCode || ''
         personalityQuestionnaireStore.restore(data.questionnaire)
-        personalityDefinitionStore.definition = data.definition
+        personalityDefinitionStore.definition = normalizeAssessmentModelDefinition({
+          ...data.definition,
+          algorithm: data.editor.algorithm || data.definition?.algorithm || 'mbti'
+        }) as AssessmentModelDefinition<PersonalityTypologyRuntimeSpec>
         this.currentStep = data.currentStep || 'create'
       })
       return true
