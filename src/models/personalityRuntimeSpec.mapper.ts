@@ -11,6 +11,19 @@ import {
 } from './assessmentModel'
 import { normalizeLegacyDecisionKind, PERSONALITY_KIND, PERSONALITY_SUB_KIND } from '@/constants/personalityScope'
 
+const normalizeQuestionMappings = (mappings: unknown): PersonalityQuestionMapping[] => {
+  if (!Array.isArray(mappings)) return []
+  return mappings.map((item) => {
+    const raw = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>
+    return {
+      question_code: String(raw.question_code || ''),
+      factor_code: String(raw.factor_code || raw.dimension || ''),
+      sign: raw.sign as PersonalityQuestionMapping['sign'],
+      option_scores: raw.option_scores as PersonalityQuestionMapping['option_scores']
+    }
+  })
+}
+
 const normalizeRuntimeSpecFactors = (
   factors: Record<string, PersonalityFactorSpec>
 ): Record<string, PersonalityFactorSpec> => (
@@ -79,12 +92,10 @@ export const mapSimplePayloadToRuntimeSpec = (
       dimensions,
       factors,
       roots: payload.dimensions.map((d) => d.code),
-      question_mappings: Array.isArray(scoringRules.question_mappings)
-        ? scoringRules.question_mappings
-        : []
+      question_mappings: normalizeQuestionMappings(scoringRules.question_mappings)
     },
     decision: {
-      kind: decisionKind,
+      kind: normalizeLegacyDecisionKind(decisionKind) || decisionKind,
       ...(typeof scoringRules.decision === 'object' ? scoringRules.decision as Record<string, unknown> : {})
     },
     special_rules: Array.isArray(scoringRules.special_rules) ? scoringRules.special_rules : [],
@@ -206,7 +217,8 @@ export const normalizeRuntimeSpecForEdit = (
       factor_graph: {
         ...emptySpec.factor_graph,
         ...raw.factor_graph,
-        factors: normalizeRuntimeSpecFactors(raw.factor_graph?.factors || {})
+        factors: normalizeRuntimeSpecFactors(raw.factor_graph?.factors || {}),
+        question_mappings: normalizeQuestionMappings(raw.factor_graph?.question_mappings)
       },
       outcome_mapping: { ...(raw.outcome_mapping || {}), outcomes: raw.outcome_mapping?.outcomes || [] }
     }

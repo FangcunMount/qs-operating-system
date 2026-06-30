@@ -19,25 +19,37 @@ export const DEFAULT_PERSONALITY_ALGORITHM_OPTIONS: Array<{ value: PersonalityTy
   { value: 'custom_typology', label: '自定义类型' }
 ]
 
-export const LEGACY_DECISION_KIND_ALIASES: Record<string, PersonalityTypologyAlgorithm> = {
-  pole_composition: 'mbti',
-  nearest_pattern: 'sbti',
-  trait_profile: 'bigfive'
+export const ALGORITHM_TO_DECISION_KIND: Record<PersonalityTypologyAlgorithm, string> = {
+  mbti: 'pole_composition',
+  sbti: 'nearest_pattern',
+  bigfive: 'trait_profile',
+  custom_typology: 'custom_typology'
 }
+
+const CANONICAL_DECISION_KINDS = new Set(Object.values(ALGORITHM_TO_DECISION_KIND))
 
 export const PERSONALITY_DECISION_OPTIONS: Record<
   PersonalityTypologyAlgorithm,
   Array<{ value: string; label: string }>
 > = {
-  mbti: [{ value: 'mbti', label: 'MBTI 极性组合' }],
-  sbti: [{ value: 'sbti', label: 'SBTI 最近模式' }],
-  bigfive: [{ value: 'bigfive', label: 'BigFive 特质画像' }],
+  mbti: [{ value: 'pole_composition', label: 'MBTI 极性组合' }],
+  sbti: [{ value: 'nearest_pattern', label: 'SBTI 最近模式' }],
+  bigfive: [{ value: 'trait_profile', label: 'BigFive 特质画像' }],
   custom_typology: [{ value: 'custom_typology', label: '自定义类型' }]
 }
 
 export const normalizeLegacyDecisionKind = (decisionKind?: string): string | undefined => {
   if (!decisionKind) return decisionKind
-  return LEGACY_DECISION_KIND_ALIASES[decisionKind] || decisionKind
+  if (CANONICAL_DECISION_KINDS.has(decisionKind)) return decisionKind
+  if (isPersonalityTypologyAlgorithm(decisionKind)) {
+    return ALGORITHM_TO_DECISION_KIND[decisionKind]
+  }
+  return decisionKind
+}
+
+export const getDecisionKindForAlgorithm = (algorithm?: string): string => {
+  const normalized = normalizePersonalityAlgorithm(algorithm)
+  return ALGORITHM_TO_DECISION_KIND[normalized]
 }
 
 export const normalizeDecisionKindForAlgorithm = (
@@ -45,11 +57,14 @@ export const normalizeDecisionKindForAlgorithm = (
   decisionKind?: string
 ): string => {
   const normalizedAlgorithm = normalizePersonalityAlgorithm(algorithm)
+  const expectedKind = ALGORITHM_TO_DECISION_KIND[normalizedAlgorithm]
   const normalizedKind = normalizeLegacyDecisionKind(decisionKind)
-  if (!normalizedKind || normalizedKind === 'custom_typology') return normalizedKind || normalizedAlgorithm
-  if (normalizedKind === normalizedAlgorithm) return normalizedKind
+  if (!normalizedKind || normalizedKind === 'custom_typology') {
+    return normalizedKind || expectedKind
+  }
+  if (normalizedKind === expectedKind) return normalizedKind
   if (normalizedAlgorithm === 'custom_typology') return normalizedKind
-  return normalizedAlgorithm
+  return expectedKind
 }
 
 export const isPersonalityTypologyAlgorithm = (

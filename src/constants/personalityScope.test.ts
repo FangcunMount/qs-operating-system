@@ -39,15 +39,17 @@ describe('personalityScope', () => {
   })
 
   it('returns decision options aligned with backend algorithm kind', () => {
-    expect(getPersonalityDecisionOptions('mbti')).toEqual([{ value: 'mbti', label: 'MBTI 极性组合' }])
+    expect(getPersonalityDecisionOptions('mbti')).toEqual([{ value: 'pole_composition', label: 'MBTI 极性组合' }])
     expect(getPersonalityDecisionOptions('score_range')).toEqual(
       getPersonalityDecisionOptions('mbti')
     )
   })
 
   it('normalizes legacy decision kind aliases', () => {
-    expect(normalizeLegacyDecisionKind('pole_composition')).toBe('mbti')
-    expect(normalizeDecisionKindForAlgorithm('mbti', 'pole_composition')).toBe('mbti')
+    expect(normalizeLegacyDecisionKind('mbti')).toBe('pole_composition')
+    expect(normalizeLegacyDecisionKind('pole_composition')).toBe('pole_composition')
+    expect(normalizeDecisionKindForAlgorithm('mbti', 'mbti')).toBe('pole_composition')
+    expect(normalizeDecisionKindForAlgorithm('mbti', 'pole_composition')).toBe('pole_composition')
   })
 
   it('exports fixed personality typology algorithm list', () => {

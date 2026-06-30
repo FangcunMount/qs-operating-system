@@ -40,7 +40,7 @@ describe('assessmentModelApi', () => {
       sub_kind: 'typology',
       algorithm: 'mbti',
       payload_format: PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT,
-      payload: { factor_graph: {}, decision: { kind: 'mbti' }, outcome_mapping: { outcomes: [] }, report: { kind: 'default' } }
+      payload: { factor_graph: {}, decision: { kind: 'pole_composition' }, outcome_mapping: { outcomes: [] }, report: { kind: 'default' } }
     })
     await assessmentModelApi.publishAssessmentModel('m1')
     await assessmentModelApi.unpublishAssessmentModel('m1')

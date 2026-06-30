@@ -522,7 +522,7 @@ export const validateDecision = (
     algorithm &&
     algorithm !== 'custom_typology' &&
     decisionKind &&
-    normalizeLegacyDecisionKind(decisionKind) !== algorithm &&
+    normalizeLegacyDecisionKind(decisionKind) !== normalizeLegacyDecisionKind(algorithm) &&
     decisionKind !== 'custom_typology'
   ) {
     issues.push({ field: 'decision.kind', message: `决策类型 ${decisionKind} 与算法 ${algorithm} 不匹配` })

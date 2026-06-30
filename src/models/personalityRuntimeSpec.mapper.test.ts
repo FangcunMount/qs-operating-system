@@ -93,7 +93,7 @@ describe('personalityRuntimeSpec.mapper', () => {
         roots: ['f1'],
         question_mappings: []
       },
-      decision: { kind: 'mbti' },
+      decision: { kind: 'pole_composition' },
       outcome_mapping: { outcomes: [{ code: 'ENFP', name: 'ENFP' }] },
       report: { kind: 'default' }
     }
@@ -110,6 +110,23 @@ describe('personalityRuntimeSpec.mapper', () => {
       question_code: 'q1',
       sign: undefined,
       option_scores: { A: 1, B: 0 }
+    }])
+  })
+
+  it('normalizes legacy question_mappings.dimension to factor_code', () => {
+    const edited = normalizeRuntimeSpecForEdit({
+      factor_graph: {
+        factors: { f1: { id: 'f1', kind: 'leaf' } },
+        question_mappings: [{ question_code: 'q1', dimension: 'f1', option_scores: { A: 1 } }]
+      },
+      decision: { kind: 'pole_composition' },
+      outcome_mapping: { outcomes: [{ code: 'O1', name: '结果' }] },
+      report: { kind: 'default' }
+    })
+    expect(edited.factor_graph?.question_mappings).toEqual([{
+      question_code: 'q1',
+      factor_code: 'f1',
+      option_scores: { A: 1 }
     }])
   })
 

@@ -40,7 +40,7 @@
     ]
   },
   "decision": {
-    "kind": "mbti",
+    "kind": "pole_composition",
     "fallback_code": "ENFP"
   },
   "special_rules": [],

@@ -326,7 +326,7 @@ describe('runtime spec validation', () => {
         roots: ['f1'],
         question_mappings: [{ question_code: 'q1', factor_code: 'f1', option_scores: { A: 1 } }]
       },
-      decision: { kind: 'sbti', fallback_code: 'missing' },
+      decision: { kind: 'nearest_pattern', fallback_code: 'missing' },
       outcome_mapping: { outcomes: [{ code: 'O1', name: '结果' }] },
       report: { kind: 'default' }
     }

@@ -51,7 +51,7 @@
     ]
   },
   "decision": {
-    "kind": "sbti",
+    "kind": "nearest_pattern",
     "fallback_code": "BALANCED"
   },
   "special_rules": [],
