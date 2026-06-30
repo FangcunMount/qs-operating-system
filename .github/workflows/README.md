@@ -26,8 +26,9 @@ Makefile 入口：
 
 | 名称 | 用途 |
 | ---- | ---- |
-| `SVRB_HOST`, `SVRB_USERNAME`, `SVRB_SSH_KEY`, `SVRB_SSH_PORT` | serverB SSH |
+| `SVRB_SSH_KEY` | serverB SSH 私钥 |
 | `SVRB_SUDO_PASSWORD` | 远端 sudo（可选，已配 NOPASSWD 可省略） |
+| `SVRB_HOST`, `SVRB_USERNAME`, `SVRB_SSH_PORT` | serverB 连接信息（Variables） |
 | `ALIYUN_ACR_*` | ACR 推送与 ServerD pull |
 | `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` | 镜像备份 |
 | `QS_DEPLOY_RUNNER=serverd` | deploy job 跑在 ServerD |
