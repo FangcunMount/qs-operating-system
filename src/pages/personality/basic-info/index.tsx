@@ -50,6 +50,7 @@ const PersonalityBasicInfo: React.FC = observer(() => {
     const init = async () => {
       try {
         await personalityEditorWorkflowStore.initEditor(modelCode)
+        const isNewModel = !personalityModelStore.modelCode
         form.setFieldsValue({
           customModelCode: personalityModelEditorStore.customModelCode,
           title: personalityModelStore.title,
@@ -58,8 +59,10 @@ const PersonalityBasicInfo: React.FC = observer(() => {
           subKind: PERSONALITY_SUB_KIND,
           category: personalityModelStore.category || undefined,
           tags: personalityModelStore.tags,
-          questionnaireStrategy: personalityModelEditorStore.questionnaireStrategy,
-          bindQuestionnaireCode: personalityModelEditorStore.bindQuestionnaireCode
+          ...(isNewModel ? {
+            questionnaireStrategy: personalityModelEditorStore.questionnaireStrategy,
+            bindQuestionnaireCode: personalityModelEditorStore.bindQuestionnaireCode
+          } : {})
         })
       } catch {
         message.error('加载人格测评失败')
@@ -85,8 +88,10 @@ const PersonalityBasicInfo: React.FC = observer(() => {
     personalityModelEditorStore.subKind = PERSONALITY_SUB_KIND
     personalityModelEditorStore.category = values.category || ''
     personalityModelEditorStore.tags = values.tags || []
-    personalityModelEditorStore.setQuestionnaireStrategy(values.questionnaireStrategy)
-    personalityModelEditorStore.bindQuestionnaireCode = values.bindQuestionnaireCode || ''
+    if (!personalityModelStore.modelCode) {
+      personalityModelEditorStore.setQuestionnaireStrategy(values.questionnaireStrategy)
+      personalityModelEditorStore.bindQuestionnaireCode = values.bindQuestionnaireCode || ''
+    }
     return personalityEditorWorkflowStore.saveBasicInfoAndQuestionnaire()
   }
 
@@ -161,21 +166,30 @@ const PersonalityBasicInfo: React.FC = observer(() => {
             <Form.Item name="tags" label="标签">
               <Select mode="tags" placeholder="输入标签后回车" />
             </Form.Item>
-            <Form.Item name="questionnaireStrategy" label="题目问卷策略" initialValue="create">
-              <Radio.Group>
-                <Radio value="create">创建新题目问卷</Radio>
-                <Radio value="bind">绑定已有问卷</Radio>
-                <Radio value="copy" disabled>复制已有问卷（待后端支持）</Radio>
-              </Radio.Group>
-            </Form.Item>
-            <Form.Item noStyle shouldUpdate={(p, c) => p.questionnaireStrategy !== c.questionnaireStrategy}>
-              {({ getFieldValue }) => getFieldValue('questionnaireStrategy') === 'bind' ? (
-                <Form.Item name="bindQuestionnaireCode" label="问卷编码"
-                  rules={[{ required: true, message: '请输入问卷编码' }]}>
-                  <Input placeholder="输入已有问卷 code" />
+            {personalityModelStore.modelCode ? (
+              <Form.Item label="题目问卷编码">
+                <Input value={personalityModelEditorStore.questionnaireCode || '—'} disabled />
+              </Form.Item>
+            ) : (
+              <>
+                <Form.Item name="questionnaireStrategy" label="题目问卷策略" initialValue="create">
+                  <Radio.Group>
+                    <Radio value="create">创建新题目问卷</Radio>
+                    <Radio value="bind">绑定已有问卷</Radio>
+                    <Radio value="copy" disabled>复制已有问卷（待后端支持）</Radio>
+                  </Radio.Group>
                 </Form.Item>
-              ) : null}
-            </Form.Item>
+                <Form.Item noStyle shouldUpdate={(p, c) => p.questionnaireStrategy !== c.questionnaireStrategy}>
+                  {({ getFieldValue }) => getFieldValue('questionnaireStrategy') === 'bind' ? (
+                    <Form.Item name="bindQuestionnaireCode" label="问卷编码"
+                      extra="仅支持绑定已发布状态的问卷"
+                      rules={[{ required: true, message: '请输入问卷编码' }]}>
+                      <Input placeholder="输入已有问卷 code" />
+                    </Form.Item>
+                  ) : null}
+                </Form.Item>
+              </>
+            )}
             {personalityModelStore.canEdit ? (
               <Button type="primary" onClick={handleInlineSave}>
                 保存并编辑题目

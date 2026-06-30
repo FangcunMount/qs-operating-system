@@ -172,10 +172,17 @@ export class PersonalityModelEditorStore {
     return version
   }
 
+  assertBindableQuestionnaireStatus(status?: string): void {
+    if (status === 'published') return
+    const statusLabel = status === 'draft' ? '草稿' : status === 'archived' ? '已归档' : status || '未知'
+    throw new Error(`绑定的问卷状态无效（当前：${statusLabel}），仅支持已发布问卷`)
+  }
+
   async resolveQuestionnaireCode(): Promise<{ code: string; version: string }> {
     if (this.questionnaireStrategy === 'bind' && this.bindQuestionnaireCode) {
       const [err, res] = await surveyApi.getSurvey(this.bindQuestionnaireCode)
       if (err) throw err
+      this.assertBindableQuestionnaireStatus(res?.data?.status)
       return {
         code: this.bindQuestionnaireCode,
         version: this.ensureQuestionnaireVersion(res?.data?.version)
@@ -210,6 +217,7 @@ export class PersonalityModelEditorStore {
   }
 
   async saveBasicInfo(): Promise<string> {
+    const previousQuestionnaireCode = this.questionnaireCode
     const { code: questionnaireCode, version: questionnaireVersion } = await this.resolveQuestionnaireCode()
 
     if (!this.modelCode) {
@@ -242,11 +250,14 @@ export class PersonalityModelEditorStore {
       })
       if (infoErr) throw infoErr
 
-      const [bindingErr] = await assessmentModelApi.updateAssessmentModelQuestionnaire(this.modelCode, {
-        questionnaire_code: questionnaireCode,
-        questionnaire_version: questionnaireVersion
-      })
-      if (bindingErr) throw bindingErr
+      const bindingChanged = questionnaireCode !== previousQuestionnaireCode
+      if (bindingChanged) {
+        const [bindingErr] = await assessmentModelApi.updateAssessmentModelQuestionnaire(this.modelCode, {
+          questionnaire_code: questionnaireCode,
+          questionnaire_version: questionnaireVersion
+        })
+        if (bindingErr) throw bindingErr
+      }
 
       if (infoRes?.data) {
         runInAction(() => {
@@ -265,7 +276,10 @@ export class PersonalityModelEditorStore {
 
   async bindQuestionnaire(code: string, version?: string): Promise<void> {
     if (!this.modelCode) throw new Error('人格测评编码不能为空')
-    const questionnaireVersion = this.ensureQuestionnaireVersion(version)
+    const [surveyErr, surveyRes] = await surveyApi.getSurvey(code)
+    if (surveyErr) throw surveyErr
+    this.assertBindableQuestionnaireStatus(surveyRes?.data?.status)
+    const questionnaireVersion = this.ensureQuestionnaireVersion(version ?? surveyRes?.data?.version)
     const [err] = await assessmentModelApi.updateAssessmentModelQuestionnaire(this.modelCode, {
       questionnaire_code: code,
       questionnaire_version: questionnaireVersion

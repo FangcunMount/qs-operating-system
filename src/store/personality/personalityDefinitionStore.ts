@@ -1,6 +1,10 @@
 import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
-import { mapRuntimeSpecToFormState } from '@/models/assessmentModel.mapper'
+import {
+  buildDefinitionForSave,
+  mapRuntimeSpecToFormState,
+  normalizeAssessmentModelDefinition
+} from '@/models/assessmentModel.mapper'
 import {
   AssessmentModelDefinition,
   AssessmentModelValidationIssue,
@@ -9,7 +13,6 @@ import {
   PersonalityTypologyRuntimeSpec,
   validateRuntimeSpec
 } from '@/models/assessmentModel'
-import { buildDefinitionForSave } from '@/models/assessmentModel.mapper'
 import { validateRuntimeSpecShape } from '@/components/personality/definition/PersonalityDefinitionEditor'
 import type { IQuestion } from '@/models/question'
 
@@ -27,6 +30,7 @@ export class PersonalityDefinitionStore {
       runtimeSpec: computed,
       payload: computed,
       reset: action,
+      restoreFromDraft: action,
       setRuntimeSpec: action,
       setValidationIssues: action
     })
@@ -44,6 +48,16 @@ export class PersonalityDefinitionStore {
   reset(questionnaireCode = '', questionnaireVersion?: string): void {
     this.definition = createEmptyPersonalityDefinition(questionnaireCode, questionnaireVersion)
     this.validationIssues = []
+  }
+
+  restoreFromDraft(
+    definition: AssessmentModelDefinition<PersonalityTypologyRuntimeSpec>,
+    algorithm?: string
+  ): void {
+    this.definition = normalizeAssessmentModelDefinition({
+      ...definition,
+      algorithm: algorithm || definition?.algorithm || 'mbti'
+    }) as AssessmentModelDefinition<PersonalityTypologyRuntimeSpec>
   }
 
   setRuntimeSpec(spec: PersonalityTypologyRuntimeSpec): void {
