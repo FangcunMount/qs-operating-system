@@ -1,6 +1,7 @@
 import React from 'react'
 import { Input, InputNumber, Select } from 'antd'
 import type { PersonalityTypologyRuntimeSpec } from '@/models/assessmentModel'
+import { getPersonalityDecisionOptions } from '@/constants/personalityScope'
 
 interface Props {
   spec: PersonalityTypologyRuntimeSpec
@@ -8,16 +9,8 @@ interface Props {
   onChange: (spec: PersonalityTypologyRuntimeSpec) => void
 }
 
-const decisionOptionsByAlgorithm: Record<string, Array<{ value: string; label: string }>> = {
-  mbti: [{ value: 'pole_composition', label: 'MBTI 极性组合' }],
-  sbti: [{ value: 'nearest_pattern', label: 'SBTI 最近模式' }],
-  bigfive: [{ value: 'trait_profile', label: 'BigFive 特质画像' }],
-  custom_typology: [{ value: 'custom_typology', label: '自定义类型' }],
-  score_range: [{ value: 'score_range', label: '分数区间' }]
-}
-
 const DecisionTab: React.FC<Props> = ({ spec, algorithm, onChange }) => {
-  const options = decisionOptionsByAlgorithm[algorithm] || decisionOptionsByAlgorithm.custom_typology
+  const options = getPersonalityDecisionOptions(algorithm)
 
   const updateDecision = (patch: Record<string, unknown>) => {
     onChange({

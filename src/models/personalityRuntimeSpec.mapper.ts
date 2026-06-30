@@ -9,6 +9,7 @@ import {
   PersonalityQuestionMapping,
   PersonalityTypologyRuntimeSpec
 } from './assessmentModel'
+import { PERSONALITY_KIND, PERSONALITY_SUB_KIND } from '@/constants/personalityScope'
 
 const normalizeRuntimeSpecFactors = (
   factors: Record<string, PersonalityFactorSpec>
@@ -221,11 +222,11 @@ export const normalizeRuntimeSpecForSave = (
 export const buildDefinitionForSave = (
   _definition: AssessmentModelDefinition,
   runtimeSpec: PersonalityTypologyRuntimeSpec,
-  subKind: string,
+  _subKind: string,
   algorithm: string
 ): AssessmentModelDefinition<PersonalityTypologyRuntimeSpec> => ({
-  kind: 'personality',
-  sub_kind: subKind,
+  kind: PERSONALITY_KIND,
+  sub_kind: PERSONALITY_SUB_KIND,
   algorithm,
   payload_format: PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT,
   payload: normalizeRuntimeSpecForSave(runtimeSpec)

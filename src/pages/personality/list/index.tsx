@@ -9,6 +9,12 @@ import { assessmentModelApi } from '@/api/path/assessmentModel'
 import { AssessmentModelSummary } from '@/models/assessmentModel'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
+  filterPersonalityAlgorithmOptions,
+  normalizePersonalityAlgorithm,
+  PERSONALITY_KIND,
+  PERSONALITY_SUB_KIND
+} from '@/constants/personalityScope'
+import {
   canEditPersonalityModel,
   canPublishPersonalityModel,
   canUnpublishPersonalityModel,
@@ -50,7 +56,7 @@ const PersonalityList: React.FC = () => {
   const loadOptions = async () => {
     const [err, res] = await assessmentModelApi.getAssessmentModelOptions('personality')
     if (!err && res?.data) {
-      setAlgorithmOptions(res.data.algorithms)
+      setAlgorithmOptions(filterPersonalityAlgorithmOptions(res.data.algorithms))
       setCategoryOptions(res.data.categories)
     }
   }
@@ -66,7 +72,8 @@ const PersonalityList: React.FC = () => {
     setLoading(true)
     try {
       const [err, res] = await assessmentModelApi.listAssessmentModels({
-        kind: 'personality',
+        kind: PERSONALITY_KIND,
+        sub_kind: PERSONALITY_SUB_KIND,
         page,
         page_size: pageSize,
         keyword: nextKeyword || undefined,
@@ -121,9 +128,9 @@ const PersonalityList: React.FC = () => {
       const [createErr, createRes] = await assessmentModelApi.createAssessmentModel({
         title: `${row.title}（副本）`,
         description: row.description,
-        kind: 'personality',
-        sub_kind: row.sub_kind as any,
-        algorithm: row.algorithm,
+        kind: PERSONALITY_KIND,
+        sub_kind: PERSONALITY_SUB_KIND,
+        algorithm: normalizePersonalityAlgorithm(row.algorithm),
         questionnaire_code: row.questionnaire_code,
         questionnaire_version: row.questionnaire_version,
         category: row.category,

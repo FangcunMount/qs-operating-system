@@ -4,6 +4,12 @@ import { api } from '@/api'
 import { surveyApi } from '@/api/path/survey'
 import { QuestionnaireType } from '@/constants/questionnaireType'
 import type { AssessmentModelStatus, AssessmentModelSubKind } from '@/models/assessmentModel'
+import {
+  assertPersonalityTypologyScopeModel,
+  normalizePersonalityAlgorithm,
+  PERSONALITY_KIND,
+  PERSONALITY_SUB_KIND
+} from '@/constants/personalityScope'
 import { personalityDraftStorage, QuestionnaireBindingStrategy } from './personalityDraftStorage'
 
 export class PersonalityModelEditorStore {
@@ -91,8 +97,8 @@ export class PersonalityModelEditorStore {
     this.desc = model.description || ''
     this.category = model.category || ''
     this.tags = model.tags || []
-    this.algorithm = model.algorithm || 'mbti'
-    this.subKind = model.sub_kind || 'typology'
+    this.algorithm = normalizePersonalityAlgorithm(model.algorithm)
+    this.subKind = PERSONALITY_SUB_KIND
     this.status = model.status
     this.questionnaireCode = model.questionnaire_code || ''
     this.questionnaireVersion = model.questionnaire_version
@@ -111,8 +117,8 @@ export class PersonalityModelEditorStore {
       this.desc = draft.desc || ''
       this.category = draft.category || ''
       this.tags = draft.tags || []
-      this.algorithm = draft.algorithm || 'mbti'
-      this.subKind = draft.subKind || 'typology'
+      this.algorithm = normalizePersonalityAlgorithm(draft.algorithm)
+      this.subKind = PERSONALITY_SUB_KIND
       this.status = draft.status || 'draft'
       this.questionnaireCode = draft.questionnaireCode || ''
       this.questionnaireVersion = draft.questionnaireVersion
@@ -155,6 +161,7 @@ export class PersonalityModelEditorStore {
     if (modelErr) throw modelErr
     const model = modelRes?.data
     if (!model) throw new Error('人格测评不存在')
+    assertPersonalityTypologyScopeModel(model)
     runInAction(() => this.applyModel(model))
   }
 
@@ -210,9 +217,9 @@ export class PersonalityModelEditorStore {
         code: this.customModelCode || undefined,
         title: this.title,
         description: this.desc,
-        kind: 'personality',
-        sub_kind: this.subKind as AssessmentModelSubKind,
-        algorithm: this.algorithm,
+        kind: PERSONALITY_KIND,
+        sub_kind: PERSONALITY_SUB_KIND,
+        algorithm: normalizePersonalityAlgorithm(this.algorithm),
         questionnaire_code: questionnaireCode,
         questionnaire_version: questionnaireVersion,
         category: this.category || undefined,
@@ -228,8 +235,8 @@ export class PersonalityModelEditorStore {
       const [infoErr, infoRes] = await assessmentModelApi.updateAssessmentModelBasicInfo(this.modelCode, {
         title: this.title,
         description: this.desc,
-        sub_kind: this.subKind,
-        algorithm: this.algorithm,
+        sub_kind: PERSONALITY_SUB_KIND,
+        algorithm: normalizePersonalityAlgorithm(this.algorithm),
         category: this.category || undefined,
         tags: this.tags
       })

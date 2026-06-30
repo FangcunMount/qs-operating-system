@@ -11,6 +11,11 @@ import {
   personalityEditorFlowConfig,
   useEditorFlow
 } from '@/utils/editorFlow'
+import {
+  filterPersonalityAlgorithmOptions,
+  normalizePersonalityAlgorithm,
+  PERSONALITY_SUB_KIND
+} from '@/constants/personalityScope'
 import RepublishHint from '@/components/personality/RepublishHint'
 import '../index.scss'
 
@@ -27,7 +32,6 @@ const PersonalityBasicInfo: React.FC = observer(() => {
   const [form] = Form.useForm()
   const [algorithmOptions, setAlgorithmOptions] = useState<Array<{ value: string; label: string }>>([])
   const [categoryOptions, setCategoryOptions] = useState<Array<{ value: string; label: string }>>([])
-  const [subKindOptions, setSubKindOptions] = useState<Array<{ value: string; label: string }>>([])
 
   const flowCtx = getPersonalityEditorFlowContext()
   const editorFlow = useEditorFlow(
@@ -45,8 +49,8 @@ const PersonalityBasicInfo: React.FC = observer(() => {
           customModelCode: personalityModelEditorStore.customModelCode,
           title: personalityModelStore.title,
           desc: personalityModelStore.desc,
-          algorithm: personalityModelStore.algorithm,
-          subKind: personalityModelStore.subKind,
+          algorithm: normalizePersonalityAlgorithm(personalityModelStore.algorithm),
+          subKind: PERSONALITY_SUB_KIND,
           category: personalityModelStore.category || undefined,
           tags: personalityModelStore.tags,
           questionnaireStrategy: personalityModelEditorStore.questionnaireStrategy,
@@ -59,17 +63,8 @@ const PersonalityBasicInfo: React.FC = observer(() => {
     const loadOptions = async () => {
       const [err, res] = await assessmentModelApi.getAssessmentModelOptions('personality')
       if (!err && res?.data) {
-        setAlgorithmOptions(res.data.algorithms.length > 0 ? res.data.algorithms : [
-          { value: 'mbti', label: 'MBTI' },
-          { value: 'sbti', label: 'SBTI' },
-          { value: 'bigfive', label: 'Big Five' },
-          { value: 'custom_typology', label: '自定义类型' }
-        ])
+        setAlgorithmOptions(filterPersonalityAlgorithmOptions(res.data.algorithms))
         setCategoryOptions(res.data.categories)
-        setSubKindOptions(res.data.sub_kinds.length > 0 ? res.data.sub_kinds : [
-          { value: 'typology', label: '类型模型' },
-          { value: 'dimension_score', label: '维度计分' }
-        ])
       }
     }
     init()
@@ -81,8 +76,8 @@ const PersonalityBasicInfo: React.FC = observer(() => {
     personalityModelEditorStore.customModelCode = values.customModelCode || ''
     personalityModelEditorStore.title = values.title
     personalityModelEditorStore.desc = values.desc || ''
-    personalityModelEditorStore.algorithm = values.algorithm
-    personalityModelEditorStore.subKind = values.subKind
+    personalityModelEditorStore.algorithm = normalizePersonalityAlgorithm(values.algorithm)
+    personalityModelEditorStore.subKind = PERSONALITY_SUB_KIND
     personalityModelEditorStore.category = values.category || ''
     personalityModelEditorStore.tags = values.tags || []
     personalityModelEditorStore.setQuestionnaireStrategy(values.questionnaireStrategy)
@@ -146,11 +141,14 @@ const PersonalityBasicInfo: React.FC = observer(() => {
             <Form.Item name="desc" label="测评说明">
               <TextArea rows={4} placeholder="填写测评说明、适用场景或运营备注" />
             </Form.Item>
-            <Form.Item name="algorithm" label="算法" rules={[{ required: true, message: '请选择算法' }]}>
-              <Select options={algorithmOptions} placeholder="选择算法" />
+            <Form.Item name="algorithm" label="人格算法" rules={[{ required: true, message: '请选择算法' }]}>
+              <Select options={algorithmOptions} placeholder="选择人格算法" />
             </Form.Item>
-            <Form.Item name="subKind" label="分类模型" rules={[{ required: true, message: '请选择分类模型' }]}>
-              <Select options={subKindOptions} placeholder="选择分类模型" />
+            <Form.Item label="模型类型">
+              <Input value="人格探索 / 类型模型（typology）" disabled />
+            </Form.Item>
+            <Form.Item name="subKind" hidden initialValue={PERSONALITY_SUB_KIND}>
+              <Input />
             </Form.Item>
             <Form.Item name="category" label="业务分类">
               <Select allowClear options={categoryOptions} placeholder="选择业务分类" />

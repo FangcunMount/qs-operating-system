@@ -9,6 +9,9 @@ import type {
 } from '@/models/assessmentModel'
 import type { IQuestion, IQuestionShowController } from '@/models/question'
 import type { EditorFlowContext } from '@/utils/editorFlow'
+import {
+  PERSONALITY_SUB_KIND
+} from '@/constants/personalityScope'
 import { personalityDraftStorage } from './personalityDraftStorage'
 import { personalityDefinitionStore } from './personalityDefinitionStore'
 import { personalityModelEditorStore } from './personalityModelEditorStore'
@@ -147,7 +150,7 @@ export class PersonalityEditorWorkflowStore {
           category: data.editor.category,
           tags: data.editor.tags,
           algorithm: data.editor.algorithm,
-          sub_kind: data.editor.subKind,
+          sub_kind: PERSONALITY_SUB_KIND,
           status: data.editor.status,
           questionnaire_code: data.editor.questionnaireCode,
           questionnaire_version: data.editor.questionnaireVersion
