@@ -4,10 +4,9 @@ import { observer } from 'mobx-react-lite'
 import { useParams } from 'react-router'
 import BaseLayout from '@/components/layout/BaseLayout'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
-import { personalityModelEditorStore, personalityModelStore } from '@/store/personality'
+import { personalityModelEditorStore, personalityModelStore, personalityEditorWorkflowStore, getPersonalityEditorFlowContext } from '@/store/personality'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
-  buildPersonalityFlowContext,
   PERSONALITY_STEPS,
   personalityEditorFlowConfig,
   useEditorFlow
@@ -30,7 +29,7 @@ const PersonalityBasicInfo: React.FC = observer(() => {
   const [categoryOptions, setCategoryOptions] = useState<Array<{ value: string; label: string }>>([])
   const [subKindOptions, setSubKindOptions] = useState<Array<{ value: string; label: string }>>([])
 
-  const flowCtx = buildPersonalityFlowContext(personalityModelStore)
+  const flowCtx = getPersonalityEditorFlowContext()
   const editorFlow = useEditorFlow(
     personalityEditorFlowConfig,
     personalityModelStore.modelCode || (modelCode !== 'new' ? modelCode : undefined),
@@ -38,10 +37,10 @@ const PersonalityBasicInfo: React.FC = observer(() => {
   )
 
   useEffect(() => {
-    personalityModelStore.setCurrentStep('create')
+    personalityEditorWorkflowStore.setCurrentStep('create')
     const init = async () => {
       try {
-        await personalityModelStore.initEditor(modelCode)
+        await personalityEditorWorkflowStore.initEditor(modelCode)
         form.setFieldsValue({
           customModelCode: personalityModelEditorStore.customModelCode,
           title: personalityModelStore.title,
@@ -88,7 +87,7 @@ const PersonalityBasicInfo: React.FC = observer(() => {
     personalityModelEditorStore.tags = values.tags || []
     personalityModelEditorStore.setQuestionnaireStrategy(values.questionnaireStrategy)
     personalityModelEditorStore.bindQuestionnaireCode = values.bindQuestionnaireCode || ''
-    return personalityModelStore.saveBasicInfo()
+    return personalityEditorWorkflowStore.saveBasicInfoAndQuestionnaire()
   }
 
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {

@@ -8,10 +8,9 @@ import { MobilePreview } from '@/components/preview'
 import PreviewReportPanel from '@/components/personality/publish/PreviewReportPanel'
 import ValidationIssuesPanel, { PublishChecklist } from '@/components/personality/publish/PublishPanels'
 import { buildSamplePreviewAnswersObject } from '@/models/assessmentModel.preview'
-import { personalityModelStore, personalityPublishStore } from '@/store/personality'
+import { personalityModelStore, personalityPublishStore, personalityEditorWorkflowStore, getPersonalityEditorFlowContext } from '@/store/personality'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
-  buildPersonalityFlowContext,
   PERSONALITY_STEPS,
   personalityEditorFlowConfig,
   useEditorFlow
@@ -31,17 +30,17 @@ const PersonalityPublish: React.FC = observer(() => {
   const history = useHistory()
   const [loading, setLoading] = useState(false)
   const [previewAnswersSource, setPreviewAnswersSource] = useState('{}')
-  const flowCtx = buildPersonalityFlowContext(personalityModelStore)
+  const flowCtx = getPersonalityEditorFlowContext()
   const editorFlow = useEditorFlow(personalityEditorFlowConfig, personalityModelStore.modelCode || modelCode, flowCtx)
   const publishActions = getPersonalityPublishActions(personalityModelStore.status)
 
   useEffect(() => {
-    personalityModelStore.setCurrentStep('publish')
+    personalityEditorWorkflowStore.setCurrentStep('publish')
     const init = async () => {
       try {
-        await personalityModelStore.initEditor(modelCode)
+        await personalityEditorWorkflowStore.initEditor(modelCode)
         if (personalityModelStore.status === 'published') {
-          await personalityPublishStore.loadQRCode(modelCode)
+          await personalityEditorWorkflowStore.loadQRCode(modelCode)
         }
         setPreviewAnswersSource(JSON.stringify(
           buildSamplePreviewAnswersObject(personalityModelStore.questions),
@@ -78,7 +77,7 @@ const PersonalityPublish: React.FC = observer(() => {
 
   const handleValidate = async () => {
     if (!publishActions.canValidate) return false
-    const result = await personalityPublishStore.validate(personalityModelStore.modelCode)
+    const result = await personalityEditorWorkflowStore.validateForPublish()
     return result.passed
   }
 
@@ -87,8 +86,8 @@ const PersonalityPublish: React.FC = observer(() => {
     history.push(`/personality/definition/${personalityModelStore.modelCode || modelCode}${query}`)
   }
 
-  const handlePreviewReport = async (answers: Parameters<typeof personalityPublishStore.runPreviewReport>[1]['answers']) => {
-    await personalityPublishStore.runPreviewReport(personalityModelStore.modelCode, { answers })
+  const handlePreviewReport = async (answers: Parameters<typeof personalityEditorWorkflowStore.previewReport>[0]['answers']) => {
+    await personalityEditorWorkflowStore.previewReport({ answers })
     message.success('报告预览已生成')
   }
 
@@ -101,8 +100,8 @@ const PersonalityPublish: React.FC = observer(() => {
         message.warning('校验未通过，请修正后再发布')
         return
       }
-      await personalityModelStore.publish()
-      await personalityPublishStore.loadQRCode(personalityModelStore.modelCode)
+      await personalityEditorWorkflowStore.publish()
+      await personalityEditorWorkflowStore.loadQRCode()
       message.success('人格测评发布成功')
     } catch (error: any) {
       message.error(getApiErrorMessage(error, '发布失败'))
@@ -115,8 +114,7 @@ const PersonalityPublish: React.FC = observer(() => {
     if (!publishActions.canUnpublish) return
     setLoading(true)
     try {
-      await personalityModelStore.unpublish()
-      personalityPublishStore.setQrCode(null)
+      await personalityEditorWorkflowStore.unpublish()
       message.success('已下架')
     } catch (error: any) {
       message.error(getApiErrorMessage(error, '下架失败'))

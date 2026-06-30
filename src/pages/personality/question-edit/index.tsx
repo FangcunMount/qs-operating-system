@@ -9,10 +9,9 @@ import QuestionCreate from '@/components/questionEdit/Create'
 import QuestionSetting from '@/components/questionEdit/Setting'
 import QuestionShow from '@/components/questionEdit/Show'
 import { IQuestion } from '@/models/question'
-import { personalityModelStore } from '@/store'
+import { personalityModelStore, personalityEditorWorkflowStore, getPersonalityEditorFlowContext } from '@/store/personality'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
-  buildPersonalityFlowContext,
   PERSONALITY_STEPS,
   personalityEditorFlowConfig,
   useEditorFlow
@@ -47,12 +46,12 @@ const RECOMMENDED_TYPES = new Set(['Radio', 'ScoreRadio'])
 const PersonalityQuestionEdit: React.FC = observer(() => {
   const { modelCode } = useParams<{ modelCode: string; answercnt: string }>()
   const showContainerRef = useRef<HTMLInputElement>(null)
-  const flowCtx = buildPersonalityFlowContext(personalityModelStore)
+  const flowCtx = getPersonalityEditorFlowContext()
   const editorFlow = useEditorFlow(personalityEditorFlowConfig, personalityModelStore.modelCode || modelCode, flowCtx)
 
   useEffect(() => {
-    personalityModelStore.setCurrentStep('edit-questions')
-    personalityModelStore.initEditor(modelCode).catch(() => message.error('加载人格测评题目失败'))
+    personalityEditorWorkflowStore.setCurrentStep('edit-questions')
+    personalityEditorWorkflowStore.initEditor(modelCode).catch(() => message.error('加载人格测评题目失败'))
   }, [modelCode])
 
   const verifyQuestionSheet = (questions: IQuestion[]): boolean => {
@@ -72,7 +71,7 @@ const PersonalityQuestionEdit: React.FC = observer(() => {
       message.warning('请至少添加一个问题')
       return
     }
-    await personalityModelStore.saveQuestionList({ persist: true })
+    await personalityEditorWorkflowStore.saveQuestions({ persist: true })
   }
 
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {

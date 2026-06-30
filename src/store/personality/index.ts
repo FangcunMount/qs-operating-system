@@ -1,57 +1,25 @@
-import { action, computed, makeObservable, observable, reaction, runInAction } from 'mobx'
-import { IQuestion, IQuestionShowController } from '@/models/question'
+import { computed, makeObservable, reaction } from 'mobx'
 import {
-  AssessmentModelDefinition,
   PersonalityPayloadV1,
   PersonalityTypologyRuntimeSpec
 } from '@/models/assessmentModel'
 import { mapRuntimeSpecToFormState } from '@/models/assessmentModel.mapper'
-import { personalityDraftStorage } from './personalityDraftStorage'
 import { personalityDefinitionStore } from './personalityDefinitionStore'
+import {
+  personalityEditorWorkflowStore,
+  PersonalityStep
+} from './personalityEditorWorkflowStore'
 import { personalityModelEditorStore } from './personalityModelEditorStore'
 import { personalityPublishStore } from './personalityPublishStore'
 import { personalityQuestionnaireStore } from './personalityQuestionnaireStore'
 
-export type PersonalityStep = 'create' | 'edit-questions' | 'set-routing' | 'edit-definition' | 'publish'
+export type { PersonalityStep } from './personalityEditorWorkflowStore'
 
-const STORAGE_VERSION = 'v2'
-
-interface PersistedPersonalityData {
-  version: string
-  editor: ReturnType<typeof snapshotEditor>
-  questionnaire: {
-    questions: IQuestion[]
-    showControllers: Array<{ code: string; show_controller: IQuestionShowController }>
-    deletedShowControllerCodes: string[]
-    currentCode: string
-  }
-  definition: AssessmentModelDefinition<PersonalityTypologyRuntimeSpec>
-  currentStep: PersonalityStep
-}
-
-const snapshotEditor = () => ({
-  modelCode: personalityModelEditorStore.modelCode,
-  title: personalityModelEditorStore.title,
-  desc: personalityModelEditorStore.desc,
-  category: personalityModelEditorStore.category,
-  tags: personalityModelEditorStore.tags,
-  algorithm: personalityModelEditorStore.algorithm,
-  subKind: personalityModelEditorStore.subKind,
-  status: personalityModelEditorStore.status,
-  questionnaireCode: personalityModelEditorStore.questionnaireCode,
-  questionnaireVersion: personalityModelEditorStore.questionnaireVersion,
-  questionnaireStrategy: personalityModelEditorStore.questionnaireStrategy,
-  bindQuestionnaireCode: personalityModelEditorStore.bindQuestionnaireCode,
-  customModelCode: personalityModelEditorStore.customModelCode
-})
-
-/** Facade preserving the legacy personalityModelStore API */
+/** Read-only facade + questionnaire delegates; workflow lives in personalityEditorWorkflowStore */
 class PersonalityModelStoreFacade {
-  currentStep: PersonalityStep = 'create'
-
   constructor() {
     makeObservable(this, {
-      currentStep: observable,
+      currentStep: computed,
       id: computed,
       modelCode: computed,
       title: computed,
@@ -71,13 +39,11 @@ class PersonalityModelStoreFacade {
       currentIndex: computed,
       isPublished: computed,
       isArchived: computed,
-      canEdit: computed,
-      setCurrentStep: action,
-      nextStep: action,
-      initPersonality: action
+      canEdit: computed
     })
   }
 
+  get currentStep(): PersonalityStep { return personalityEditorWorkflowStore.currentStep }
   get id() { return personalityModelEditorStore.questionnaireCode }
   get modelCode() { return personalityModelEditorStore.modelCode }
   get title() { return personalityModelEditorStore.title }
@@ -100,185 +66,23 @@ class PersonalityModelStoreFacade {
   get isArchived() { return personalityModelEditorStore.isArchived }
   get canEdit() { return personalityModelEditorStore.canEdit }
 
-  initPersonality() {
-    personalityModelEditorStore.reset()
-    personalityQuestionnaireStore.reset()
-    personalityDefinitionStore.reset()
-    personalityPublishStore.reset()
-    this.currentStep = 'create'
-    personalityDraftStorage.clear('new')
-  }
-
-  setCurrentStep(step: PersonalityStep) {
-    this.currentStep = step
-  }
-
-  nextStep() {
-    const steps: PersonalityStep[] = ['create', 'edit-questions', 'set-routing', 'edit-definition', 'publish']
-    const idx = steps.indexOf(this.currentStep)
-    if (idx < steps.length - 1) this.currentStep = steps[idx + 1]
-  }
-
-  saveToLocalStorage() {
-    const key = personalityModelEditorStore.modelCode || 'new'
-    try {
-      const data: PersistedPersonalityData = {
-        version: STORAGE_VERSION,
-        editor: snapshotEditor(),
-        questionnaire: {
-          questions: JSON.parse(JSON.stringify(personalityQuestionnaireStore.questions)),
-          showControllers: JSON.parse(JSON.stringify(personalityQuestionnaireStore.showControllers)),
-          deletedShowControllerCodes: [...personalityQuestionnaireStore.deletedShowControllerCodes],
-          currentCode: personalityQuestionnaireStore.currentCode
-        },
-        definition: JSON.parse(JSON.stringify(personalityDefinitionStore.definition)),
-        currentStep: this.currentStep
-      }
-      localStorage.setItem(`personalityModelDraft_v2:${key}`, JSON.stringify(data))
-      personalityModelEditorStore.persistDraft(this.currentStep)
-    } catch (error) {
-      console.error('保存人格测评草稿失败:', error)
-    }
-  }
-
-  loadFromLocalStorage(expectedModelCode?: string): boolean {
-    const key = expectedModelCode || personalityModelEditorStore.modelCode || 'new'
-    try {
-      const stored = localStorage.getItem(`personalityModelDraft_v2:${key}`)
-      if (!stored) return personalityModelEditorStore.restoreDraft()
-      const data: PersistedPersonalityData = JSON.parse(stored)
-      if (data.version !== STORAGE_VERSION) return false
-      if (expectedModelCode && data.editor.modelCode && data.editor.modelCode !== expectedModelCode) return false
-
-      runInAction(() => {
-        personalityModelEditorStore.applyModel({
-          code: data.editor.modelCode,
-          title: data.editor.title,
-          description: data.editor.desc,
-          category: data.editor.category,
-          tags: data.editor.tags,
-          algorithm: data.editor.algorithm,
-          sub_kind: data.editor.subKind,
-          status: data.editor.status,
-          questionnaire_code: data.editor.questionnaireCode,
-          questionnaire_version: data.editor.questionnaireVersion
-        })
-        personalityModelEditorStore.questionnaireStrategy = data.editor.questionnaireStrategy || 'create'
-        personalityModelEditorStore.bindQuestionnaireCode = data.editor.bindQuestionnaireCode || ''
-        personalityModelEditorStore.customModelCode = data.editor.customModelCode || ''
-        personalityQuestionnaireStore.restore(data.questionnaire)
-        personalityDefinitionStore.definition = data.definition
-        this.currentStep = data.currentStep || 'create'
-      })
-      return true
-    } catch (error) {
-      console.error('恢复人格测评草稿失败:', error)
-      return false
-    }
-  }
-
-  clearLocalStorage() {
-    const key = personalityModelEditorStore.modelCode || 'new'
-    localStorage.removeItem(`personalityModelDraft_v2:${key}`)
-    personalityDraftStorage.clear(key)
-  }
-
-  async initEditor(modelCode?: string) {
-    if (!modelCode || modelCode === 'new') {
-      const restored = this.loadFromLocalStorage()
-      if (!restored) this.initPersonality()
-      return
-    }
-
-    const restored = this.loadFromLocalStorage(modelCode)
-    if (restored && this.modelCode === modelCode && this.title) return
-
-    await personalityModelEditorStore.init(modelCode)
-
-    if (personalityModelEditorStore.questionnaireCode) {
-      await personalityQuestionnaireStore.loadFromApi(personalityModelEditorStore.questionnaireCode)
-    }
-
-    await personalityDefinitionStore.loadDefinition(
-      modelCode,
-      personalityModelEditorStore.questionnaireCode,
-      personalityModelEditorStore.questionnaireVersion
-    )
-  }
-
-  async saveBasicInfo() {
-    const code = await personalityModelEditorStore.saveBasicInfo()
-    personalityDefinitionStore.updateQuestionnaireBinding(
-      personalityModelEditorStore.questionnaireCode,
-      personalityModelEditorStore.questionnaireVersion
-    )
-    this.currentStep = 'edit-questions'
-    return code
-  }
-
-  async saveQuestionList(options: { persist?: boolean } = {}) {
-    const { persist = false } = options
-    await personalityQuestionnaireStore.saveQuestions(personalityModelEditorStore.questionnaireCode, persist)
-    if (this.currentStep === 'edit-questions') this.currentStep = 'set-routing'
-  }
-
-  async saveRouting() {
-    await personalityQuestionnaireStore.saveRouting(personalityModelEditorStore.questionnaireCode)
-    this.currentStep = 'edit-definition'
-  }
-
-  async saveDefinition() {
-    return this.saveAndValidateDefinition()
-  }
-
-  async saveDraftDefinition() {
-    if (!this.modelCode) throw new Error('人格测评编码不能为空')
-    await personalityDefinitionStore.saveDraftDefinition(this.modelCode, this.subKind, this.algorithm)
-  }
-
-  async validateDefinitionLocal() {
-    return personalityDefinitionStore.validateLocal(this.questions, this.algorithm)
-  }
-
-  async saveAndValidateDefinition() {
-    if (!this.modelCode) throw new Error('人格测评编码不能为空')
-    await personalityDefinitionStore.saveAndValidateDefinition(
-      this.modelCode,
-      this.subKind,
-      this.algorithm,
-      this.questions
-    )
-    this.currentStep = 'publish'
-  }
-
-  async validateForPublish() {
-    return personalityPublishStore.validate(this.modelCode)
-  }
-
-  async publish() {
-    if (!this.modelCode) throw new Error('人格测评编码不能为空')
-    if (this.id) {
-      await personalityQuestionnaireStore.saveQuestions(this.id, true)
-    }
-    await this.saveAndValidateDefinition()
-    const validation = await this.validateForPublish()
-    if (!validation.passed) {
-      throw Object.assign(new Error('人格测评校验失败'), { validation })
-    }
-    const result = await personalityPublishStore.publish(this.modelCode)
-    runInAction(() => {
-      if (result?.status) personalityModelEditorStore.status = result.status
-      this.currentStep = 'publish'
-    })
-    this.clearLocalStorage()
-  }
-
-  async unpublish() {
-    const result = await personalityPublishStore.unpublish(this.modelCode)
-    runInAction(() => {
-      if (result?.status) personalityModelEditorStore.status = result.status
-    })
-  }
+  initPersonality = () => personalityEditorWorkflowStore.initPersonality()
+  setCurrentStep = (step: PersonalityStep) => personalityEditorWorkflowStore.setCurrentStep(step)
+  nextStep = () => personalityEditorWorkflowStore.nextStep()
+  saveToLocalStorage = () => personalityEditorWorkflowStore.saveToLocalStorage()
+  loadFromLocalStorage = (expectedModelCode?: string) => personalityEditorWorkflowStore.loadFromLocalStorage(expectedModelCode)
+  clearLocalStorage = () => personalityEditorWorkflowStore.clearLocalStorage()
+  initEditor = (modelCode?: string) => personalityEditorWorkflowStore.initEditor(modelCode)
+  saveBasicInfo = () => personalityEditorWorkflowStore.saveBasicInfoAndQuestionnaire()
+  saveQuestionList = (options?: { persist?: boolean }) => personalityEditorWorkflowStore.saveQuestions(options)
+  saveRouting = () => personalityEditorWorkflowStore.saveRouting()
+  saveDefinition = () => personalityEditorWorkflowStore.saveAndValidateDefinition()
+  saveDraftDefinition = () => personalityEditorWorkflowStore.saveDefinitionDraft()
+  validateDefinitionLocal = () => personalityEditorWorkflowStore.validateDefinition()
+  saveAndValidateDefinition = () => personalityEditorWorkflowStore.saveAndValidateDefinition()
+  validateForPublish = () => personalityEditorWorkflowStore.validateForPublish()
+  publish = () => personalityEditorWorkflowStore.publish()
+  unpublish = () => personalityEditorWorkflowStore.unpublish()
 
   setDefinitionPayload(payload: PersonalityPayloadV1) {
     const { payload: _p, scoringRulesSource } = mapRuntimeSpecToFormState(personalityDefinitionStore.runtimeSpec)
@@ -315,10 +119,9 @@ class PersonalityModelStoreFacade {
   }
 
   setRuntimeSpec(spec: PersonalityTypologyRuntimeSpec) {
-    personalityDefinitionStore.setRuntimeSpec(spec)
+    personalityEditorWorkflowStore.setRuntimeSpec(spec)
   }
 
-  // Delegate questionnaire methods
   setCurrentCode = (code: string) => personalityQuestionnaireStore.setCurrentCode(code)
   changeQuestionPosition = (a: number, b: number) => personalityQuestionnaireStore.changeQuestionPosition(a, b)
   getQuestionTitleByCode = (code: string) => personalityQuestionnaireStore.getQuestionTitleByCode(code)
@@ -344,13 +147,13 @@ reaction(
     title: personalityModelStore.title,
     questions: JSON.stringify(personalityModelStore.questions),
     definition: JSON.stringify(personalityModelStore.definition),
-    currentStep: personalityModelStore.currentStep
+    currentStep: personalityEditorWorkflowStore.currentStep
   }),
   (data) => {
     if (saveTimer) clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
       if (data.modelCode || data.title || data.questions !== '[]') {
-        personalityModelStore.saveToLocalStorage()
+        personalityEditorWorkflowStore.saveToLocalStorage()
       }
     }, 500)
   },
@@ -361,5 +164,11 @@ export {
   personalityModelEditorStore,
   personalityQuestionnaireStore,
   personalityDefinitionStore,
-  personalityPublishStore
+  personalityPublishStore,
+  personalityEditorWorkflowStore
 }
+
+export const getPersonalityEditorFlowContext = () => ({
+  modelCode: personalityModelStore.modelCode,
+  ...personalityEditorWorkflowStore.flowContext
+})

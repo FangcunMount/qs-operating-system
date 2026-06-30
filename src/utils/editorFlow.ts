@@ -178,17 +178,21 @@ export const useEditorFlow = (
 
 export const buildPersonalityFlowContext = (store: {
   modelCode: string
-  id: string
-  questions: unknown[]
+  flowContext?: Omit<EditorFlowContext, 'modelCode'>
+  id?: string
+  questions?: unknown[]
   runtimeSpec?: { factor_graph?: { factors?: Record<string, unknown> } }
-  payload: { dimensions?: unknown[]; outcomes?: unknown[] }
-  status: string
-}): Omit<EditorFlowContext, 'modelCode'> => ({
-  questionnaireCode: store.id,
-  hasQuestions: store.questions.length > 0,
-  hasDefinition: Boolean(
-    (store.runtimeSpec?.factor_graph?.factors && Object.keys(store.runtimeSpec.factor_graph.factors).length > 0)
-    || (store.payload.outcomes?.length && store.payload.outcomes.length > 0)
-  ),
-  readonly: store.status === 'archived'
-})
+  payload?: { dimensions?: unknown[]; outcomes?: unknown[] }
+  status?: string
+}): Omit<EditorFlowContext, 'modelCode'> => {
+  if (store.flowContext) return store.flowContext
+  return {
+    questionnaireCode: store.id,
+    hasQuestions: (store.questions || []).length > 0,
+    hasDefinition: Boolean(
+      (store.runtimeSpec?.factor_graph?.factors && Object.keys(store.runtimeSpec.factor_graph.factors).length > 0)
+      || (store.payload?.outcomes?.length && store.payload.outcomes.length > 0)
+    ),
+    readonly: store.status === 'archived'
+  }
+}

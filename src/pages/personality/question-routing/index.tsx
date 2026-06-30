@@ -5,10 +5,9 @@ import { useParams } from 'react-router'
 import BaseLayout from '@/components/layout/BaseLayout'
 import ShowControllerEditor from '@/components/showController/ShowControllerEditor'
 import { IQuestion, IQuestionShowController } from '@/models/question'
-import { personalityModelStore } from '@/store'
+import { personalityModelStore, personalityEditorWorkflowStore, getPersonalityEditorFlowContext } from '@/store/personality'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
-  buildPersonalityFlowContext,
   PERSONALITY_STEPS,
   personalityEditorFlowConfig,
   useEditorFlow
@@ -23,12 +22,12 @@ const EmptyState: React.FC = () => (
 const PersonalityQuestionRouting: React.FC = observer(() => {
   const { modelCode } = useParams<{ modelCode: string }>()
   const [editingQuestionCode, setEditingQuestionCode] = useState<string | null>(null)
-  const flowCtx = buildPersonalityFlowContext(personalityModelStore)
+  const flowCtx = getPersonalityEditorFlowContext()
   const editorFlow = useEditorFlow(personalityEditorFlowConfig, personalityModelStore.modelCode || modelCode, flowCtx)
 
   useEffect(() => {
-    personalityModelStore.setCurrentStep('set-routing')
-    personalityModelStore.initEditor(modelCode).catch(() => message.error('加载人格测评路由失败'))
+    personalityEditorWorkflowStore.setCurrentStep('set-routing')
+    personalityEditorWorkflowStore.initEditor(modelCode).catch(() => message.error('加载人格测评路由失败'))
   }, [modelCode])
 
   const getShowController = (code: string): IQuestionShowController | undefined =>
@@ -44,7 +43,7 @@ const PersonalityQuestionRouting: React.FC = observer(() => {
 
   const handleSave = async () => {
     if (personalityModelStore.questions.length === 0) throw new Error('请先添加问题')
-    await personalityModelStore.saveRouting()
+    await personalityEditorWorkflowStore.saveRouting()
   }
 
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {

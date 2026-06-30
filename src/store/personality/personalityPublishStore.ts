@@ -96,6 +96,17 @@ export class PersonalityPublishStore {
     }
   }
 
+  async archive(modelCode: string): Promise<AssessmentModelDetail | undefined> {
+    this.publishing = true
+    try {
+      const [err, res] = await assessmentModelApi.archiveAssessmentModel(modelCode)
+      if (err) throw err
+      return res?.data
+    } finally {
+      runInAction(() => { this.publishing = false })
+    }
+  }
+
   async loadQRCode(modelCode: string): Promise<AssessmentQRCodeResponse | null> {
     const [err, res] = await assessmentModelApi.getAssessmentModelQRCode(modelCode)
     if (!err && res?.data) {

@@ -6,10 +6,9 @@ import BaseLayout from '@/components/layout/BaseLayout'
 import PersonalityDefinitionEditor, {
   PersonalityDefinitionTabKey
 } from '@/components/personality/definition/PersonalityDefinitionEditor'
-import { personalityDefinitionStore, personalityModelStore } from '@/store/personality'
+import { personalityDefinitionStore, personalityModelStore, personalityEditorWorkflowStore, getPersonalityEditorFlowContext } from '@/store/personality'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
-  buildPersonalityFlowContext,
   PERSONALITY_STEPS,
   personalityEditorFlowConfig,
   useEditorFlow
@@ -22,7 +21,7 @@ const PersonalityDefinition: React.FC = observer(() => {
   const location = useLocation()
   const [spec, setSpec] = useState<PersonalityTypologyRuntimeSpec>(personalityModelStore.runtimeSpec)
   const [activeTab, setActiveTab] = useState<PersonalityDefinitionTabKey>('factor_graph')
-  const flowCtx = buildPersonalityFlowContext(personalityModelStore)
+  const flowCtx = getPersonalityEditorFlowContext()
   const editorFlow = useEditorFlow(personalityEditorFlowConfig, personalityModelStore.modelCode || modelCode, flowCtx)
 
   useEffect(() => {
@@ -31,10 +30,10 @@ const PersonalityDefinition: React.FC = observer(() => {
   }, [location.search])
 
   useEffect(() => {
-    personalityModelStore.setCurrentStep('edit-definition')
+    personalityEditorWorkflowStore.setCurrentStep('edit-definition')
     const init = async () => {
       try {
-        await personalityModelStore.initEditor(modelCode)
+        await personalityEditorWorkflowStore.initEditor(modelCode)
         setSpec(personalityModelStore.runtimeSpec)
       } catch {
         message.error('加载人格测评定义失败')
@@ -44,19 +43,19 @@ const PersonalityDefinition: React.FC = observer(() => {
   }, [modelCode])
 
   const handleSave = async () => {
-    personalityModelStore.setRuntimeSpec(spec)
-    await personalityModelStore.saveAndValidateDefinition()
+    personalityEditorWorkflowStore.setRuntimeSpec(spec)
+    await personalityEditorWorkflowStore.saveAndValidateDefinition()
   }
 
   const handleSaveDraft = async () => {
-    personalityModelStore.setRuntimeSpec(spec)
-    await personalityModelStore.saveDraftDefinition()
+    personalityEditorWorkflowStore.setRuntimeSpec(spec)
+    await personalityEditorWorkflowStore.saveDefinitionDraft()
     message.success('模型定义草稿已保存')
   }
 
   const handleLocalValidate = () => {
-    personalityModelStore.setRuntimeSpec(spec)
-    const issues = personalityModelStore.validateDefinitionLocal()
+    personalityEditorWorkflowStore.setRuntimeSpec(spec)
+    const issues = personalityEditorWorkflowStore.validateDefinition()
     if (issues.length === 0) {
       message.success('本地校验通过')
     } else {
