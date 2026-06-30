@@ -49,6 +49,7 @@ describe('assessmentModelApi', () => {
     await assessmentModelApi.getAssessmentModelOptions('personality')
     await assessmentModelApi.applyAssessmentModelCodes('m1', { target: 'dimension' })
     await assessmentModelApi.validateAssessmentModel('m1')
+    await assessmentModelApi.previewAssessmentModelReport('m1', { answers: { q1: 'A' } })
     await assessmentModelApi.deleteAssessmentModel('m1')
 
     expect(getMock).toHaveBeenNthCalledWith(1, '/assessment-models', {
@@ -71,6 +72,7 @@ describe('assessmentModelApi', () => {
     expect(getMock).toHaveBeenNthCalledWith(5, '/assessment-models/options', { kind: 'personality' })
     expect(postMock).toHaveBeenNthCalledWith(5, '/assessment-models/m1/codes/apply', { target: 'dimension', count: 1 })
     expect(postMock).toHaveBeenNthCalledWith(6, '/assessment-models/m1/validate', undefined)
+    expect(postMock).toHaveBeenNthCalledWith(7, '/assessment-models/m1/preview-report', { answers: { q1: 'A' } })
     expect(delMock).toHaveBeenCalledWith('/assessment-models/m1')
   })
 
@@ -104,6 +106,26 @@ describe('assessmentModelApi', () => {
     })
     expect(qrRes?.data).toMatchObject({
       code: 'm1', qrcode_url: 'http://qr', entry_url: 'http://entry'
+    })
+  })
+
+  it('normalizes preview report responses', async () => {
+    postMock.mockResolvedValueOnce([null, {
+      data: {
+        outcome: { code: 'ENFP' },
+        score_detail: { E: 3 },
+        report_sections: [{ title: '概览', content: '热情开放' }],
+        issues: [{ field: 'report', message: '示例 warning', level: 'warning' }]
+      }
+    }])
+
+    const [, res] = await assessmentModelApi.previewAssessmentModelReport('m1', { answers: { q1: 'A' } })
+
+    expect(res?.data).toMatchObject({
+      outcome: { code: 'ENFP' },
+      score_detail: { E: 3 },
+      report_sections: [{ title: '概览', content: '热情开放' }],
+      issues: [{ field: 'report', message: '示例 warning', level: 'warning' }]
     })
   })
 })

@@ -1,0 +1,61 @@
+{
+  "factor_graph": {
+    "dimension_order": ["E", "I"],
+    "dimensions": {
+      "E": { "code": "E", "title": "外向" },
+      "I": { "code": "I", "title": "内向" }
+    },
+    "factors": {
+      "factor_e": {
+        "id": "factor_e",
+        "code": "E",
+        "name": "外向",
+        "kind": "leaf",
+        "contributions": [],
+        "option_scoring": "strict"
+      },
+      "factor_i": {
+        "id": "factor_i",
+        "code": "I",
+        "name": "内向",
+        "kind": "leaf",
+        "contributions": [],
+        "option_scoring": "strict"
+      }
+    },
+    "roots": ["factor_e", "factor_i"],
+    "question_mappings": [
+      {
+        "question_code": "q_energy",
+        "factor_code": "factor_e",
+        "sign": 1,
+        "option_scores": { "A": 1, "B": 0 }
+      },
+      {
+        "question_code": "q_social",
+        "factor_code": "factor_i",
+        "sign": 1,
+        "option_scores": { "A": 0, "B": 1 }
+      }
+    ]
+  },
+  "decision": {
+    "kind": "mbti",
+    "fallback_code": "ENFP"
+  },
+  "special_rules": [],
+  "outcome_mapping": {
+    "outcomes": [
+      { "code": "ENFP", "title": "竞选者", "summary": "热情开放" },
+      { "code": "ISTJ", "title": "物流师", "summary": "稳定谨慎" }
+    ]
+  },
+  "report": {
+    "kind": "default",
+    "adapter_key": "personality_typology"
+  },
+  "questionnaire_binding": {
+    "questionnaire_code": "q_mbti",
+    "questionnaire_version": "v1"
+  }
+}

@@ -4,20 +4,20 @@ export interface PersonalityPermissionState {
   status: AssessmentModelStatus
 }
 
-export const canEditPersonalityModel = (state: PersonalityPermissionState) =>
+export const canEditPersonalityModel = (state: PersonalityPermissionState): boolean =>
   state.status !== 'archived'
 
-export const canPublishPersonalityModel = (state: PersonalityPermissionState) =>
+export const canPublishPersonalityModel = (state: PersonalityPermissionState): boolean =>
   state.status === 'draft' || state.status === 'published'
 
-export const canUnpublishPersonalityModel = (state: PersonalityPermissionState) =>
+export const canUnpublishPersonalityModel = (state: PersonalityPermissionState): boolean =>
   state.status === 'published'
 
-export const canArchivePersonalityModel = (state: PersonalityPermissionState) =>
+export const canArchivePersonalityModel = (state: PersonalityPermissionState): boolean =>
   state.status !== 'archived'
 
-export const isPersonalityReadonly = (state: PersonalityPermissionState) =>
+export const isPersonalityReadonly = (state: PersonalityPermissionState): boolean =>
   state.status === 'archived'
 
-export const needsRepublishHint = (state: PersonalityPermissionState) =>
+export const needsRepublishHint = (state: PersonalityPermissionState): boolean =>
   state.status === 'published'

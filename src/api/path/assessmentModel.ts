@@ -5,6 +5,8 @@ import {
   AssessmentModelDetail,
   AssessmentModelKind,
   AssessmentModelOptions,
+  AssessmentModelPreviewReportRequest,
+  AssessmentModelPreviewReportResponse,
   AssessmentModelSubKind,
   AssessmentModelSummary,
   AssessmentModelValidationResult,
@@ -15,6 +17,7 @@ import {
   normalizeAssessmentModelDefinition,
   normalizeAssessmentModelOptions,
   normalizeListResponse,
+  normalizePreviewReportResponse,
   normalizeQRCodeResponse,
   normalizeValidationResult
 } from '@/models/assessmentModel.mapper'
@@ -204,6 +207,14 @@ export async function validateAssessmentModel(
   return [err, mapResponse(res, normalizeValidationResult)]
 }
 
+export async function previewAssessmentModelReport(
+  code: string,
+  data: AssessmentModelPreviewReportRequest
+): Promise<[any, QSResponse<AssessmentModelPreviewReportResponse> | undefined]> {
+  const [err, res] = await post<any>(`/assessment-models/${code}/preview-report`, data)
+  return [err, mapResponse(res, normalizePreviewReportResponse)]
+}
+
 export const assessmentModelApi = {
   listAssessmentModels,
   createAssessmentModel,
@@ -219,5 +230,6 @@ export const assessmentModelApi = {
   getAssessmentModelQRCode,
   getAssessmentModelOptions,
   applyAssessmentModelCodes,
-  validateAssessmentModel
+  validateAssessmentModel,
+  previewAssessmentModelReport
 }

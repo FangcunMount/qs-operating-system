@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Card, Descriptions, Image, message, Space, Tag } from 'antd'
+import { Alert, Button, Card, Descriptions, Image, Input, List, message, Space, Tag, Typography } from 'antd'
 import { observer } from 'mobx-react-lite'
 import { useParams } from 'react-router'
+import { useHistory } from 'react-router-dom'
 import BaseLayout from '@/components/layout/BaseLayout'
 import { MobilePreview } from '@/components/preview'
-import ValidationIssuesPanel, { PublishChecklist } from '@/components/personality/publish/PublishPanels'
+import ValidationIssuesPanel, { DefinitionIssueTabKey, PublishChecklist } from '@/components/personality/publish/PublishPanels'
 import { personalityModelStore, personalityPublishStore } from '@/store/personality'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
@@ -27,7 +28,10 @@ const statusText: Record<string, { label: string; color: string }> = {
 
 const PersonalityPublish: React.FC = observer(() => {
   const { modelCode } = useParams<{ modelCode: string }>()
+  const history = useHistory()
   const [loading, setLoading] = useState(false)
+  const [previewAnswersSource, setPreviewAnswersSource] = useState('{}')
+  const [previewInputError, setPreviewInputError] = useState('')
   const flowCtx = buildPersonalityFlowContext(personalityModelStore)
   const editorFlow = useEditorFlow(personalityEditorFlowConfig, personalityModelStore.modelCode || modelCode, flowCtx)
 
@@ -39,6 +43,11 @@ const PersonalityPublish: React.FC = observer(() => {
         if (personalityModelStore.status === 'published') {
           await personalityPublishStore.loadQRCode(modelCode)
         }
+        const sampleAnswers = Object.fromEntries(personalityModelStore.questions.map((question: any) => {
+          const firstOption = Array.isArray(question.options) ? question.options[0]?.code : undefined
+          return [question.code, firstOption || '']
+        }))
+        setPreviewAnswersSource(JSON.stringify(sampleAnswers, null, 2))
       } catch {
         message.error('加载人格测评发布信息失败')
       }
@@ -70,6 +79,29 @@ const PersonalityPublish: React.FC = observer(() => {
   const handleValidate = async () => {
     const result = await personalityPublishStore.validate(personalityModelStore.modelCode)
     return result.passed
+  }
+
+  const handleIssueClick = (_issue: unknown, targetTab?: DefinitionIssueTabKey) => {
+    const query = targetTab ? `?tab=${targetTab}` : ''
+    history.push(`/personality/definition/${personalityModelStore.modelCode || modelCode}${query}`)
+  }
+
+  const handlePreviewReport = async () => {
+    try {
+      const parsed = JSON.parse(previewAnswersSource || '{}')
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('模拟答案必须是 JSON object')
+      }
+      setPreviewInputError('')
+      await personalityPublishStore.runPreviewReport(personalityModelStore.modelCode, { answers: parsed })
+      message.success('报告预览已生成')
+    } catch (error: any) {
+      if (error instanceof SyntaxError || error?.message === '模拟答案必须是 JSON object') {
+        setPreviewInputError(error.message)
+        return
+      }
+      message.error(getApiErrorMessage(error, '报告预览失败'))
+    }
   }
 
   const handlePublish = async () => {
@@ -120,7 +152,7 @@ const PersonalityPublish: React.FC = observer(() => {
           <div>
             {issues.length > 0 ? (
               <Alert type="error" showIcon style={{ marginBottom: 16 }} message="发布校验未通过"
-                description={<ValidationIssuesPanel issues={issues} />} />
+                description={<ValidationIssuesPanel issues={issues} onIssueClick={handleIssueClick} />} />
             ) : null}
 
             <Card title="发布前检查" className="personality-card" style={{ marginBottom: 16 }}>
@@ -162,7 +194,64 @@ const PersonalityPublish: React.FC = observer(() => {
             </Card>
 
             <Card title="报告预览" className="personality-card" style={{ marginTop: 16 }}>
-              <Alert type="info" showIcon message="报告预览待后端 preview-report 接口接入后开启" />
+              <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                <Input.TextArea
+                  rows={8}
+                  value={previewAnswersSource}
+                  onChange={(event) => setPreviewAnswersSource(event.target.value)}
+                  placeholder='{"question_code":"option_code"}'
+                />
+                <Button
+                  onClick={handlePreviewReport}
+                  loading={personalityPublishStore.previewing}
+                >
+                  运行预览
+                </Button>
+                {previewInputError ? (
+                  <Alert type="error" showIcon message={previewInputError} />
+                ) : null}
+                {personalityPublishStore.previewError ? (
+                  <Alert type="error" showIcon message={personalityPublishStore.previewError} />
+                ) : null}
+                {personalityPublishStore.previewReport?.issues?.length ? (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    message="预览返回校验信息"
+                    description={<ValidationIssuesPanel issues={personalityPublishStore.previewReport.issues} onIssueClick={handleIssueClick} />}
+                  />
+                ) : null}
+                {personalityPublishStore.previewReport ? (
+                  <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                    <Descriptions size="small" column={1} bordered>
+                      <Descriptions.Item label="Outcome">
+                        <Typography.Text code>
+                          {JSON.stringify(personalityPublishStore.previewReport.outcome || {}, null, 2)}
+                        </Typography.Text>
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Score Detail">
+                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                          {JSON.stringify(personalityPublishStore.previewReport.score_detail || {}, null, 2)}
+                        </pre>
+                      </Descriptions.Item>
+                    </Descriptions>
+                    <List
+                      size="small"
+                      bordered
+                      dataSource={personalityPublishStore.previewReport.report_sections}
+                      locale={{ emptyText: '暂无报告段落' }}
+                      renderItem={(section) => (
+                        <List.Item>
+                          <List.Item.Meta
+                            title={section.title}
+                            description={section.content || JSON.stringify(section)}
+                          />
+                        </List.Item>
+                      )}
+                    />
+                  </Space>
+                ) : null}
+              </Space>
             </Card>
           </div>
 

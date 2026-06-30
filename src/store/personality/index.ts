@@ -228,8 +228,22 @@ class PersonalityModelStoreFacade {
   }
 
   async saveDefinition() {
+    return this.saveAndValidateDefinition()
+  }
+
+  async saveDraftDefinition() {
     if (!this.modelCode) throw new Error('人格测评编码不能为空')
-    await personalityDefinitionStore.saveDefinition(this.modelCode, this.subKind, this.algorithm)
+    await personalityDefinitionStore.saveDraftDefinition(this.modelCode, this.subKind, this.algorithm)
+  }
+
+  async saveAndValidateDefinition() {
+    if (!this.modelCode) throw new Error('人格测评编码不能为空')
+    await personalityDefinitionStore.saveAndValidateDefinition(
+      this.modelCode,
+      this.subKind,
+      this.algorithm,
+      this.questions
+    )
     this.currentStep = 'publish'
   }
 
@@ -242,7 +256,7 @@ class PersonalityModelStoreFacade {
     if (this.id) {
       await personalityQuestionnaireStore.saveQuestions(this.id, true)
     }
-    await this.saveDefinition()
+    await this.saveAndValidateDefinition()
     const validation = await this.validateForPublish()
     if (!validation.passed) {
       throw Object.assign(new Error('人格测评校验失败'), { validation })

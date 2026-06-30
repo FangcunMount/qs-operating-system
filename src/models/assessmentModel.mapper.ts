@@ -3,9 +3,12 @@ import {
   AssessmentModelDetail,
   AssessmentModelKind,
   AssessmentModelOptions,
+  AssessmentModelPreviewReportResponse,
+  AssessmentModelPreviewReportSection,
   AssessmentModelStatus,
   AssessmentModelSubKind,
   AssessmentModelSummary,
+  AssessmentModelValidationIssue,
   AssessmentModelValidationResult,
   AssessmentQRCodeResponse,
   LEGACY_PERSONALITY_PAYLOAD_FORMAT,
@@ -233,37 +236,88 @@ export const normalizeAssessmentModelOptions = (raw: Record<string, any>): Asses
   sub_kinds: Array.isArray(raw?.sub_kinds) ? raw.sub_kinds : []
 })
 
-export const normalizeValidationResult = (raw: any): AssessmentModelValidationResult => {
+export const normalizeValidationResult = (raw: unknown): AssessmentModelValidationResult => {
   if (!raw || typeof raw !== 'object') {
     return { passed: false, issues: [{ field: 'unknown', message: '后端未返回校验结果' }] }
   }
-  if ('passed' in raw) {
+  const data = raw as {
+    passed?: boolean
+    valid?: boolean
+    issues?: AssessmentModelValidationIssue[]
+    errors?: string[]
+  }
+  if ('passed' in data) {
     return {
-      passed: Boolean(raw.passed),
-      issues: Array.isArray(raw.issues) ? raw.issues : []
+      passed: Boolean(data.passed),
+      issues: Array.isArray(data.issues) ? data.issues : []
     }
   }
   return {
-    passed: Boolean(raw.valid),
-    issues: Array.isArray(raw.errors)
-      ? raw.errors.map((message: string) => ({ field: 'unknown', message }))
+    passed: Boolean(data.valid),
+    issues: Array.isArray(data.errors)
+      ? data.errors.map((message: string) => ({ field: 'unknown', message }))
       : []
   }
 }
 
-export const normalizeQRCodeResponse = (raw: any): AssessmentQRCodeResponse => ({
-  code: String(raw?.code || ''),
-  qrcode_url: String(raw?.qrcode_url || raw?.qrcode || raw?.url || ''),
-  entry_url: String(raw?.entry_url || raw?.url || '')
-})
-
-export const normalizeListResponse = (data: any) => {
-  const list = data?.models || data?.list || data?.items || []
+export const normalizeQRCodeResponse = (raw: unknown): AssessmentQRCodeResponse => {
+  const data = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
   return {
-    models: Array.isArray(list) ? list.map(normalizeAssessmentModelSummary) : [],
-    page: Number(data?.page || data?.pagenum || 1),
-    page_size: Number(data?.page_size || data?.pagesize || 10),
-    total_count: Number(data?.total_count || data?.total || 0)
+    code: String(data.code || ''),
+    qrcode_url: String(data.qrcode_url || data.qrcode || data.url || ''),
+    entry_url: String(data.entry_url || data.url || '')
+  }
+}
+
+const normalizeReportSections = (raw: unknown): AssessmentModelPreviewReportSection[] => {
+  if (!Array.isArray(raw)) return []
+  return raw.map((section, index) => {
+    if (typeof section === 'string') return { title: `报告段落 ${index + 1}`, content: section }
+    const item = (section || {}) as Record<string, unknown>
+    return {
+      ...item,
+      title: String(item.title || item.name || `报告段落 ${index + 1}`),
+      content: item.content === undefined ? undefined : String(item.content)
+    }
+  })
+}
+
+export const normalizePreviewReportResponse = (raw: unknown): AssessmentModelPreviewReportResponse => {
+  const data = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  const report = data.report && typeof data.report === 'object'
+    ? data.report as Record<string, unknown>
+    : {}
+  const result = data.result && typeof data.result === 'object'
+    ? data.result as Record<string, unknown>
+    : {}
+  return {
+    outcome: (data.outcome || result.outcome || report.outcome) as Record<string, unknown> | undefined,
+    score_detail: (data.score_detail || data.score_details || data.scores || result.score_detail) as
+      Record<string, unknown> | unknown[] | undefined,
+    report_sections: normalizeReportSections(data.report_sections || data.sections || report.sections),
+    issues: normalizeValidationResult({
+      passed: data.passed ?? data.valid ?? true,
+      issues: data.issues || data.errors || []
+    }).issues,
+    raw: data
+  }
+}
+
+export interface AssessmentModelListResponse {
+  models: AssessmentModelSummary[]
+  page: number
+  page_size: number
+  total_count: number
+}
+
+export const normalizeListResponse = (data: unknown): AssessmentModelListResponse => {
+  const raw = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>
+  const list = raw.models || raw.list || raw.items || []
+  return {
+    models: Array.isArray(list) ? list.map((item) => normalizeAssessmentModelSummary(item as Record<string, unknown>)) : [],
+    page: Number(raw.page || raw.pagenum || 1),
+    page_size: Number(raw.page_size || raw.pagesize || 10),
+    total_count: Number(raw.total_count || raw.total || 0)
   }
 }
 

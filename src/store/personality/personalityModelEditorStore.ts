@@ -58,7 +58,7 @@ export class PersonalityModelEditorStore {
     return this.status === 'draft' || this.status === 'published'
   }
 
-  reset() {
+  reset(): void {
     this.modelCode = ''
     this.title = ''
     this.desc = ''
@@ -85,7 +85,7 @@ export class PersonalityModelEditorStore {
     status: AssessmentModelStatus
     questionnaire_code?: string
     questionnaire_version?: string
-  }) {
+  }): void {
     this.modelCode = model.code
     this.title = model.title
     this.desc = model.description || ''
@@ -98,11 +98,11 @@ export class PersonalityModelEditorStore {
     this.questionnaireVersion = model.questionnaire_version
   }
 
-  setQuestionnaireStrategy(strategy: QuestionnaireBindingStrategy) {
+  setQuestionnaireStrategy(strategy: QuestionnaireBindingStrategy): void {
     this.questionnaireStrategy = strategy
   }
 
-  restoreDraft() {
+  restoreDraft(): boolean {
     const draft = personalityDraftStorage.load(this.modelCode || 'new')
     if (!draft) return false
     runInAction(() => {
@@ -122,7 +122,7 @@ export class PersonalityModelEditorStore {
     return true
   }
 
-  persistDraft(currentStep: string) {
+  persistDraft(currentStep: string): void {
     personalityDraftStorage.save(this.modelCode || 'new', {
       modelCode: this.modelCode,
       title: this.title,
@@ -141,7 +141,7 @@ export class PersonalityModelEditorStore {
     })
   }
 
-  async init(modelCode?: string) {
+  async init(modelCode?: string): Promise<void> {
     if (!modelCode || modelCode === 'new') {
       const restored = this.restoreDraft()
       if (!restored) this.reset()
@@ -256,7 +256,7 @@ export class PersonalityModelEditorStore {
     return this.modelCode
   }
 
-  async bindQuestionnaire(code: string, version?: string) {
+  async bindQuestionnaire(code: string, version?: string): Promise<void> {
     if (!this.modelCode) throw new Error('人格测评编码不能为空')
     const questionnaireVersion = this.ensureQuestionnaireVersion(version)
     const [err] = await assessmentModelApi.updateAssessmentModelQuestionnaire(this.modelCode, {

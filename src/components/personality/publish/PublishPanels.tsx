@@ -1,7 +1,9 @@
 import React from 'react'
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
-import { List, Tag, Typography } from 'antd'
+import { Button, List, Tag, Typography } from 'antd'
 import type { AssessmentModelValidationIssue } from '@/models/assessmentModel'
+
+export type DefinitionIssueTabKey = 'factor_graph' | 'question_mapping' | 'decision' | 'outcome' | 'report'
 
 const FIELD_GROUPS: Record<string, string> = {
   basic_info: '基本信息',
@@ -20,20 +22,35 @@ const FIELD_GROUPS: Record<string, string> = {
 
 interface Props {
   issues: AssessmentModelValidationIssue[]
+  onIssueClick?: (issue: AssessmentModelValidationIssue, targetTab?: DefinitionIssueTabKey) => void
+}
+
+export const getIssueGroupKey = (field?: string): string => {
+  const root = field?.split('.')[0] || 'unknown'
+  return FIELD_GROUPS[root] ? root : 'unknown'
+}
+
+export const getIssueTargetTab = (field?: string): DefinitionIssueTabKey | undefined => {
+  const key = getIssueGroupKey(field)
+  if (key === 'factor_graph') return 'factor_graph'
+  if (key === 'question_mapping') return 'question_mapping'
+  if (key === 'decision') return 'decision'
+  if (key === 'outcome' || key === 'outcome_mapping' || key === 'outcomes') return 'outcome'
+  if (key === 'report') return 'report'
+  return undefined
 }
 
 const groupIssues = (issues: AssessmentModelValidationIssue[]) => {
   const groups: Record<string, AssessmentModelValidationIssue[]> = {}
   issues.forEach((issue) => {
-    const root = issue.field?.split('.')[0] || 'unknown'
-    const key = FIELD_GROUPS[root] ? root : 'unknown'
+    const key = getIssueGroupKey(issue.field)
     if (!groups[key]) groups[key] = []
     groups[key].push(issue)
   })
   return groups
 }
 
-const ValidationIssuesPanel: React.FC<Props> = ({ issues }) => {
+const ValidationIssuesPanel: React.FC<Props> = ({ issues, onIssueClick }) => {
   if (issues.length === 0) return null
   const groups = groupIssues(issues)
 
@@ -47,8 +64,20 @@ const ValidationIssuesPanel: React.FC<Props> = ({ issues }) => {
             dataSource={groupIssues}
             renderItem={(issue) => (
               <List.Item>
-                <Tag color={issue.level === 'warning' ? 'warning' : 'error'}>{issue.field}</Tag>
-                {issue.message}
+                <Tag color={issue.level === 'warning' ? 'warning' : 'error'}>
+                  {issue.level === 'warning' ? 'warning' : 'error'}
+                </Tag>
+                <Tag>{issue.field}</Tag>
+                <Typography.Text style={{ flex: 1 }}>{issue.message}</Typography.Text>
+                {onIssueClick ? (
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => onIssueClick(issue, getIssueTargetTab(issue.field))}
+                  >
+                    定位
+                  </Button>
+                ) : null}
               </List.Item>
             )}
           />

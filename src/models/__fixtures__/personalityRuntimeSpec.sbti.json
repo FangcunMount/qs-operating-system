@@ -1,0 +1,72 @@
+{
+  "factor_graph": {
+    "dimension_order": ["empathy", "logic", "balance"],
+    "dimensions": {
+      "empathy": { "code": "empathy", "title": "共情" },
+      "logic": { "code": "logic", "title": "逻辑" },
+      "balance": { "code": "balance", "title": "平衡" }
+    },
+    "factors": {
+      "factor_empathy": {
+        "id": "factor_empathy",
+        "code": "empathy",
+        "name": "共情",
+        "kind": "leaf",
+        "contributions": [],
+        "option_scoring": "strict"
+      },
+      "factor_logic": {
+        "id": "factor_logic",
+        "code": "logic",
+        "name": "逻辑",
+        "kind": "leaf",
+        "contributions": [],
+        "option_scoring": "strict"
+      },
+      "factor_balance": {
+        "id": "factor_balance",
+        "code": "balance",
+        "name": "平衡",
+        "kind": "composite",
+        "children": ["factor_empathy", "factor_logic"],
+        "aggregation": "weighted_avg",
+        "weights": { "factor_empathy": 0.6, "factor_logic": 0.4 },
+        "constant": 0
+      }
+    },
+    "roots": ["factor_balance"],
+    "question_mappings": [
+      {
+        "question_code": "q_empathy",
+        "factor_code": "factor_empathy",
+        "sign": 1,
+        "option_scores": { "yes": 1, "no": 0 }
+      },
+      {
+        "question_code": "q_logic",
+        "factor_code": "factor_logic",
+        "sign": 1,
+        "option_scores": { "yes": 1, "no": 0 }
+      }
+    ]
+  },
+  "decision": {
+    "kind": "sbti",
+    "fallback_code": "BALANCED"
+  },
+  "special_rules": [],
+  "outcome_mapping": {
+    "outcomes": [
+      { "code": "BALANCED", "title": "平衡型", "summary": "共情与逻辑相对均衡" },
+      { "code": "EMPATHY", "title": "共情型", "summary": "更重视情绪理解" }
+    ]
+  },
+  "report": {
+    "kind": "default",
+    "adapter_key": "personality_typology"
+  },
+  "questionnaire_binding": {
+    "questionnaire_code": "q_sbti",
+    "questionnaire_version": "v1"
+  }
+}

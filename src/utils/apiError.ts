@@ -1,10 +1,13 @@
+type ErrorMessageCarrier = {
+  data?: { message?: string; errmsg?: string }
+  response?: { data?: { message?: string; errmsg?: string } }
+  message?: string
+  statusText?: string
+}
+
 export function extractErrorMessage(error: unknown, fallback = '请求失败'): string {
-  const err = error as {
-    data?: { message?: string; errmsg?: string }
-    response?: { data?: { message?: string; errmsg?: string } }
-    message?: string
-    statusText?: string
-  } | null
+  if (typeof error === 'string') return error.trim() || fallback
+  const err = error as ErrorMessageCarrier | null
 
   const candidates = [
     err?.data?.message,
@@ -19,13 +22,15 @@ export function extractErrorMessage(error: unknown, fallback = '请求失败'): 
   return message ? String(message).trim() : fallback
 }
 
-export function getApiErrorMessage(error: any, fallback = '操作失败'): string {
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+export function getApiErrorMessage(error: unknown, fallback = '操作失败'): string {
   if (!error) return fallback
   if (typeof error === 'string') return error
   const extracted = extractErrorMessage(error, '')
   if (extracted) return extracted
-  if (error.validation?.issues?.length) {
-    return error.validation.issues.map((i: { message: string }) => i.message).join('；')
+  const err = error as { validation?: { issues?: Array<{ message: string }> } }
+  if (err.validation?.issues?.length) {
+    return err.validation.issues.map((i) => i.message).join('；')
   }
   return fallback
 }
