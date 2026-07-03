@@ -113,7 +113,7 @@ const Home: React.FC = observer(() => {
       color: '#722ed1'
     },
     'system-governance': {
-      description: '查看缓存治理与平台运行状态',
+      description: '统一查看事件、缓存、承压与治理动作',
       color: '#fa8c16'
     },
     content: { description: '管理问卷和量表内容', color: '#1890ff' },

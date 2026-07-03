@@ -1,0 +1,29 @@
+{
+  "generated_at": "2026-07-03T10:00:00Z",
+  "health": "critical",
+  "signals": [
+    {
+      "id": "resilience.queue.full",
+      "domain": "resilience",
+      "severity": "critical",
+      "status": "queue_full",
+      "title": "SubmitQueue 接近满载",
+      "evidence": ["worker submit_queue utilization=95%"],
+      "metric_evidence": [
+        {
+          "name": "queue_utilization",
+          "window": "5m",
+          "value": 0.95,
+          "unit": "ratio",
+          "available": true
+        }
+      ],
+      "dashboard_key": "resilience_submitqueue",
+      "action_ids": []
+    }
+  ],
+  "metrics": {
+    "available": true,
+    "window": "5m"
+  }
+}

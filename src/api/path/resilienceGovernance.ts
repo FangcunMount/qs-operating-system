@@ -1,5 +1,6 @@
-import { qsInternalRawAxios, internalRawGet } from '../qsServer'
-import { config } from '@/config/config'
+import { getSystemGovernanceResilience } from './systemGovernance'
+import { buildGrafanaLinks } from '../grafanaLinks'
+import { internalRawGet } from '../qsServer'
 import type { QSResponse } from '@/types/qs'
 
 export interface IResilienceRuntimeSummary {
@@ -71,7 +72,9 @@ export interface IResilienceGovernanceLinks {
   locks?: string
 }
 
-const GRAFANA_DASHBOARD_PATHS: Record<keyof IResilienceGovernanceLinks, string> = {
+const GRAFANA_LINK_KEYS = ['overview', 'ratelimit', 'submitqueue', 'backpressure', 'locks'] as const
+
+const GRAFANA_DASHBOARD_PATHS: Record<typeof GRAFANA_LINK_KEYS[number], string> = {
   overview: '/d/resilience-overview/qs-resilience-overview',
   ratelimit: '/d/resilience-ratelimit/qs-resilience-ratelimit',
   submitqueue: '/d/resilience-submitqueue/qs-resilience-submitqueue',
@@ -79,39 +82,11 @@ const GRAFANA_DASHBOARD_PATHS: Record<keyof IResilienceGovernanceLinks, string> 
   locks: '/d/resilience-locks/qs-resilience-locks'
 }
 
-const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
-
-const getGrafanaBaseURL = () => {
-  const explicit = process.env.REACT_APP_GRAFANA_URL || config.grafanaURL || ''
-  return explicit ? trimTrailingSlash(explicit) : ''
-}
-
-const resolveGrafanaLink = (explicitEnv: string | undefined, fallbackPath = '') => {
-  if (explicitEnv && explicitEnv.trim()) {
-    return explicitEnv.trim()
-  }
-
-  const base = getGrafanaBaseURL()
-  if (!base) return undefined
-  if (!fallbackPath) return base
-  const normalized = fallbackPath.startsWith('/') ? fallbackPath : `/${fallbackPath}`
-  return `${base}${normalized}`
-}
-
 const unwrapSnapshot = (payload: IResilienceRuntimeSnapshot | QSResponse<IResilienceRuntimeSnapshot>): IResilienceRuntimeSnapshot => {
   if (typeof (payload as QSResponse<IResilienceRuntimeSnapshot>).code === 'number') {
     return (payload as QSResponse<IResilienceRuntimeSnapshot>).data
   }
   return payload as IResilienceRuntimeSnapshot
-}
-
-const normalizeGovernanceURL = (baseURL: string | undefined) => {
-  const value = (baseURL || '').trim()
-  if (!value) return ''
-  const base = trimTrailingSlash(value)
-  if (base.endsWith('/governance/resilience')) return base
-  if (base.endsWith('/governance')) return `${base}/resilience`
-  return `${base}/governance/resilience`
 }
 
 const degradedComponent = (component: IResilienceComponentStatus['component'], source: string, error?: string): IResilienceComponentStatus => ({
@@ -144,31 +119,24 @@ export const getApiserverResilienceStatus = (): Promise<IResilienceComponentStat
       return snapshotComponent('apiserver', '/internal/v1/resilience/status', snapshot)
     })
 
-export const getExternalResilienceStatus = (
-  component: 'collection-server' | 'worker',
-  baseURL: string | undefined
-): Promise<IResilienceComponentStatus> => {
-  const url = normalizeGovernanceURL(baseURL)
-  if (!url) {
-    return Promise.resolve(degradedComponent(component, '', 'governance url not configured'))
+export const getResilienceStatuses = async (): Promise<IResilienceComponentStatus[]> => {
+  const [error, response] = await getSystemGovernanceResilience()
+  if (error || !response?.data?.components) {
+    return [
+      degradedComponent('apiserver', '/internal/v1/system-governance/resilience', error?.message || 'request failed')
+    ]
   }
-  return qsInternalRawAxios
-    .get<IResilienceRuntimeSnapshot | QSResponse<IResilienceRuntimeSnapshot>>(url)
-    .then((result) => snapshotComponent(component, url, unwrapSnapshot(result.data)))
-    .catch((error) => degradedComponent(component, url, error?.message || 'request failed'))
+  return response.data.components
 }
 
-export const getResilienceStatuses = (): Promise<IResilienceComponentStatus[]> =>
-  Promise.all([
-    getApiserverResilienceStatus(),
-    getExternalResilienceStatus('collection-server', process.env.REACT_APP_QS_COLLECTION_GOVERNANCE_URL),
-    getExternalResilienceStatus('worker', process.env.REACT_APP_QS_WORKER_GOVERNANCE_URL)
-  ])
-
-export const getResilienceGovernanceLinks = (): IResilienceGovernanceLinks => ({
-  overview: resolveGrafanaLink(process.env.REACT_APP_GRAFANA_RESILIENCE_OVERVIEW_URL, GRAFANA_DASHBOARD_PATHS.overview),
-  ratelimit: resolveGrafanaLink(process.env.REACT_APP_GRAFANA_RESILIENCE_RATELIMIT_URL, GRAFANA_DASHBOARD_PATHS.ratelimit),
-  submitqueue: resolveGrafanaLink(process.env.REACT_APP_GRAFANA_RESILIENCE_SUBMITQUEUE_URL, GRAFANA_DASHBOARD_PATHS.submitqueue),
-  backpressure: resolveGrafanaLink(process.env.REACT_APP_GRAFANA_RESILIENCE_BACKPRESSURE_URL, GRAFANA_DASHBOARD_PATHS.backpressure),
-  locks: resolveGrafanaLink(process.env.REACT_APP_GRAFANA_RESILIENCE_LOCKS_URL, GRAFANA_DASHBOARD_PATHS.locks)
-})
+export const getResilienceGovernanceLinks = (): IResilienceGovernanceLinks => buildGrafanaLinks(
+  GRAFANA_LINK_KEYS,
+  GRAFANA_DASHBOARD_PATHS,
+  {
+    overview: process.env.REACT_APP_GRAFANA_RESILIENCE_OVERVIEW_URL,
+    ratelimit: process.env.REACT_APP_GRAFANA_RESILIENCE_RATELIMIT_URL,
+    submitqueue: process.env.REACT_APP_GRAFANA_RESILIENCE_SUBMITQUEUE_URL,
+    backpressure: process.env.REACT_APP_GRAFANA_RESILIENCE_BACKPRESSURE_URL,
+    locks: process.env.REACT_APP_GRAFANA_RESILIENCE_LOCKS_URL
+  }
+)

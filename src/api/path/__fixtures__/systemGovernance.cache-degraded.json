@@ -1,0 +1,19 @@
+{
+  "generated_at": "2026-07-03T10:00:00Z",
+  "health": "degraded",
+  "signals": [
+    {
+      "id": "cache.family.degraded",
+      "domain": "cache",
+      "severity": "warning",
+      "status": "degraded",
+      "title": "缓存族降级",
+      "evidence": ["query_result degraded"],
+      "action_ids": ["cache.manual_warmup"]
+    }
+  ],
+  "metrics": {
+    "available": true,
+    "window": "5m"
+  }
+}

@@ -5,6 +5,7 @@ interface UseBoundedPollingOptions {
   intervalMs: number
   defaultLimit: number
   onTick: () => Promise<void> | void
+  limitReachedMessage?: string
 }
 
 interface UseBoundedPollingResult {
@@ -27,7 +28,8 @@ const getInitialPageVisible = () => (typeof document === 'undefined' ? true : do
 export const useBoundedPolling = ({
   intervalMs,
   defaultLimit,
-  onTick
+  onTick,
+  limitReachedMessage = '轮询已达到上限，已自动停止'
 }: UseBoundedPollingOptions): UseBoundedPollingResult => {
   const [pollingEnabled, setPollingEnabled] = useState(false)
   const [pollingLimit, setPollingLimit] = useState(defaultLimit)
@@ -54,7 +56,7 @@ export const useBoundedPolling = ({
     }
     if (pollingCount >= pollingLimit) {
       setPollingEnabled(false)
-      message.info(`缓存治理轮询已达到上限 ${pollingLimit} 次，已自动停止`)
+      message.info(limitReachedMessage.replace('{limit}', String(pollingLimit)))
       return undefined
     }
 
@@ -64,7 +66,7 @@ export const useBoundedPolling = ({
     }, intervalMs)
 
     return () => window.clearTimeout(timer)
-  }, [intervalMs, onTick, pageVisible, pollingCount, pollingEnabled, pollingLimit])
+  }, [intervalMs, limitReachedMessage, onTick, pageVisible, pollingCount, pollingEnabled, pollingLimit])
 
   const handlePollingToggle = useCallback((checked: boolean) => {
     if (checked) {

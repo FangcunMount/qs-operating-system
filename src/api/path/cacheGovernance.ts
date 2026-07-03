@@ -1,5 +1,5 @@
+import { buildGrafanaLinks } from '../grafanaLinks'
 import { internalGet, internalPost } from '../qsServer'
-import { config } from '@/config/config'
 import type { QSResponse } from '@/types/qs'
 
 /** 热点预览支持的 kind（meta hotset / static_meta） */
@@ -16,7 +16,8 @@ export const CACHE_GOVERNANCE_WARMUP_KINDS = [
   'static.scale_list',
   'query.stats_system',
   'query.stats_questionnaire',
-  'query.stats_plan'
+  'query.stats_plan',
+  'query.stats_overview'
 ] as const
 
 export type CacheGovernanceHotsetKind = typeof CACHE_GOVERNANCE_HOTSET_KINDS[number]
@@ -173,32 +174,15 @@ export interface ICacheGovernanceLinks {
   worker_lock?: string
 }
 
-const GRAFANA_DASHBOARD_PATHS: Record<keyof ICacheGovernanceLinks, string> = {
+const GRAFANA_LINK_KEYS = ['overview', 'family', 'warmup', 'hotset', 'query_version', 'worker_lock'] as const
+
+const GRAFANA_DASHBOARD_PATHS: Record<typeof GRAFANA_LINK_KEYS[number], string> = {
   overview: '/d/cache-overview/qs-cache-overview',
   family: '/d/cache-family/qs-cache-family',
   warmup: '/d/cache-warmup/qs-cache-warmup',
   hotset: '/d/cache-hotset/qs-cache-hotset',
   query_version: '/d/cache-query-version/qs-cache-query-version',
   worker_lock: '/d/cache-worker-lock/qs-cache-worker-lock'
-}
-
-const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
-
-const getGrafanaBaseURL = () => {
-  const explicit = process.env.REACT_APP_GRAFANA_URL || config.grafanaURL || ''
-  return explicit ? trimTrailingSlash(explicit) : ''
-}
-
-const resolveGrafanaLink = (explicitEnv: string | undefined, fallbackPath = '') => {
-  if (explicitEnv && explicitEnv.trim()) {
-    return explicitEnv.trim()
-  }
-
-  const base = getGrafanaBaseURL()
-  if (!base) return undefined
-  if (!fallbackPath) return base
-  const normalized = fallbackPath.startsWith('/') ? fallbackPath : `/${fallbackPath}`
-  return `${base}${normalized}`
 }
 
 export const getCacheGovernanceStatus = (): Promise<[any, QSResponse<ICacheGovernanceStatusResponse> | undefined]> =>
@@ -215,11 +199,15 @@ export const postCacheGovernanceWarmupTargets = (
 ): Promise<[any, QSResponse<ICacheGovernanceManualWarmupResult> | undefined]> =>
   internalPost<ICacheGovernanceManualWarmupResult>('/cache/governance/warmup-targets', data)
 
-export const getCacheGovernanceLinks = (): ICacheGovernanceLinks => ({
-  overview: resolveGrafanaLink(process.env.REACT_APP_GRAFANA_CACHE_OVERVIEW_URL, GRAFANA_DASHBOARD_PATHS.overview),
-  family: resolveGrafanaLink(process.env.REACT_APP_GRAFANA_CACHE_FAMILY_URL, GRAFANA_DASHBOARD_PATHS.family),
-  warmup: resolveGrafanaLink(process.env.REACT_APP_GRAFANA_CACHE_WARMUP_URL, GRAFANA_DASHBOARD_PATHS.warmup),
-  hotset: resolveGrafanaLink(process.env.REACT_APP_GRAFANA_CACHE_HOTSET_URL, GRAFANA_DASHBOARD_PATHS.hotset),
-  query_version: resolveGrafanaLink(process.env.REACT_APP_GRAFANA_CACHE_QUERY_VERSION_URL, GRAFANA_DASHBOARD_PATHS.query_version),
-  worker_lock: resolveGrafanaLink(process.env.REACT_APP_GRAFANA_CACHE_WORKER_LOCK_URL, GRAFANA_DASHBOARD_PATHS.worker_lock)
-})
+export const getCacheGovernanceLinks = (): ICacheGovernanceLinks => buildGrafanaLinks(
+  GRAFANA_LINK_KEYS,
+  GRAFANA_DASHBOARD_PATHS,
+  {
+    overview: process.env.REACT_APP_GRAFANA_CACHE_OVERVIEW_URL,
+    family: process.env.REACT_APP_GRAFANA_CACHE_FAMILY_URL,
+    warmup: process.env.REACT_APP_GRAFANA_CACHE_WARMUP_URL,
+    hotset: process.env.REACT_APP_GRAFANA_CACHE_HOTSET_URL,
+    query_version: process.env.REACT_APP_GRAFANA_CACHE_QUERY_VERSION_URL,
+    worker_lock: process.env.REACT_APP_GRAFANA_CACHE_WORKER_LOCK_URL
+  }
+)

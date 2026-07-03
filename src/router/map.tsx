@@ -564,6 +564,14 @@ export const routes: Array<IRoute> = [
     requiredCapabilities: ['org_admin'],
     children: [
       {
+        title: '系统治理工作台',
+        name: 'system-governance-workbench',
+        path: '/operations/system-governance',
+        component: lazy(() => import('../pages/operations/system-governance')),
+        menuScope: 'org_admin',
+        requiredCapabilities: ['org_admin']
+      },
+      {
         title: '缓存治理',
         name: 'cache-governance',
         path: '/operations/cache-governance',

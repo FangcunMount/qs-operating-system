@@ -1,0 +1,37 @@
+{
+  "actions": [
+    {
+      "id": "cache.manual_warmup",
+      "domain": "cache",
+      "label": "手工预热",
+      "risk_level": "low",
+      "enabled": true,
+      "planned": false,
+      "requires_confirmation": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "targets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": { "type": "string" },
+                "scope": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "events.replay",
+      "domain": "events",
+      "label": "事件重放",
+      "risk_level": "high",
+      "enabled": false,
+      "planned": true,
+      "requires_confirmation": true
+    }
+  ]
+}

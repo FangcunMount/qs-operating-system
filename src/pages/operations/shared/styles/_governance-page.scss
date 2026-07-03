@@ -1,0 +1,147 @@
+@mixin governance-page-theme($border-color, $accent-color, $gradient-start, $gradient-end, $glow-color) {
+  .governance-page__hero {
+    border-color: $border-color;
+    background:
+      radial-gradient(circle at top right, $glow-color, transparent 34%),
+      linear-gradient(135deg, $gradient-start 0%, $gradient-end 100%);
+    box-shadow: 0 10px 24px rgba(22, 78, 142, 0.07);
+  }
+
+  .governance-page__hero-eyebrow {
+    color: $accent-color;
+  }
+}
+
+.governance-page {
+  padding: 24px;
+
+  &__hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 16px;
+    padding: 22px 24px;
+    border: 1px solid #d6e4ff;
+    border-radius: 16px;
+  }
+
+  &__hero-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__hero-eyebrow {
+    margin-bottom: 10px;
+  }
+
+  &__hero-title {
+    margin-bottom: 8px !important;
+  }
+
+  &__hero-description {
+    max-width: 900px;
+    margin-bottom: 12px !important;
+    color: rgba(0, 0, 0, 0.72);
+  }
+
+  &__hero-tags {
+    gap: 8px;
+  }
+
+  &__header {
+    width: 100%;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  &__polling-control {
+    padding: 6px 10px;
+    border: 1px solid #f0f0f0;
+    border-radius: 8px;
+    background: #fafafa;
+  }
+
+  &__grafana-links {
+    max-width: 480px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    .ant-btn {
+      min-width: 180px;
+      height: 38px;
+      border-radius: 10px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+    }
+  }
+
+  &__alert {
+    margin-bottom: 16px;
+  }
+
+  &__alert-stack {
+    width: 100%;
+    margin-bottom: 16px;
+  }
+
+  &__section {
+    margin-top: 16px;
+  }
+
+  &__stat-card {
+    border-radius: 14px;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.04);
+  }
+
+  &__row--degraded td {
+    background: #fff1f0;
+  }
+
+  &__row--unavailable td {
+    background: #fff7e6;
+  }
+
+  &__descriptions {
+    margin-bottom: 16px;
+  }
+
+  &--event {
+    @include governance-page-theme(#d6e4ff, #0958d9, #f0f7ff, #fffaf2, rgba(24, 144, 255, 0.18));
+  }
+
+  &--cache {
+    @include governance-page-theme(#d9f7be, #389e0d, #f6ffed, #fffbe6, rgba(82, 196, 26, 0.16));
+  }
+
+  &--resilience {
+    @include governance-page-theme(#b7eb8f, #237804, #f6ffed, #fff7e6, rgba(82, 196, 26, 0.14));
+  }
+}
+
+@media (max-width: 768px) {
+  .governance-page {
+    padding: 16px;
+
+    &__hero {
+      flex-direction: column;
+      padding: 18px;
+    }
+
+    &__header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    &__grafana-links {
+      max-width: none;
+      width: 100%;
+
+      .ant-btn {
+        min-width: 0;
+        width: 100%;
+      }
+    }
+  }
+}

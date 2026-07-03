@@ -1,0 +1,21 @@
+{
+  "generated_at": "2026-07-03T10:00:00Z",
+  "health": "degraded",
+  "signals": [
+    {
+      "id": "event.pending.backlog",
+      "domain": "events",
+      "severity": "warning",
+      "status": "pending_backlog",
+      "title": "Outbox pending 积压",
+      "evidence": ["mysql_outbox pending=120", "oldest_age=360s"],
+      "metric_evidence": [],
+      "dashboard_key": "event_outbox",
+      "action_ids": []
+    }
+  ],
+  "metrics": {
+    "available": true,
+    "window": "5m"
+  }
+}

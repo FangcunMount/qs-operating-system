@@ -1,6 +1,10 @@
 @import '../shared/styles/governance-page';
 
-.event-governance-page {
+.system-governance-page {
   @extend .governance-page;
   @extend .governance-page--event;
+
+  &__health-tag {
+    font-size: 14px;
+  }
 }
