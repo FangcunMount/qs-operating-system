@@ -1,21 +1,73 @@
 {
   "generated_at": "2026-07-03T10:00:00Z",
-  "health": "degraded",
+  "window": "5m",
+  "overall_severity": "warning",
   "signals": [
     {
-      "id": "event.pending.backlog",
+      "id": "events.outbox.pending_stale.mysql",
       "domain": "events",
       "severity": "warning",
-      "status": "pending_backlog",
-      "title": "Outbox pending 积压",
-      "evidence": ["mysql_outbox pending=120", "oldest_age=360s"],
+      "status": "pending_stale",
+      "title": "Pending outbox backlog is aging",
+      "evidence": {
+        "store": "mysql",
+        "count": 120,
+        "oldest_age_seconds": 360
+      },
       "metric_evidence": [],
       "dashboard_key": "event_outbox",
       "action_ids": []
     }
   ],
   "metrics": {
-    "available": true,
-    "window": "5m"
+    "available": true
+  },
+  "snapshot": {
+    "generated_at": "2026-07-03T10:00:00Z",
+    "catalog": {
+      "topic_count": 4,
+      "event_count": 12,
+      "best_effort_count": 2,
+      "durable_outbox_count": 2
+    },
+    "outboxes": [
+      {
+        "name": "mysql",
+        "store": "mysql",
+        "degraded": false,
+        "buckets": [
+          {
+            "status": "pending",
+            "count": 120,
+            "oldest_created_at": "2026-07-03T09:54:00Z",
+            "oldest_age_seconds": 360
+          }
+        ]
+      }
+    ]
+  },
+  "event_types": [
+    {
+      "store": "mysql",
+      "buckets": [
+        {
+          "EventType": "assessment.submitted",
+          "Status": "pending",
+          "Count": 90,
+          "OldestCreatedAt": "2026-07-03T09:55:00Z"
+        },
+        {
+          "EventType": "assessment.submitted",
+          "Status": "failed",
+          "Count": 2
+        }
+      ]
+    }
+  ],
+  "domains": {
+    "events": {
+      "severity": "warning",
+      "signal_count": 1
+    }
   }
 }

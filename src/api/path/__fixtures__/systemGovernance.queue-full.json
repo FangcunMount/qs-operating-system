@@ -1,20 +1,27 @@
 {
   "generated_at": "2026-07-03T10:00:00Z",
-  "health": "critical",
+  "window": "5m",
+  "overall_severity": "critical",
   "signals": [
     {
-      "id": "resilience.queue.full",
+      "id": "resilience.queue.critical.collection-server.answersheet_submit",
       "domain": "resilience",
       "severity": "critical",
-      "status": "queue_full",
-      "title": "SubmitQueue 接近满载",
-      "evidence": ["worker submit_queue utilization=95%"],
+      "status": "queue_utilization_critical",
+      "title": "Queue utilization critical: answersheet_submit",
+      "evidence": {
+        "component": "collection-server",
+        "queue": "answersheet_submit",
+        "depth": 95,
+        "capacity": 100,
+        "utilization": 0.95
+      },
       "metric_evidence": [
         {
-          "name": "queue_utilization",
+          "name": "queue_full_collection-server_answersheet_submit",
           "window": "5m",
-          "value": 0.95,
-          "unit": "ratio",
+          "value": 3,
+          "unit": "count",
           "available": true
         }
       ],
@@ -23,7 +30,33 @@
     }
   ],
   "metrics": {
-    "available": true,
-    "window": "5m"
+    "available": true
+  },
+  "components": {
+    "collection-server": {
+      "available": true,
+      "snapshot": {
+        "generated_at": "2026-07-03T10:00:00Z",
+        "component": "collection-server",
+        "summary": {
+          "ready": true,
+          "capability_count": 1,
+          "degraded_count": 0
+        },
+        "queues": [
+          {
+            "generated_at": "2026-07-03T10:00:00Z",
+            "component": "collection-server",
+            "name": "answersheet_submit",
+            "strategy": "memory_channel",
+            "depth": 95,
+            "capacity": 100,
+            "status_ttl_seconds": 600,
+            "status_counts": {},
+            "lifecycle_boundary": "process_memory_no_drain"
+          }
+        ]
+      }
+    }
   }
 }

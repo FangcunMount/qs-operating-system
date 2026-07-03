@@ -6,7 +6,7 @@ import { SignalList } from './SignalList'
 describe('SignalList', () => {
   it('renders critical signal from fixture', () => {
     render(<SignalList signals={queueFullFixture.signals} />)
-    expect(screen.getByText(/SubmitQueue 接近满载/)).toBeInTheDocument()
+    expect(screen.getByText(/Queue utilization critical/)).toBeInTheDocument()
     expect(screen.getByText('critical')).toBeInTheDocument()
   })
 

@@ -1,6 +1,7 @@
 {
   "generated_at": "2026-07-03T10:00:00Z",
-  "health": "degraded",
+  "window": "5m",
+  "overall_severity": "warning",
   "signals": [
     {
       "id": "cache.family.degraded",
@@ -8,13 +9,21 @@
       "severity": "warning",
       "status": "degraded",
       "title": "缓存族降级",
-      "evidence": ["query_result degraded"],
+      "evidence": {
+        "family": "query_result",
+        "component": "apiserver"
+      },
       "action_ids": []
     }
   ],
   "metrics": {
     "available": false,
-    "reason": "prometheus query timeout",
-    "window": "5m"
+    "reason": "prometheus query timeout"
+  },
+  "domains": {
+    "cache": {
+      "severity": "warning",
+      "signal_count": 1
+    }
   }
 }

@@ -37,11 +37,20 @@ export const ActionRunDrawer: React.FC<ActionRunDrawerProps> = ({
 
   const handleSubmit = async () => {
     const values = await form.validateFields()
+    let input: Record<string, unknown> | undefined
+    if (values.input) {
+      try {
+        input = JSON.parse(values.input)
+      } catch (_error) {
+        setError('输入 JSON 格式不正确')
+        return
+      }
+    }
     setSubmitting(true)
     setError('')
     const [requestError, response] = await postSystemGovernanceActionRun(action.id, {
-      input: values.input ? JSON.parse(values.input) : undefined,
-      confirmation: values.confirmation
+      input,
+      confirm: action.requires_confirmation ? Boolean(values.confirmation) : true
     })
     setSubmitting(false)
     if (requestError || !response?.data) {

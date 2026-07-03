@@ -1,6 +1,7 @@
 {
   "generated_at": "2026-07-03T10:00:00Z",
-  "health": "degraded",
+  "window": "5m",
+  "overall_severity": "warning",
   "signals": [
     {
       "id": "cache.family.degraded",
@@ -8,12 +9,52 @@
       "severity": "warning",
       "status": "degraded",
       "title": "缓存族降级",
-      "evidence": ["query_result degraded"],
+      "evidence": {
+        "family": "query_result",
+        "component": "apiserver"
+      },
       "action_ids": ["cache.manual_warmup"]
     }
   ],
   "metrics": {
-    "available": true,
-    "window": "5m"
+    "available": true
+  },
+  "snapshot": {
+    "generated_at": "2026-07-03T10:00:00Z",
+    "component": "apiserver",
+    "summary": {
+      "family_total": 1,
+      "available_count": 1,
+      "degraded_count": 1,
+      "unavailable_count": 0,
+      "ready": false
+    },
+    "families": [
+      {
+        "component": "apiserver",
+        "family": "query_result",
+        "profile": "redis",
+        "namespace": "qs:stats",
+        "allow_warmup": true,
+        "configured": true,
+        "available": true,
+        "degraded": true,
+        "mode": "redis",
+        "consecutive_failures": 1
+      }
+    ],
+    "warmup": {
+      "enabled": true,
+      "startup": {
+        "static": true,
+        "query": true
+      },
+      "hotset": {
+        "enable": true,
+        "top_n": 20,
+        "max_items_per_kind": 20
+      },
+      "latest_runs": []
+    }
   }
 }
