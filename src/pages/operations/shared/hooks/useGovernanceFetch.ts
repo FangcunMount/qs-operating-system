@@ -7,7 +7,7 @@ interface UseGovernanceFetchOptions<T> {
   initialLoad?: boolean
 }
 
-interface UseGovernanceFetchResult<T> {
+export interface UseGovernanceFetchResult<T> {
   data: T | null
   loading: boolean
   error: string

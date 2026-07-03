@@ -2,7 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 import { getResilienceStatuses, IResilienceComponentStatus } from '@/api/path/resilienceGovernance'
 import { extractErrorMessage } from '@/utils/apiError'
 
-export const useResilienceGovernanceStatus = () => {
+interface UseResilienceGovernanceStatusResult {
+  components: IResilienceComponentStatus[]
+  loading: boolean
+  error: string
+  load: (silent?: boolean) => Promise<void>
+}
+
+export const useResilienceGovernanceStatus = (): UseResilienceGovernanceStatusResult => {
   const [components, setComponents] = useState<IResilienceComponentStatus[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')

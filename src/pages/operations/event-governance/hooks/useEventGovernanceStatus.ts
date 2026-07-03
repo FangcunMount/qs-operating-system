@@ -1,8 +1,8 @@
 import { useCallback } from 'react'
 import { getEventStatus, IEventStatusResponse } from '@/api/path/eventGovernance'
-import { useGovernanceFetch } from '../../shared/hooks/useGovernanceFetch'
+import { useGovernanceFetch, UseGovernanceFetchResult } from '../../shared/hooks/useGovernanceFetch'
 
-export const useEventGovernanceStatus = () => {
+export const useEventGovernanceStatus = (): UseGovernanceFetchResult<IEventStatusResponse> => {
   const fetcher = useCallback(() => getEventStatus(), [])
   return useGovernanceFetch<IEventStatusResponse>({
     fetcher,
