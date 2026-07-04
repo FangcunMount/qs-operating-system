@@ -1,36 +1,15 @@
 import React, { useMemo } from 'react'
-import { Descriptions, Empty, Space, Table, Tag, Typography } from 'antd'
+import { Descriptions, Empty, Table, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import type { EventOutboxRow, EventTypeRow, GovernanceEventsResponse, MetricEvidence } from '@/api/path/systemGovernance'
+import type { EventOutboxRow, EventTypeRow, GovernanceEventsResponse } from '@/api/path/systemGovernance'
 import { formatDateTime, formatDurationSeconds, renderHealthTag, renderTooltipText } from '../../shared/utils/formatters'
+import { renderMetricEvidence, renderSeverityTag } from '../components/GovernanceEvidence'
 
 const { Text } = Typography
 
 interface EventsTabProps {
   data: GovernanceEventsResponse | null
   loading?: boolean
-}
-
-const severityColor = (severity?: string) => {
-  if (severity === 'critical') return 'red'
-  if (severity === 'warning') return 'orange'
-  if (severity === 'healthy') return 'green'
-  return 'default'
-}
-
-const renderSeverity = (severity?: string) => <Tag color={severityColor(severity)}>{severity || '-'}</Tag>
-
-const renderMetricEvidence = (items?: MetricEvidence[]) => {
-  if (!items?.length) return '-'
-  return (
-    <Space direction="vertical" size={0}>
-      {items.map((item) => (
-        <Text key={item.name} type={item.available ? undefined : 'secondary'}>
-          {item.name}: {item.available ? `${item.value ?? '-'}${item.unit ? ` ${item.unit}` : ''}` : item.reason || '不可用'}
-        </Text>
-      ))}
-    </Space>
-  )
 }
 
 export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
@@ -48,7 +27,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
         width: 130,
         render: (value: number) => formatDurationSeconds(value)
       },
-      { title: '严重度', dataIndex: 'severity', key: 'severity', width: 110, render: renderSeverity },
+      { title: '严重度', dataIndex: 'severity', key: 'severity', width: 110, render: renderSeverityTag },
       { title: 'Reader', dataIndex: 'degraded', key: 'degraded', width: 100, render: (value: boolean) => renderHealthTag(value) },
       { title: '原因', dataIndex: 'reason', key: 'reason', ellipsis: true, render: renderTooltipText },
       { title: '指标证据', dataIndex: 'metric_evidence', key: 'metric_evidence', width: 260, render: renderMetricEvidence }
@@ -69,7 +48,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
         width: 120,
         render: (value: number) => formatDurationSeconds(value)
       },
-      { title: '严重度', dataIndex: 'severity', key: 'severity', width: 110, render: renderSeverity },
+      { title: '严重度', dataIndex: 'severity', key: 'severity', width: 110, render: renderSeverityTag },
       { title: '状态', dataIndex: 'degraded', key: 'degraded', width: 100, render: (value: boolean) => renderHealthTag(value) },
       { title: '原因', dataIndex: 'reason', key: 'reason', ellipsis: true, render: renderTooltipText },
       { title: '指标证据', dataIndex: 'metric_evidence', key: 'metric_evidence', width: 280, render: renderMetricEvidence }

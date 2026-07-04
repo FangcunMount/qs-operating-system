@@ -1,0 +1,127 @@
+{
+  "generated_at": "2026-07-04T12:00:00Z",
+  "window": "5m",
+  "metrics": {
+    "available": true
+  },
+  "signals": [
+    {
+      "id": "resilience.queue.critical.collection-server.answersheet_submit",
+      "domain": "resilience",
+      "severity": "critical",
+      "status": "queue_utilization_critical",
+      "title": "Queue utilization critical: answersheet_submit",
+      "evidence": {
+        "component": "collection-server",
+        "queue": "answersheet_submit",
+        "depth": 95,
+        "capacity": 100,
+        "utilization": 0.95
+      },
+      "metric_evidence": [
+        {
+          "name": "queue_full_collection-server_answersheet_submit",
+          "window": "5m",
+          "value": 3,
+          "unit": "count",
+          "available": true
+        }
+      ],
+      "dashboard_key": "resilience_queue"
+    }
+  ],
+  "summary": {
+    "component_count": 2,
+    "unavailable_component_count": 1,
+    "not_ready_component_count": 1,
+    "queue_count": 1,
+    "warning_queue_count": 0,
+    "critical_queue_count": 1,
+    "max_queue_utilization": 0.95,
+    "backpressure_count": 1,
+    "warning_backpressure_count": 1,
+    "critical_backpressure_count": 0,
+    "max_backpressure_utilization": 0.8,
+    "degraded_capability_count": 1
+  },
+  "queue_rows": [
+    {
+      "component": "collection-server",
+      "name": "answersheet_submit",
+      "strategy": "memory_channel",
+      "depth": 95,
+      "capacity": 100,
+      "utilization": 0.95,
+      "status_counts": {
+        "pending": 95
+      },
+      "lifecycle_boundary": "process_memory_no_drain",
+      "severity": "critical",
+      "reason": "queue utilization critical",
+      "metric_evidence": [
+        {
+          "name": "queue_full_collection-server_answersheet_submit",
+          "window": "5m",
+          "value": 3,
+          "unit": "count",
+          "available": true
+        }
+      ]
+    }
+  ],
+  "backpressure_rows": [
+    {
+      "component": "apiserver",
+      "name": "mysql",
+      "dependency": "mysql",
+      "strategy": "semaphore",
+      "enabled": true,
+      "in_flight": 8,
+      "max_inflight": 10,
+      "utilization": 0.8,
+      "timeout_millis": 3000,
+      "degraded": false,
+      "severity": "warning",
+      "reason": "backpressure utilization elevated",
+      "metric_evidence": [
+        {
+          "name": "backpressure_timeout_apiserver_mysql",
+          "window": "5m",
+          "value": 1,
+          "unit": "count",
+          "available": true
+        }
+      ]
+    }
+  ],
+  "capability_rows": [
+    {
+      "component": "apiserver",
+      "kind": "rate_limit",
+      "name": "api_global",
+      "strategy": "token_bucket",
+      "configured": true,
+      "degraded": true,
+      "severity": "warning",
+      "reason": "redis degraded"
+    }
+  ],
+  "components": {
+    "apiserver": {
+      "available": true,
+      "snapshot": {
+        "generated_at": "2026-07-04T12:00:00Z",
+        "component": "apiserver",
+        "summary": {
+          "ready": false,
+          "capability_count": 2,
+          "degraded_count": 1
+        }
+      }
+    },
+    "worker": {
+      "available": false,
+      "reason": "connection refused"
+    }
+  }
+}

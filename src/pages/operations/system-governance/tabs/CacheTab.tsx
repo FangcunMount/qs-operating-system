@@ -12,6 +12,7 @@ import type {
 } from '@/api/path/systemGovernance'
 import { renderBooleanAvailabilityTag, renderDegradedTag, renderTooltipText } from '../../shared/utils/formatters'
 import { ActionRunDrawer } from '../components/ActionRunDrawer'
+import { renderMetricEvidence, renderSeverityTag } from '../components/GovernanceEvidence'
 
 const { Text } = Typography
 
@@ -27,28 +28,6 @@ interface HotsetRecommendation extends CacheHotsetItem {
   degraded: boolean
   message?: string
   metric_evidence?: MetricEvidence[]
-}
-
-const severityColor = (severity?: string) => {
-  if (severity === 'critical') return 'red'
-  if (severity === 'warning') return 'orange'
-  if (severity === 'healthy') return 'green'
-  return 'default'
-}
-
-const renderSeverity = (severity?: string) => <Tag color={severityColor(severity)}>{severity || '-'}</Tag>
-
-const renderMetricEvidence = (items?: MetricEvidence[]) => {
-  if (!items?.length) return '-'
-  return (
-    <Space direction="vertical" size={0}>
-      {items.map((item) => (
-        <Text key={item.name} type={item.available ? undefined : 'secondary'}>
-          {item.name}: {item.available ? `${item.value ?? '-'}${item.unit ? ` ${item.unit}` : ''}` : item.reason || '不可用'}
-        </Text>
-      ))}
-    </Space>
-  )
 }
 
 const flattenHotsets = (hotsets: CacheHotsetView[] = []): HotsetRecommendation[] =>
@@ -101,7 +80,7 @@ export const CacheTab: React.FC<CacheTabProps> = ({ data, loading, manualWarmupA
         render: renderDegradedTag
       },
       { title: '模式', dataIndex: 'mode', key: 'mode', width: 120 },
-      { title: '严重度', dataIndex: 'severity', key: 'severity', width: 100, render: renderSeverity },
+      { title: '严重度', dataIndex: 'severity', key: 'severity', width: 100, render: renderSeverityTag },
       { title: '最近错误', dataIndex: 'last_error', key: 'last_error', ellipsis: true, render: renderTooltipText },
       { title: '指标证据', dataIndex: 'metric_evidence', key: 'metric_evidence', width: 260, render: renderMetricEvidence }
     ],
