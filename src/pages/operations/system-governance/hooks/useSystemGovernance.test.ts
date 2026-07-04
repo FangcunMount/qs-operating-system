@@ -147,4 +147,23 @@ describe('useSystemGovernance', () => {
     expect(screen.getByTestId('cache-ready')).toHaveTextContent('none')
     expect(screen.getByTestId('error')).toHaveTextContent('')
   })
+
+  it('reloads core data and the active tab data', async () => {
+    renderHookHarness('/operations/system-governance?tab=resilience')
+
+    await waitFor(() => {
+      expect(screen.getByTestId('resilience-queues')).toHaveTextContent('1')
+    })
+
+    jest.clearAllMocks()
+    fireEvent.click(screen.getByText('reload'))
+
+    await waitFor(() => {
+      expect(overviewMock).toHaveBeenCalledWith('5m')
+      expect(actionsMock).toHaveBeenCalled()
+      expect(resilienceMock).toHaveBeenCalledWith('5m')
+    })
+    expect(eventsMock).not.toHaveBeenCalled()
+    expect(cacheMock).not.toHaveBeenCalled()
+  })
 })
