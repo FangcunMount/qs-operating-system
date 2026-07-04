@@ -10,6 +10,7 @@ import { extractErrorMessage } from '@/utils/apiError'
 interface ActionRunDrawerProps {
   action: ActionDescriptor | null
   visible: boolean
+  initialInput?: Record<string, unknown>
   onClose: () => void
   onFinished?: (result: ActionRunResponse) => void
 }
@@ -17,6 +18,7 @@ interface ActionRunDrawerProps {
 export const ActionRunDrawer: React.FC<ActionRunDrawerProps> = ({
   action,
   visible,
+  initialInput,
   onClose,
   onFinished
 }) => {
@@ -28,8 +30,14 @@ export const ActionRunDrawer: React.FC<ActionRunDrawerProps> = ({
     if (!visible) {
       form.resetFields()
       setError('')
+      return
     }
-  }, [form, visible])
+    form.setFieldsValue({
+      confirmation: '',
+      input: initialInput ? JSON.stringify(initialInput, null, 2) : ''
+    })
+    setError('')
+  }, [action?.id, form, initialInput, visible])
 
   if (!action) {
     return null

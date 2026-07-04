@@ -1,0 +1,66 @@
+{
+  "generated_at": "2026-07-04T10:00:00Z",
+  "window": "5m",
+  "metrics": { "available": true },
+  "signals": [],
+  "snapshot": {
+    "generated_at": "2026-07-04T10:00:00Z",
+    "catalog": {
+      "topic_count": 4,
+      "event_count": 12,
+      "best_effort_count": 2,
+      "durable_outbox_count": 2
+    },
+    "outboxes": []
+  },
+  "summary": {
+    "outbox_count": 1,
+    "degraded_reader_count": 0,
+    "pending_count": 12,
+    "failed_count": 1,
+    "oldest_pending_age_seconds": 610,
+    "stale_event_type_count": 1,
+    "reader_error_count": 0
+  },
+  "outbox_rows": [
+    {
+      "name": "mysql",
+      "store": "mysql",
+      "degraded": false,
+      "pending_count": 12,
+      "failed_count": 1,
+      "publishing_count": 0,
+      "oldest_pending_age_seconds": 610,
+      "severity": "critical",
+      "metric_evidence": [
+        {
+          "name": "outbox_pending_backlog_mysql",
+          "window": "5m",
+          "value": 12,
+          "unit": "count",
+          "available": true
+        }
+      ]
+    }
+  ],
+  "event_type_rows": [
+    {
+      "store": "mysql",
+      "event_type": "assessment.submitted",
+      "pending_count": 9,
+      "failed_count": 1,
+      "oldest_age_seconds": 610,
+      "severity": "critical",
+      "degraded": true,
+      "metric_evidence": [
+        {
+          "name": "outbox_event_type_pending_backlog_mysql_assessment.submitted",
+          "window": "5m",
+          "value": 9,
+          "unit": "count",
+          "available": true
+        }
+      ]
+    }
+  ]
+}

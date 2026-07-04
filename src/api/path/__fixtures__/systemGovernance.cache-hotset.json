@@ -1,0 +1,161 @@
+{
+  "generated_at": "2026-07-04T10:00:00Z",
+  "window": "5m",
+  "metrics": { "available": true },
+  "signals": [
+    {
+      "id": "cache.component.unavailable.collection-server",
+      "domain": "cache",
+      "severity": "warning",
+      "status": "unavailable",
+      "title": "Cache component unavailable",
+      "evidence": {
+        "component": "collection-server",
+        "reason": "connection refused"
+      }
+    }
+  ],
+  "snapshot": {
+    "generated_at": "2026-07-04T10:00:00Z",
+    "component": "apiserver",
+    "summary": {
+      "family_total": 1,
+      "available_count": 1,
+      "degraded_count": 1,
+      "unavailable_count": 0,
+      "ready": false
+    },
+    "families": [
+      {
+        "component": "apiserver",
+        "family": "query_result",
+        "profile": "redis",
+        "namespace": "qs:stats",
+        "allow_warmup": true,
+        "configured": true,
+        "available": true,
+        "degraded": true,
+        "mode": "redis",
+        "consecutive_failures": 1,
+        "last_error": "last warmup exceeded 3s"
+      }
+    ],
+    "warmup": {
+      "enabled": true,
+      "startup": {
+        "static": true,
+        "query": true
+      },
+      "hotset": {
+        "enable": true,
+        "top_n": 20,
+        "max_items_per_kind": 20
+      },
+      "latest_runs": [
+        {
+          "kind": "query.stats_system",
+          "scope": "org:7",
+          "result": "failed",
+          "items": 0,
+          "duration_ms": 3180,
+          "error": "timeout"
+        }
+      ]
+    }
+  },
+  "components": {
+    "apiserver": {
+      "available": true,
+      "snapshot": {
+        "generated_at": "2026-07-04T10:00:00Z",
+        "component": "apiserver",
+        "summary": {
+          "family_total": 1,
+          "available_count": 1,
+          "degraded_count": 1,
+          "unavailable_count": 0,
+          "ready": false
+        },
+        "families": [
+          {
+            "component": "apiserver",
+            "family": "query_result",
+            "profile": "redis",
+            "namespace": "qs:stats",
+            "allow_warmup": true,
+            "configured": true,
+            "available": true,
+            "degraded": true,
+            "mode": "redis",
+            "consecutive_failures": 1,
+            "last_error": "last warmup exceeded 3s"
+          }
+        ]
+      }
+    },
+    "collection-server": {
+      "available": false,
+      "reason": "connection refused"
+    }
+  },
+  "family_rows": [
+    {
+      "component": "apiserver",
+      "family": "query_result",
+      "profile": "redis",
+      "namespace": "qs:stats",
+      "allow_warmup": true,
+      "configured": true,
+      "available": true,
+      "degraded": true,
+      "mode": "redis",
+      "consecutive_failures": 1,
+      "last_error": "last warmup exceeded 3s",
+      "severity": "warning",
+      "reason": "last warmup exceeded 3s",
+      "metric_evidence": [
+        {
+          "name": "cache_family_degraded_apiserver_query_result",
+          "window": "5m",
+          "value": 2,
+          "unit": "count",
+          "available": true
+        }
+      ]
+    }
+  ],
+  "warmup_kinds": [
+    {
+      "kind": "query.stats_system",
+      "family": "query_result",
+      "scope_example": "org:7",
+      "supports_manual_warmup": true
+    }
+  ],
+  "hotsets": [
+    {
+      "family": "query_result",
+      "kind": "query.stats_system",
+      "limit": 5,
+      "available": true,
+      "degraded": false,
+      "items": [
+        {
+          "family": "query_result",
+          "kind": "query.stats_system",
+          "scope": "org:7",
+          "score": 3
+        }
+      ],
+      "metric_evidence": [
+        {
+          "name": "cache_hotset_size_query.stats_system",
+          "window": "5m",
+          "value": 1,
+          "unit": "count",
+          "available": true
+        }
+      ]
+    }
+  ]
+}

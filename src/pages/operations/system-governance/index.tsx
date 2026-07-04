@@ -114,7 +114,11 @@ const SystemGovernancePage: React.FC = () => {
             <EventsTab data={events} loading={loading} />
           </TabPane>
           <TabPane tab="缓存预热" key="cache">
-            <CacheTab data={cache} loading={loading} />
+            <CacheTab
+              data={cache}
+              loading={loading}
+              manualWarmupAction={actions.find((item) => item.id === 'cache.manual_warmup')}
+            />
           </TabPane>
           <TabPane tab="承压保护" key="resilience">
             <ResilienceTab data={resilience} loading={loading} />
