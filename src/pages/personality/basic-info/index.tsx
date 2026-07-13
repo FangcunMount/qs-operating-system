@@ -6,6 +6,7 @@ import BaseLayout from '@/components/layout/BaseLayout'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
 import {
   personalityModelEditorStore,
+  personalityDefinitionStore,
   personalityModelStore,
   personalityEditorWorkflowStore,
   getPersonalityEditorFlowContext
@@ -18,6 +19,7 @@ import {
 } from '@/utils/editorFlow'
 import {
   filterPersonalityAlgorithmOptions,
+  getPersonalityDecisionOptions,
   normalizePersonalityAlgorithm,
   PERSONALITY_SUB_KIND
 } from '@/constants/personalityScope'
@@ -56,6 +58,7 @@ const PersonalityBasicInfo: React.FC = observer(() => {
           title: personalityModelStore.title,
           desc: personalityModelStore.desc,
           algorithm: normalizePersonalityAlgorithm(personalityModelStore.algorithm),
+          decisionKind: personalityDefinitionStore.runtimeSpec.decision.kind,
           subKind: PERSONALITY_SUB_KIND,
           category: personalityModelStore.category || undefined,
           tags: personalityModelStore.tags,
@@ -85,6 +88,10 @@ const PersonalityBasicInfo: React.FC = observer(() => {
     personalityModelEditorStore.title = values.title
     personalityModelEditorStore.desc = values.desc || ''
     personalityModelEditorStore.algorithm = normalizePersonalityAlgorithm(values.algorithm)
+    personalityDefinitionStore.setRuntimeSpec({
+      ...personalityDefinitionStore.runtimeSpec,
+      decision: { ...personalityDefinitionStore.runtimeSpec.decision, kind: values.decisionKind }
+    })
     personalityModelEditorStore.subKind = PERSONALITY_SUB_KIND
     personalityModelEditorStore.category = values.category || ''
     personalityModelEditorStore.tags = values.tags || []
@@ -151,8 +158,12 @@ const PersonalityBasicInfo: React.FC = observer(() => {
             <Form.Item name="desc" label="测评说明">
               <TextArea rows={4} placeholder="填写测评说明、适用场景或运营备注" />
             </Form.Item>
-            <Form.Item name="algorithm" label="人格算法" rules={[{ required: true, message: '请选择算法' }]}>
-              <Select options={algorithmOptions} placeholder="选择人格算法" />
+            <Form.Item name="algorithm" label="人格运行时" rules={[{ required: true, message: '请选择运行时' }]}
+              extra="人格模型统一由因子图计算；MBTI、九型、16 人格等差异通过下方决策机制和结果配置表达。">
+              <Select options={algorithmOptions} disabled />
+            </Form.Item>
+            <Form.Item name="decisionKind" label="结果决策机制" rules={[{ required: true, message: '请选择结果决策机制' }]}>
+              <Select options={getPersonalityDecisionOptions()} placeholder="选择结果决策机制" />
             </Form.Item>
             <Form.Item label="模型类型">
               <Input value="人格探索 / 类型模型（typology）" disabled />

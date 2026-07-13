@@ -25,13 +25,27 @@ const normalizeOutcomes = (outcomes: unknown): PersonalityOutcome[] => {
         ? raw.suggestions.filter((suggestion): suggestion is string => typeof suggestion === 'string')
         : undefined,
       rarity_label: raw.rarity_label === undefined ? undefined : String(raw.rarity_label),
-      percentile: raw.percentile === undefined ? undefined : String(raw.percentile)
+      percentile: raw.percentile === undefined ? undefined : String(raw.percentile),
+      pattern: raw.pattern === undefined ? undefined : String(raw.pattern),
+      traits: Array.isArray(raw.traits)
+        ? raw.traits.filter((value): value is string => typeof value === 'string') : undefined,
+      strengths: Array.isArray(raw.strengths)
+        ? raw.strengths.filter((value): value is string => typeof value === 'string') : undefined,
+      weaknesses: Array.isArray(raw.weaknesses)
+        ? raw.weaknesses.filter((value): value is string => typeof value === 'string') : undefined,
+      image_url: raw.image_url === undefined ? undefined : String(raw.image_url),
+      image: raw.image === undefined ? undefined : String(raw.image),
+      rarity: raw.rarity && typeof raw.rarity === 'object'
+        ? raw.rarity as PersonalityOutcome['rarity'] : undefined,
+      is_special: Boolean(raw.is_special),
+      trigger: raw.trigger === undefined ? undefined : String(raw.trigger),
+      commentary: raw.commentary === undefined ? undefined : String(raw.commentary)
     }
   })
 }
 
 const resolveDecisionKind = (kind: string | undefined, algorithm?: string): string => {
-  const normalizedKind = normalizeLegacyDecisionKind(kind) || kind || 'custom_typology'
+  const normalizedKind = normalizeLegacyDecisionKind(kind) || kind || 'pole_composition'
   if (!algorithm) return normalizedKind
   return normalizeDecisionKindForAlgorithm(algorithm, normalizedKind)
 }
@@ -70,10 +84,10 @@ export const createEmptyRuntimeSpec = (
     factors: {},
     roots: []
   },
-  decision: { kind: 'custom_typology' },
+  decision: { kind: 'pole_composition' },
   special_rules: [],
-  outcome_mapping: { outcomes: [] },
-  report: { kind: 'default' },
+  outcome_mapping: { outcomes: [], detail_kind: 'personality_type', detail_adapter_key: 'personality_type' },
+  report: { kind: 'personality_type', adapter_key: 'personality_type' },
   questionnaire_binding: questionnaireCode
     ? { questionnaire_code: questionnaireCode, questionnaire_version: questionnaireVersion }
     : undefined
@@ -109,7 +123,7 @@ export const mapSimplePayloadToRuntimeSpec = (
   const scoringRules = payload.scoring_rules || {}
   const decisionKind = typeof scoringRules.decision_kind === 'string'
     ? scoringRules.decision_kind
-    : 'custom_typology'
+    : 'pole_composition'
 
   return {
     factor_graph: {
@@ -126,13 +140,15 @@ export const mapSimplePayloadToRuntimeSpec = (
     special_rules: Array.isArray(scoringRules.special_rules) ? scoringRules.special_rules : [],
     outcome_mapping: {
       outcomes: normalizeOutcomes(payload.outcomes),
+      detail_kind: decisionKind === 'trait_profile' ? 'trait_profile' : 'personality_type',
+      detail_adapter_key: decisionKind === 'trait_profile' ? 'trait_profile' : 'personality_type',
       mapping_rules: typeof scoringRules.outcome_mapping === 'object'
         ? scoringRules.outcome_mapping as Record<string, unknown>
         : undefined
     },
     report: typeof scoringRules.report === 'object' && scoringRules.report
       ? scoringRules.report as PersonalityTypologyRuntimeSpec['report']
-      : { kind: 'default' },
+      : { kind: decisionKind === 'trait_profile' ? 'trait_profile' : 'personality_type' },
     questionnaire_binding: payload.questionnaire_binding
   }
 }

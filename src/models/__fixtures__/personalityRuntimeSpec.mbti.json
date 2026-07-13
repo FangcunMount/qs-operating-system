@@ -41,18 +41,24 @@
   },
   "decision": {
     "kind": "pole_composition",
-    "fallback_code": "ENFP"
+    "fallback_code": "ENFP",
+    "poles": [
+      { "factor_code": "factor_e", "left_pole": "I", "right_pole": "E", "threshold": 0.5 },
+      { "factor_code": "factor_i", "left_pole": "NFP", "right_pole": "STJ", "threshold": 0.5 }
+    ]
   },
   "special_rules": [],
   "outcome_mapping": {
+    "detail_kind": "personality_type",
+    "detail_adapter_key": "personality_type",
     "outcomes": [
       { "code": "ENFP", "name": "竞选者", "summary": "热情开放" },
       { "code": "ISTJ", "name": "物流师", "summary": "稳定谨慎" }
     ]
   },
   "report": {
-    "kind": "default",
-    "adapter_key": "personality_typology"
+    "kind": "personality_type",
+    "adapter_key": "personality_type"
   },
   "questionnaire_binding": {
     "questionnaire_code": "q_mbti",

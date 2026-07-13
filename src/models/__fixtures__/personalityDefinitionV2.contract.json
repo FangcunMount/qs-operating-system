@@ -1,0 +1,39 @@
+{
+  "Measure": {
+    "Factors": [
+      { "Code": "drive", "Title": "驱动力", "Role": "dimension" },
+      { "Code": "care", "Title": "关怀力", "Role": "dimension" }
+    ],
+    "FactorGraph": { "Roots": ["drive", "care"], "Edges": [] },
+    "Scoring": [
+      {
+        "FactorCode": "drive",
+        "Sources": [{ "Kind": "question", "Code": "q_drive", "Sign": 1, "OptionScores": { "low": 0, "high": 2 } }],
+        "Strategy": "sum",
+        "OptionScoring": "strict"
+      },
+      {
+        "FactorCode": "care",
+        "Sources": [{ "Kind": "question", "Code": "q_care", "Sign": 1, "OptionScores": { "low": 0, "high": 2 } }],
+        "Strategy": "sum",
+        "OptionScoring": "strict"
+      }
+    ]
+  },
+  "Calibration": { "NormRefs": [] },
+  "Conclusions": [{
+    "Kind": "type",
+    "Decision": { "Kind": "dominant_factor", "Poles": [], "TopK": 2 },
+    "OutcomeMapping": { "DetailKind": "personality_type", "DetailAdapterKey": "personality_type" },
+    "Profiles": [
+      { "OutcomeCode": "drive", "Traits": ["行动"], "Strengths": ["推进"], "Weaknesses": [], "Suggestions": ["兼顾他人"], "IsSpecial": false },
+      { "OutcomeCode": "care", "Traits": ["关怀"], "Strengths": ["共情"], "Weaknesses": [], "Suggestions": ["保持边界"], "IsSpecial": false }
+    ],
+    "SpecialRules": []
+  }],
+  "Outcomes": [
+    { "Code": "drive", "Title": "驱动型", "Summary": "擅长推进" },
+    { "Code": "care", "Title": "关怀型", "Summary": "擅长共情" }
+  ],
+  "ReportMap": { "Sections": [{ "Code": "personality_report", "Kind": "personality_type", "AdapterKey": "personality_type" }] }
+}

@@ -317,7 +317,7 @@ describe('runtime spec validation', () => {
     ]))
   })
 
-  it('validates decision fallback and algorithm match', () => {
+  it('validates decision-specific configuration without coupling it to an algorithm name', () => {
     const spec: PersonalityTypologyRuntimeSpec = {
       ...createEmptyRuntimeSpec('q1'),
       factor_graph: {
@@ -327,13 +327,13 @@ describe('runtime spec validation', () => {
         question_mappings: [{ question_code: 'q1', factor_code: 'f1', option_scores: { A: 1 } }]
       },
       decision: { kind: 'nearest_pattern', fallback_code: 'missing' },
-      outcome_mapping: { outcomes: [{ code: 'O1', name: '结果' }] },
-      report: { kind: 'default' }
+      outcome_mapping: { outcomes: [{ code: 'O1', name: '结果' }], detail_kind: 'personality_type' },
+      report: { kind: 'personality_type' }
     }
 
     expect(validateRuntimeSpec(spec, { algorithm: 'mbti' }).map((issue) => issue.field)).toEqual(expect.arrayContaining([
       'decision.fallback_code',
-      'decision.kind'
+      'outcome_mapping.pattern'
     ]))
   })
 

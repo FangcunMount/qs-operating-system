@@ -56,14 +56,16 @@
   },
   "special_rules": [],
   "outcome_mapping": {
+    "detail_kind": "personality_type",
+    "detail_adapter_key": "personality_type",
     "outcomes": [
-      { "code": "BALANCED", "name": "平衡型", "summary": "共情与逻辑相对均衡" },
-      { "code": "EMPATHY", "name": "共情型", "summary": "更重视情绪理解" }
+      { "code": "BALANCED", "name": "平衡型", "summary": "共情与逻辑相对均衡", "pattern": "M" },
+      { "code": "EMPATHY", "name": "共情型", "summary": "更重视情绪理解", "pattern": "H" }
     ]
   },
   "report": {
-    "kind": "default",
-    "adapter_key": "personality_typology"
+    "kind": "personality_type",
+    "adapter_key": "personality_type"
   },
   "questionnaire_binding": {
     "questionnaire_code": "q_sbti",

@@ -115,7 +115,7 @@ const PersonalityDefinitionEditor: React.FC<Props> = ({
           <TabPane tab="题目映射" key="question_mapping">
             <QuestionMappingTab spec={spec} questions={questions} onChange={onSpecChange} />
           </TabPane>
-          <TabPane tab="决策规则" key="decision">
+          <TabPane tab="结果决策机制" key="decision">
             <DecisionTab spec={spec} algorithm={algorithm} onChange={onSpecChange} />
           </TabPane>
           <TabPane tab="结果类型" key="outcome">

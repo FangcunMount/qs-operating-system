@@ -1,11 +1,12 @@
 import type { IQuestion } from '@/models/question'
-import { getDecisionKindForAlgorithm, normalizeLegacyDecisionKind } from '@/constants/personalityScope'
+import { normalizeLegacyDecisionKind } from '@/constants/personalityScope'
 import type { DefinitionV2 } from './definitionV2'
 
 export type AssessmentModelKind = 'scale' | 'typology' | 'personality' | 'behavioral_rating' | 'cognitive' | 'behavior_ability'
 export type AssessmentModelStatus = 'draft' | 'published' | 'archived'
 export type AssessmentModelSubKind = 'typology' | 'dimension_score'
 export type AssessmentModelAlgorithm =
+  | 'personality_typology'
   | 'mbti'
   | 'sbti'
   | 'bigfive'
@@ -80,6 +81,16 @@ export interface PersonalityOutcome {
   suggestions?: string[]
   rarity_label?: string
   percentile?: string
+  pattern?: string
+  traits?: string[]
+  strengths?: string[]
+  weaknesses?: string[]
+  image_url?: string
+  image?: string
+  rarity?: { percent?: number; label?: string; one_in_x?: number }
+  is_special?: boolean
+  trigger?: string
+  commentary?: string
 }
 
 export interface PersonalityQuestionnaireBinding {
@@ -134,7 +145,15 @@ export interface PersonalityDecisionSpec {
   kind: string
   fallback_similarity_threshold?: number
   fallback_code?: string
-  level_rule?: Record<string, unknown>
+  level_rule?: { low_max?: number; high_min?: number }
+  poles?: Array<{
+    factor_code: string
+    left_pole: string
+    right_pole: string
+    threshold?: number
+    model?: string
+  }>
+  top_k?: number
   [key: string]: unknown
 }
 
@@ -146,11 +165,13 @@ export interface PersonalitySpecialRuleSpec {
 
 export interface PersonalityOutcomeMappingSpec {
   outcomes: PersonalityOutcome[]
+  detail_kind?: 'personality_type' | 'trait_profile'
+  detail_adapter_key?: 'personality_type' | 'trait_profile'
   mapping_rules?: Record<string, unknown>
 }
 
 export interface PersonalityReportSpec {
-  kind: string
+  kind: 'personality_type' | 'trait_profile' | 'template'
   adapter_key?: string
   template_id?: string
   category_label?: string
@@ -263,10 +284,10 @@ export const createEmptyRuntimeSpec = (
     factors: {},
     roots: []
   },
-  decision: { kind: 'custom_typology' },
+  decision: { kind: 'pole_composition' },
   special_rules: [],
-  outcome_mapping: { outcomes: [] },
-  report: { kind: 'default' },
+  outcome_mapping: { outcomes: [], detail_kind: 'personality_type', detail_adapter_key: 'personality_type' },
+  report: { kind: 'personality_type', adapter_key: 'personality_type' },
   questionnaire_binding: questionnaireCode
     ? { questionnaire_code: questionnaireCode, questionnaire_version: questionnaireVersion }
     : undefined
@@ -276,9 +297,9 @@ export const createEmptyPersonalityDefinition = (
   questionnaireCode = '',
   questionnaireVersion?: string
 ): AssessmentModelDefinition<PersonalityTypologyRuntimeSpec> => ({
-  kind: 'personality',
+  kind: 'typology',
   sub_kind: 'typology',
-  algorithm: 'mbti',
+  algorithm: 'personality_typology',
   payload_format: PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT,
   payload: createEmptyRuntimeSpec(questionnaireCode, questionnaireVersion)
 })
@@ -525,26 +546,54 @@ export const validateDecision = (
   spec: PersonalityTypologyRuntimeSpec,
   algorithm?: string
 ): AssessmentModelValidationIssue[] => {
+  void algorithm
   const issues: AssessmentModelValidationIssue[] = []
-  const decisionKind = spec.decision?.kind
+  const decisionKind = normalizeLegacyDecisionKind(spec.decision?.kind)
   const outcomeCodes = new Set((spec.outcome_mapping?.outcomes || []).map((outcome) => outcome.code).filter(Boolean))
+  const roots = spec.factor_graph.roots || []
+  const supported = new Set(['pole_composition', 'nearest_pattern', 'trait_profile', 'dominant_factor'])
 
   if (!decisionKind) {
     issues.push({ field: 'decision', message: '决策规则不能为空' })
+  } else if (!supported.has(decisionKind)) {
+    issues.push({ field: 'decision.kind', message: `不支持的结果决策机制：${decisionKind}` })
   }
 
   if (spec.decision?.fallback_code && !outcomeCodes.has(spec.decision.fallback_code)) {
     issues.push({ field: 'decision.fallback_code', message: '兜底结果必须来自已配置的结果类型' })
   }
 
-  if (
-    algorithm &&
-    algorithm !== 'custom_typology' &&
-    decisionKind &&
-    normalizeLegacyDecisionKind(decisionKind) !== getDecisionKindForAlgorithm(algorithm) &&
-    decisionKind !== 'custom_typology'
-  ) {
-    issues.push({ field: 'decision.kind', message: `决策类型 ${decisionKind} 与算法 ${algorithm} 不匹配` })
+  if (decisionKind === 'pole_composition') {
+    const poles = spec.decision.poles || []
+    roots.forEach((factorCode) => {
+      const pole = poles.find((item) => item.factor_code === factorCode)
+      if (!pole?.left_pole || !pole?.right_pole) {
+        issues.push({ field: `decision.poles.${factorCode}`, message: `因子 ${factorCode} 必须配置左右极` })
+      }
+    })
+  }
+
+  if (decisionKind === 'nearest_pattern') {
+    const patterns = (spec.outcome_mapping?.outcomes || []).filter((outcome) => !outcome.is_special && outcome.pattern)
+    if (patterns.length === 0) {
+      issues.push({ field: 'outcome_mapping.pattern', message: '最近模式至少需要一个结果配置 Pattern' })
+    }
+    const rule = spec.decision.level_rule
+    if (rule?.low_max !== undefined && rule?.high_min !== undefined && rule.low_max >= rule.high_min) {
+      issues.push({ field: 'decision.level_rule', message: '低档上限必须小于高档下限' })
+    }
+  }
+
+  if (decisionKind === 'dominant_factor') {
+    const topK = spec.decision.top_k || 1
+    if (topK < 1 || topK > roots.length) {
+      issues.push({ field: 'decision.top_k', message: `Top K 必须在 1 到 ${roots.length} 之间` })
+    }
+    roots.forEach((factorCode) => {
+      if (!outcomeCodes.has(factorCode)) {
+        issues.push({ field: `outcome_mapping.${factorCode}`, message: `主导因子 ${factorCode} 需要同 Code 的结果类型` })
+      }
+    })
   }
 
   return issues
@@ -557,7 +606,7 @@ export const validateOutcomeMapping = (
   const outcomes = spec.outcome_mapping?.outcomes || []
   const outcomeCodes = outcomes.map((item) => item.code).filter(Boolean)
 
-  if (outcomes.length === 0) {
+  if (outcomes.length === 0 && normalizeLegacyDecisionKind(spec.decision.kind) !== 'trait_profile') {
     issues.push({ field: 'outcome_mapping', message: '至少需要配置一个结果类型' })
   }
 
@@ -569,16 +618,24 @@ export const validateOutcomeMapping = (
     issues.push({ field: 'outcome_mapping.code', message: '结果类型 code 不能重复' })
   }
 
+  if (!['personality_type', 'trait_profile'].includes(spec.outcome_mapping.detail_kind || '')) {
+    issues.push({ field: 'outcome_mapping.detail_kind', message: '结果映射类型必须是 personality_type 或 trait_profile' })
+  }
+
   return issues
 }
 
 export const validateReport = (
   spec: PersonalityTypologyRuntimeSpec
 ): AssessmentModelValidationIssue[] => {
-  if (!spec.report?.kind) {
-    return [{ field: 'report', message: '报告配置不能为空' }]
+  const issues: AssessmentModelValidationIssue[] = []
+  if (!['personality_type', 'trait_profile', 'template'].includes(spec.report?.kind || '')) {
+    issues.push({ field: 'report.kind', message: '报告类型必须是 personality_type、trait_profile 或 template' })
   }
-  return []
+  if (spec.report?.kind === 'template' && !spec.report.adapter_key) {
+    issues.push({ field: 'report.adapter_key', message: '模板报告必须配置适配器 Key' })
+  }
+  return issues
 }
 
 export const validateRuntimeSpec = (

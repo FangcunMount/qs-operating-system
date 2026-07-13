@@ -18,7 +18,7 @@ export class PersonalityModelEditorStore {
   desc = ''
   category = ''
   tags: string[] = []
-  algorithm = 'mbti'
+  algorithm = 'personality_typology'
   subKind: AssessmentModelSubKind | string = 'typology'
   status: AssessmentModelStatus = 'draft'
   questionnaireCode = ''
@@ -70,7 +70,7 @@ export class PersonalityModelEditorStore {
     this.desc = ''
     this.category = ''
     this.tags = []
-    this.algorithm = 'mbti'
+    this.algorithm = 'personality_typology'
     this.subKind = 'typology'
     this.status = 'draft'
     this.questionnaireCode = ''

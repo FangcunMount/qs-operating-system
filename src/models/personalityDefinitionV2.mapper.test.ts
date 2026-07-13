@@ -3,6 +3,8 @@ import {
   applyPersonalityRuntimeSpec,
   projectPersonalityRuntimeSpec
 } from './personalityDefinitionV2.mapper'
+import contractDefinition from './__fixtures__/personalityDefinitionV2.contract.json'
+import { createEmptyDefinitionV2 } from './definitionV2'
 
 describe('personality DefinitionV2 projection', () => {
   const source: DefinitionV2 = {
@@ -51,5 +53,42 @@ describe('personality DefinitionV2 projection', () => {
       expect.objectContaining({ Kind: 'type', FutureTypeField: { keep: true } })
     ]))
     expect(next.ReportMap?.Sections?.[1]).toEqual(source.ReportMap?.Sections?.[1])
+  })
+
+  it('generates the cross-repository DefinitionV2 contract fixture', () => {
+    const definition = applyPersonalityRuntimeSpec(createEmptyDefinitionV2(), {
+      factor_graph: {
+        factors: {
+          drive: { id: 'drive', code: 'drive', name: '驱动力', kind: 'leaf', option_scoring: 'strict', contributions: [{ question_code: 'q_drive', sign: 1, option_scores: { low: 0, high: 2 } }] },
+          care: { id: 'care', code: 'care', name: '关怀力', kind: 'leaf', option_scoring: 'strict', contributions: [{ question_code: 'q_care', sign: 1, option_scores: { low: 0, high: 2 } }] }
+        },
+        roots: ['drive', 'care'],
+        question_mappings: []
+      },
+      decision: { kind: 'dominant_factor', top_k: 2, poles: [] },
+      special_rules: [],
+      outcome_mapping: {
+        detail_kind: 'personality_type', detail_adapter_key: 'personality_type',
+        outcomes: [
+          { code: 'drive', name: '驱动型', summary: '擅长推进', traits: ['行动'], strengths: ['推进'], weaknesses: [], suggestions: ['兼顾他人'], is_special: false },
+          { code: 'care', name: '关怀型', summary: '擅长共情', traits: ['关怀'], strengths: ['共情'], weaknesses: [], suggestions: ['保持边界'], is_special: false }
+        ]
+      },
+      report: { kind: 'personality_type', adapter_key: 'personality_type' }
+    })
+    expect(JSON.parse(JSON.stringify(definition))).toEqual(contractDefinition)
+  })
+
+  it('roundtrips outcome mapping and TypeProfile fields through the form projection', () => {
+    const projected = projectPersonalityRuntimeSpec(contractDefinition)
+    expect(projected.outcome_mapping).toMatchObject({
+      detail_kind: 'personality_type',
+      detail_adapter_key: 'personality_type'
+    })
+    expect(projected.outcome_mapping.outcomes[0]).toMatchObject({
+      code: 'drive', traits: ['行动'], strengths: ['推进'], suggestions: ['兼顾他人']
+    })
+    expect(projected.decision).toMatchObject({ kind: 'dominant_factor', top_k: 2 })
+    expect(JSON.parse(JSON.stringify(applyPersonalityRuntimeSpec(contractDefinition, projected)))).toEqual(contractDefinition)
   })
 })

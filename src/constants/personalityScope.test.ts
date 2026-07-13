@@ -13,12 +13,12 @@ import {
 } from '@/constants/personalityScope'
 
 describe('personalityScope', () => {
-  it('filters non-personality algorithms from options', () => {
+  it('exposes only the unified personality runtime', () => {
     expect(filterPersonalityAlgorithmOptions([
       { value: 'mbti', label: 'MBTI' },
       { value: 'score_range', label: '分数区间' },
       { value: 'behavior_ability', label: '行为能力' }
-    ])).toEqual([{ value: 'mbti', label: 'MBTI' }])
+    ])).toEqual(DEFAULT_PERSONALITY_ALGORITHM_OPTIONS)
   })
 
   it('falls back to default options when API returns only non-personality algorithms', () => {
@@ -27,9 +27,9 @@ describe('personalityScope', () => {
     ])).toEqual(DEFAULT_PERSONALITY_ALGORITHM_OPTIONS)
   })
 
-  it('preserves score=0 style edge via normalizePersonalityAlgorithm fallback', () => {
-    expect(normalizePersonalityAlgorithm('score_range')).toBe('mbti')
-    expect(normalizePersonalityAlgorithm('sbti')).toBe('sbti')
+  it('normalizes legacy algorithm identities to the unified runtime', () => {
+    expect(normalizePersonalityAlgorithm('score_range')).toBe('personality_typology')
+    expect(normalizePersonalityAlgorithm('sbti')).toBe('personality_typology')
   })
 
   it('identifies personality typology scope models', () => {
@@ -38,11 +38,10 @@ describe('personalityScope', () => {
     expect(isPersonalityTypologyScopeModel({ kind: PERSONALITY_KIND, sub_kind: 'dimension_score' })).toBe(false)
   })
 
-  it('returns decision options aligned with backend algorithm kind', () => {
-    expect(getPersonalityDecisionOptions('mbti')).toEqual([{ value: 'pole_composition', label: 'MBTI 极性组合' }])
-    expect(getPersonalityDecisionOptions('score_range')).toEqual(
-      getPersonalityDecisionOptions('mbti')
-    )
+  it('returns the finite decision mechanism set independent of named instruments', () => {
+    expect(getPersonalityDecisionOptions('mbti').map((item) => item.value)).toEqual([
+      'pole_composition', 'nearest_pattern', 'trait_profile', 'dominant_factor'
+    ])
   })
 
   it('normalizes legacy decision kind aliases', () => {
@@ -54,7 +53,8 @@ describe('personalityScope', () => {
 
   it('exports fixed personality typology algorithm list', () => {
     expect(PERSONALITY_TYPOLOGY_ALGORITHMS).not.toContain('score_range')
-    expect(isPersonalityTypologyAlgorithm('bigfive')).toBe(true)
+    expect(isPersonalityTypologyAlgorithm('personality_typology')).toBe(true)
+    expect(isPersonalityTypologyAlgorithm('bigfive')).toBe(false)
     expect(isPersonalityTypologyAlgorithm('medical_scale')).toBe(false)
   })
 })

@@ -4,95 +4,68 @@ import type { AssessmentModelKind, AssessmentModelSubKind } from '@/models/asses
 export const PERSONALITY_KIND: AssessmentModelKind = 'typology'
 export const PERSONALITY_SUB_KIND: AssessmentModelSubKind = 'typology'
 
-export const PERSONALITY_TYPOLOGY_ALGORITHMS = [
-  'mbti',
-  'sbti',
-  'bigfive',
-  'custom_typology'
-] as const
+/** New drafts always use one configured factor-classification runtime. */
+export const PERSONALITY_RUNTIME_ALGORITHM = 'personality_typology' as const
+export const PERSONALITY_TYPOLOGY_ALGORITHMS = [PERSONALITY_RUNTIME_ALGORITHM] as const
+export type PersonalityTypologyAlgorithm = typeof PERSONALITY_RUNTIME_ALGORITHM
 
-export type PersonalityTypologyAlgorithm = typeof PERSONALITY_TYPOLOGY_ALGORITHMS[number]
-
-export const DEFAULT_PERSONALITY_ALGORITHM_OPTIONS: Array<{ value: PersonalityTypologyAlgorithm; label: string }> = [
-  { value: 'mbti', label: 'MBTI' },
-  { value: 'sbti', label: 'SBTI' },
-  { value: 'bigfive', label: 'Big Five' },
-  { value: 'custom_typology', label: '自定义类型' }
+export const DEFAULT_PERSONALITY_ALGORITHM_OPTIONS = [
+  { value: PERSONALITY_RUNTIME_ALGORITHM, label: '统一人格类型运行时' }
 ]
 
-export const ALGORITHM_TO_DECISION_KIND: Record<PersonalityTypologyAlgorithm, string> = {
+export const PERSONALITY_DECISION_OPTIONS = [
+  { value: 'pole_composition', label: '极性组合（如 MBTI）' },
+  { value: 'nearest_pattern', label: '最近模式（如 SBTI/九型模式）' },
+  { value: 'trait_profile', label: '连续特质画像（如 Big Five）' },
+  { value: 'dominant_factor', label: '主导因子 / Top K' }
+]
+
+const LEGACY_ALGORITHM_DECISIONS: Record<string, string> = {
   mbti: 'pole_composition',
   sbti: 'nearest_pattern',
   bigfive: 'trait_profile',
-  custom_typology: 'custom_typology'
+  custom_typology: 'pole_composition'
 }
-
-const CANONICAL_DECISION_KINDS = new Set(Object.values(ALGORITHM_TO_DECISION_KIND))
-
-export const PERSONALITY_DECISION_OPTIONS: Record<
-  PersonalityTypologyAlgorithm,
-  Array<{ value: string; label: string }>
-> = {
-  mbti: [{ value: 'pole_composition', label: 'MBTI 极性组合' }],
-  sbti: [{ value: 'nearest_pattern', label: 'SBTI 最近模式' }],
-  bigfive: [{ value: 'trait_profile', label: 'BigFive 特质画像' }],
-  custom_typology: [{ value: 'custom_typology', label: '自定义类型' }]
-}
+const CANONICAL_DECISION_KINDS = new Set(PERSONALITY_DECISION_OPTIONS.map((item) => item.value))
 
 export const normalizeLegacyDecisionKind = (decisionKind?: string): string | undefined => {
   if (!decisionKind) return decisionKind
   if (CANONICAL_DECISION_KINDS.has(decisionKind)) return decisionKind
-  if (isPersonalityTypologyAlgorithm(decisionKind)) {
-    return ALGORITHM_TO_DECISION_KIND[decisionKind]
-  }
-  return decisionKind
+  return LEGACY_ALGORITHM_DECISIONS[decisionKind] || decisionKind
 }
 
-export const getDecisionKindForAlgorithm = (algorithm?: string): string => {
-  const normalized = normalizePersonalityAlgorithm(algorithm)
-  return ALGORITHM_TO_DECISION_KIND[normalized]
-}
+/** Compatibility helper for loading old models; algorithm no longer constrains the decision. */
+export const getDecisionKindForAlgorithm = (algorithm?: string): string => (
+  LEGACY_ALGORITHM_DECISIONS[algorithm || ''] || 'pole_composition'
+)
 
 export const normalizeDecisionKindForAlgorithm = (
   algorithm?: string,
   decisionKind?: string
-): string => {
-  const normalizedAlgorithm = normalizePersonalityAlgorithm(algorithm)
-  const expectedKind = ALGORITHM_TO_DECISION_KIND[normalizedAlgorithm]
-  const normalizedKind = normalizeLegacyDecisionKind(decisionKind)
-  if (!normalizedKind || normalizedKind === 'custom_typology') {
-    return normalizedKind || expectedKind
-  }
-  if (normalizedKind === expectedKind) return normalizedKind
-  if (normalizedAlgorithm === 'custom_typology') return normalizedKind
-  return expectedKind
+): string => normalizeLegacyDecisionKind(decisionKind) || getDecisionKindForAlgorithm(algorithm)
+
+export const isPersonalityTypologyAlgorithm = (value?: string): value is PersonalityTypologyAlgorithm => (
+  value === PERSONALITY_RUNTIME_ALGORITHM
+)
+
+/** Legacy identities are read-compatible, but every subsequent save writes the generic identity. */
+export const normalizePersonalityAlgorithm = (value?: string): PersonalityTypologyAlgorithm => {
+  void value
+  return PERSONALITY_RUNTIME_ALGORITHM
 }
-
-export const isPersonalityTypologyAlgorithm = (
-  value?: string
-): value is PersonalityTypologyAlgorithm => (
-  PERSONALITY_TYPOLOGY_ALGORITHMS.includes(value as PersonalityTypologyAlgorithm)
-)
-
-export const normalizePersonalityAlgorithm = (value?: string): PersonalityTypologyAlgorithm => (
-  isPersonalityTypologyAlgorithm(value) ? value : 'mbti'
-)
 
 export const filterPersonalityAlgorithmOptions = (
   options: Array<{ value: string; label: string }> = []
 ): Array<{ value: PersonalityTypologyAlgorithm; label: string }> => {
-  const filtered = options.filter((item) => isPersonalityTypologyAlgorithm(item.value))
-  if (filtered.length > 0) {
-    return filtered as Array<{ value: PersonalityTypologyAlgorithm; label: string }>
-  }
-  return DEFAULT_PERSONALITY_ALGORITHM_OPTIONS
+  const configured = options.find((item) => item.value === PERSONALITY_RUNTIME_ALGORITHM)
+  return configured ? [configured as { value: PersonalityTypologyAlgorithm; label: string }] : DEFAULT_PERSONALITY_ALGORITHM_OPTIONS
 }
 
 export const getPersonalityDecisionOptions = (
   algorithm?: string
 ): Array<{ value: string; label: string }> => {
-  const normalized = normalizePersonalityAlgorithm(algorithm)
-  return PERSONALITY_DECISION_OPTIONS[normalized]
+  void algorithm
+  return PERSONALITY_DECISION_OPTIONS
 }
 
 export const isPersonalityTypologyScopeModel = (model: {

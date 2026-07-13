@@ -320,7 +320,7 @@ const PersonalityList: React.FC = () => {
             />
             <Select
               allowClear
-              placeholder="算法"
+              placeholder="人格运行时"
               size="large"
               value={algorithm}
               options={algorithmOptions}

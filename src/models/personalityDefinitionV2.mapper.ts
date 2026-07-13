@@ -26,6 +26,14 @@ const asRecord = (value: unknown): DefinitionV2Record => (
 const asArray = <T = unknown>(value: unknown): T[] => Array.isArray(value) ? value as T[] : []
 const asString = (value: unknown): string => value === undefined || value === null ? '' : String(value)
 const asNumber = (value: unknown): number | undefined => typeof value === 'number' && Number.isFinite(value) ? value : undefined
+const asReportKind = (value: unknown, decisionKind: string): 'personality_type' | 'trait_profile' | 'template' => {
+  const kind = asString(value)
+  if (kind === 'template' || kind === 'trait_profile' || kind === 'personality_type') return kind
+  return decisionKind === 'trait_profile' ? 'trait_profile' : 'personality_type'
+}
+const detailKindForDecision = (decisionKind: string): 'personality_type' | 'trait_profile' => (
+  decisionKind === 'trait_profile' || decisionKind === 'bigfive' ? 'trait_profile' : 'personality_type'
+)
 
 const typeConclusionIndex = (definition: DefinitionV2): number =>
   asArray<DefinitionConclusion>(definition.Conclusions).findIndex((item) => item?.Kind === 'type')
@@ -35,11 +43,26 @@ const typeConclusion = (definition: DefinitionV2): DefinitionConclusion => {
   return index >= 0 ? asArray<DefinitionConclusion>(definition.Conclusions)[index] : { Kind: 'type' }
 }
 
-const outcomeToEditor = (outcome: DefinitionOutcome): PersonalityOutcome => ({
+const outcomeToEditor = (outcome: DefinitionOutcome, profile: DefinitionV2Record = {}): PersonalityOutcome => ({
   code: asString(outcome.Code),
   name: asString(outcome.Title),
   summary: asString(outcome.Summary) || undefined,
-  description: asString(outcome.Description) || undefined
+  description: asString(outcome.Description) || undefined,
+  pattern: asString(profile.Pattern) || undefined,
+  traits: asArray<string>(profile.Traits),
+  strengths: asArray<string>(profile.Strengths),
+  weaknesses: asArray<string>(profile.Weaknesses),
+  suggestions: asArray<string>(profile.Suggestions),
+  image_url: asString(profile.ImageURL) || undefined,
+  image: asString(profile.Image) || undefined,
+  rarity: Object.keys(asRecord(profile.Rarity)).length > 0 ? {
+    percent: asNumber(asRecord(profile.Rarity).Percent),
+    label: asString(asRecord(profile.Rarity).Label) || undefined,
+    one_in_x: asNumber(asRecord(profile.Rarity).OneInX)
+  } : undefined,
+  is_special: Boolean(profile.IsSpecial),
+  trigger: asString(profile.Trigger) || undefined,
+  commentary: asString(profile.Commentary) || undefined
 })
 
 const outcomeToWire = (outcome: PersonalityOutcome, existing?: DefinitionOutcome): DefinitionOutcome => ({
@@ -78,7 +101,8 @@ export const projectPersonalityRuntimeSpec = (
       children: [],
       aggregation: item?.Strategy === 'avg' || item?.Strategy === 'weighted_avg' || item?.Strategy === 'sum'
         ? item.Strategy : undefined,
-      weights: asRecord(item?.Weights) as Record<string, number>,
+      weights: Object.keys(asRecord(item?.Weights)).length > 0
+        ? asRecord(item?.Weights) as Record<string, number> : undefined,
       constant: asNumber(item?.Constant),
       option_scoring: item?.OptionScoring === 'strict' || item?.OptionScoring === 'compat' ? item.OptionScoring : undefined,
       contributions: sources
@@ -114,14 +138,16 @@ export const projectPersonalityRuntimeSpec = (
 
   const conclusion = typeConclusion(definition)
   const decision = asRecord(conclusion.Decision)
+  const decisionKind = asString(decision.Kind) || empty.decision.kind
   const outcomeMapping = asRecord(conclusion.OutcomeMapping)
+  const profiles = new Map(asArray<DefinitionV2Record>(conclusion.Profiles).map((profile) => [asString(profile.OutcomeCode), profile]))
   const specialRules = asArray<DefinitionV2Record>(conclusion.SpecialRules).map((rule): PersonalitySpecialRuleSpec => {
     const { Code, Kind, ...config } = rule
     return { code: asString(Code), kind: asString(Kind), config }
   }).filter((rule) => rule.code || rule.kind)
   const sections = asArray<DefinitionReportSection>(asRecord(definition.ReportMap).Sections)
   const report = sections.length > 0 ? sections[0] : {}
-  const outcomes = asArray<DefinitionOutcome>(definition.Outcomes).map(outcomeToEditor)
+  const outcomes = asArray<DefinitionOutcome>(definition.Outcomes).map((outcome) => outcomeToEditor(outcome, profiles.get(asString(outcome.Code))))
 
   return {
     ...empty,
@@ -134,19 +160,32 @@ export const projectPersonalityRuntimeSpec = (
     },
     decision: {
       ...decision,
-      kind: asString(decision.Kind) || empty.decision.kind,
+      kind: decisionKind,
       fallback_similarity_threshold: asNumber(decision.FallbackSimilarityThreshold),
       fallback_code: asString(decision.FallbackCode) || undefined,
-      level_rule: asRecord(decision.LevelRule)
+      level_rule: Object.keys(asRecord(decision.LevelRule)).length > 0 ? {
+        low_max: asNumber(asRecord(decision.LevelRule).LowMax),
+        high_min: asNumber(asRecord(decision.LevelRule).HighMin)
+      } : undefined,
+      top_k: asNumber(decision.TopK),
+      poles: asArray<DefinitionV2Record>(decision.Poles).map((pole) => ({
+        factor_code: asString(pole.FactorCode),
+        left_pole: asString(pole.LeftPole),
+        right_pole: asString(pole.RightPole),
+        threshold: asNumber(pole.Threshold),
+        model: asString(pole.Model) || undefined
+      }))
     },
     special_rules: specialRules,
     outcome_mapping: {
       outcomes,
+      detail_kind: detailKindForDecision(asString(outcomeMapping.DetailKind) || decisionKind),
+      detail_adapter_key: detailKindForDecision(asString(outcomeMapping.DetailAdapterKey) || decisionKind),
       mapping_rules: outcomeMapping
     },
     report: {
-      kind: asString(report.Kind) || empty.report.kind,
-      adapter_key: asString(report.AdapterKey) || undefined,
+      kind: asReportKind(report.Kind, decisionKind),
+      adapter_key: detailKindForDecision(asString(report.AdapterKey) || decisionKind),
       template_id: asString(report.TemplateID) || undefined,
       category_label: asString(report.CategoryLabel) || undefined
     }
@@ -227,7 +266,7 @@ export const applyPersonalityRuntimeSpec = (
   const current = typeConclusion(definition)
   const currentDecision = asRecord(current.Decision)
   const currentOutcomeMapping = asRecord(current.OutcomeMapping)
-  const { kind, fallback_similarity_threshold, fallback_code, level_rule, ...otherDecision } = spec.decision
+  const { kind, fallback_similarity_threshold, fallback_code, level_rule, poles, top_k, ...otherDecision } = spec.decision
   const nextType: DefinitionConclusion = {
     ...current,
     Kind: 'type',
@@ -237,9 +276,40 @@ export const applyPersonalityRuntimeSpec = (
       Kind: kind,
       FallbackSimilarityThreshold: fallback_similarity_threshold,
       FallbackCode: fallback_code,
-      LevelRule: level_rule
+      LevelRule: level_rule ? { LowMax: level_rule.low_max, HighMin: level_rule.high_min } : undefined,
+      Poles: (poles || []).map((pole) => ({
+        FactorCode: pole.factor_code,
+        LeftPole: pole.left_pole,
+        RightPole: pole.right_pole,
+        Threshold: pole.threshold,
+        Model: pole.model
+      })),
+      TopK: top_k
     },
-    OutcomeMapping: { ...currentOutcomeMapping, ...(spec.outcome_mapping.mapping_rules || {}) },
+    OutcomeMapping: {
+      ...currentOutcomeMapping,
+      ...(spec.outcome_mapping.mapping_rules || {}),
+      DetailKind: spec.outcome_mapping.detail_kind,
+      DetailAdapterKey: spec.outcome_mapping.detail_adapter_key
+    },
+    Profiles: (spec.outcome_mapping.outcomes || []).map((outcome) => ({
+      OutcomeCode: outcome.code,
+      Pattern: outcome.pattern,
+      Traits: outcome.traits,
+      Strengths: outcome.strengths,
+      Weaknesses: outcome.weaknesses,
+      Suggestions: outcome.suggestions,
+      ImageURL: outcome.image_url,
+      Image: outcome.image,
+      Rarity: outcome.rarity ? {
+        Percent: outcome.rarity.percent,
+        Label: outcome.rarity.label,
+        OneInX: outcome.rarity.one_in_x
+      } : undefined,
+      IsSpecial: outcome.is_special,
+      Trigger: outcome.trigger,
+      Commentary: outcome.commentary
+    })),
     SpecialRules: (spec.special_rules || []).map((rule) => ({
       ...(rule.config || {}),
       Code: rule.code,
