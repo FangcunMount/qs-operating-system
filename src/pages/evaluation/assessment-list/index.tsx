@@ -9,16 +9,14 @@ import { rootStore } from '@/store'
 const statusTextMap: Record<string, string> = {
   pending: '待处理',
   submitted: '已提交',
-  interpreting: '解读中',
-  completed: '已完成',
+  evaluated: '测评完成',
   failed: '失败'
 }
 
 const statusColorMap: Record<string, string> = {
   pending: 'default',
   submitted: 'processing',
-  interpreting: 'processing',
-  completed: 'success',
+  evaluated: 'success',
   failed: 'error'
 }
 
@@ -52,7 +50,7 @@ const AssessmentListPage: React.FC = () => {
         page,
         page_size: pageSize,
         status,
-        testee_id: appliedTesteeId ? Number(appliedTesteeId) : undefined
+        testee_id: appliedTesteeId || undefined
       })
 
       if (error || !response?.data) {
@@ -104,7 +102,7 @@ const AssessmentListPage: React.FC = () => {
       <Button
         type="link"
         size="small"
-        onClick={() => history.push(`/subject/${record.testee_id}/scale/${record.id}`)}
+        onClick={() => history.push(`/subject/${record.testee_id}/assessment/${record.id}`)}
       >
         查看详情
       </Button>
@@ -115,7 +113,13 @@ const AssessmentListPage: React.FC = () => {
     () => [
       { title: '测评ID', dataIndex: 'id', key: 'id', width: 180 },
       { title: '受试者ID', dataIndex: 'testee_id', key: 'testee_id', width: 160 },
-      { title: '量表名称', dataIndex: 'medical_scale_name', key: 'medical_scale_name', width: 180 },
+      {
+        title: '测评模型',
+        dataIndex: ['model', 'title'],
+        key: 'model_title',
+        width: 180,
+        render: (_: string, record: IAssessment) => record.model?.title || record.model?.code || '-'
+      },
       {
         title: '状态',
         dataIndex: 'status',
@@ -124,14 +128,23 @@ const AssessmentListPage: React.FC = () => {
         render: (_: string, record: IAssessment) => renderStatusTag(record.status, record.status_label)
       },
       {
-        title: '风险等级',
-        dataIndex: 'risk_level',
-        key: 'risk_level',
+        title: '结果等级',
+        dataIndex: ['level', 'code'],
+        key: 'level',
         width: 120,
-        render: (_: string, record: IAssessment) => renderRiskTag(record.risk_level, record.risk_level_label)
+        render: (_: string, record: IAssessment) => (
+          renderRiskTag(record.level?.code || '', record.level?.label)
+        )
+      },
+      {
+        title: '主分数',
+        dataIndex: ['primary_score', 'value'],
+        key: 'primary_score',
+        width: 120,
+        render: (_: number, record: IAssessment) => record.primary_score?.value ?? '-'
       },
       { title: '提交时间', dataIndex: 'submitted_at', key: 'submitted_at', width: 180 },
-      { title: '解读时间', dataIndex: 'interpreted_at', key: 'interpreted_at', width: 180, render: renderTimestamp },
+      { title: '失败时间', dataIndex: 'failed_at', key: 'failed_at', width: 180, render: renderTimestamp },
       {
         title: '操作',
         key: 'action',
@@ -164,8 +177,7 @@ const AssessmentListPage: React.FC = () => {
           >
             <Select.Option value="pending">待处理</Select.Option>
             <Select.Option value="submitted">已提交</Select.Option>
-            <Select.Option value="interpreting">解读中</Select.Option>
-            <Select.Option value="completed">已完成</Select.Option>
+            <Select.Option value="evaluated">测评完成</Select.Option>
             <Select.Option value="failed">失败</Select.Option>
           </Select>
           <Button type="primary" onClick={handleSearch}>

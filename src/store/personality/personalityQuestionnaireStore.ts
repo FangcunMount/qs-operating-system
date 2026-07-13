@@ -34,7 +34,9 @@ const normalizeQuestions = (questions: unknown[]): IQuestion[] =>
     })
     .filter((q): q is IQuestion => q !== null)
 
-export class PersonalityQuestionnaireStore {
+/** Shared per-model questionnaire editing state. Each model workflow creates
+ * its own instance so drafts from different catalog families never mix. */
+export class ModelQuestionnaireStore {
   questions: IQuestion[] = []
   showControllers: Array<{ code: string; show_controller: IQuestionShowController }> = []
   deletedShowControllerCodes: string[] = []
@@ -256,5 +258,8 @@ export class PersonalityQuestionnaireStore {
     (this.questions[this.currentIndex] as IRadioQuestion).options.splice(index, 1)
   }
 }
+
+/** Compatibility name retained for the existing personality workflow. */
+export class PersonalityQuestionnaireStore extends ModelQuestionnaireStore {}
 
 export const personalityQuestionnaireStore = new PersonalityQuestionnaireStore()

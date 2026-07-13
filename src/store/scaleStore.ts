@@ -20,7 +20,8 @@ import { api } from '../api'
 import { delShowController, postShowController } from '@/api/path/showController'
 import { convertQuestionFromDTO, ensureDefaultValidateRules } from '@/api/path/questionConverter'
 import type { IQuestionDTO } from '@/api/path/survey'
-import { getScaleCategories } from '@/api/path/scale'
+import { getScaleCategories } from '@/api/path/scaleDefinition'
+import { assessmentModelApi } from '@/api/path/assessmentModel'
 import { QuestionnaireType } from '@/constants/questionnaireType'
 
 // 量表编辑步骤
@@ -610,7 +611,7 @@ export const scaleStore = makeObservable(
     },
 
     async persistScaleDraftBeforePublish(questionnaireCode: string) {
-      const { scaleApi } = await import('@/api/path/scale')
+      const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
 
       const [surveyInfoErr] = await api.updateSurvey({
         questionsheetid: questionnaireCode,
@@ -624,19 +625,35 @@ export const scaleStore = makeObservable(
       const [questionErr] = await api.saveSurveyQuestions(questionnaireCode, this.questions, this.showControllers)
       if (questionErr) throw questionErr
 
+      const [surveyReadErr, surveyReadRes] = await api.getSurvey(questionnaireCode)
+      if (surveyReadErr || !surveyReadRes?.data) {
+        throw surveyReadErr || new Error('读取量表题目问卷失败')
+      }
+      let questionnaire = surveyReadRes.data
+      if (questionnaire.status !== 'published') {
+        const [surveyPublishErr, surveyPublishRes] = await api.publishSurvey(questionnaireCode)
+        if (surveyPublishErr || !surveyPublishRes?.data) {
+          throw surveyPublishErr || new Error('发布量表题目问卷失败')
+        }
+        questionnaire = surveyPublishRes.data
+      }
+      const questionnaireVersion = String(questionnaire.version || '').trim()
+      if (!questionnaireVersion) throw new Error('已发布量表题目问卷未返回版本号')
+
       let scaleCode = this.scaleCode
       if (!scaleCode) {
-        const [getErr, getRes] = await scaleApi.getScaleByQuestionnaire(questionnaireCode)
+        const [getErr, getRes] = await scaleDefinitionApi.getScaleByQuestionnaire(questionnaireCode)
         if (!getErr && getRes?.data?.code) {
           scaleCode = getRes.data.code
         }
       }
 
       if (!scaleCode) {
-        const [createErr, createRes] = await scaleApi.createScale({
+        const [createErr, createRes] = await scaleDefinitionApi.createScale({
           title: this.title,
           description: this.desc,
           questionnaire_code: questionnaireCode,
+          questionnaire_version: questionnaireVersion,
           category: this.category || undefined,
           stages: this.stages.length > 0 ? this.stages : undefined,
           applicable_ages: this.applicable_ages.length > 0 ? this.applicable_ages : undefined,
@@ -654,7 +671,13 @@ export const scaleStore = makeObservable(
         this.scaleCode = scaleCode
       })
 
-      const [scaleInfoErr] = await scaleApi.updateScaleBasicInfo(scaleCode, {
+      const [bindingErr] = await assessmentModelApi.updateAssessmentModelQuestionnaire(scaleCode, {
+        questionnaire_code: questionnaireCode,
+        questionnaire_version: questionnaireVersion
+      })
+      if (bindingErr) throw bindingErr
+
+      const [scaleInfoErr] = await scaleDefinitionApi.updateScaleBasicInfo(scaleCode, {
         title: this.title,
         description: this.desc,
         category: this.category || undefined,
@@ -666,7 +689,7 @@ export const scaleStore = makeObservable(
       if (scaleInfoErr) throw scaleInfoErr
 
       if (this.factors.length > 0) {
-        const { factorApi } = await import('@/api/path/facotr')
+        const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
         const factorsWithRules = this.factors.map((factor) => {
           const factorRule = this.factor_rules.find(rule => rule.code === factor.code)
           const factorWithRules: any = { ...factor }
@@ -689,7 +712,7 @@ export const scaleStore = makeObservable(
           return factorWithRules
         })
 
-        const [factorErr] = await factorApi.modifyFactorList(scaleCode, factorsWithRules, false, this.questions)
+        const [factorErr] = await scaleDefinitionApi.modifyFactorList(scaleCode, factorsWithRules, false)
         if (factorErr) throw factorErr
       }
 
@@ -725,8 +748,8 @@ export const scaleStore = makeObservable(
       const scaleCode = await this.persistScaleDraftBeforePublish(scaleId)
 
       // 使用量表编码调用发布接口
-      const { scaleApi } = await import('@/api/path/scale')
-      const [e] = await scaleApi.publishScale(scaleCode)
+      const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
+      const [e] = await scaleDefinitionApi.publishScale(scaleCode)
       if (e) throw e
 
       runInAction(() => {
@@ -750,8 +773,8 @@ export const scaleStore = makeObservable(
       // 获取量表编码（如果还没有）
       let scaleCode = this.scaleCode
       if (!scaleCode) {
-        const { scaleApi } = await import('@/api/path/scale')
-        const [se, sr] = await scaleApi.getScaleByQuestionnaire(scaleId)
+        const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
+        const [se, sr] = await scaleDefinitionApi.getScaleByQuestionnaire(scaleId)
         if (se || !sr?.data?.code) {
           throw new Error('获取量表编码失败，无法取消发布')
         }
@@ -762,8 +785,8 @@ export const scaleStore = makeObservable(
       }
 
       // 使用量表编码调用取消发布接口
-      const { scaleApi } = await import('@/api/path/scale')
-      const [e] = await scaleApi.unpublishScale(scaleCode)
+      const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
+      const [e] = await scaleDefinitionApi.unpublishScale(scaleCode)
       if (e) throw e
     },
 
@@ -792,8 +815,8 @@ export const scaleStore = makeObservable(
         const questionnaireVersion = qr.data.version || '1.0'
 
         // 2. 创建量表（关联问卷）
-        const { scaleApi } = await import('@/api/path/scale')
-        const [se, sr] = await scaleApi.createScale({
+        const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
+        const [se, sr] = await scaleDefinitionApi.createScale({
           title: this.title,
           description: this.desc,
           questionnaire_code: questionnaireCode,
@@ -828,10 +851,10 @@ export const scaleStore = makeObservable(
       })
       if (qe) throw qe
 
-      const { scaleApi } = await import('@/api/path/scale')
+      const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
       let scaleCode = this.scaleCode
       if (!scaleCode) {
-        const [se, sr] = await scaleApi.getScaleByQuestionnaire(this.id)
+        const [se, sr] = await scaleDefinitionApi.getScaleByQuestionnaire(this.id)
         if (se) throw se
         scaleCode = sr?.data?.code || ''
         runInAction(() => {
@@ -840,7 +863,7 @@ export const scaleStore = makeObservable(
       }
 
       if (scaleCode) {
-        const [e] = await scaleApi.updateScaleBasicInfo(scaleCode, {
+        const [e] = await scaleDefinitionApi.updateScaleBasicInfo(scaleCode, {
           title: this.title,
           description: this.desc,
           category: this.category || undefined,
@@ -930,9 +953,9 @@ export const scaleStore = makeObservable(
       // 如果提供了 scaleCode，优先使用 getScaleDetail 获取量表详情
       if (scaleCode) {
         try {
-          const { scaleApi } = await import('@/api/path/scale')
+          const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
           console.log('使用 scaleCode 调用 getScaleDetail，scaleCode:', scaleCode)
-          const [se, sr] = await scaleApi.getScaleDetail(scaleCode)
+          const [se, sr] = await scaleDefinitionApi.getScaleDetail(scaleCode)
           console.log('getScaleDetail 调用结果:', {
             hasError: !!se,
             error: se,
@@ -1052,8 +1075,8 @@ export const scaleStore = makeObservable(
         
         // 获取量表信息以获取量表编码
         try {
-          const { scaleApi } = await import('@/api/path/scale')
-          const [se, sr] = await scaleApi.getScaleByQuestionnaire(questionnaire.code)
+          const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
+          const [se, sr] = await scaleDefinitionApi.getScaleByQuestionnaire(questionnaire.code)
           console.log('getScaleByQuestionnaire 调用结果:', {
             hasError: !!se,
             error: se,

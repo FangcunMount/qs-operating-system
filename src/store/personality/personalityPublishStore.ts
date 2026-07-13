@@ -9,9 +9,15 @@ import {
 } from '@/models/assessmentModel'
 import { normalizePreviewAnswersInput } from '@/models/assessmentModel.preview'
 
-export class PersonalityPublishStore {
+/**
+ * Shared ModelCatalog lifecycle runner. Product workflows retain ownership of
+ * their questionnaire-binding and Definition-save sequence, then delegate
+ * validate/publish/snapshot endpoint state to this runner.
+ */
+export class ModelCatalogPublishStore {
   validation: AssessmentModelValidationResult | null = null
   qrCode: AssessmentQRCodeResponse | null = null
+  publishedSnapshot: AssessmentModelDetail | null = null
   previewReport: AssessmentModelPreviewReportResponse | null = null
   previewError = ''
   publishing = false
@@ -22,6 +28,7 @@ export class PersonalityPublishStore {
     makeObservable(this, {
       validation: observable,
       qrCode: observable,
+      publishedSnapshot: observable,
       previewReport: observable,
       previewError: observable,
       publishing: observable,
@@ -30,6 +37,7 @@ export class PersonalityPublishStore {
       reset: action,
       setValidation: action,
       setQrCode: action,
+      setPublishedSnapshot: action,
       setPreviewReport: action,
       setPreviewError: action
     })
@@ -38,6 +46,7 @@ export class PersonalityPublishStore {
   reset(): void {
     this.validation = null
     this.qrCode = null
+    this.publishedSnapshot = null
     this.previewReport = null
     this.previewError = ''
     this.publishing = false
@@ -51,6 +60,10 @@ export class PersonalityPublishStore {
 
   setQrCode(data: AssessmentQRCodeResponse | null): void {
     this.qrCode = data
+  }
+
+  setPublishedSnapshot(data: AssessmentModelDetail | null): void {
+    this.publishedSnapshot = data
   }
 
   setPreviewReport(data: AssessmentModelPreviewReportResponse | null): void {
@@ -70,7 +83,9 @@ export class PersonalityPublishStore {
       runInAction(() => this.setValidation(result))
       return result
     } finally {
-      runInAction(() => { this.validating = false })
+      runInAction(() => {
+        this.validating = false
+      })
     }
   }
 
@@ -81,7 +96,9 @@ export class PersonalityPublishStore {
       if (err) throw err
       return res?.data
     } finally {
-      runInAction(() => { this.publishing = false })
+      runInAction(() => {
+        this.publishing = false
+      })
     }
   }
 
@@ -92,7 +109,9 @@ export class PersonalityPublishStore {
       if (err) throw err
       return res?.data
     } finally {
-      runInAction(() => { this.publishing = false })
+      runInAction(() => {
+        this.publishing = false
+      })
     }
   }
 
@@ -103,7 +122,9 @@ export class PersonalityPublishStore {
       if (err) throw err
       return res?.data
     } finally {
-      runInAction(() => { this.publishing = false })
+      runInAction(() => {
+        this.publishing = false
+      })
     }
   }
 
@@ -115,10 +136,15 @@ export class PersonalityPublishStore {
     return res?.data || null
   }
 
-  async runPreviewReport(
-    modelCode: string,
-    request: AssessmentModelPreviewReportRequest
-  ): Promise<AssessmentModelPreviewReportResponse | null> {
+  async loadPublishedSnapshot(modelCode: string): Promise<AssessmentModelDetail | null> {
+    const [err, res] = await assessmentModelApi.getPublishedAssessmentModel(modelCode)
+    if (!err && res?.data) {
+      runInAction(() => this.setPublishedSnapshot(res.data))
+    }
+    return res?.data || null
+  }
+
+  async runPreviewReport(modelCode: string, request: AssessmentModelPreviewReportRequest): Promise<AssessmentModelPreviewReportResponse | null> {
     const answers = normalizePreviewAnswersInput(request.answers)
     if (answers.filter((item) => item.question_code).length === 0) {
       const error = new Error('模拟答案不能为空')
@@ -147,9 +173,14 @@ export class PersonalityPublishStore {
       })
       throw error
     } finally {
-      runInAction(() => { this.previewing = false })
+      runInAction(() => {
+        this.previewing = false
+      })
     }
   }
 }
+
+/** @deprecated New ModelCatalog editors should use ModelCatalogPublishStore. */
+export class PersonalityPublishStore extends ModelCatalogPublishStore {}
 
 export const personalityPublishStore = new PersonalityPublishStore()

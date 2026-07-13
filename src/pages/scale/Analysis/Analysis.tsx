@@ -11,7 +11,7 @@ import { IFactorAnalysis, IInterpretation, RiskLevel } from '@/models/analysis'
 import { IFactor, FactorTypeMap } from '@/models/factor'
 import { observer } from 'mobx-react-lite'
 import BaseLayout from '@/components/layout/BaseLayout'
-import { SCALE_STEPS, getScaleStepIndex, getScaleStepFromPath } from '@/utils/steps'
+import { getScaleEditorPath, SCALE_STEPS, getScaleStepIndex, getScaleStepFromPath } from '@/utils/steps'
 import { useHistory } from 'react-router-dom'
 import ScoreRangeInput from './widget/components/ScoreRangeInput'
 import RiskLevelSelector from './widget/components/RiskLevelSelector'
@@ -19,10 +19,7 @@ import RiskLevelSelector from './widget/components/RiskLevelSelector'
 // 空状态组件
 const EmptyState: React.FC = () => (
   <div className="empty-state">
-    <Empty
-      description="暂无因子，请先在上一步添加因子"
-      image={Empty.PRESENTED_IMAGE_SIMPLE}
-    />
+    <Empty description="暂无因子，请先在上一步添加因子" image={Empty.PRESENTED_IMAGE_SIMPLE} />
   </div>
 )
 
@@ -31,7 +28,7 @@ const Analysis: React.FC = observer(() => {
   const location = useLocation()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const [editingFactorCode, setEditingFactorCode] = useState<string | null>(null)
-  
+
   // 从 URL query 参数获取 scaleCode
   const searchParams = new URLSearchParams(location.search)
   const scaleCode = searchParams.get('scaleCode') || undefined
@@ -41,32 +38,13 @@ const Analysis: React.FC = observer(() => {
     const step = SCALE_STEPS[stepIndex]
     if (!step || !scaleStore.id) return
 
-    switch (step.key) {
-    case 'create':
-      history.push(`/scale/info/${scaleStore.id}`)
-      break
-    case 'edit-questions':
-      history.push(`/scale/create/${scaleStore.id}/0`)
-      break
-    case 'set-routing':
-      history.push(`/scale/routing/${scaleStore.id}`)
-      break
-    case 'edit-factors':
-      history.push(`/scale/factor/${scaleStore.id}`)
-      break
-    case 'set-interpretation':
-      history.push(`/scale/analysis/${scaleStore.id}`)
-      break
-    case 'publish':
-      history.push(`/scale/publish/${scaleStore.id}`)
-      break
-    }
+    history.push(getScaleEditorPath(step.key || '', scaleStore.id, scaleCode))
   }
 
   // 计算因子的最大分数
   const calculateFactorMaxScore = (factor: IFactor): number => {
     const formula = factor.calc_rule?.formula || 'sum'
-    
+
     // 根据计算公式选择不同的计算方式
     if (formula === 'cnt') {
       // 计数公式：统计符合条件的题目数量
@@ -75,24 +53,22 @@ const Analysis: React.FC = observer(() => {
         // 如果没有设置计数选项，返回 0
         return 0
       }
-      
+
       let count = 0
-      factor.source_codes.forEach(sourceCode => {
+      factor.source_codes.forEach((sourceCode) => {
         // 先查找是否是题目
-        const question = scaleStore.questions.find(q => q.code === sourceCode)
+        const question = scaleStore.questions.find((q) => q.code === sourceCode)
         if (question) {
           // 检查题目是否有选项的 content 在 cnt_option_contents 中
           if ('options' in question && Array.isArray(question.options)) {
-            const hasMatchingOption = question.options.some((opt: any) => 
-              cntOptionContents.includes(opt.content)
-            )
+            const hasMatchingOption = question.options.some((opt: any) => cntOptionContents.includes(opt.content))
             if (hasMatchingOption) {
               count += 1
             }
           }
         } else {
           // 如果不是题目，可能是子因子
-          const subFactor = scaleStore.factors.find(f => f.code === sourceCode)
+          const subFactor = scaleStore.factors.find((f) => f.code === sourceCode)
           if (subFactor) {
             count += calculateFactorMaxScore(subFactor)
           }
@@ -105,20 +81,17 @@ const Analysis: React.FC = observer(() => {
       const calculateScore = (sourceCodes: string[]): { score: number; count: number } => {
         let score = 0
         let count = 0
-        
-        sourceCodes.forEach(sourceCode => {
-          const question = scaleStore.questions.find(q => q.code === sourceCode)
+
+        sourceCodes.forEach((sourceCode) => {
+          const question = scaleStore.questions.find((q) => q.code === sourceCode)
           if (question) {
             if ('options' in question && Array.isArray(question.options)) {
-              const questionMaxScore = Math.max(
-                ...question.options.map((opt: any) => Number(opt.score) || 0),
-                0
-              )
+              const questionMaxScore = Math.max(...question.options.map((opt: any) => Number(opt.score) || 0), 0)
               score += questionMaxScore
               count += 1
             }
           } else {
-            const subFactor = scaleStore.factors.find(f => f.code === sourceCode)
+            const subFactor = scaleStore.factors.find((f) => f.code === sourceCode)
             if (subFactor) {
               const subResult = calculateScore(subFactor.source_codes)
               score += subResult.score
@@ -126,35 +99,32 @@ const Analysis: React.FC = observer(() => {
             }
           }
         })
-        
+
         return { score, count }
       }
-      
+
       const result = calculateScore(factor.source_codes)
       // 对于平均分，返回总分（满分显示为总分更直观）
       return result.score
     } else {
       // sum（求和）公式：累加所有题目/子因子的最大分数
       let maxScore = 0
-      
-      factor.source_codes.forEach(sourceCode => {
-        const question = scaleStore.questions.find(q => q.code === sourceCode)
+
+      factor.source_codes.forEach((sourceCode) => {
+        const question = scaleStore.questions.find((q) => q.code === sourceCode)
         if (question) {
           if ('options' in question && Array.isArray(question.options)) {
-            const questionMaxScore = Math.max(
-              ...question.options.map((opt: any) => Number(opt.score) || 0),
-              0
-            )
+            const questionMaxScore = Math.max(...question.options.map((opt: any) => Number(opt.score) || 0), 0)
             maxScore += questionMaxScore
           }
         } else {
-          const subFactor = scaleStore.factors.find(f => f.code === sourceCode)
+          const subFactor = scaleStore.factors.find((f) => f.code === sourceCode)
           if (subFactor) {
             maxScore += calculateFactorMaxScore(subFactor)
           }
         }
       })
-      
+
       return maxScore
     }
   }
@@ -168,79 +138,79 @@ const Analysis: React.FC = observer(() => {
       console.log('调用 initEditor 获取量表信息...', 'questionsheetid:', questionsheetid, 'scaleCode:', scaleCode)
       await scaleStore.initEditor(questionsheetid, scaleCode)
       console.log('initEditor 完成，scaleCode:', scaleStore.scaleCode, 'factors数量:', scaleStore.factors.length)
-      
+
       // 如果因子列表为空，尝试从服务器加载
       let rawFactors: any[] = [] // 保存原始 API 数据，用于获取 interpret_rules
       if (scaleStore.factors.length === 0) {
         console.warn('store 中因子列表为空，尝试从服务器加载')
         let error: any = null
         let response: any = undefined
-        
+
         if (scaleStore.scaleCode) {
-          const { getFactorListByScaleCode } = await import('@/api/path/scale')
+          const { getFactorListByScaleCode } = await import('@/api/path/scaleDefinition')
           ;[error, response] = await getFactorListByScaleCode(scaleStore.scaleCode)
         } else {
-          const { getFactorListByQuestionnaire } = await import('@/api/path/scale')
+          const { getFactorListByQuestionnaire } = await import('@/api/path/scaleDefinition')
           ;[error, response] = await getFactorListByQuestionnaire(questionsheetid)
         }
-        
+
         if (!error && response?.data?.factors) {
           // 确保所有因子都有 max_score
           const { ensureFactorsHaveMaxScore } = await import('@/tools/factor')
-          const factorsWithMaxScore = ensureFactorsHaveMaxScore(
-            response.data.factors,
-            scaleStore.questions
-          )
+          const factorsWithMaxScore = ensureFactorsHaveMaxScore(response.data.factors, scaleStore.questions)
           scaleStore.setFactors(factorsWithMaxScore)
           // 保存原始 API 数据
           rawFactors = (response.data as any).rawFactors || []
-          console.log('从服务器加载因子，原始数据包含解读规则:', rawFactors.map((f: any) => ({
-            code: f.code,
-            interpret_rules_count: f.interpret_rules?.length || 0
-          })))
+          console.log(
+            '从服务器加载因子，原始数据包含解读规则:',
+            rawFactors.map((f: any) => ({
+              code: f.code,
+              interpret_rules_count: f.interpret_rules?.length || 0
+            }))
+          )
         }
       } else {
         // 如果 store 中已有因子，也需要从服务器获取原始数据以获取解读规则
         console.log('store 中已有因子，从服务器获取解读规则')
         let error: any = null
         let response: any = undefined
-        
+
         if (scaleStore.scaleCode) {
-          const { getFactorListByScaleCode } = await import('@/api/path/scale')
+          const { getFactorListByScaleCode } = await import('@/api/path/scaleDefinition')
           ;[error, response] = await getFactorListByScaleCode(scaleStore.scaleCode)
         } else {
-          const { getFactorListByQuestionnaire } = await import('@/api/path/scale')
+          const { getFactorListByQuestionnaire } = await import('@/api/path/scaleDefinition')
           ;[error, response] = await getFactorListByQuestionnaire(questionsheetid)
         }
-        
+
         if (!error && response?.data) {
           rawFactors = (response.data as any).rawFactors || []
-          console.log('获取到原始因子数据，包含解读规则:', rawFactors.map((f: any) => ({
-            code: f.code,
-            interpret_rules_count: f.interpret_rules?.length || 0,
-            interpret_rules: f.interpret_rules
-          })))
+          console.log(
+            '获取到原始因子数据，包含解读规则:',
+            rawFactors.map((f: any) => ({
+              code: f.code,
+              interpret_rules_count: f.interpret_rules?.length || 0,
+              interpret_rules: f.interpret_rules
+            }))
+          )
         }
       }
-      
+
       // 从 store 中的因子数据转换为解读规则格式
       if (scaleStore.factors.length > 0) {
         // 确保所有因子都有 max_score
         const { ensureFactorsHaveMaxScore } = await import('@/tools/factor')
-        const factorsWithMaxScore = ensureFactorsHaveMaxScore(
-          scaleStore.factors,
-          scaleStore.questions
-        )
-        
+        const factorsWithMaxScore = ensureFactorsHaveMaxScore(scaleStore.factors, scaleStore.questions)
+
         const factorRules: IFactorAnalysis[] = factorsWithMaxScore.map((factor: IFactor) => {
           // 满分始终由前端计算，避免依赖后端的 max_score
           const maxScore = calculateFactorMaxScore(factor)
-          
+
           // 优先从服务器原始数据中获取解读规则
           const rawFactor = rawFactors.find((f: any) => f.code === factor.code)
           let interpretation: IInterpretation[] = []
           let is_show = '1' // 默认显示
-          
+
           if (rawFactor?.interpret_rules && Array.isArray(rawFactor.interpret_rules)) {
             // 从 API 的原始数据中获取 interpret_rules
             interpretation = rawFactor.interpret_rules.map((rule: any) => ({
@@ -253,13 +223,13 @@ const Analysis: React.FC = observer(() => {
             console.log(`因子 ${factor.code} 从服务器加载解读规则:`, interpretation)
           } else {
             // 如果服务器没有，检查 store 中是否已有
-            const existingRule = scaleStore.factor_rules.find(fr => fr.code === factor.code)
+            const existingRule = scaleStore.factor_rules.find((fr) => fr.code === factor.code)
             if (existingRule) {
               interpretation = existingRule.interpret_rule.interpretation
               console.log(`因子 ${factor.code} 使用 store 中的解读规则:`, interpretation)
             }
           }
-          
+
           // 从 API 响应或因子对象中获取 is_show
           if (rawFactor?.is_show !== undefined) {
             // 从 API 响应中读取（boolean 类型）
@@ -269,12 +239,12 @@ const Analysis: React.FC = observer(() => {
             is_show = factor.is_show ? '1' : '0'
           } else {
             // 如果都没有，检查 store 中是否已有
-            const existingRule = scaleStore.factor_rules.find(fr => fr.code === factor.code)
+            const existingRule = scaleStore.factor_rules.find((fr) => fr.code === factor.code)
             if (existingRule) {
               is_show = existingRule.interpret_rule.is_show || '1'
             }
           }
-          
+
           return {
             code: factor.code,
             title: factor.title,
@@ -286,14 +256,14 @@ const Analysis: React.FC = observer(() => {
             }
           }
         })
-        
+
         scaleStore.initAnalysisData(factorRules)
         console.log('从 store 加载解读规则完成，factor_rules数量:', factorRules.length)
       } else {
         console.log('因子列表为空')
         scaleStore.initAnalysisData([])
       }
-      
+
       message.destroy('fetch')
     } catch (error) {
       console.error('加载解读规则异常:', error)
@@ -311,7 +281,7 @@ const Analysis: React.FC = observer(() => {
       // 从 store 加载解读规则数据（不调用 API）
       await loadDataFromStore()
     }
-    
+
     initPageData()
   }, [questionsheetid, scaleCode, location.pathname])
 
@@ -367,12 +337,12 @@ const Analysis: React.FC = observer(() => {
    */
   const checkRangeOverlap = (interpretations: IInterpretation[]): { hasOverlap: boolean; overlapPairs: Array<[number, number]> } => {
     const overlapPairs: Array<[number, number]> = []
-    
+
     for (let i = 0; i < interpretations.length; i++) {
       const range1 = interpretations[i]
       const start1 = Number(range1.start)
       const end1 = Number(range1.end)
-      
+
       // 验证区间有效性（使用整数比较）
       if (isNaN(start1) || isNaN(end1)) {
         continue
@@ -382,12 +352,12 @@ const Analysis: React.FC = observer(() => {
       if (s1 >= e1) {
         continue
       }
-      
+
       for (let j = i + 1; j < interpretations.length; j++) {
         const range2 = interpretations[j]
         const start2 = Number(range2.start)
         const end2 = Number(range2.end)
-        
+
         // 验证区间有效性（使用整数比较）
         if (isNaN(start2) || isNaN(end2)) {
           continue
@@ -397,14 +367,14 @@ const Analysis: React.FC = observer(() => {
         if (s2 >= e2) {
           continue
         }
-        
+
         // 检测重合
         if (isRangeOverlap(s1, e1, s2, e2)) {
           overlapPairs.push([i + 1, j + 1]) // 返回从1开始的索引（用户友好）
         }
       }
     }
-    
+
     return {
       hasOverlap: overlapPairs.length > 0,
       overlapPairs
@@ -415,22 +385,22 @@ const Analysis: React.FC = observer(() => {
     console.log('[Analysis] 开始验证因子规则:', { factorCount: factorRules.length })
     for (let index = 0; index < factorRules.length; index++) {
       const factorRule = factorRules[index]
-      console.log(`[Analysis] 验证因子 ${index + 1}:`, { 
-        code: factorRule.code, 
-        title: factorRule.title, 
+      console.log(`[Analysis] 验证因子 ${index + 1}:`, {
+        code: factorRule.code,
+        title: factorRule.title,
         max_score: factorRule.max_score,
-        interpretationCount: factorRule.interpret_rule.interpretation.length 
+        interpretationCount: factorRule.interpret_rule.interpretation.length
       })
 
       for (let i = 0; i < factorRule.interpret_rule.interpretation.length; i++) {
         const el = factorRule.interpret_rule.interpretation[i]
-        console.log(`[Analysis] 验证解读 ${i + 1}:`, { 
-          start: el.start, 
-          end: el.end, 
-          startType: typeof el.start, 
-          endType: typeof el.end 
+        console.log(`[Analysis] 验证解读 ${i + 1}:`, {
+          start: el.start,
+          end: el.end,
+          startType: typeof el.start,
+          endType: typeof el.end
         })
-        
+
         // 验证开始分值（允许 0 值）
         // 检查是否为 null、undefined 或空字符串（但不包括 "0"）
         if (el.start === null || el.start === void 0 || el.start === '') {
@@ -438,51 +408,51 @@ const Analysis: React.FC = observer(() => {
           message.error(`请输入 ${factorRule.title} 的第${i + 1}条解读的开始分值`)
           return false
         }
-        
+
         // 验证结束分值
         if (el.end === null || el.end === void 0 || el.end === '') {
           console.error('[Analysis] 结束分值为空:', { factorTitle: factorRule.title, index: i + 1 })
           message.error(`请输入 ${factorRule.title} 的第${i + 1}条解读的结束分值`)
           return false
         }
-        
+
         // 验证区间有效性（左闭右开：start < end）
         const startNum = Number(el.start)
         const endNum = Number(el.end)
         if (isNaN(startNum) || isNaN(endNum)) {
-          console.error('[Analysis] 分值格式不正确:', { 
-            start: el.start, 
-            end: el.end, 
-            startNum, 
-            endNum 
+          console.error('[Analysis] 分值格式不正确:', {
+            start: el.start,
+            end: el.end,
+            startNum,
+            endNum
           })
           message.error(`${factorRule.title} 的第${i + 1}条解读的分值格式不正确`)
           return false
         }
-        
+
         // 使用整数比较，避免浮点数精度问题
         const startInt = Math.floor(startNum)
         const endInt = Math.floor(endNum)
         const maxScoreInt = Math.floor(factorRule.max_score)
-        
-        console.log('[Analysis] 分值验证:', { 
-          factorTitle: factorRule.title, 
+
+        console.log('[Analysis] 分值验证:', {
+          factorTitle: factorRule.title,
           interpretationIndex: i + 1,
-          start: el.start, 
-          end: el.end, 
-          startInt, 
-          endInt, 
-          maxScoreInt, 
+          start: el.start,
+          end: el.end,
+          startInt,
+          endInt,
+          maxScoreInt,
           'maxScoreInt+1': maxScoreInt + 1,
           isValid: endInt <= maxScoreInt + 1
         })
-        
+
         if (startInt >= endInt) {
           console.error('[Analysis] 区间无效: start >= end', { startInt, endInt })
           message.error(`${factorRule.title} 的第${i + 1}条解读：结束分值必须大于开始分值（左闭右开区间）`)
           return false
         }
-        
+
         // 验证边界值
         if (startInt < 0) {
           console.error('[Analysis] 开始分值小于0:', { startInt })
@@ -490,10 +460,10 @@ const Analysis: React.FC = observer(() => {
           return false
         }
         // 允许 end = max_score + 1（表示包含最大值）
-        if (endInt > (maxScoreInt + 1)) {
-          console.error('[Analysis] 结束分值超过限制:', { 
-            endInt, 
-            maxScoreInt, 
+        if (endInt > maxScoreInt + 1) {
+          console.error('[Analysis] 结束分值超过限制:', {
+            endInt,
+            maxScoreInt,
             'maxScoreInt+1': maxScoreInt + 1,
             factorTitle: factorRule.title,
             interpretationIndex: i + 1
@@ -501,14 +471,14 @@ const Analysis: React.FC = observer(() => {
           message.error(`${factorRule.title} 的第${i + 1}条解读：结束分值不能超过 ${maxScoreInt + 1}（满分 + 1）`)
           return false
         }
-        
+
         // 验证内容
         if (!el.conclusion && !el.suggestion) {
           message.error(`请输入 ${factorRule.title} 的第${i + 1}条解读的结论或建议`)
           return false
         }
       }
-      
+
       // 检测区间重合
       const overlapCheck = checkRangeOverlap(factorRule.interpret_rule.interpretation)
       if (overlapCheck.hasOverlap) {
@@ -531,64 +501,63 @@ const Analysis: React.FC = observer(() => {
     }
 
     message.loading({ content: '正在保存因子和解读规则...', duration: 0, key: 'saveAnalysis' })
-    
+
     try {
-      const { factorApi } = await import('@/api/path/facotr')
-      
+      const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
+
       // 将解读规则合并到因子数据中
-      const factorsWithInterpretRules = scaleStore.factors.map(factor => {
-        const factorRule = scaleStore.factor_rules.find(fr => fr.code === factor.code)
-        
+      const factorsWithInterpretRules = scaleStore.factors.map((factor) => {
+        const factorRule = scaleStore.factor_rules.find((fr) => fr.code === factor.code)
+
         // 创建新的因子对象，包含解读规则
         const factorWithRules = { ...factor }
-        
+
         // 设置 is_show 字段（从 factor_rules 中获取）
         if (factorRule) {
           // 将字符串 '1'/'0' 转换为 boolean
           factorWithRules.is_show = factorRule.interpret_rule.is_show === '1'
         }
-        
+
         // 如果有解读规则，将其添加到因子对象中（用于 API 调用）
         if (factorRule && factorRule.interpret_rule.interpretation.length > 0) {
-          (factorWithRules as any).interpret_rules = factorRule.interpret_rule.interpretation.map(interp => ({
+          ;(factorWithRules as any).interpret_rules = factorRule.interpret_rule.interpretation.map((interp) => ({
             min_score: Number(interp.start) || 0,
             max_score: Number(interp.end) || 0,
             conclusion: interp.conclusion || '',
             suggestion: interp.suggestion || '',
             risk_level: interp.risk_level || 'none' // 使用设置的风险等级，默认为 none
           }))
-          
+
           // 因子级别的风险等级：从第一个解读规则中提取（根据 API 文档）
           const firstInterpretation = factorRule.interpret_rule.interpretation[0]
           if (firstInterpretation?.risk_level) {
-            (factorWithRules as any).risk_level = firstInterpretation.risk_level
+            ;(factorWithRules as any).risk_level = firstInterpretation.risk_level
           } else {
             // 如果第一个解读规则没有风险等级，使用默认值 none
-            (factorWithRules as any).risk_level = 'none'
+            ;(factorWithRules as any).risk_level = 'none'
           }
         }
-        
+
         return factorWithRules
       })
-      
+
       // 优先使用 scaleCode，否则使用 questionsheetid
-      const [error] = await factorApi.modifyFactorList(
+      const [error] = await scaleDefinitionApi.modifyFactorList(
         scaleStore.scaleCode || questionsheetid,
         factorsWithInterpretRules as any,
-        !scaleStore.scaleCode, // 如果没有 scaleCode，说明传入的是问卷编码
-        scaleStore.questions // 传递题目列表，用于计算 max_score
+        !scaleStore.scaleCode // 如果没有 scaleCode，说明传入的是问卷编码
       )
-      
+
       if (error) {
         throw error
       }
-      
+
       message.destroy('saveAnalysis')
       message.success('因子和解读规则保存成功')
-      
+
       // 保存到 localStorage
       scaleStore.saveToLocalStorage()
-      
+
       return { status: 'success' as const }
     } catch (error: any) {
       message.destroy('saveAnalysis')
@@ -608,19 +577,14 @@ const Analysis: React.FC = observer(() => {
 
   // 渲染解读卡片
   const renderInterpretationCard = (item: IInterpretation, index: number, code: string) => {
-    const factor = scaleStore.factor_rules.find(f => f.code === code)
+    const factor = scaleStore.factor_rules.find((f) => f.code === code)
     const maxScore = factor?.max_score || 100
-    
+
     return (
       <Card key={index} className="interpretation-card" size="small">
         <div className="interpretation-header">
           <div className="interpretation-label">解读 {index + 1}</div>
-          <Popconfirm
-            title="确认删除该解读吗？"
-            onConfirm={() => handleDeleteInterpretation(index, code)}
-            okText="确认"
-            cancelText="取消"
-          >
+          <Popconfirm title="确认删除该解读吗？" onConfirm={() => handleDeleteInterpretation(index, code)} okText="确认" cancelText="取消">
             <Button type="text" size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </div>
@@ -632,14 +596,14 @@ const Analysis: React.FC = observer(() => {
               start={item.start}
               end={item.end}
               onChange={(start, end) => {
-                console.log('[Analysis] ScoreRangeInput onChange:', { 
-                  factorCode: code, 
-                  interpretationIndex: index, 
-                  start, 
-                  end, 
-                  startType: typeof start, 
+                console.log('[Analysis] ScoreRangeInput onChange:', {
+                  factorCode: code,
+                  interpretationIndex: index,
+                  start,
+                  end,
+                  startType: typeof start,
                   endType: typeof end,
-                  maxScore 
+                  maxScore
                 })
                 const newItem = {
                   ...item,
@@ -647,11 +611,11 @@ const Analysis: React.FC = observer(() => {
                   start: start !== undefined && start !== null ? String(start) : '',
                   end: end !== undefined && end !== null ? String(end) : ''
                 }
-                console.log('[Analysis] 更新解读规则:', { 
-                  factorCode: code, 
-                  interpretationIndex: index, 
-                  oldItem: item, 
-                  newItem 
+                console.log('[Analysis] 更新解读规则:', {
+                  factorCode: code,
+                  interpretationIndex: index,
+                  oldItem: item,
+                  newItem
                 })
                 handleUpdateInterpretation(index, newItem, code)
               }}
@@ -695,7 +659,7 @@ const Analysis: React.FC = observer(() => {
         submitFn={handleSaveAnalysis}
         afterSubmit={handleAfterSubmit}
         footerButtons={['backToList', 'break', 'saveToNext']}
-        nextUrl={`/scale/publish/${questionsheetid}`}
+        nextUrl={getScaleEditorPath('publish', questionsheetid, scaleStore.scaleCode || scaleCode)}
         steps={SCALE_STEPS}
         currentStep={getScaleStepIndex(getScaleStepFromPath(location.pathname) || 'set-interpretation')}
         onStepChange={handleStepChange}
@@ -713,9 +677,9 @@ const Analysis: React.FC = observer(() => {
                 <div className="factor-list">
                   {/* 因子列表 */}
                   {scaleStore.factor_rules.map((factor, index) => {
-                    const factorDetail = scaleStore.factors.find(f => f.code === factor.code)
+                    const factorDetail = scaleStore.factors.find((f) => f.code === factor.code)
                     const factorTypeText = factorDetail?.type ? FactorTypeMap[factorDetail.type] : ''
-                    
+
                     return (
                       <Card
                         key={factor.code}
@@ -728,13 +692,9 @@ const Analysis: React.FC = observer(() => {
                             <div className="factor-info">
                               <div className="factor-title">
                                 {factor.title}
-                                {factorTypeText && (
-                                  <span className="factor-type-tag">{factorTypeText}</span>
-                                )}
+                                {factorTypeText && <span className="factor-type-tag">{factorTypeText}</span>}
                               </div>
-                              <div className="factor-meta">
-                                满分: {factor.max_score}
-                              </div>
+                              <div className="factor-meta">满分: {factor.max_score}</div>
                             </div>
                           </div>
                           <div className="factor-actions" onClick={(e) => e.stopPropagation()}>
@@ -742,11 +702,7 @@ const Analysis: React.FC = observer(() => {
                               checked={factor.interpret_rule.is_show === '1'}
                               onChange={(e) => toggleFactorShow(factor.code, e.target.checked)}
                             >
-                              {factor.interpret_rule.is_show === '1' ? (
-                                <EyeOutlined />
-                              ) : (
-                                <EyeInvisibleOutlined />
-                              )}
+                              {factor.interpret_rule.is_show === '1' ? <EyeOutlined /> : <EyeInvisibleOutlined />}
                             </Checkbox>
                           </div>
                         </div>
@@ -762,7 +718,7 @@ const Analysis: React.FC = observer(() => {
                   {editingFactorCode ? (
                     <>
                       {(() => {
-                        const factor = scaleStore.factor_rules.find(f => f.code === editingFactorCode)
+                        const factor = scaleStore.factor_rules.find((f) => f.code === editingFactorCode)
                         if (!factor) return null
 
                         return (
@@ -773,9 +729,7 @@ const Analysis: React.FC = observer(() => {
                             </div>
 
                             <div className="interpretation-list">
-                              {factor.interpret_rule.interpretation.map((item, index) =>
-                                renderInterpretationCard(item, index, factor.code)
-                              )}
+                              {factor.interpret_rule.interpretation.map((item, index) => renderInterpretationCard(item, index, factor.code))}
                             </div>
 
                             <Button

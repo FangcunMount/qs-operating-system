@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useHistory, useParams } from 'react-router-dom'
-import { Button, Card, Descriptions, Spin, Tabs, Tag, message } from 'antd'
+import { Alert, Button, Card, Descriptions, Drawer, List, Spin, Tabs, Tag, message } from 'antd'
 import { RollbackOutlined } from '@ant-design/icons'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -8,11 +8,15 @@ import {
 } from 'recharts'
 import { 
   assessmentApi, 
-  IAssessmentDetail, 
+  IAssessment,
   IFactorScoreItem,
   IReportResponse,
-  IHighRiskFactorsResponse
+  IHighRiskFactorsResponse,
+  IEvaluationRun,
+  InterpretationGeneration,
+  OutcomeReportState
 } from '@/api/path/assessment'
+import { rootStore } from '@/store'
 import { answerSheetApi } from '@/api/path/answerSheet'
 import { getSurvey } from '@/api/path/survey'
 import { convertQuestionFromDTO } from '@/api/path/questionConverter'
@@ -36,12 +40,20 @@ interface RadarDataItem {
 const SubjectScaleDetail: React.FC = () => {
   const history = useHistory()
   const { subjectId, testId } = useParams<{ subjectId: string; testId: string }>()
-  const [assessment, setAssessment] = useState<IAssessmentDetail | null>(null)
+  const [assessment, setAssessment] = useState<IAssessment | null>(null)
   const [factorScores, setFactorScores] = useState<IFactorScoreItem[]>([])
   const [report, setReport] = useState<IReportResponse | null>(null)
   const [highRiskFactors, setHighRiskFactors] = useState<IHighRiskFactorsResponse | null>(null)
   const [mergedAnswers, setMergedAnswers] = useState<IAnswer[]>([])
+  const [runs, setRuns] = useState<IEvaluationRun[]>([])
+  const [reportState, setReportState] = useState<OutcomeReportState | null>(null)
+  const [lifecycle, setLifecycle] = useState<InterpretationGeneration[]>([])
+  const [auditOpen, setAuditOpen] = useState(false)
+  const [reloadVersion, setReloadVersion] = useState(0)
   const [loading, setLoading] = useState(false)
+  const { userStore } = rootStore
+  const canRetry = userStore.accessContext.capabilities.has('evaluate_assessments')
+  const canAudit = userStore.accessContext.capabilities.has('audit_interpretation')
 
   // 合并答案与题目信息
   const mergeAnswersWithQuestions = (
@@ -126,23 +138,23 @@ const SubjectScaleDetail: React.FC = () => {
         }
         setAssessment(res.data)
 
-        // 2. 获取测评得分（因子得分）
-        const [scoreErr, scoreRes] = await assessmentApi.getScores(testId)
+        // V2 owns Evaluation/Report facts; V1 remains the operational score/run surface.
+        const [[scoreErr, scoreRes], [reportErr, nextReportState], [riskErr, riskRes], [runErr, runRes]] = await Promise.all([
+          assessmentApi.getScores(testId),
+          assessmentApi.getReportState(testId),
+          assessmentApi.getHighRiskFactors(testId),
+          assessmentApi.getRuns(testId)
+        ])
         if (!scoreErr && scoreRes?.data?.factor_scores) {
           setFactorScores(scoreRes.data.factor_scores)
         }
-
-        // 3. 获取测评报告
-        const [reportErr, reportRes] = await assessmentApi.getReport(testId)
-        if (!reportErr && reportRes?.data) {
-          setReport(reportRes.data)
-        }
-
-        // 4. 获取高风险因子
-        const [riskErr, riskRes] = await assessmentApi.getHighRiskFactors(testId)
+        setReportState(nextReportState)
+        if (!reportErr && nextReportState.state === 'ready') setReport(nextReportState.report)
+        else setReport(null)
         if (!riskErr && riskRes?.data) {
           setHighRiskFactors(riskRes.data)
         }
+        if (!runErr && runRes?.data?.items) setRuns(runRes.data.items)
 
         // 5. 如果有答卷ID，获取原始答卷并合并题目信息
         if (res.data.answer_sheet_id) {
@@ -186,7 +198,7 @@ const SubjectScaleDetail: React.FC = () => {
       }
     }
     fetchData()
-  }, [subjectId, testId])
+  }, [subjectId, testId, reloadVersion])
 
   // 计算雷达图数据：使用百分比（基于 report.dimensions 中的 max_score）
   // 优先使用 report.dimensions（包含 max_score），如果没有则回退到 factorScores
@@ -288,7 +300,31 @@ const SubjectScaleDetail: React.FC = () => {
     )
   }
 
-  const riskConfig = getRiskConfig(assessment.risk_level || 'normal')
+  const riskConfig = getRiskConfig(assessment.level?.code || 'normal')
+  const latestRun = runs[0]
+  const retryable = canRetry && latestRun?.retryable === true && (
+    assessment.status === 'failed' || latestRun.status === 'failed'
+  )
+
+  const handleRetry = async () => {
+    const [err] = await assessmentApi.retry(testId)
+    if (err) {
+      message.error('重新执行测评失败')
+      return
+    }
+    message.success('已提交重新执行请求')
+    setReloadVersion((value) => value + 1)
+  }
+
+  const openAuditLifecycle = async () => {
+    const [err, response] = await assessmentApi.getInterpretationLifecycle(testId)
+    if (err) {
+      message.error('获取报告审计生命周期失败')
+      return
+    }
+    setLifecycle(response?.data || [])
+    setAuditOpen(true)
+  }
   
   // 获取来源类型文本
   const getOriginTypeText = (type?: string) => {
@@ -306,7 +342,7 @@ const SubjectScaleDetail: React.FC = () => {
     const statusMap: Record<string, string> = {
       pending: '待提交',
       submitted: '已提交',
-      interpreted: '已解读',
+      evaluated: '测评完成',
       failed: '失败'
     }
     return statusMap[status] || status
@@ -330,19 +366,21 @@ const SubjectScaleDetail: React.FC = () => {
         <Card title="基本信息" className="info-card">
           <Descriptions column={2} bordered>
             <Descriptions.Item label="测评ID">{assessment.id}</Descriptions.Item>
-            <Descriptions.Item label="量表名称">{assessment.medical_scale_name}</Descriptions.Item>
-            <Descriptions.Item label="量表编码">{assessment.medical_scale_code}</Descriptions.Item>
+            <Descriptions.Item label="测评模型">{assessment.model?.title || assessment.model?.code || '-'}</Descriptions.Item>
+            <Descriptions.Item label="模型编码">{assessment.model?.code || '-'}</Descriptions.Item>
             <Descriptions.Item label="问卷编码">{assessment.questionnaire_code}</Descriptions.Item>
             <Descriptions.Item label="问卷版本">{assessment.questionnaire_version}</Descriptions.Item>
             <Descriptions.Item label="状态">
               <Tag>{getStatusText(assessment.status)}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="提交时间">{assessment.submitted_at || '-'}</Descriptions.Item>
-            <Descriptions.Item label="解读时间">{assessment.interpreted_at || '-'}</Descriptions.Item>
+            <Descriptions.Item label="报告状态">
+              {reportState?.state === 'ready' ? '报告已生成' : reportState?.state === 'pending' ? '报告待生成' : '—'}
+            </Descriptions.Item>
             <Descriptions.Item label="来源类型">
               <Tag color="blue">{getOriginTypeText(assessment.origin_type)}</Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="风险等级">
+            <Descriptions.Item label="结果等级">
               <Tag color={riskConfig.color === '#ff4d4f' ? 'red' : riskConfig.color === '#faad14' ? 'orange' : 'green'}>
                 {riskConfig.text}
               </Tag>
@@ -354,6 +392,10 @@ const SubjectScaleDetail: React.FC = () => {
               </>
             )}
           </Descriptions>
+          <div style={{ marginTop: 16 }}>
+            {retryable ? <Button type="primary" onClick={handleRetry}>重新执行</Button> : null}
+            {canAudit ? <Button style={{ marginLeft: retryable ? 8 : 0 }} onClick={openAuditLifecycle}>报告审计生命周期</Button> : null}
+          </div>
         </Card>
 
         {/* Tabs 区域 */}
@@ -366,13 +408,13 @@ const SubjectScaleDetail: React.FC = () => {
                 <Card className="total-score-card">
                   <div className="total-score-content">
                     <div className="score-left">
-                      <div className="score-label">测评总分</div>
-                      <div className="score-value">{assessment.total_score}</div>
-                      <div className="score-desc">量表：{assessment.medical_scale_name}</div>
+                      <div className="score-label">主分数</div>
+                      <div className="score-value">{assessment.primary_score?.value ?? '-'}</div>
+                      <div className="score-desc">模型：{assessment.model?.title || assessment.model?.code || '-'}</div>
                     </div>
                     <div className="score-divider"></div>
                     <div className="score-right">
-                      <div className="risk-label">风险等级</div>
+                      <div className="risk-label">结果等级</div>
                       <div className="risk-badge" style={{ 
                         backgroundColor: riskConfig.background,
                         color: riskConfig.color 
@@ -540,8 +582,17 @@ const SubjectScaleDetail: React.FC = () => {
               </div>
             </TabPane>
 
-            {/* 测评报告 Tab */}
-            {report && (
+            {/* 报告由 Interpretation 异步生成，404 只表示尚未产出。 */}
+            {reportState?.state === 'pending' ? (
+              <TabPane tab="测评报告" key="2">
+                <Alert
+                  type="info"
+                  showIcon
+                  message="测评已完成，报告待生成"
+                  description="报告生成属于 Interpretation 生命周期；请稍后刷新，不需要重新执行测评。"
+                />
+              </TabPane>
+            ) : report ? (
               <TabPane tab="测评报告" key="2">
                 <div className="report-module">
                   {/* 总体评述 */}
@@ -611,7 +662,7 @@ const SubjectScaleDetail: React.FC = () => {
                   )}
                 </div>
               </TabPane>
-            )}
+            ) : null}
 
             {/* 原始答卷 Tab */}
             {mergedAnswers.length > 0 && (
@@ -626,6 +677,34 @@ const SubjectScaleDetail: React.FC = () => {
           </Tabs>
         </Card>
       </div>
+      <Drawer
+        title="Interpretation 报告生命周期"
+        width={640}
+        visible={auditOpen}
+        onClose={() => setAuditOpen(false)}
+      >
+        <List
+          dataSource={lifecycle}
+          locale={{ emptyText: '暂无报告生成记录' }}
+          renderItem={(generation) => (
+            <List.Item>
+              <List.Item.Meta
+                title={`Generation #${generation.ID} · ${generation.Status}`}
+                description={(
+                  <div>
+                    <div>版本：{generation.Version ?? '-'}；模板：{generation.TemplateVersion || '-'}</div>
+                    <div>Run：{generation.LatestRun?.Status || '-'}；Trace：{generation.LatestRun?.TraceID || '-'}</div>
+                    {generation.LatestRun?.Failure ? (
+                      <div>失败：{generation.LatestRun.Failure.SafeMessage || generation.LatestRun.Failure.Code || '-'}</div>
+                    ) : null}
+                    <div>Report：{generation.Report ? `#${generation.Report.ID}` : '尚未生成'}</div>
+                  </div>
+                )}
+              />
+            </List.Item>
+          )}
+        />
+      </Drawer>
     </div>
   )
 }

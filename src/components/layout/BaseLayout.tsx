@@ -87,7 +87,9 @@ const BaseLayout: React.FC<BaseLayoutProps> = ({
                     ? '/survey/list'
                     : themeClass === 'personality-page-theme'
                       ? '/personality/list'
-                      : '/scale/list'
+                      : themeClass === 'behavior-ability-page-theme'
+                        ? '/behavior-ability/list'
+                        : '/scale/list'
                   history.push(listUrl)
                 }}>
                   <UnorderedListOutlined />

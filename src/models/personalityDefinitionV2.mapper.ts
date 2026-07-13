@@ -1,0 +1,269 @@
+import {
+  cloneDefinitionV2,
+  createEmptyDefinitionV2,
+  DefinitionConclusion,
+  DefinitionFactor,
+  DefinitionOutcome,
+  DefinitionReportSection,
+  DefinitionScoring,
+  DefinitionV2,
+  DefinitionV2Record
+} from './definitionV2'
+import {
+  PersonalityFactorSpec,
+  PersonalityOutcome,
+  PersonalityQuestionContribution,
+  PersonalityQuestionMapping,
+  PersonalitySpecialRuleSpec,
+  PersonalityTypologyRuntimeSpec,
+  createEmptyRuntimeSpec
+} from './assessmentModel'
+
+const asRecord = (value: unknown): DefinitionV2Record => (
+  value && typeof value === 'object' && !Array.isArray(value) ? value as DefinitionV2Record : {}
+)
+
+const asArray = <T = unknown>(value: unknown): T[] => Array.isArray(value) ? value as T[] : []
+const asString = (value: unknown): string => value === undefined || value === null ? '' : String(value)
+const asNumber = (value: unknown): number | undefined => typeof value === 'number' && Number.isFinite(value) ? value : undefined
+
+const typeConclusionIndex = (definition: DefinitionV2): number =>
+  asArray<DefinitionConclusion>(definition.Conclusions).findIndex((item) => item?.Kind === 'type')
+
+const typeConclusion = (definition: DefinitionV2): DefinitionConclusion => {
+  const index = typeConclusionIndex(definition)
+  return index >= 0 ? asArray<DefinitionConclusion>(definition.Conclusions)[index] : { Kind: 'type' }
+}
+
+const outcomeToEditor = (outcome: DefinitionOutcome): PersonalityOutcome => ({
+  code: asString(outcome.Code),
+  name: asString(outcome.Title),
+  summary: asString(outcome.Summary) || undefined,
+  description: asString(outcome.Description) || undefined
+})
+
+const outcomeToWire = (outcome: PersonalityOutcome, existing?: DefinitionOutcome): DefinitionOutcome => ({
+  ...existing,
+  Code: outcome.code,
+  Title: outcome.name,
+  Summary: outcome.summary || undefined,
+  Description: outcome.description || undefined
+})
+
+/** Projects only the typology form surface. The DefinitionV2 source remains the
+ * persistence object and is merged back by applyPersonalityRuntimeSpec. */
+export const projectPersonalityRuntimeSpec = (
+  definition: DefinitionV2,
+  questionnaireCode = '',
+  questionnaireVersion?: string
+): PersonalityTypologyRuntimeSpec => {
+  const empty = createEmptyRuntimeSpec(questionnaireCode, questionnaireVersion)
+  const measure = asRecord(definition.Measure)
+  const scoring = asArray<DefinitionScoring>(measure.Scoring)
+  const scoringByFactor = new Map(scoring.map((item) => [asString(item.FactorCode), item]))
+  const factors: Record<string, PersonalityFactorSpec> = {}
+  const dimensions: Record<string, { code: string; title: string }> = {}
+
+  asArray<DefinitionFactor>(measure.Factors).forEach((factor) => {
+    const code = asString(factor.Code)
+    if (!code) return
+    const item = scoringByFactor.get(code)
+    const sources = asArray<DefinitionV2Record>(item?.Sources)
+    const hasFactorSource = sources.some((source) => asString(source.Kind) === 'factor')
+    factors[code] = {
+      id: code,
+      code,
+      name: asString(factor.Title),
+      kind: hasFactorSource ? 'composite' : 'leaf',
+      children: [],
+      aggregation: item?.Strategy === 'avg' || item?.Strategy === 'weighted_avg' || item?.Strategy === 'sum'
+        ? item.Strategy : undefined,
+      weights: asRecord(item?.Weights) as Record<string, number>,
+      constant: asNumber(item?.Constant),
+      option_scoring: item?.OptionScoring === 'strict' || item?.OptionScoring === 'compat' ? item.OptionScoring : undefined,
+      contributions: sources
+        .filter((source) => asString(source.Kind) === 'question')
+        .map((source) => ({
+          question_code: asString(source.Code),
+          sign: asNumber(source.Sign) as 1 | -1 | undefined,
+          option_scores: asRecord(source.OptionScores) as Record<string, number>
+        }))
+        .filter((source) => source.question_code)
+    }
+    dimensions[code] = { code, title: asString(factor.Title) }
+  })
+
+  const graph = asRecord(measure.FactorGraph)
+  asArray<DefinitionV2Record>(graph.Edges).forEach((edge) => {
+    const parent = asString(edge.ParentCode)
+    const child = asString(edge.ChildCode)
+    if (parent && child && factors[parent]) {
+      factors[parent] = { ...factors[parent], kind: 'composite', children: [...(factors[parent].children || []), child] }
+    }
+  })
+
+  const mappings: PersonalityQuestionMapping[] = []
+  Object.values(factors).forEach((factor) => {
+    (factor.contributions || []).forEach((contribution) => mappings.push({
+      question_code: contribution.question_code,
+      factor_code: factor.id,
+      sign: contribution.sign,
+      option_scores: contribution.option_scores
+    }))
+  })
+
+  const conclusion = typeConclusion(definition)
+  const decision = asRecord(conclusion.Decision)
+  const outcomeMapping = asRecord(conclusion.OutcomeMapping)
+  const specialRules = asArray<DefinitionV2Record>(conclusion.SpecialRules).map((rule): PersonalitySpecialRuleSpec => {
+    const { Code, Kind, ...config } = rule
+    return { code: asString(Code), kind: asString(Kind), config }
+  }).filter((rule) => rule.code || rule.kind)
+  const sections = asArray<DefinitionReportSection>(asRecord(definition.ReportMap).Sections)
+  const report = sections.length > 0 ? sections[0] : {}
+  const outcomes = asArray<DefinitionOutcome>(definition.Outcomes).map(outcomeToEditor)
+
+  return {
+    ...empty,
+    factor_graph: {
+      dimension_order: Object.keys(dimensions),
+      dimensions,
+      factors,
+      question_mappings: mappings,
+      roots: asArray<string>(graph.Roots)
+    },
+    decision: {
+      ...decision,
+      kind: asString(decision.Kind) || empty.decision.kind,
+      fallback_similarity_threshold: asNumber(decision.FallbackSimilarityThreshold),
+      fallback_code: asString(decision.FallbackCode) || undefined,
+      level_rule: asRecord(decision.LevelRule)
+    },
+    special_rules: specialRules,
+    outcome_mapping: {
+      outcomes,
+      mapping_rules: outcomeMapping
+    },
+    report: {
+      kind: asString(report.Kind) || empty.report.kind,
+      adapter_key: asString(report.AdapterKey) || undefined,
+      template_id: asString(report.TemplateID) || undefined,
+      category_label: asString(report.CategoryLabel) || undefined
+    }
+  }
+}
+
+const mergeFactors = (definition: DefinitionV2, spec: PersonalityTypologyRuntimeSpec): DefinitionFactor[] => {
+  const existing = new Map(asArray<DefinitionFactor>(asRecord(definition.Measure).Factors).map((factor) => [factor.Code, factor]))
+  return Object.values(spec.factor_graph.factors || {}).map((factor) => ({
+    ...existing.get(factor.id),
+    Code: factor.id,
+    Title: factor.name || factor.code || factor.id,
+    Role: factor.kind === 'composite' ? 'index' : 'dimension'
+  }))
+}
+
+const mergeScoring = (definition: DefinitionV2, spec: PersonalityTypologyRuntimeSpec): DefinitionScoring[] => {
+  const measure = asRecord(definition.Measure)
+  const existing = new Map(asArray<DefinitionScoring>(measure.Scoring).map((item) => [item.FactorCode, item]))
+  const mappingsByFactor = new Map<string, PersonalityQuestionMapping[]>()
+  const questionMappings = spec.factor_graph.question_mappings || []
+  questionMappings.forEach((mapping) => {
+    const current = mappingsByFactor.get(mapping.factor_code) || []
+    current.push(mapping)
+    mappingsByFactor.set(mapping.factor_code, current)
+  })
+
+  return Object.values(spec.factor_graph.factors || {}).map((factor) => {
+    const contributions = factor.contributions?.length
+      ? factor.contributions
+      : (mappingsByFactor.get(factor.id) || []).map((mapping): PersonalityQuestionContribution => ({
+        question_code: mapping.question_code,
+        sign: mapping.sign,
+        option_scores: mapping.option_scores
+      }))
+    const questionSources = contributions
+      .filter((item) => item.question_code)
+      .map((item) => ({ Kind: 'question', Code: item.question_code, Sign: item.sign, OptionScores: item.option_scores }))
+    const factorSources = factor.kind === 'composite'
+      ? (factor.children || []).map((code) => ({ Kind: 'factor', Code: code }))
+      : []
+    return {
+      ...existing.get(factor.id),
+      FactorCode: factor.id,
+      Sources: [...questionSources, ...factorSources],
+      Strategy: factor.aggregation || existing.get(factor.id)?.Strategy || 'sum',
+      Weights: factor.weights,
+      Constant: factor.constant,
+      OptionScoring: factor.option_scoring
+    }
+  })
+}
+
+/** Applies the form-owned typology fields to a cloned DefinitionV2 while
+ * preserving all unrelated top-level and nested server fields. */
+export const applyPersonalityRuntimeSpec = (
+  source: DefinitionV2,
+  spec: PersonalityTypologyRuntimeSpec
+): DefinitionV2 => {
+  const definition = cloneDefinitionV2(source || createEmptyDefinitionV2())
+  const measure = asRecord(definition.Measure)
+  const edges = Object.values(spec.factor_graph.factors || {}).flatMap((factor) =>
+    (factor.children || []).map((child) => ({ ParentCode: factor.id, ChildCode: child }))
+  )
+  definition.Measure = {
+    ...measure,
+    Factors: mergeFactors(definition, spec),
+    FactorGraph: {
+      ...asRecord(measure.FactorGraph),
+      Roots: [...(spec.factor_graph.roots || [])],
+      Edges: edges
+    },
+    Scoring: mergeScoring(definition, spec)
+  }
+
+  const conclusions = asArray<DefinitionConclusion>(definition.Conclusions)
+  const index = typeConclusionIndex(definition)
+  const current = typeConclusion(definition)
+  const currentDecision = asRecord(current.Decision)
+  const currentOutcomeMapping = asRecord(current.OutcomeMapping)
+  const { kind, fallback_similarity_threshold, fallback_code, level_rule, ...otherDecision } = spec.decision
+  const nextType: DefinitionConclusion = {
+    ...current,
+    Kind: 'type',
+    Decision: {
+      ...currentDecision,
+      ...otherDecision,
+      Kind: kind,
+      FallbackSimilarityThreshold: fallback_similarity_threshold,
+      FallbackCode: fallback_code,
+      LevelRule: level_rule
+    },
+    OutcomeMapping: { ...currentOutcomeMapping, ...(spec.outcome_mapping.mapping_rules || {}) },
+    SpecialRules: (spec.special_rules || []).map((rule) => ({
+      ...(rule.config || {}),
+      Code: rule.code,
+      Kind: rule.kind
+    }))
+  }
+  definition.Conclusions = index >= 0
+    ? conclusions.map((item, itemIndex) => itemIndex === index ? nextType : item)
+    : [...conclusions, nextType]
+
+  const existingOutcomes = new Map(asArray<DefinitionOutcome>(definition.Outcomes).map((outcome) => [outcome.Code, outcome]))
+  definition.Outcomes = (spec.outcome_mapping.outcomes || []).map((outcome) => outcomeToWire(outcome, existingOutcomes.get(outcome.code)))
+
+  const reportMap = asRecord(definition.ReportMap)
+  const sections = asArray<DefinitionReportSection>(reportMap.Sections)
+  const firstSection = sections.length > 0 ? sections[0] : undefined
+  const reportSection: DefinitionReportSection = {
+    ...(firstSection || {}),
+    Code: firstSection?.Code || 'personality_report',
+    Kind: spec.report.kind,
+    AdapterKey: spec.report.adapter_key,
+    TemplateID: spec.report.template_id,
+    CategoryLabel: spec.report.category_label
+  }
+  definition.ReportMap = { ...reportMap, Sections: [reportSection, ...sections.slice(1)] }
+  return definition
+}

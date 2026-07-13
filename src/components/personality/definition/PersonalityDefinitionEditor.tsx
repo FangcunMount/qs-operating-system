@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { Alert, Button, Card, Input, Radio, Space, Tabs } from 'antd'
 import type { PersonalityTypologyRuntimeSpec } from '@/models/assessmentModel'
+import type { DefinitionV2 } from '@/models/definitionV2'
+import { isDefinitionV2 } from '@/models/definitionV2'
 import type { IQuestion } from '@/models/question'
 import FactorGraphTab from './FactorGraphTab'
 import QuestionMappingTab from './QuestionMappingTab'
@@ -13,37 +15,37 @@ const { TextArea } = Input
 
 export type PersonalityDefinitionTabKey = 'factor_graph' | 'question_mapping' | 'decision' | 'outcome' | 'report'
 
-const REQUIRED_RUNTIME_SPEC_KEYS = ['factor_graph', 'decision', 'outcome_mapping', 'report']
+export const validateDefinitionV2Shape = (value: unknown): value is DefinitionV2 => isDefinitionV2(value)
 
-export const validateRuntimeSpecShape = (value: unknown): value is PersonalityTypologyRuntimeSpec => {
-  if (!value || typeof value !== 'object') return false
-  const candidate = value as Record<string, unknown>
-  return REQUIRED_RUNTIME_SPEC_KEYS.every((key) => key in candidate)
-}
-
-export const parseRuntimeSpecJson = (source: string): PersonalityTypologyRuntimeSpec => {
+export const parseDefinitionV2Json = (source: string): DefinitionV2 => {
   const parsed = JSON.parse(source) as unknown
-  if (!validateRuntimeSpecShape(parsed)) {
-    throw new Error('JSON 必须包含 factor_graph / decision / outcome_mapping / report')
+  if (!validateDefinitionV2Shape(parsed)) {
+    throw new Error('JSON 必须是完整的 DefinitionV2 对象')
   }
   return parsed
 }
 
 interface Props {
+  definition: DefinitionV2
   spec: PersonalityTypologyRuntimeSpec
   algorithm: string
   questions: IQuestion[]
-  onChange: (spec: PersonalityTypologyRuntimeSpec) => void
+  onDefinitionChange: (definition: DefinitionV2) => void
+  onSpecChange: (spec: PersonalityTypologyRuntimeSpec) => void
   onApplyOutcomeCode: () => Promise<string>
   activeTab?: PersonalityDefinitionTabKey
   onTabChange?: (tab: PersonalityDefinitionTabKey) => void
 }
 
+/** Form mode edits a projection; JSON mode owns the complete DefinitionV2
+ * source object so unknown server fields survive every switch. */
 const PersonalityDefinitionEditor: React.FC<Props> = ({
+  definition,
   spec,
   algorithm,
   questions,
-  onChange,
+  onDefinitionChange,
+  onSpecChange,
   onApplyOutcomeCode,
   activeTab,
   onTabChange
@@ -61,15 +63,14 @@ const PersonalityDefinitionEditor: React.FC<Props> = ({
   }, [activeTab])
 
   const handleModeChange = (next: 'form' | 'json') => {
-    if (next === 'json') setJsonSource(JSON.stringify(spec, null, 2))
+    if (next === 'json') setJsonSource(JSON.stringify(definition, null, 2))
     setJsonError('')
     setMode(next)
   }
 
   const applyJson = () => {
     try {
-      const parsed = parseRuntimeSpecJson(jsonSource)
-      onChange(parsed)
+      onDefinitionChange(parseDefinitionV2Json(jsonSource))
       setJsonError('')
     } catch (error: any) {
       setJsonError(error?.message || 'JSON 格式不正确')
@@ -78,8 +79,7 @@ const PersonalityDefinitionEditor: React.FC<Props> = ({
 
   const formatJson = () => {
     try {
-      const parsed = JSON.parse(jsonSource)
-      setJsonSource(JSON.stringify(parsed, null, 2))
+      setJsonSource(JSON.stringify(JSON.parse(jsonSource), null, 2))
       setJsonError('')
     } catch (error: any) {
       setJsonError(error?.message || 'JSON 格式不正确')
@@ -87,7 +87,7 @@ const PersonalityDefinitionEditor: React.FC<Props> = ({
   }
 
   const restoreJson = () => {
-    setJsonSource(JSON.stringify(spec, null, 2))
+    setJsonSource(JSON.stringify(definition, null, 2))
     setJsonError('')
   }
 
@@ -101,7 +101,7 @@ const PersonalityDefinitionEditor: React.FC<Props> = ({
     <Card
       className="personality-card"
       extra={(
-        <Radio.Group value={mode} onChange={(e) => handleModeChange(e.target.value)}>
+        <Radio.Group value={mode} onChange={(event) => handleModeChange(event.target.value)}>
           <Radio.Button value="form">表单模式</Radio.Button>
           <Radio.Button value="json">JSON 高级模式</Radio.Button>
         </Radio.Group>
@@ -110,19 +110,19 @@ const PersonalityDefinitionEditor: React.FC<Props> = ({
       {mode === 'form' ? (
         <Tabs activeKey={innerActiveTab} onChange={handleTabChange}>
           <TabPane tab="因子图" key="factor_graph">
-            <FactorGraphTab spec={spec} onChange={onChange} />
+            <FactorGraphTab spec={spec} onChange={onSpecChange} />
           </TabPane>
           <TabPane tab="题目映射" key="question_mapping">
-            <QuestionMappingTab spec={spec} questions={questions} onChange={onChange} />
+            <QuestionMappingTab spec={spec} questions={questions} onChange={onSpecChange} />
           </TabPane>
           <TabPane tab="决策规则" key="decision">
-            <DecisionTab spec={spec} algorithm={algorithm} onChange={onChange} />
+            <DecisionTab spec={spec} algorithm={algorithm} onChange={onSpecChange} />
           </TabPane>
           <TabPane tab="结果类型" key="outcome">
-            <OutcomeTab spec={spec} onChange={onChange} onApplyCode={onApplyOutcomeCode} />
+            <OutcomeTab spec={spec} onChange={onSpecChange} onApplyCode={onApplyOutcomeCode} />
           </TabPane>
           <TabPane tab="报告配置" key="report">
-            <ReportTab spec={spec} onChange={onChange} />
+            <ReportTab spec={spec} onChange={onSpecChange} />
           </TabPane>
         </Tabs>
       ) : (
@@ -133,11 +133,11 @@ const PersonalityDefinitionEditor: React.FC<Props> = ({
             rows={20}
             style={{ width: '100%', fontFamily: 'monospace' }}
             value={jsonSource}
-            onChange={(e) => setJsonSource(e.target.value)}
+            onChange={(event) => setJsonSource(event.target.value)}
           />
           <Space style={{ marginTop: 8 }}>
             <Button onClick={formatJson}>格式化 JSON</Button>
-            <Button onClick={restoreJson}>恢复当前表单 JSON</Button>
+            <Button onClick={restoreJson}>恢复当前 DefinitionV2</Button>
             <Button type="primary" onClick={applyJson}>应用 JSON</Button>
           </Space>
         </div>

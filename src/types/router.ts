@@ -8,6 +8,7 @@ export type RouteCapability =
   | 'manage_content'
   | 'manage_evaluation_plans'
   | 'evaluate_assessments'
+  | 'audit_interpretation'
   | 'read_subjects'
   | 'read_assessment_records'
 

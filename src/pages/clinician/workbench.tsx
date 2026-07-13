@@ -39,7 +39,7 @@ import type {
 } from '@/api/path/statistics'
 import { buildAssessmentEntryPublicLink, copyAssessmentEntryPublicLink, triggerAssessmentEntryQRCodeDownload } from '@/utils/assessmentEntry'
 import { extractErrorMessage } from '@/utils/apiError'
-import { getScaleList, IScaleResponse } from '@/api/path/scale'
+import { getScaleList, IScaleResponse } from '@/api/path/scaleDefinition'
 import { listQuestionnaires, IQuestionnaireResponse } from '@/api/path/survey'
 import {
   formatClinicianType,

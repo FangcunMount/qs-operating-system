@@ -228,6 +228,7 @@ export class PersonalityModelEditorStore {
         kind: PERSONALITY_KIND,
         sub_kind: PERSONALITY_SUB_KIND,
         algorithm: normalizePersonalityAlgorithm(this.algorithm),
+        product_channel: 'typology',
         questionnaire_code: questionnaireCode,
         questionnaire_version: questionnaireVersion,
         category: this.category || undefined,
@@ -245,6 +246,7 @@ export class PersonalityModelEditorStore {
         description: this.desc,
         sub_kind: PERSONALITY_SUB_KIND,
         algorithm: normalizePersonalityAlgorithm(this.algorithm),
+        product_channel: 'typology',
         category: this.category || undefined,
         tags: this.tags
       })

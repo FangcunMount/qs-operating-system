@@ -1,7 +1,7 @@
 import { get } from '../server'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
 import { ApiResponse } from '@/types/server'
-import { getScaleListCompat } from './scale'
+import { getScaleListCompat } from './scaleDefinition'
 
 type QuestionSheetListParams = {
   pagesize: string

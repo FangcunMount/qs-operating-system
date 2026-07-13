@@ -9,6 +9,7 @@ import PersonalityDefinitionEditor, {
 import {
   personalityDefinitionStore,
   personalityModelStore,
+  personalityModelEditorStore,
   personalityEditorWorkflowStore,
   getPersonalityEditorFlowContext
 } from '@/store/personality'
@@ -19,12 +20,14 @@ import {
   useEditorFlow
 } from '@/utils/editorFlow'
 import type { PersonalityTypologyRuntimeSpec } from '@/models/assessmentModel'
+import { DefinitionV2 } from '@/models/definitionV2'
 import '../index.scss'
 
 const PersonalityDefinition: React.FC = observer(() => {
   const { modelCode } = useParams<{ modelCode: string }>()
   const location = useLocation()
   const [spec, setSpec] = useState<PersonalityTypologyRuntimeSpec>(personalityModelStore.runtimeSpec)
+  const [definition, setDefinition] = useState<DefinitionV2>(personalityDefinitionStore.definition)
   const [activeTab, setActiveTab] = useState<PersonalityDefinitionTabKey>('factor_graph')
   const flowCtx = getPersonalityEditorFlowContext()
   const editorFlow = useEditorFlow(personalityEditorFlowConfig, personalityModelStore.modelCode || modelCode, flowCtx)
@@ -40,6 +43,7 @@ const PersonalityDefinition: React.FC = observer(() => {
       try {
         await personalityEditorWorkflowStore.initEditor(modelCode)
         setSpec(personalityModelStore.runtimeSpec)
+        setDefinition(personalityDefinitionStore.definition)
       } catch {
         message.error('加载人格测评定义失败')
       }
@@ -56,6 +60,22 @@ const PersonalityDefinition: React.FC = observer(() => {
     personalityEditorWorkflowStore.setRuntimeSpec(spec)
     await personalityEditorWorkflowStore.saveDefinitionDraft()
     message.success('模型定义草稿已保存')
+  }
+
+  const handleSpecChange = (next: PersonalityTypologyRuntimeSpec) => {
+    setSpec(next)
+    personalityEditorWorkflowStore.setRuntimeSpec(next)
+    setDefinition(personalityDefinitionStore.definition)
+  }
+
+  const handleDefinitionChange = (next: DefinitionV2) => {
+    personalityDefinitionStore.setDefinition(
+      next,
+      personalityModelEditorStore.questionnaireCode,
+      personalityModelEditorStore.questionnaireVersion
+    )
+    setDefinition(personalityDefinitionStore.definition)
+    setSpec(personalityDefinitionStore.runtimeSpec)
   }
 
   const handleLocalValidate = () => {
@@ -106,10 +126,12 @@ const PersonalityDefinition: React.FC = observer(() => {
         ) : null}
 
         <PersonalityDefinitionEditor
+          definition={definition}
           spec={spec}
           algorithm={personalityModelStore.algorithm}
           questions={personalityModelStore.questions}
-          onChange={setSpec}
+          onDefinitionChange={handleDefinitionChange}
+          onSpecChange={handleSpecChange}
           onApplyOutcomeCode={applyOutcomeCode}
           activeTab={activeTab}
           onTabChange={setActiveTab}

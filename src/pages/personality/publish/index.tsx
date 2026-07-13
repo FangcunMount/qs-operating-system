@@ -16,6 +16,8 @@ import {
   useEditorFlow
 } from '@/utils/editorFlow'
 import type { DefinitionIssueTabKey } from '@/utils/personalityIssueRouter'
+import { isQuestionnaireBindingIssue } from '@/utils/personalityIssueRouter'
+import type { AssessmentModelValidationIssue } from '@/models/assessmentModel'
 import { getPersonalityPublishActions } from '@/utils/personalityPublishState'
 import '../index.scss'
 
@@ -41,6 +43,7 @@ const PersonalityPublish: React.FC = observer(() => {
         await personalityEditorWorkflowStore.initEditor(modelCode)
         if (personalityModelStore.status === 'published') {
           await personalityEditorWorkflowStore.loadQRCode(modelCode)
+          await personalityPublishStore.loadPublishedSnapshot(modelCode)
         }
         setPreviewAnswersSource(JSON.stringify(
           buildSamplePreviewAnswersObject(personalityModelStore.questions),
@@ -81,7 +84,11 @@ const PersonalityPublish: React.FC = observer(() => {
     return result.passed
   }
 
-  const handleIssueClick = (_issue: unknown, targetTab?: DefinitionIssueTabKey) => {
+  const handleIssueClick = (issue: AssessmentModelValidationIssue, targetTab?: DefinitionIssueTabKey) => {
+    if (isQuestionnaireBindingIssue(issue)) {
+      history.push(`/personality/create/${personalityModelStore.modelCode || modelCode}/0`)
+      return
+    }
     const query = targetTab ? `?tab=${targetTab}` : ''
     history.push(`/personality/definition/${personalityModelStore.modelCode || modelCode}${query}`)
   }
@@ -155,6 +162,7 @@ const PersonalityPublish: React.FC = observer(() => {
                   <Descriptions.Item label="模型编码">{personalityModelStore.modelCode || '-'}</Descriptions.Item>
                   <Descriptions.Item label="绑定问卷">{personalityModelStore.id || '-'}</Descriptions.Item>
                   <Descriptions.Item label="算法">{personalityModelStore.algorithm}</Descriptions.Item>
+                  <Descriptions.Item label="发布快照版本">{personalityPublishStore.publishedSnapshot?.version || '—'}</Descriptions.Item>
                 </Descriptions>
                 <Space>
                   {publishActions.canValidate ? (

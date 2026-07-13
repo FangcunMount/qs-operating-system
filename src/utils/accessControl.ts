@@ -3,7 +3,10 @@ import type { IRoute, RouteCapability } from '@/types/router'
 const PLATFORM_ADMIN_ROLES = ['super_admin', 'platform:admin', 'iam:admin']
 
 const ROLE_CAPABILITY_MAP: Record<string, RouteCapability[]> = {
-  'qs:admin': ['org_admin', 'manage_content', 'manage_evaluation_plans', 'evaluate_assessments', 'read_subjects', 'read_assessment_records'],
+  'qs:admin': [
+    'org_admin', 'manage_content', 'manage_evaluation_plans', 'evaluate_assessments',
+    'audit_interpretation', 'read_subjects', 'read_assessment_records'
+  ],
   'qs:content_manager': ['manage_content'],
   'qs:evaluation_plan_manager': ['manage_evaluation_plans', 'read_subjects'],
   'qs:evaluator': ['evaluate_assessments', 'read_subjects', 'read_assessment_records']
@@ -27,6 +30,7 @@ function deriveCapabilities(roles: string[]): Set<RouteCapability> {
       'manage_content',
       'manage_evaluation_plans',
       'evaluate_assessments',
+      'audit_interpretation',
       'read_subjects',
       'read_assessment_records'
     ].forEach((capability) => capabilities.add(capability as RouteCapability))

@@ -69,7 +69,7 @@ const PersonalityBasicInfo: React.FC = observer(() => {
       }
     }
     const loadOptions = async () => {
-      const [err, res] = await assessmentModelApi.getAssessmentModelOptions('personality')
+      const [err, res] = await assessmentModelApi.getAssessmentModelOptions('typology')
       if (!err && res?.data) {
         setAlgorithmOptions(filterPersonalityAlgorithmOptions(res.data.algorithms))
         setCategoryOptions(res.data.categories)

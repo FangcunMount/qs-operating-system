@@ -1,7 +1,8 @@
 import type { IQuestion } from '@/models/question'
 import { getDecisionKindForAlgorithm, normalizeLegacyDecisionKind } from '@/constants/personalityScope'
+import type { DefinitionV2 } from './definitionV2'
 
-export type AssessmentModelKind = 'personality' | 'behavior_ability'
+export type AssessmentModelKind = 'scale' | 'typology' | 'personality' | 'behavioral_rating' | 'cognitive' | 'behavior_ability'
 export type AssessmentModelStatus = 'draft' | 'published' | 'archived'
 export type AssessmentModelSubKind = 'typology' | 'dimension_score'
 export type AssessmentModelAlgorithm =
@@ -24,9 +25,17 @@ export interface AssessmentModelSummary {
   description: string
   status: AssessmentModelStatus
   category?: string
+  product_channel?: string
+  /** Versioned norm tables referenced by this model, supplied by the catalog list projection. */
+  norm_table_versions?: string[]
+  algorithm_family?: string
   tags: string[]
+  stages?: string[]
+  applicable_ages?: string[]
+  reporters?: string[]
   questionnaire_code?: string
   questionnaire_version?: string
+  version?: string
   created_at?: string
   updated_at?: string
   published_at?: string
@@ -36,7 +45,8 @@ export interface AssessmentModelSummary {
 }
 
 export interface AssessmentModelDetail extends AssessmentModelSummary {
-  definition?: AssessmentModelDefinition
+  /** DefinitionV2 is fetched separately from /definition. */
+  definition?: DefinitionV2
 }
 
 export interface AssessmentModelDefinition<TPayload = AssessmentModelPayload> {
@@ -46,6 +56,9 @@ export interface AssessmentModelDefinition<TPayload = AssessmentModelPayload> {
   payload_format: typeof PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT | typeof LEGACY_PERSONALITY_PAYLOAD_FORMAT | string
   payload: TPayload
 }
+
+/** The current /definition wire contract. Do not replace it with a UI payload. */
+export type AssessmentModelDefinitionV2 = DefinitionV2
 
 export type AssessmentModelPayload = PersonalityTypologyRuntimeSpec | PersonalityPayloadV1 | Record<string, unknown>
 
@@ -154,9 +167,15 @@ export interface PersonalityTypologyRuntimeSpec {
 }
 
 export interface AssessmentModelOptions {
+  kinds?: Array<{ value: string; label: string }>
   algorithms: Array<{ value: string; label: string }>
+  algorithm_families?: Array<{ value: string; label: string }>
   categories: Array<{ value: string; label: string }>
   sub_kinds: Array<{ value: string; label: string }>
+  product_channels?: Array<{ value: string; label: string }>
+  stages?: Array<{ value: string; label: string }>
+  applicable_ages?: Array<{ value: string; label: string }>
+  reporters?: Array<{ value: string; label: string }>
 }
 
 export interface AssessmentModelValidationIssue {
@@ -200,7 +219,7 @@ export interface AssessmentModelPreviewReportResponse {
   score_detail?: Record<string, unknown> | unknown[]
   report_sections: AssessmentModelPreviewReportSection[]
   issues: AssessmentModelValidationIssue[]
-  raw?: unknown
+  raw_report?: unknown
 }
 
 export interface PersonalityDraftSnapshot {

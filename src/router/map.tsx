@@ -10,6 +10,7 @@ import {
   LineChartOutlined,
   SafetyCertificateOutlined
 } from '@ant-design/icons'
+import { isBehaviorAbilityPublishingEnabled } from '@/constants/behaviorAbilityFeature'
 
 // 图标创建辅助函数，确保 React 被使用
 const createIcon = (Icon: React.ComponentType) => React.createElement(Icon)
@@ -36,6 +37,13 @@ const PersonalityQuestionEdit = lazy(() => import('../pages/personality/question
 const PersonalityQuestionRouting = lazy(() => import('../pages/personality/question-routing/index'))
 const PersonalityDefinition = lazy(() => import('../pages/personality/definition/index'))
 const PersonalityPublish = lazy(() => import('../pages/personality/publish/index'))
+const BehaviorAbilityList = lazy(() => import('../pages/behavior-ability/list/index'))
+const BehaviorAbilityBasicInfo = lazy(() => import('../pages/behavior-ability/basic-info/index'))
+const BehaviorAbilityQuestionEdit = lazy(() => import('../pages/behavior-ability/question-edit/index'))
+const BehaviorAbilityQuestionRouting = lazy(() => import('../pages/behavior-ability/question-routing/index'))
+const BehaviorAbilityDefinition = lazy(() => import('../pages/behavior-ability/definition/index'))
+const BehaviorAbilityPublish = lazy(() => import('../pages/behavior-ability/publish/index'))
+const BehaviorAbilityNormTables = lazy(() => import('../pages/behavior-ability/norm-tables/index'))
 const AsList = lazy(() => import('../pages/as/list'))
 const AsDetail = lazy(() => import('../pages/as/detail'))
 const Login = lazy(() => import('../pages/user/login'))
@@ -127,6 +135,17 @@ export const routes: Array<IRoute> = [
         name: 'subject-answer-detail',
         path: '/subject/:subjectId/answer/:answerId',
         component: SubjectAnswerDetail,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['read_assessment_records'],
+        allowClinicianAccess: true,
+        activeMenuName: 'assessment-records'
+      },
+      {
+        title: '测评详情',
+        name: 'subject-assessment-detail',
+        path: '/subject/:subjectId/assessment/:testId',
+        component: SubjectScaleDetail,
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['read_assessment_records'],
@@ -232,6 +251,23 @@ export const routes: Array<IRoute> = [
         name: 'personality-list',
         path: '/personality/list',
         component: PersonalityList,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['manage_content']
+      },
+      {
+        title: '行为能力',
+        name: 'behavior-ability-list',
+        path: '/behavior-ability/list',
+        component: BehaviorAbilityList,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['manage_content']
+      },
+      {
+        title: '行为能力常模表',
+        name: 'behavior-ability-norm-tables',
+        path: '/behavior-ability/norm-tables',
+        component: BehaviorAbilityNormTables,
+        hideInMenu: !isBehaviorAbilityPublishingEnabled(),
         menuScope: 'org_admin',
         requiredCapabilities: ['manage_content']
       },
@@ -414,6 +450,56 @@ export const routes: Array<IRoute> = [
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
         activeMenuName: 'personality-list'
+      },
+      {
+        title: '行为能力测评基本信息',
+        name: 'behavior-ability-info',
+        path: '/behavior-ability/info/:modelCode',
+        component: BehaviorAbilityBasicInfo,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'behavior-ability-list'
+      },
+      {
+        title: '行为能力测评题目',
+        name: 'behavior-ability-create',
+        path: '/behavior-ability/create/:modelCode/:answercnt',
+        component: BehaviorAbilityQuestionEdit,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'behavior-ability-list'
+      },
+      {
+        title: '行为能力测评路由',
+        name: 'behavior-ability-routing',
+        path: '/behavior-ability/routing/:modelCode',
+        component: BehaviorAbilityQuestionRouting,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'behavior-ability-list'
+      },
+      {
+        title: '行为能力测评定义',
+        name: 'behavior-ability-definition',
+        path: '/behavior-ability/definition/:modelCode',
+        component: BehaviorAbilityDefinition,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'behavior-ability-list'
+      },
+      {
+        title: '发布行为能力测评',
+        name: 'behavior-ability-publish',
+        path: '/behavior-ability/publish/:modelCode',
+        component: BehaviorAbilityPublish,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'behavior-ability-list'
       }
     ]
   },

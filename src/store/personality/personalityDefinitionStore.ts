@@ -1,80 +1,79 @@
 import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
+import { mapRuntimeSpecToFormState } from '@/models/assessmentModel.mapper'
 import {
-  buildDefinitionForSave,
-  mapRuntimeSpecToFormState,
-  normalizeAssessmentModelDefinition
-} from '@/models/assessmentModel.mapper'
-import {
-  AssessmentModelDefinition,
   AssessmentModelValidationIssue,
-  createEmptyPersonalityDefinition,
   PersonalityPayloadV1,
   PersonalityTypologyRuntimeSpec,
   validateRuntimeSpec
 } from '@/models/assessmentModel'
-import { validateRuntimeSpecShape } from '@/components/personality/definition/PersonalityDefinitionEditor'
+import { cloneDefinitionV2, createEmptyDefinitionV2, DefinitionV2, isDefinitionV2 } from '@/models/definitionV2'
+import {
+  applyPersonalityRuntimeSpec,
+  projectPersonalityRuntimeSpec
+} from '@/models/personalityDefinitionV2.mapper'
 import type { IQuestion } from '@/models/question'
 
 const hasBlockingIssues = (issues: AssessmentModelValidationIssue[]) =>
   issues.some((issue) => issue.level !== 'warning')
 
+/**
+ * Keeps the raw DefinitionV2 object as the save source. runtimeSpec is only a
+ * form projection, so form edits cannot discard server fields it does not own.
+ */
 export class PersonalityDefinitionStore {
-  definition: AssessmentModelDefinition<PersonalityTypologyRuntimeSpec> = createEmptyPersonalityDefinition()
+  definition: DefinitionV2 = createEmptyDefinitionV2()
+  runtimeSpec: PersonalityTypologyRuntimeSpec = projectPersonalityRuntimeSpec(this.definition)
   validationIssues: AssessmentModelValidationIssue[] = []
 
   constructor() {
     makeObservable(this, {
       definition: observable,
+      runtimeSpec: observable,
       validationIssues: observable,
-      runtimeSpec: computed,
       payload: computed,
       reset: action,
       restoreFromDraft: action,
+      setDefinition: action,
       setRuntimeSpec: action,
       setValidationIssues: action
     })
   }
 
-  get runtimeSpec(): PersonalityTypologyRuntimeSpec {
-    return this.definition.payload
-  }
-
-  /** Legacy accessor for pages still using payload.dimensions/outcomes */
+  /** Legacy accessor retained for editor-flow completion checks. */
   get payload(): PersonalityPayloadV1 {
     return mapRuntimeSpecToFormState(this.runtimeSpec).payload
   }
 
   reset(questionnaireCode = '', questionnaireVersion?: string): void {
-    this.definition = createEmptyPersonalityDefinition(questionnaireCode, questionnaireVersion)
+    this.definition = createEmptyDefinitionV2()
+    this.runtimeSpec = projectPersonalityRuntimeSpec(this.definition, questionnaireCode, questionnaireVersion)
     this.validationIssues = []
   }
 
-  restoreFromDraft(
-    definition: AssessmentModelDefinition<PersonalityTypologyRuntimeSpec>,
-    algorithm?: string
-  ): void {
-    this.definition = normalizeAssessmentModelDefinition({
-      ...definition,
-      algorithm: algorithm || definition?.algorithm || 'mbti'
-    }) as AssessmentModelDefinition<PersonalityTypologyRuntimeSpec>
+  restoreFromDraft(definition: DefinitionV2, questionnaireCode = '', questionnaireVersion?: string): void {
+    this.setDefinition(definition, questionnaireCode, questionnaireVersion)
+  }
+
+  setDefinition(definition: DefinitionV2, questionnaireCode = '', questionnaireVersion?: string): void {
+    this.definition = cloneDefinitionV2(isDefinitionV2(definition) ? definition : createEmptyDefinitionV2())
+    this.runtimeSpec = projectPersonalityRuntimeSpec(this.definition, questionnaireCode, questionnaireVersion)
   }
 
   setRuntimeSpec(spec: PersonalityTypologyRuntimeSpec): void {
-    this.definition = { ...this.definition, payload: spec }
+    this.runtimeSpec = spec
+    this.definition = applyPersonalityRuntimeSpec(this.definition, spec)
   }
 
   setValidationIssues(issues: AssessmentModelValidationIssue[]): void {
     this.validationIssues = issues
   }
 
+  /** Binding is persisted through /questionnaire, not embedded in DefinitionV2. */
   updateQuestionnaireBinding(questionnaireCode: string, questionnaireVersion?: string): void {
-    this.definition = {
-      ...this.definition,
-      payload: {
-        ...this.runtimeSpec,
-        questionnaire_binding: { questionnaire_code: questionnaireCode, questionnaire_version: questionnaireVersion }
-      }
+    this.runtimeSpec = {
+      ...this.runtimeSpec,
+      questionnaire_binding: { questionnaire_code: questionnaireCode, questionnaire_version: questionnaireVersion }
     }
   }
 
@@ -84,12 +83,7 @@ export class PersonalityDefinitionStore {
       runInAction(() => this.reset(questionnaireCode, questionnaireVersion))
       return
     }
-    runInAction(() => {
-      this.definition = res.data as AssessmentModelDefinition<PersonalityTypologyRuntimeSpec>
-      if (questionnaireCode) {
-        this.updateQuestionnaireBinding(questionnaireCode, questionnaireVersion)
-      }
-    })
+    runInAction(() => this.setDefinition(res.data, questionnaireCode, questionnaireVersion))
   }
 
   validateLocal(questions: IQuestion[] = [], algorithm?: string): AssessmentModelValidationIssue[] {
@@ -98,14 +92,8 @@ export class PersonalityDefinitionStore {
 
   validateDraftDefinition(): AssessmentModelValidationIssue[] {
     const issues: AssessmentModelValidationIssue[] = []
-    const spec = this.runtimeSpec
-    if (!spec || typeof spec !== 'object') {
-      issues.push({ field: 'payload', message: 'RuntimeSpec 必须是对象' })
-    } else if (!validateRuntimeSpecShape(spec)) {
-      issues.push({
-        field: 'payload',
-        message: 'RuntimeSpec 缺少必要字段 factor_graph / decision / outcome_mapping / report'
-      })
+    if (!isDefinitionV2(this.definition)) {
+      issues.push({ field: 'definition_v2', message: 'DefinitionV2 必须是对象' })
     }
     this.setValidationIssues(issues)
     return issues
@@ -126,20 +114,27 @@ export class PersonalityDefinitionStore {
 
   async saveDraftDefinition(
     modelCode: string,
-    subKind: string,
-    algorithm: string
-  ): Promise<AssessmentModelDefinition<PersonalityTypologyRuntimeSpec> | undefined> {
+    _subKind: string,
+    _algorithm: string
+  ): Promise<DefinitionV2 | undefined> {
+    void _subKind
+    void _algorithm
     const issues = this.validateDraftDefinition()
     if (hasBlockingIssues(issues)) {
       throw new Error(issues.find((issue) => issue.level !== 'warning')?.message || '模型定义草稿校验失败')
     }
-    const nextDefinition = buildDefinitionForSave(this.definition, this.runtimeSpec, subKind, algorithm)
-    const [err, res] = await assessmentModelApi.saveAssessmentModelDefinition(modelCode, nextDefinition)
+    const [err, res] = await assessmentModelApi.saveAssessmentModelDefinition(modelCode, this.definition)
     if (err) throw err
     runInAction(() => {
-      if (res?.data) this.definition = res.data as AssessmentModelDefinition<PersonalityTypologyRuntimeSpec>
+      if (res?.data) {
+        this.setDefinition(
+          res.data,
+          this.runtimeSpec.questionnaire_binding?.questionnaire_code,
+          this.runtimeSpec.questionnaire_binding?.questionnaire_version
+        )
+      }
     })
-    return res?.data as AssessmentModelDefinition<PersonalityTypologyRuntimeSpec> | undefined
+    return res?.data
   }
 
   async saveAndValidateDefinition(
@@ -147,7 +142,7 @@ export class PersonalityDefinitionStore {
     subKind: string,
     algorithm: string,
     questions: IQuestion[] = []
-  ): Promise<AssessmentModelDefinition<PersonalityTypologyRuntimeSpec> | undefined> {
+  ): Promise<DefinitionV2 | undefined> {
     const issues = this.validateLocalForPublish(questions, algorithm)
     if (hasBlockingIssues(issues)) {
       throw new Error(issues.find((issue) => issue.level !== 'warning')?.message || '模型定义校验失败')
@@ -160,7 +155,7 @@ export class PersonalityDefinitionStore {
     subKind: string,
     algorithm: string,
     questions: IQuestion[] = []
-  ): Promise<AssessmentModelDefinition<PersonalityTypologyRuntimeSpec> | undefined> {
+  ): Promise<DefinitionV2 | undefined> {
     return this.saveAndValidateDefinition(modelCode, subKind, algorithm, questions)
   }
 

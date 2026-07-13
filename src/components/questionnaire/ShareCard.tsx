@@ -36,8 +36,8 @@ const ShareCard: React.FC<ShareCardProps> = ({
           }
           setQrcodeUrl(res.data.qrcode_url)
         } else {
-          const { scaleApi } = await import('@/api/path/scale')
-          const [err, res] = await scaleApi.getScaleQRCode(code)
+          const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
+          const [err, res] = await scaleDefinitionApi.getScaleQRCode(code)
           if (err || !res?.data?.qrcode_url) {
             console.error('获取量表小程序码失败:', err)
             return

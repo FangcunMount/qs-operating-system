@@ -1,13 +1,15 @@
 import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import type {
-  AssessmentModelDefinition,
   AssessmentModelPreviewReportRequest,
   AssessmentModelPreviewReportResponse,
   AssessmentModelValidationIssue,
   AssessmentModelValidationResult,
   PersonalityTypologyRuntimeSpec
 } from '@/models/assessmentModel'
+import type { DefinitionV2 } from '@/models/definitionV2'
 import type { IQuestion, IQuestionShowController } from '@/models/question'
+import { assessmentModelApi } from '@/api/path/assessmentModel'
+import { surveyApi } from '@/api/path/survey'
 import type { EditorFlowContext } from '@/utils/editorFlow'
 import {
   PERSONALITY_SUB_KIND
@@ -20,7 +22,9 @@ import { personalityQuestionnaireStore } from './personalityQuestionnaireStore'
 
 export type PersonalityStep = 'create' | 'edit-questions' | 'set-routing' | 'edit-definition' | 'publish'
 
-const STORAGE_VERSION = 'v2'
+// DefinitionV2 replaced the previous runtime-payload draft. Keep old browser
+// drafts isolated instead of accidentally treating them as DefinitionV2.
+const STORAGE_VERSION = 'v3'
 const WORKFLOW_STEPS: PersonalityStep[] = ['create', 'edit-questions', 'set-routing', 'edit-definition', 'publish']
 
 interface PersistedPersonalityData {
@@ -32,7 +36,7 @@ interface PersistedPersonalityData {
     deletedShowControllerCodes: string[]
     currentCode: string
   }
-  definition: AssessmentModelDefinition<PersonalityTypologyRuntimeSpec>
+  definition: DefinitionV2
   currentStep: PersonalityStep
 }
 
@@ -161,7 +165,8 @@ export class PersonalityEditorWorkflowStore {
         personalityQuestionnaireStore.restore(data.questionnaire)
         personalityDefinitionStore.restoreFromDraft(
           data.definition,
-          data.editor.algorithm || data.definition?.algorithm
+          data.editor.questionnaireCode,
+          data.editor.questionnaireVersion
         )
         this.currentStep = data.currentStep || 'create'
       })
@@ -219,7 +224,7 @@ export class PersonalityEditorWorkflowStore {
 
   async saveRouting(): Promise<void> {
     await personalityQuestionnaireStore.saveRouting(personalityModelEditorStore.questionnaireCode)
-    this.currentStep = 'edit-definition'
+    runInAction(() => { this.currentStep = 'edit-definition' })
   }
 
   setRuntimeSpec(spec: PersonalityTypologyRuntimeSpec): void {
@@ -267,17 +272,46 @@ export class PersonalityEditorWorkflowStore {
     await personalityPublishStore.loadQRCode(modelCode || requireModelCode())
   }
 
+  /** A model snapshot must bind the exact published questionnaire version. */
+  private async publishAndBindQuestionnaire(modelCode: string): Promise<void> {
+    const questionnaireCode = personalityModelEditorStore.questionnaireCode
+    if (!questionnaireCode) throw new Error('发布人格测评前必须绑定题目问卷')
+
+    await personalityQuestionnaireStore.saveQuestions(questionnaireCode, true)
+    const [readErr, readRes] = await surveyApi.getSurvey(questionnaireCode)
+    if (readErr || !readRes?.data) throw readErr || new Error('读取题目问卷失败')
+
+    let questionnaire = readRes.data
+    if (questionnaire.status !== 'published') {
+      const [publishErr, publishRes] = await surveyApi.publishSurvey(questionnaireCode)
+      if (publishErr || !publishRes?.data) throw publishErr || new Error('发布题目问卷失败')
+      questionnaire = publishRes.data
+    }
+
+    const version = String(questionnaire.version || '').trim()
+    if (!version) throw new Error('已发布题目问卷未返回版本号')
+    const [bindErr] = await assessmentModelApi.updateAssessmentModelQuestionnaire(modelCode, {
+      questionnaire_code: questionnaireCode,
+      questionnaire_version: version
+    })
+    if (bindErr) throw bindErr
+
+    runInAction(() => {
+      personalityModelEditorStore.questionnaireVersion = version
+      personalityDefinitionStore.updateQuestionnaireBinding(questionnaireCode, version)
+    })
+  }
+
   async publish(): Promise<void> {
     const modelCode = requireModelCode()
-    if (personalityModelEditorStore.questionnaireCode) {
-      await personalityQuestionnaireStore.saveQuestions(personalityModelEditorStore.questionnaireCode, true)
-    }
+    await this.publishAndBindQuestionnaire(modelCode)
     await this.saveAndValidateDefinition()
     const validation = await this.validateForPublish()
     if (!validation.passed) {
       throw Object.assign(new Error('人格测评校验失败'), { validation })
     }
     const result = await personalityPublishStore.publish(modelCode)
+    await personalityPublishStore.loadPublishedSnapshot(modelCode)
     runInAction(() => {
       if (result?.status) personalityModelEditorStore.status = result.status
       this.currentStep = 'publish'

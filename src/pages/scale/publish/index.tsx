@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { message } from 'antd'
+import { Card, message } from 'antd'
 import { useParams, useLocation } from 'react-router'
 import { observer } from 'mobx-react-lite'
 
@@ -7,10 +7,11 @@ import './index.scss'
 import '@/styles/theme-scale.scss'
 import { scaleStore } from '@/store'
 import BaseLayout from '@/components/layout/BaseLayout'
-import { SCALE_STEPS, getScaleStepIndex, getScaleStepFromPath } from '@/utils/steps'
+import { getScaleEditorPath, SCALE_STEPS, getScaleStepIndex, getScaleStepFromPath } from '@/utils/steps'
 import { useHistory } from 'react-router-dom'
 import { MobilePreview } from '@/components/preview'
 import { PublishStatusCard, QuestionnaireInfoCard, ShareCard } from '@/components/questionnaire'
+import { assessmentModelApi } from '@/api/path/assessmentModel'
 
 const Publish: React.FC = observer(() => {
   const history = useHistory()
@@ -18,34 +19,16 @@ const Publish: React.FC = observer(() => {
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const searchParams = new URLSearchParams(location.search)
   const scaleCode = searchParams.get('scaleCode') || undefined
-  
+
   const [isPublished, setIsPublished] = useState(false)
+  const [publishedSnapshotVersion, setPublishedSnapshotVersion] = useState('')
 
   // 步骤跳转处理
   const handleStepChange = (stepIndex: number) => {
     const step = SCALE_STEPS[stepIndex]
     if (!step || !scaleStore.id) return
 
-    switch (step.key) {
-    case 'create':
-      history.push(`/scale/info/${scaleStore.id}`)
-      break
-    case 'edit-questions':
-      history.push(`/scale/create/${scaleStore.id}/0`)
-      break
-    case 'set-routing':
-      history.push(`/scale/routing/${scaleStore.id}`)
-      break
-    case 'edit-factors':
-      history.push(`/scale/factor/${scaleStore.id}`)
-      break
-    case 'set-interpretation':
-      history.push(`/scale/analysis/${scaleStore.id}`)
-      break
-    case 'publish':
-      history.push(`/scale/publish/${scaleStore.id}`)
-      break
-    }
+    history.push(getScaleEditorPath(step.key || '', scaleStore.id, scaleCode))
   }
 
   useEffect(() => {
@@ -54,6 +37,23 @@ const Publish: React.FC = observer(() => {
     initData()
   }, [questionsheetid, location.pathname, scaleCode])
 
+  useEffect(() => {
+    let cancelled = false
+    if (!isPublished || !scaleStore.scaleCode) {
+      setPublishedSnapshotVersion('')
+      return () => {
+        cancelled = true
+      }
+    }
+
+    assessmentModelApi.getPublishedAssessmentModel(scaleStore.scaleCode).then(([err, response]) => {
+      if (!cancelled && !err) setPublishedSnapshotVersion(response?.data?.version || '')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [isPublished, scaleStore.scaleCode])
+
   const initData = async () => {
     if (scaleCode && scaleCode !== scaleStore.scaleCode) {
       scaleStore.scaleCode = scaleCode
@@ -61,15 +61,15 @@ const Publish: React.FC = observer(() => {
 
     // 先尝试从 localStorage 恢复
     const restored = scaleStore.loadFromLocalStorage(questionsheetid)
-    
+
     if (restored && scaleStore.id === questionsheetid && scaleStore.questions.length > 0) {
       console.log('publish 页面从 localStorage 恢复数据成功')
-      
+
       // 如果 scaleCode 还没有，尝试从服务器获取
       if (!scaleStore.scaleCode && questionsheetid) {
         try {
-          const { scaleApi } = await import('@/api/path/scale')
-          const [se, sr] = await scaleApi.getScaleByQuestionnaire(questionsheetid)
+          const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
+          const [se, sr] = await scaleDefinitionApi.getScaleByQuestionnaire(questionsheetid)
           if (!se && sr?.data?.code) {
             scaleStore.scaleCode = sr.data.code
           }
@@ -77,7 +77,7 @@ const Publish: React.FC = observer(() => {
           console.error('获取量表编码失败:', error)
         }
       }
-      
+
       // 仍需从服务器获取发布状态
       try {
         const questionsheet = await scaleStore.fetchScaleInfo(questionsheetid)
@@ -90,24 +90,24 @@ const Publish: React.FC = observer(() => {
       }
       return
     }
-    
+
     // 从服务器加载完整数据
     console.log('publish 页面从服务器加载数据')
     message.loading({ content: '加载中', duration: 0, key: 'fetch' })
-    
+
     try {
       const questionsheet = await scaleStore.fetchScaleInfo(questionsheetid)
-      
+
       // 检查发布状态（status: draft/published/archived）
       if (questionsheet) {
         setIsPublished(questionsheet.status === 'published')
       }
-      
+
       // 如果 scaleCode 还没有，尝试从服务器获取
       if (!scaleStore.scaleCode && questionsheetid) {
         try {
-          const { scaleApi } = await import('@/api/path/scale')
-          const [se, sr] = await scaleApi.getScaleByQuestionnaire(questionsheetid)
+          const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
+          const [se, sr] = await scaleDefinitionApi.getScaleByQuestionnaire(questionsheetid)
           if (!se && sr?.data?.code) {
             scaleStore.scaleCode = sr.data.code
           }
@@ -115,7 +115,7 @@ const Publish: React.FC = observer(() => {
           console.error('获取量表编码失败:', error)
         }
       }
-      
+
       message.destroy()
       message.success({ content: '加载成功!', key: 'fetch', duration: 2 })
     } catch (error: any) {
@@ -129,12 +129,12 @@ const Publish: React.FC = observer(() => {
       message.loading({ content: '发布中...', duration: 0, key: 'publish' })
       await scaleStore.publish()
       setIsPublished(true)
-      
+
       // 发布成功后，scaleCode 应该已经设置，确保获取到
       if (!scaleStore.scaleCode && questionsheetid) {
         try {
-          const { scaleApi } = await import('@/api/path/scale')
-          const [se, sr] = await scaleApi.getScaleByQuestionnaire(questionsheetid)
+          const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
+          const [se, sr] = await scaleDefinitionApi.getScaleByQuestionnaire(questionsheetid)
           if (!se && sr?.data?.code) {
             scaleStore.scaleCode = sr.data.code
           }
@@ -142,7 +142,7 @@ const Publish: React.FC = observer(() => {
           console.error('获取量表编码失败:', error)
         }
       }
-      
+
       message.destroy()
       message.success('问卷发布成功！')
     } catch (error: any) {
@@ -154,10 +154,10 @@ const Publish: React.FC = observer(() => {
   const handleUnpublish = async () => {
     try {
       message.loading({ content: '取消发布中...', duration: 0, key: 'unpublish' })
-      
+
       await scaleStore.unpublish()
       setIsPublished(false)
-      
+
       message.destroy()
       message.success('已取消发布')
     } catch (error: any) {
@@ -206,23 +206,29 @@ const Publish: React.FC = observer(() => {
       onStepChange={handleStepChange}
       themeClass="scale-page-theme"
     >
-      <div className='scale-publish-container scale-page-theme'>
+      <div className="scale-publish-container scale-page-theme">
         {/* 主内容区 - 左右两栏布局 */}
-        <div className='content-layout'>
+        <div className="content-layout">
           {/* 左侧栏 */}
-          <div className='left-column'>
+          <div className="left-column">
             {/* 发布状态栏 */}
             <PublishStatusCard
               isPublished={isPublished}
               title={scaleStore.title}
               questionCount={scaleStore.questions.length}
               showControllerCount={scaleStore.showControllers.length}
-              type='scale'
+              type="scale"
               onSaveDraft={handleSaveDraftInline}
               onPublish={handlePublish}
               onUnpublish={handleUnpublish}
               onRepublish={handleRepublish}
             />
+
+            {isPublished ? (
+              <Card size="small" style={{ marginTop: 16 }}>
+                已发布快照版本：{publishedSnapshotVersion || '读取中…'}
+              </Card>
+            ) : null}
 
             {/* 问卷信息和量表信息 */}
             <QuestionnaireInfoCard
@@ -231,24 +237,22 @@ const Publish: React.FC = observer(() => {
               showControllerCount={scaleStore.showControllers.length}
               isPublished={isPublished}
               desc={scaleStore.desc}
-              type='scale'
+              type="scale"
               factorCount={scaleStore.factors.length}
-              hasTotalScore={scaleStore.factors.some(f => f.is_total_score === '1')}
+              hasTotalScore={scaleStore.factors.some((f) => f.is_total_score === '1')}
               factorRulesCount={scaleStore.factor_rules.length}
               macroInterpretationCount={0}
               factors={scaleStore.factors}
             />
 
             {/* 分享设置 */}
-            {isPublished && scaleStore.scaleCode && (
-              <ShareCard type='scale' code={scaleStore.scaleCode} />
-            )}
+            {isPublished && scaleStore.scaleCode && <ShareCard type="scale" code={scaleStore.scaleCode} />}
           </div>
 
           {/* 右侧栏 - 问卷预览 */}
-          <div className='right-column'>
-            <div className='preview-sticky'>
-              <MobilePreview 
+          <div className="right-column">
+            <div className="preview-sticky">
+              <MobilePreview
                 questionnaire={{
                   title: scaleStore.title,
                   desc: scaleStore.desc,

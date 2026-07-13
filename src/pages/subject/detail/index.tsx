@@ -34,7 +34,7 @@ const SubjectDetail: React.FC = observer(() => {
   }
 
   const handleViewScaleDetail = (record: any) => {
-    history.push(`/subject/${id}/scale/${record.id}`)
+    history.push(`/subject/${id}/assessment/${record.id}`)
   }
 
   const handleLoadScaleFactors = (record: any) => {

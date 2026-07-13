@@ -16,6 +16,7 @@ import {
   PersonalityPayloadV1,
   PersonalityTypologyRuntimeSpec
 } from './assessmentModel'
+import { cloneDefinitionV2, createEmptyDefinitionV2, isDefinitionV2, DefinitionV2 } from './definitionV2'
 import {
   normalizeAssessmentModelDefinitionPayload,
   normalizeRuntimeSpecForEdit
@@ -39,30 +40,62 @@ const normalizeTags = (tags?: unknown): string[] => {
   return tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
 }
 
-export const normalizeAssessmentModelSummary = (raw: Record<string, any>): AssessmentModelSummary => ({
-  code: String(raw?.code || ''),
-  kind: (raw?.kind || 'personality') as AssessmentModelKind,
-  sub_kind: (raw?.sub_kind || 'typology') as AssessmentModelSubKind,
-  algorithm: String(raw?.algorithm || 'mbti'),
-  title: String(raw?.title || ''),
-  description: String(raw?.description || raw?.desc || ''),
-  status: (raw?.status || 'draft') as AssessmentModelStatus,
-  category: raw?.category,
-  tags: normalizeTags(raw?.tags),
-  questionnaire_code: raw?.questionnaire_code || raw?.questionnaire?.code || undefined,
-  questionnaire_version: raw?.questionnaire_version || raw?.questionnaire?.version,
-  created_at: raw?.created_at,
-  updated_at: raw?.updated_at,
-  published_at: raw?.published_at,
-  archived_at: raw?.archived_at,
-  created_by: raw?.created_by,
-  updated_by: raw?.updated_by
-})
+const normalizeStringList = (value?: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) return undefined
+  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+}
+
+const normalizeModelKind = (kind?: unknown): AssessmentModelKind => {
+  if (kind === 'personality') return 'typology'
+  if (kind === 'behavior_ability') return 'behavioral_rating'
+  return (kind || 'typology') as AssessmentModelKind
+}
+
+const defaultProductChannelForKind = (kind: AssessmentModelKind): string | undefined => {
+  if (kind === 'scale') return 'medical_scale'
+  if (kind === 'typology' || kind === 'personality') return 'typology'
+  if (kind === 'behavioral_rating' || kind === 'cognitive' || kind === 'behavior_ability') return 'behavior_ability'
+  return undefined
+}
+
+export const normalizeAssessmentModelSummary = (raw: Record<string, any>): AssessmentModelSummary => {
+  const kind = normalizeModelKind(raw?.kind)
+  return {
+    code: String(raw?.code || ''),
+    kind,
+    sub_kind: (raw?.sub_kind || 'typology') as AssessmentModelSubKind,
+    algorithm: String(raw?.algorithm || 'mbti'),
+    title: String(raw?.title || ''),
+    description: String(raw?.description || raw?.desc || ''),
+    status: (raw?.status || 'draft') as AssessmentModelStatus,
+    category: raw?.category,
+    product_channel: raw?.product_channel || defaultProductChannelForKind(kind),
+    norm_table_versions: normalizeStringList(raw?.norm_table_versions),
+    algorithm_family: raw?.algorithm_family,
+    tags: normalizeTags(raw?.tags),
+    stages: Array.isArray(raw?.stages) ? raw.stages : undefined,
+    applicable_ages: Array.isArray(raw?.applicable_ages) ? raw.applicable_ages : undefined,
+    reporters: Array.isArray(raw?.reporters) ? raw.reporters : undefined,
+    questionnaire_code: raw?.questionnaire_code || raw?.questionnaire?.code || undefined,
+    questionnaire_version: raw?.questionnaire_version || raw?.questionnaire?.version,
+    version: raw?.version,
+    created_at: raw?.created_at,
+    updated_at: raw?.updated_at,
+    published_at: raw?.published_at,
+    archived_at: raw?.archived_at,
+    created_by: raw?.created_by,
+    updated_by: raw?.updated_by
+  }
+}
 
 export const normalizeAssessmentModelDetail = (raw: Record<string, any>): AssessmentModelDetail => ({
   ...normalizeAssessmentModelSummary(raw),
-  definition: raw?.definition ? normalizeAssessmentModelDefinition(raw.definition) : undefined
+  definition: raw?.definition ? normalizeDefinitionV2(raw.definition) : undefined
 })
+
+export const normalizeDefinitionV2 = (raw: unknown): DefinitionV2 => (
+  isDefinitionV2(raw) ? cloneDefinitionV2(raw) : createEmptyDefinitionV2()
+)
 
 export const mapRuntimeSpecToFormState = (
   spec: PersonalityTypologyRuntimeSpec
@@ -128,9 +161,15 @@ export const normalizeAssessmentModelDefinition = (
 }
 
 export const normalizeAssessmentModelOptions = (raw: Record<string, any>): AssessmentModelOptions => ({
+  kinds: Array.isArray(raw?.kinds) ? raw.kinds : [],
   algorithms: Array.isArray(raw?.algorithms) ? raw.algorithms : [],
+  algorithm_families: Array.isArray(raw?.algorithm_families) ? raw.algorithm_families : [],
   categories: Array.isArray(raw?.categories) ? raw.categories : [],
-  sub_kinds: Array.isArray(raw?.sub_kinds) ? raw.sub_kinds : []
+  sub_kinds: Array.isArray(raw?.sub_kinds) ? raw.sub_kinds : [],
+  product_channels: Array.isArray(raw?.product_channels) ? raw.product_channels : [],
+  stages: Array.isArray(raw?.stages) ? raw.stages : [],
+  applicable_ages: Array.isArray(raw?.applicable_ages) ? raw.applicable_ages : [],
+  reporters: Array.isArray(raw?.reporters) ? raw.reporters : []
 })
 
 export const normalizeValidationResult = (raw: unknown): AssessmentModelValidationResult => {
@@ -198,7 +237,7 @@ export const normalizePreviewReportResponse = (raw: unknown): AssessmentModelPre
       Record<string, unknown> | unknown[] | undefined,
     report_sections: normalizeReportSections(data.report_sections || data.sections || report.sections),
     issues: normalizeIssues(data.issues || data.errors),
-    raw: data
+    raw_report: data.raw_report || data.raw || report.raw_report
   }
 }
 

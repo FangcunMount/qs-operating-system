@@ -26,7 +26,7 @@ export const SCALE_STEPS: EditorStep[] = [
  * 根据步骤 key 获取步骤索引
  */
 export const getStepIndex = (steps: EditorStep[], stepKey: string): number => {
-  return steps.findIndex(step => step.key === stepKey)
+  return steps.findIndex((step) => step.key === stepKey)
 }
 
 /**
@@ -41,6 +41,48 @@ export const getSurveyStepIndex = (stepKey: string): number => {
  */
 export const getScaleStepIndex = (stepKey: string): number => {
   return getStepIndex(SCALE_STEPS, stepKey)
+}
+
+export const getSurveyEditorPath = (stepKey: string, questionnaireCode: string): string => {
+  switch (stepKey) {
+    case 'create':
+      return `/survey/info/${questionnaireCode}`
+    case 'edit-questions':
+      return `/survey/create/${questionnaireCode}/0`
+    case 'set-routing':
+      return `/survey/routing/${questionnaireCode}`
+    case 'publish':
+      return `/survey/publish/${questionnaireCode}`
+    default:
+      return '/survey/list'
+  }
+}
+
+export const getScaleEditorPath = (stepKey: string, questionnaireCode: string, scaleCode?: string): string => {
+  let path = '/scale/list'
+  switch (stepKey) {
+    case 'create':
+      path = `/scale/info/${questionnaireCode}`
+      break
+    case 'edit-questions':
+      path = `/scale/create/${questionnaireCode}/0`
+      break
+    case 'set-routing':
+      path = `/scale/routing/${questionnaireCode}`
+      break
+    case 'edit-factors':
+      path = `/scale/factor/${questionnaireCode}`
+      break
+    case 'set-interpretation':
+      path = `/scale/analysis/${questionnaireCode}`
+      break
+    case 'publish':
+      path = `/scale/publish/${questionnaireCode}`
+      break
+    default:
+      break
+  }
+  return scaleCode ? `${path}?scaleCode=${encodeURIComponent(scaleCode)}` : path
 }
 
 /**

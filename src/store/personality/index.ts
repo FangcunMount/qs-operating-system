@@ -1,10 +1,6 @@
 import { computed, makeObservable, reaction } from 'mobx'
 import type { EditorFlowContext } from '@/utils/editorFlow'
-import {
-  PersonalityPayloadV1,
-  PersonalityTypologyRuntimeSpec
-} from '@/models/assessmentModel'
-import { mapRuntimeSpecToFormState } from '@/models/assessmentModel.mapper'
+import { PersonalityTypologyRuntimeSpec } from '@/models/assessmentModel'
 import { personalityDefinitionStore } from './personalityDefinitionStore'
 import {
   personalityEditorWorkflowStore,
@@ -85,40 +81,6 @@ class PersonalityModelStoreFacade {
   publish = () => personalityEditorWorkflowStore.publish()
   unpublish = () => personalityEditorWorkflowStore.unpublish()
 
-  setDefinitionPayload(payload: PersonalityPayloadV1) {
-    const { payload: _p, scoringRulesSource } = mapRuntimeSpecToFormState(personalityDefinitionStore.runtimeSpec)
-    void _p
-    try {
-      const scoringRules = JSON.parse(scoringRulesSource || '{}')
-      personalityDefinitionStore.setRuntimeSpec({
-        ...personalityDefinitionStore.runtimeSpec,
-        factor_graph: {
-          ...personalityDefinitionStore.runtimeSpec.factor_graph,
-          dimension_order: payload.dimensions.map((d) => d.code),
-          dimensions: Object.fromEntries(payload.dimensions.map((d) => [d.code, d])),
-          factors: Object.fromEntries(payload.dimensions.map((d) => [d.code, {
-            id: d.code, code: d.code, name: d.title, kind: 'leaf' as const
-          }])),
-          roots: payload.dimensions.map((d) => d.code)
-        },
-        outcome_mapping: { outcomes: payload.outcomes },
-        questionnaire_binding: payload.questionnaire_binding,
-        decision: { ...personalityDefinitionStore.runtimeSpec.decision, ...(scoringRules.decision || {}) }
-      })
-    } catch {
-      personalityDefinitionStore.setRuntimeSpec({
-        ...personalityDefinitionStore.runtimeSpec,
-        factor_graph: {
-          ...personalityDefinitionStore.runtimeSpec.factor_graph,
-          dimension_order: payload.dimensions.map((d) => d.code),
-          dimensions: Object.fromEntries(payload.dimensions.map((d) => [d.code, d]))
-        },
-        outcome_mapping: { outcomes: payload.outcomes },
-        questionnaire_binding: payload.questionnaire_binding
-      })
-    }
-  }
-
   setRuntimeSpec(spec: PersonalityTypologyRuntimeSpec) {
     personalityEditorWorkflowStore.setRuntimeSpec(spec)
   }
@@ -142,7 +104,7 @@ class PersonalityModelStoreFacade {
 export const personalityModelStore = new PersonalityModelStoreFacade()
 
 let saveTimer: NodeJS.Timeout | null = null
-reaction(
+const observePersonalityDraft = () => reaction(
   () => ({
     modelCode: personalityModelStore.modelCode,
     title: personalityModelStore.title,
@@ -160,6 +122,15 @@ reaction(
   },
   { fireImmediately: false }
 )
+
+// api -> store has an existing CommonJS cycle. Defer this optional observer by
+// one microtask only when a cycle is still initializing, so it tracks the real
+// stores rather than reading an incomplete export.
+if (personalityEditorWorkflowStore && personalityModelEditorStore && personalityQuestionnaireStore && personalityDefinitionStore) {
+  observePersonalityDraft()
+} else {
+  Promise.resolve().then(observePersonalityDraft)
+}
 
 export {
   personalityModelEditorStore,

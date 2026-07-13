@@ -3,14 +3,17 @@ import { useHistory } from 'react-router-dom'
 import { message } from 'antd'
 import { EditorStep } from '@/components/layout/BaseLayout'
 
-export interface EditorFlowConfig {
-  kind: 'personality' | 'scale' | 'survey'
+export interface EditorFlowDefinition {
   listPath: string
   themeClass: string
   steps: EditorStep[]
   getPathForStep: (stepKey: string, modelCode: string) => string
   getStepFromPath: (pathname: string) => string | undefined
+  getBlockedReason?: (stepKey: string, context: EditorFlowContext) => string
 }
+
+/** @deprecated Prefer EditorFlowDefinition for new product flows. */
+export type EditorFlowConfig = EditorFlowDefinition
 
 export interface EditorFlowContext {
   modelCode?: string
@@ -40,8 +43,7 @@ export const PERSONALITY_STEPS: EditorStep[] = [
   { title: '发布测评', key: 'publish' }
 ]
 
-export const getPersonalityStepIndex = (stepKey: string): number =>
-  PERSONALITY_STEPS.findIndex((step) => step.key === stepKey)
+export const getPersonalityStepIndex = (stepKey: string): number => PERSONALITY_STEPS.findIndex((step) => step.key === stepKey)
 
 export const getPersonalityStepFromPath = (pathname: string): string | undefined => {
   if (pathname.includes('/personality/info/')) return 'create'
@@ -52,61 +54,55 @@ export const getPersonalityStepFromPath = (pathname: string): string | undefined
   return undefined
 }
 
-export const canEnterPersonalityStep = (
-  stepKey: string,
-  ctx: EditorFlowContext
-): boolean => getBlockedReasonForStep(stepKey, ctx) === ''
+export const canEnterPersonalityStep = (stepKey: string, ctx: EditorFlowContext): boolean => getBlockedReasonForStep(stepKey, ctx) === ''
 
-export const getBlockedReasonForStep = (
-  stepKey: string,
-  ctx: EditorFlowContext
-): string => {
+export const getBlockedReasonForStep = (stepKey: string, ctx: EditorFlowContext): string => {
   if (ctx.readonly && stepKey !== 'create' && stepKey !== 'publish') {
     return '归档模型仅可查看'
   }
   switch (stepKey) {
-  case 'create':
-    return ''
-  case 'edit-questions':
-    if (!ctx.modelCode || ctx.modelCode === 'new') return '请先保存基本信息'
-    if (!ctx.questionnaireCode) return '请先绑定题目问卷'
-    return ''
-  case 'set-routing':
-    if (!ctx.hasQuestions) return '请先添加题目'
-    return canEnterPersonalityStep('edit-questions', ctx) ? '' : getBlockedReasonForStep('edit-questions', ctx)
-  case 'edit-definition':
-    if (!ctx.hasQuestions) return '请先添加题目'
-    return canEnterPersonalityStep('edit-questions', ctx) ? '' : getBlockedReasonForStep('edit-questions', ctx)
-  case 'publish':
-    if (!ctx.hasDefinition) return '请先完成模型定义'
-    return canEnterPersonalityStep('edit-definition', ctx) ? '' : getBlockedReasonForStep('edit-definition', ctx)
-  default:
-    return ''
+    case 'create':
+      return ''
+    case 'edit-questions':
+      if (!ctx.modelCode || ctx.modelCode === 'new') return '请先保存基本信息'
+      if (!ctx.questionnaireCode) return '请先绑定题目问卷'
+      return ''
+    case 'set-routing':
+      if (!ctx.hasQuestions) return '请先添加题目'
+      return canEnterPersonalityStep('edit-questions', ctx) ? '' : getBlockedReasonForStep('edit-questions', ctx)
+    case 'edit-definition':
+      if (!ctx.hasQuestions) return '请先添加题目'
+      return canEnterPersonalityStep('edit-questions', ctx) ? '' : getBlockedReasonForStep('edit-questions', ctx)
+    case 'publish':
+      if (!ctx.hasDefinition) return '请先完成模型定义'
+      return canEnterPersonalityStep('edit-definition', ctx) ? '' : getBlockedReasonForStep('edit-definition', ctx)
+    default:
+      return ''
   }
 }
 
 export const personalityEditorFlowConfig: EditorFlowConfig = {
-  kind: 'personality',
   listPath: '/personality/list',
   themeClass: 'personality-page-theme',
   steps: PERSONALITY_STEPS,
   getPathForStep: (stepKey: string, modelCode: string) => {
     switch (stepKey) {
-    case 'create':
-      return `/personality/info/${modelCode}`
-    case 'edit-questions':
-      return `/personality/create/${modelCode}/0`
-    case 'set-routing':
-      return `/personality/routing/${modelCode}`
-    case 'edit-definition':
-      return `/personality/definition/${modelCode}`
-    case 'publish':
-      return `/personality/publish/${modelCode}`
-    default:
-      return '/personality/list'
+      case 'create':
+        return `/personality/info/${modelCode}`
+      case 'edit-questions':
+        return `/personality/create/${modelCode}/0`
+      case 'set-routing':
+        return `/personality/routing/${modelCode}`
+      case 'edit-definition':
+        return `/personality/definition/${modelCode}`
+      case 'publish':
+        return `/personality/publish/${modelCode}`
+      default:
+        return '/personality/list'
     }
   },
-  getStepFromPath: getPersonalityStepFromPath
+  getStepFromPath: getPersonalityStepFromPath,
+  getBlockedReason: getBlockedReasonForStep
 }
 
 export const useEditorFlow = (
@@ -126,13 +122,11 @@ export const useEditorFlow = (
   const currentStepIndex = config.steps.findIndex((step) => step.key === currentStepKey)
 
   const canEnterStep = (stepKey: string) => {
-    if (config.kind !== 'personality') return true
-    return canEnterPersonalityStep(stepKey, flowContext)
+    return getBlockedReason(stepKey) === ''
   }
 
   const getBlockedReason = (stepKey: string) => {
-    if (config.kind !== 'personality') return ''
-    return getBlockedReasonForStep(stepKey, flowContext)
+    return config.getBlockedReason?.(stepKey, flowContext) || ''
   }
 
   const navigateToStep = (stepKey: string, showMessage = true) => {
@@ -190,8 +184,8 @@ export const buildPersonalityFlowContext = (store: {
     questionnaireCode: store.id,
     hasQuestions: (store.questions || []).length > 0,
     hasDefinition: Boolean(
-      (store.runtimeSpec?.factor_graph?.factors && Object.keys(store.runtimeSpec.factor_graph.factors).length > 0)
-      || (store.payload?.outcomes?.length && store.payload.outcomes.length > 0)
+      (store.runtimeSpec?.factor_graph?.factors && Object.keys(store.runtimeSpec.factor_graph.factors).length > 0) ||
+        (store.payload?.outcomes?.length && store.payload.outcomes.length > 0)
     ),
     readonly: store.status === 'archived'
   }

@@ -12,7 +12,7 @@ import { useParams, useLocation } from 'react-router'
 import { api } from '@/api'
 import BaseLayout from '@/components/layout/BaseLayout'
 import { scaleStore } from '@/store'
-import { SCALE_STEPS, getScaleStepIndex, getScaleStepFromPath } from '@/utils/steps'
+import { getScaleEditorPath, SCALE_STEPS, getScaleStepIndex, getScaleStepFromPath } from '@/utils/steps'
 import { useHistory } from 'react-router-dom'
 
 const { Option } = Select
@@ -31,13 +31,7 @@ interface DraggableFactorCardProps {
   moveFactor: (dragIndex: number, hoverIndex: number) => void
 }
 
-const DraggableFactorCard: React.FC<DraggableFactorCardProps> = observer(({ 
-  factor, 
-  index, 
-  isActive, 
-  onSelect,
-  moveFactor 
-}) => {
+const DraggableFactorCard: React.FC<DraggableFactorCardProps> = observer(({ factor, index, isActive, onSelect, moveFactor }) => {
   const ref = useRef<HTMLDivElement>(null)
 
   const [{ isDragging }, drag] = useDrag({
@@ -56,12 +50,12 @@ const DraggableFactorCard: React.FC<DraggableFactorCardProps> = observer(({
       if (!ref.current) {
         return
       }
-      
+
       // 如果目标是总分因子位置（第一位），不允许拖拽
       if (factor.is_total_score === '1') {
         return
       }
-      
+
       const dragIndex = item.index
       const hoverIndex = index
 
@@ -71,11 +65,11 @@ const DraggableFactorCard: React.FC<DraggableFactorCardProps> = observer(({
 
       const hoverBoundingRect = ref.current?.getBoundingClientRect()
       if (!hoverBoundingRect) return
-      
+
       const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2
       const clientOffset = monitor.getClientOffset()
       if (!clientOffset) return
-      
+
       const hoverClientY = clientOffset.y - hoverBoundingRect.top
 
       if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) {
@@ -93,15 +87,8 @@ const DraggableFactorCard: React.FC<DraggableFactorCardProps> = observer(({
   drag(drop(ref))
 
   return (
-    <div 
-      ref={ref} 
-      style={{ opacity: isDragging ? 0.5 : 1 }}
-      className="draggable-factor-wrapper"
-    >
-      <Card
-        className={`factor-item ${isActive ? 'active' : ''}`}
-        onClick={() => onSelect(factor.code)}
-      >
+    <div ref={ref} style={{ opacity: isDragging ? 0.5 : 1 }} className="draggable-factor-wrapper">
+      <Card className={`factor-item ${isActive ? 'active' : ''}`} onClick={() => onSelect(factor.code)}>
         <div className="factor-header">
           <div className="drag-handle">
             <MenuOutlined />
@@ -110,9 +97,7 @@ const DraggableFactorCard: React.FC<DraggableFactorCardProps> = observer(({
           <div className="factor-info">
             <div className="factor-title">
               {factor.title}
-              {factor.is_total_score === '1' && (
-                <StarFilled style={{ color: '#faad14', marginLeft: 8 }} />
-              )}
+              {factor.is_total_score === '1' && <StarFilled style={{ color: '#faad14', marginLeft: 8 }} />}
             </div>
             <div className="factor-meta">
               {FactorTypeMap[factor.type as IFactorType]} · {FormulasMap[factor.calc_rule.formula as IFactorFormula]}
@@ -140,7 +125,7 @@ const Factor: React.FC = observer(() => {
   const location = useLocation()
   const { questionsheetid } = useParams<{ questionsheetid: string }>()
   const [form] = Form.useForm()
-  
+
   // 从 URL query 参数获取 scaleCode
   const searchParams = new URLSearchParams(location.search)
   const scaleCode = searchParams.get('scaleCode') || undefined
@@ -150,28 +135,9 @@ const Factor: React.FC = observer(() => {
     const step = SCALE_STEPS[stepIndex]
     if (!step || !scaleStore.id) return
 
-    switch (step.key) {
-    case 'create':
-      history.push(`/scale/info/${scaleStore.id}`)
-      break
-    case 'edit-questions':
-      history.push(`/scale/create/${scaleStore.id}/0`)
-      break
-    case 'set-routing':
-      history.push(`/scale/routing/${scaleStore.id}`)
-      break
-    case 'edit-factors':
-      history.push(`/scale/factor/${scaleStore.id}`)
-      break
-    case 'set-interpretation':
-      history.push(`/scale/analysis/${scaleStore.id}`)
-      break
-    case 'publish':
-      history.push(`/scale/publish/${scaleStore.id}`)
-      break
-    }
+    history.push(getScaleEditorPath(step.key || '', scaleStore.id, scaleCode))
   }
-  
+
   // 当前编辑的因子 code，null 表示创建新因子
   const [editingFactorCode, setEditingFactorCode] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
@@ -179,14 +145,14 @@ const Factor: React.FC = observer(() => {
   // 获取排序后的因子列表（总分因子始终在第一位）
   const getSortedFactors = () => {
     const factors = [...scaleStore.factors]
-    const totalFactorIndex = factors.findIndex(f => f.is_total_score === '1')
-    
+    const totalFactorIndex = factors.findIndex((f) => f.is_total_score === '1')
+
     if (totalFactorIndex > 0) {
       // 如果总分因子不在第一位，将其移到第一位
       const totalFactor = factors.splice(totalFactorIndex, 1)[0]
       factors.unshift(totalFactor)
     }
-    
+
     return factors
   }
 
@@ -195,21 +161,21 @@ const Factor: React.FC = observer(() => {
     const sortedFactors = getSortedFactors()
     const dragFactor = sortedFactors[dragIndex]
     const hoverFactor = sortedFactors[hoverIndex]
-    
+
     // 如果拖拽的是总分因子，不允许移动
     if (dragFactor.is_total_score === '1') {
       return
     }
-    
+
     // 如果目标位置是第一位（总分位置），不允许移动
     if (hoverIndex === 0 && sortedFactors[0].is_total_score === '1') {
       return
     }
-    
+
     // 在原始 factors 数组中找到对应的索引
-    const originalDragIndex = scaleStore.factors.findIndex(f => f.code === dragFactor.code)
-    const originalHoverIndex = scaleStore.factors.findIndex(f => f.code === hoverFactor.code)
-    
+    const originalDragIndex = scaleStore.factors.findIndex((f) => f.code === dragFactor.code)
+    const originalHoverIndex = scaleStore.factors.findIndex((f) => f.code === hoverFactor.code)
+
     scaleStore.changeFactorPosition(originalDragIndex, originalHoverIndex)
   }
 
@@ -227,30 +193,30 @@ const Factor: React.FC = observer(() => {
       console.log('调用 initEditor 获取量表信息...', 'questionsheetid:', questionsheetid, 'scaleCode:', scaleCode)
       await scaleStore.initEditor(questionsheetid, scaleCode)
       console.log('initEditor 完成，scaleCode:', scaleStore.scaleCode)
-      
+
       // 如果量表编码存在，直接使用；否则使用问卷编码作为备用方案
       let error: any = null
       let response: any = undefined
-      
+
       if (scaleStore.scaleCode) {
-        // 直接使用量表编码调用 GET /scales/{code}/factors 接口
+        // 从模型 DefinitionV2 投影当前量表因子。
         console.log('使用量表编码获取因子列表，scaleCode:', scaleStore.scaleCode)
-        const { getFactorListByScaleCode } = await import('@/api/path/scale')
+        const { getFactorListByScaleCode } = await import('@/api/path/scaleDefinition')
         ;[error, response] = await getFactorListByScaleCode(scaleStore.scaleCode)
       } else {
         // 备用方案：使用问卷编码获取因子列表
         console.warn('量表编码不存在，使用问卷编码作为备用方案，questionsheetid:', questionsheetid)
-        const { getFactorListByQuestionnaire } = await import('@/api/path/scale')
+        const { getFactorListByQuestionnaire } = await import('@/api/path/scaleDefinition')
         ;[error, response] = await getFactorListByQuestionnaire(questionsheetid)
-        
+
         // 如果通过问卷编码获取成功，尝试从响应中提取量表编码
         if (!error && response?.data) {
           // getFactorListByQuestionnaire 内部会调用 getScaleByQuestionnaire
           // 如果成功，应该能获取到量表编码，但这里无法直接获取
           // 所以再次尝试获取量表编码
           try {
-            const { scaleApi } = await import('@/api/path/scale')
-            const [se, sr] = await scaleApi.getScaleByQuestionnaire(questionsheetid)
+            const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
+            const [se, sr] = await scaleDefinitionApi.getScaleByQuestionnaire(questionsheetid)
             if (!se && sr?.data?.code) {
               scaleStore.scaleCode = sr.data.code
               console.log('通过备用方案获取到量表编码:', sr.data.code)
@@ -260,29 +226,26 @@ const Factor: React.FC = observer(() => {
           }
         }
       }
-      
+
       if (error) {
         console.error('获取因子列表失败:', error)
         message.error('获取因子列表失败')
         message.destroy('fetch')
         return
       }
-      
+
       console.log('获取因子列表响应:', response)
       if (response?.data?.factors) {
         console.log('获取到因子列表，数量:', response.data.factors.length)
         // 确保所有因子都有 max_score
         const { ensureFactorsHaveMaxScore } = await import('@/tools/factor')
-        const factorsWithMaxScore = ensureFactorsHaveMaxScore(
-          response.data.factors,
-          scaleStore.questions
-        )
+        const factorsWithMaxScore = ensureFactorsHaveMaxScore(response.data.factors, scaleStore.questions)
         scaleStore.setFactors(factorsWithMaxScore)
       } else {
         console.log('因子列表为空')
         scaleStore.setFactors([])
       }
-      
+
       message.destroy('fetch')
     } catch (error) {
       console.error('加载因子列表异常:', error)
@@ -298,7 +261,7 @@ const Factor: React.FC = observer(() => {
       // 总是从服务器加载最新的因子列表
       await loadDataFromServer()
     }
-    
+
     initPageData()
   }, [questionsheetid])
 
@@ -310,7 +273,7 @@ const Factor: React.FC = observer(() => {
     if (factor) {
       console.log('设置因子表单值:', factor)
       console.log('cnt_option_contents:', factor.calc_rule?.append_params?.cnt_option_contents)
-      
+
       // 使用 setTimeout 确保在下一个渲染周期设置值，让 shouldUpdate 能正确触发
       setTimeout(() => {
         form.setFieldsValue({
@@ -323,7 +286,7 @@ const Factor: React.FC = observer(() => {
             }
           }
         })
-        
+
         // 验证表单值是否设置成功
         const formValues = form.getFieldsValue()
         console.log('表单值设置后的值:', formValues)
@@ -339,16 +302,16 @@ const Factor: React.FC = observer(() => {
       message.error('量表编码不存在，无法创建因子')
       return
     }
-    
+
     const [err, res] = await api.applyFactorCode(scaleStore.scaleCode)
     if (err || !res?.data?.codes || res.data.codes.length === 0) {
       message.error('申请因子编码失败')
       console.error('申请因子编码失败:', err)
       return
     }
-    
+
     const newCode = res.data.codes[0]
-    
+
     setEditingFactorCode(newCode)
     setIsCreating(true)
     form.resetFields()
@@ -406,13 +369,13 @@ const Factor: React.FC = observer(() => {
       if (isCreating) {
         // 如果新因子是总分，取消其他因子的总分设置
         if (factor.is_total_score === '1') {
-          scaleStore.factors.forEach(f => {
+          scaleStore.factors.forEach((f) => {
             if (f.is_total_score === '1') {
               scaleStore.updateFactor(f.code, { ...f, is_total_score: '0' })
             }
           })
         }
-        
+
         scaleStore.addFactor(factor)
         // 如果新因子是总分，将其移到第一位
         if (factor.is_total_score === '1') {
@@ -426,37 +389,37 @@ const Factor: React.FC = observer(() => {
         const oldFactor = scaleStore.getFactorById(factor.code)
         const wasTotalScore = oldFactor?.is_total_score === '1'
         const isNowTotalScore = factor.is_total_score === '1'
-        
+
         // 如果因子被设置为总分，取消其他因子的总分设置
         if (!wasTotalScore && isNowTotalScore) {
-          scaleStore.factors.forEach(f => {
+          scaleStore.factors.forEach((f) => {
             if (f.code !== factor.code && f.is_total_score === '1') {
               scaleStore.updateFactor(f.code, { ...f, is_total_score: '0' })
             }
           })
         }
-        
+
         scaleStore.updateFactor(factor.code, factor)
-        
+
         // 如果因子被设置为总分，将其移到第一位
         if (!wasTotalScore && isNowTotalScore) {
-          const factorIndex = scaleStore.factors.findIndex(f => f.code === factor.code)
+          const factorIndex = scaleStore.factors.findIndex((f) => f.code === factor.code)
           if (factorIndex > 0) {
             scaleStore.changeFactorPosition(factorIndex, 0)
           }
         }
-        
+
         // 如果因子被取消总分设置，确保其他总分因子在第一位
         if (wasTotalScore && !isNowTotalScore) {
-          const totalFactorIndex = scaleStore.factors.findIndex(f => f.is_total_score === '1' && f.code !== factor.code)
+          const totalFactorIndex = scaleStore.factors.findIndex((f) => f.is_total_score === '1' && f.code !== factor.code)
           if (totalFactorIndex > 0) {
             scaleStore.changeFactorPosition(totalFactorIndex, 0)
           }
         }
-        
+
         message.success('更新成功')
       }
-      
+
       setEditingFactorCode(null)
       setIsCreating(false)
       form.resetFields()
@@ -478,17 +441,13 @@ const Factor: React.FC = observer(() => {
   // 获取可选的因子项数据
   const getTransferData = (factorType?: string) => {
     switch (factorType) {
-    case 'first_grade':
-      // 只返回结构化题型
-      return scaleStore.questions
-        .filter(q => structuredQuestionTypes.includes(q.type))
-        .map(q => ({ key: q.code, title: q.title }))
-    case 'multi_grade':
-      return scaleStore.factors
-        .filter(f => f.code !== editingFactorCode)
-        .map(f => ({ key: f.code, title: f.title }))
-    default:
-      return []
+      case 'first_grade':
+        // 只返回结构化题型
+        return scaleStore.questions.filter((q) => structuredQuestionTypes.includes(q.type)).map((q) => ({ key: q.code, title: q.title }))
+      case 'multi_grade':
+        return scaleStore.factors.filter((f) => f.code !== editingFactorCode).map((f) => ({ key: f.code, title: f.title }))
+      default:
+        return []
     }
   }
 
@@ -497,18 +456,18 @@ const Factor: React.FC = observer(() => {
     const sourceCodes = form.getFieldValue('source_codes') || []
     const allOptions: Array<{ value: string; label: string }> = []
     const seenContents = new Set<string>() // 用于根据 content 去重
-    
+
     console.log('getAvailableOptionValues - sourceCodes:', sourceCodes)
-    
+
     sourceCodes.forEach((questionCode: string) => {
-      const question = scaleStore.questions.find(q => q.code === questionCode)
+      const question = scaleStore.questions.find((q) => q.code === questionCode)
       if (!question) {
         console.warn('未找到题目:', questionCode)
         return
       }
-      
+
       console.log('找到题目:', question.code, question.title, '类型:', question.type, '选项:', (question as any).options)
-      
+
       // 获取题目的选项
       let options: Array<{ code: string; content: string }> = []
       if (question.type === 'Radio' && 'options' in question) {
@@ -542,27 +501,27 @@ const Factor: React.FC = observer(() => {
           content: opt.content || opt.title || opt.label || String(opt.code || opt.key || '')
         }))
       }
-      
+
       console.log('提取的选项:', options)
-      
+
       // 将选项添加到列表中，只显示选项文本值，并根据 content 去重
       // 注意：value 使用 content（文案），而不是 code
-      options.forEach(opt => {
+      options.forEach((opt) => {
         const optionText = opt.content
-        
+
         // 如果选项文本值（content）已存在，跳过（去重）
         if (seenContents.has(optionText)) {
           return
         }
         seenContents.add(optionText)
-        
+
         allOptions.push({
           value: optionText, // 使用文案作为值，而不是 code
           label: optionText // 显示文案
         })
       })
     })
-    
+
     console.log('最终返回的选项列表:', allOptions)
     return allOptions
   }
@@ -599,7 +558,7 @@ const Factor: React.FC = observer(() => {
         submitFn={handleSaveFactor}
         afterSubmit={handleAfterSubmit}
         footerButtons={['backToList', 'break', 'saveToNext']}
-        nextUrl={`/scale/analysis/${questionsheetid}${scaleStore.scaleCode ? `?scaleCode=${scaleStore.scaleCode}` : ''}`}
+        nextUrl={getScaleEditorPath('set-interpretation', questionsheetid, scaleStore.scaleCode || scaleCode)}
         steps={SCALE_STEPS}
         currentStep={getScaleStepIndex(getScaleStepFromPath(location.pathname) || 'edit-factors')}
         onStepChange={handleStepChange}
@@ -615,12 +574,7 @@ const Factor: React.FC = observer(() => {
                 <div className="factor-list-panel">
                   <div className="panel-header">
                     <div className="panel-title">因子列表</div>
-                    <Button 
-                      type="primary" 
-                      icon={<PlusOutlined />} 
-                      onClick={handleCreateFactor}
-                      size="small"
-                    >
+                    <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateFactor} size="small">
                       添加因子
                     </Button>
                   </div>
@@ -647,38 +601,23 @@ const Factor: React.FC = observer(() => {
                         <h3>{isCreating ? '创建新因子' : '编辑因子'}</h3>
                       </div>
 
-                      <Form
-                        form={form}
-                        layout="vertical"
-                        className="factor-form"
-                      >
-                        <Form.Item
-                          label="因子名称"
-                          name="title"
-                          rules={[{ required: true, message: '请输入因子名称' }]}
-                        >
+                      <Form form={form} layout="vertical" className="factor-form">
+                        <Form.Item label="因子名称" name="title" rules={[{ required: true, message: '请输入因子名称' }]}>
                           <Input placeholder="请输入因子名称" />
                         </Form.Item>
 
-                        <Form.Item
-                          label="因子类型"
-                          name="type"
-                          rules={[{ required: true, message: '请选择因子类型' }]}
-                        >
+                        <Form.Item label="因子类型" name="type" rules={[{ required: true, message: '请选择因子类型' }]}>
                           <Select placeholder="请选择因子类型">
                             <Option value="first_grade">一级因子</Option>
                             <Option value="multi_grade">多级因子</Option>
                           </Select>
                         </Form.Item>
 
-                        <Form.Item
-                          noStyle
-                          shouldUpdate={(prevValues, currentValues) => prevValues.type !== currentValues.type}
-                        >
+                        <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.type !== currentValues.type}>
                           {({ getFieldValue }) => {
                             const factorType = getFieldValue('type')
                             const transferData = getTransferData(factorType)
-                            
+
                             return factorType ? (
                               <Form.Item
                                 label={factorType === 'first_grade' ? '选择题目' : '选择因子'}
@@ -686,7 +625,7 @@ const Factor: React.FC = observer(() => {
                                 rules={[{ required: true, message: '请选择至少一项' }]}
                               >
                                 <Checkbox.Group style={{ width: '100%' }}>
-                                  {transferData.map(item => (
+                                  {transferData.map((item) => (
                                     <div key={item.key} className="checkbox-item">
                                       <Checkbox value={item.key}>{item.title}</Checkbox>
                                     </div>
@@ -697,11 +636,7 @@ const Factor: React.FC = observer(() => {
                           }}
                         </Form.Item>
 
-                        <Form.Item
-                          label="计算公式"
-                          name={['calc_rule', 'formula']}
-                          rules={[{ required: true, message: '请选择计算公式' }]}
-                        >
+                        <Form.Item label="计算公式" name={['calc_rule', 'formula']} rules={[{ required: true, message: '请选择计算公式' }]}>
                           <Select placeholder="请选择计算公式">
                             <Option value="sum">求和</Option>
                             <Option value="avg">平均值</Option>
@@ -719,26 +654,28 @@ const Factor: React.FC = observer(() => {
                             const currentSourceCodes = currentValues?.source_codes
                             const prevCntOptions = prevValues?.calc_rule?.append_params?.cnt_option_contents
                             const currentCntOptions = currentValues?.calc_rule?.append_params?.cnt_option_contents
-                            return prevFormula !== currentFormula || 
-                                   JSON.stringify(prevSourceCodes) !== JSON.stringify(currentSourceCodes) ||
-                                   JSON.stringify(prevCntOptions) !== JSON.stringify(currentCntOptions)
+                            return (
+                              prevFormula !== currentFormula ||
+                              JSON.stringify(prevSourceCodes) !== JSON.stringify(currentSourceCodes) ||
+                              JSON.stringify(prevCntOptions) !== JSON.stringify(currentCntOptions)
+                            )
                           }}
                         >
                           {({ getFieldValue }) => {
                             const formula = getFieldValue(['calc_rule', 'formula'])
                             const sourceCodes = getFieldValue('source_codes') || []
                             const currentCntOptions = getFieldValue(['calc_rule', 'append_params', 'cnt_option_contents']) || []
-                            
+
                             console.log('计数选项值选择器渲染:', {
                               formula,
                               sourceCodes,
                               currentCntOptions,
                               availableOptionsCount: sourceCodes.length > 0 ? getAvailableOptionValues().length : 0
                             })
-                            
+
                             if (formula === 'cnt' && sourceCodes.length > 0) {
                               const availableOptions = getAvailableOptionValues()
-                              
+
                               return (
                                 <Form.Item
                                   label="计数选项值"
@@ -755,7 +692,7 @@ const Factor: React.FC = observer(() => {
                                       const label = option?.label as string | undefined
                                       return (label ?? '').toLowerCase().includes(input.toLowerCase())
                                     }}
-                                    options={availableOptions.map(opt => ({
+                                    options={availableOptions.map((opt) => ({
                                       value: opt.value,
                                       label: opt.label
                                     }))}
@@ -763,7 +700,7 @@ const Factor: React.FC = observer(() => {
                                 </Form.Item>
                               )
                             }
-                            
+
                             return null
                           }}
                         </Form.Item>
@@ -771,7 +708,7 @@ const Factor: React.FC = observer(() => {
                         <Form.Item
                           name="is_total_score"
                           valuePropName="checked"
-                          getValueFromEvent={(e) => e.target.checked ? '1' : '0'}
+                          getValueFromEvent={(e) => (e.target.checked ? '1' : '0')}
                           getValueProps={(value) => ({ checked: value === '1' })}
                         >
                           <Checkbox>设置为总分</Checkbox>

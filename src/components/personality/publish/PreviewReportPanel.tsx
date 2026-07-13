@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Alert, Button, Collapse, Descriptions, Input, List, Space, Typography } from 'antd'
-import type { AssessmentModelPreviewReportResponse } from '@/models/assessmentModel'
+import type { AssessmentModelPreviewReportResponse, AssessmentModelValidationIssue } from '@/models/assessmentModel'
 import {
   buildRandomPreviewAnswersObject,
   buildSamplePreviewAnswersObject,
@@ -19,7 +19,7 @@ interface Props {
   canPreview?: boolean
   initialAnswersSource?: string
   onRunPreview: (answers: ReturnType<typeof normalizePreviewAnswersInput>) => Promise<void>
-  onIssueClick?: (issue: unknown, targetTab?: DefinitionIssueTabKey) => void
+  onIssueClick?: (issue: AssessmentModelValidationIssue, targetTab?: DefinitionIssueTabKey) => void
 }
 
 const PreviewReportPanel: React.FC<Props> = ({
@@ -126,11 +126,11 @@ const PreviewReportPanel: React.FC<Props> = ({
               </List.Item>
             )}
           />
-          {previewReport.raw ? (
+          {previewReport.raw_report ? (
             <Collapse ghost>
               <Collapse.Panel header="调试：原始响应" key="raw">
                 <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
-                  {JSON.stringify(previewReport.raw, null, 2)}
+                  {JSON.stringify(previewReport.raw_report, null, 2)}
                 </pre>
               </Collapse.Panel>
             </Collapse>

@@ -10,6 +10,7 @@ import {
   ISelectQuestion
 } from '@/models/question'
 import ControllerQuestionItem from '@/components/showController/widget/ControllerQuestionItem'
+import type { RoutingPort } from '@/features/assessment-editor'
 import './showControllerEditor.scss'
 
 const initShowController: IQuestionShowController = {
@@ -17,20 +18,11 @@ const initShowController: IQuestionShowController = {
   questions: []
 }
 
-const canControllerQuestionTypes = [
-  'Radio',
-  'ScoreRadio',
-  'CheckBox',
-  'Select',
-  'AddressSelect',
-  'CascaderSelect',
-  'ImageCheckBox',
-  'ImageRadio'
-]
+const canControllerQuestionTypes = ['Radio', 'ScoreRadio', 'CheckBox', 'Select', 'AddressSelect', 'CascaderSelect', 'ImageCheckBox', 'ImageRadio']
 
 interface ShowControllerEditorProps {
   questionCode: string | null
-  store: any
+  store: RoutingPort
   onSave: () => void
   onCancel: () => void
 }
@@ -38,9 +30,7 @@ interface ShowControllerEditorProps {
 const ShowControllerEditor: React.FC<ShowControllerEditorProps> = ({ questionCode, store, onSave, onCancel }) => {
   const [currentQuestionCode, setCurrentQuestionCode] = useState<string>('')
   const [showController, setShowController] = useState<IQuestionShowController>(initShowController)
-  const [canSelectQuestions, setCanSelectQuestions] = useState<
-    Array<IRadioQuestion | IScoreRadioQuestion | ICheckBoxQuestion | ISelectQuestion>
-  >([])
+  const [canSelectQuestions, setCanSelectQuestions] = useState<Array<IRadioQuestion | IScoreRadioQuestion | ICheckBoxQuestion | ISelectQuestion>>([])
 
   // 初始化数据
   useEffect(() => {
@@ -178,9 +168,7 @@ const ShowControllerEditor: React.FC<ShowControllerEditorProps> = ({ questionCod
           >
             {currentQuestion?.title || `题目 ${questionCode}`}
           </div>
-          <div style={{ marginTop: '8px', fontSize: '12px', color: '#8c8c8c' }}>
-            此题目将根据下方条件决定是否显示
-          </div>
+          <div style={{ marginTop: '8px', fontSize: '12px', color: '#8c8c8c' }}>此题目将根据下方条件决定是否显示</div>
         </div>
 
         <Divider style={{ margin: '24px 0' }} />
@@ -188,9 +176,7 @@ const ShowControllerEditor: React.FC<ShowControllerEditorProps> = ({ questionCod
         {/* 关联题目规则 */}
         <div style={{ marginBottom: '24px' }}>
           <div style={{ marginBottom: '12px', fontWeight: 600, fontSize: '14px', color: '#262626' }}>关联题目</div>
-          <div style={{ fontSize: '12px', color: '#8c8c8c', marginBottom: '16px' }}>
-            当以下题目的选项被选中时，受控题目才会显示
-          </div>
+          <div style={{ fontSize: '12px', color: '#8c8c8c', marginBottom: '16px' }}>当以下题目的选项被选中时，受控题目才会显示</div>
 
           <div className="controller-questions">
             {showController.questions.map((item, index) => (
@@ -207,13 +193,7 @@ const ShowControllerEditor: React.FC<ShowControllerEditorProps> = ({ questionCod
           </div>
 
           {canAddQuestion() && (
-            <Button 
-              type="dashed" 
-              onClick={handleAddQuestion} 
-              block 
-              icon={<PlusOutlined />}
-              className="add-question-btn"
-            >
+            <Button type="dashed" onClick={handleAddQuestion} block icon={<PlusOutlined />} className="add-question-btn">
               添加关联题目
             </Button>
           )}

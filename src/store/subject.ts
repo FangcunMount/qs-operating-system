@@ -390,11 +390,11 @@ class SubjectStore {
     // 转换量表记录（仅基础数据，因子得分按需加载）
     const scales: ScaleRecord[] = (this.assessmentList || []).map((assessment) => ({
       id: String(assessment.id),
-      scaleName: assessment.medical_scale_name || '未知量表',
-      completedAt: assessment.submitted_at || assessment.interpreted_at || '',
-      totalScore: parseFloat(assessment.total_score || '0'),
-      result: assessment.risk_level_label || formatRiskLevel(assessment.risk_level),
-      riskLevel: assessment.risk_level || 'normal',
+      scaleName: assessment.model?.title || assessment.model?.code || '未知测评模型',
+      completedAt: assessment.submitted_at || assessment.failed_at || '',
+      totalScore: assessment.primary_score?.value || 0,
+      result: assessment.level?.label || formatRiskLevel(assessment.level?.code),
+      riskLevel: assessment.level?.code || 'normal',
       source: assessment.origin_type_label || formatAssessmentOriginType(assessment.origin_type),
       factors: undefined
     }))

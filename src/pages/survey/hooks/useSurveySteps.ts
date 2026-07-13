@@ -1,5 +1,5 @@
 import { useHistory } from 'react-router-dom'
-import { SURVEY_STEPS } from '@/utils/steps'
+import { getSurveyEditorPath, SURVEY_STEPS } from '@/utils/steps'
 
 /**
  * 问卷步骤导航 Hook
@@ -20,20 +20,7 @@ export const useSurveySteps = (): {
     const step = SURVEY_STEPS[stepIndex]
     if (!step || !questionsheetId) return
 
-    switch (step.key) {
-    case 'create':
-      history.push(`/survey/info/${questionsheetId}`)
-      break
-    case 'edit-questions':
-      history.push(`/survey/create/${questionsheetId}/0`)
-      break
-    case 'set-routing':
-      history.push(`/survey/routing/${questionsheetId}`)
-      break
-    case 'publish':
-      history.push(`/survey/publish/${questionsheetId}`)
-      break
-    }
+    history.push(getSurveyEditorPath(step.key || '', questionsheetId))
   }
 
   /**
@@ -42,7 +29,7 @@ export const useSurveySteps = (): {
    * @param questionsheetId 问卷ID
    */
   const navigateToStep = (stepKey: string, questionsheetId: string) => {
-    const stepIndex = SURVEY_STEPS.findIndex(s => s.key === stepKey)
+    const stepIndex = SURVEY_STEPS.findIndex((s) => s.key === stepKey)
     if (stepIndex >= 0) {
       handleStepChange(stepIndex, questionsheetId)
     }
@@ -53,4 +40,3 @@ export const useSurveySteps = (): {
     navigateToStep
   }
 }
-

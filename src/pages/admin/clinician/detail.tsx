@@ -5,7 +5,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { clinicianApi, IAssessmentEntry, IClinician, IClinicianRelationItem } from '@/api/path/clinician'
 import { buildAssessmentEntryPublicLink, copyAssessmentEntryPublicLink, triggerAssessmentEntryQRCodeDownload } from '@/utils/assessmentEntry'
 import { extractErrorMessage } from '@/utils/apiError'
-import { getScaleList, IScaleResponse } from '@/api/path/scale'
+import { getScaleList, IScaleResponse } from '@/api/path/scaleDefinition'
 import { listQuestionnaires, IQuestionnaireResponse } from '@/api/path/survey'
 import {
   formatClinicianType,

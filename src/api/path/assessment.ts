@@ -1,40 +1,58 @@
-import { get } from '../qsServer'
+import { get, getHttpStatus, internalGet, post, v2Get, v2SilentGet } from '../qsServer'
 import type { QSResponse } from '@/types/qs'
 
-// 测评列表请求参数
 export interface IListAssessmentRequest {
   page?: number
   page_size?: number
-  status?: string
-  testee_id?: number
+  status?: 'pending' | 'submitted' | 'evaluated' | 'failed' | string
+  testee_id?: string | number
 }
 
-// 测评响应数据（根据 API 文档 response.AssessmentResponse）
+export interface ModelIdentity {
+  kind: string
+  sub_kind?: string
+  algorithm?: string
+  code: string
+  version?: string
+  title?: string
+  product_channel?: string
+  algorithm_family?: string
+}
+
+export interface ScoreValue {
+  kind: string
+  value: number
+  label?: string
+  max?: number
+}
+
+export interface ResultLevel {
+  code: string
+  label: string
+  severity?: string
+}
+
+/** V2 Evaluation fact. evaluated only means outcome persistence succeeded. */
 export interface IAssessment {
-  id: string                    // 测评ID
-  answer_sheet_id: string       // 答卷ID
-  testee_id: string            // 受试者ID
-  medical_scale_code: string   // 量表编码
-  medical_scale_id: string     // 量表ID
-  medical_scale_name: string   // 量表名称
-  questionnaire_code: string   // 问卷编码（唯一标识）
-  questionnaire_version: string // 问卷版本
-  total_score: number          // 总分
-  risk_level: string           // 风险等级
-  risk_level_label?: string    // 风险等级中文
-  status: string               // 状态
-  status_label?: string        // 状态中文
-  submitted_at: string         // 提交时间
-  interpreted_at?: string      // 解读时间
-  failed_at?: string           // 失败时间
-  failure_reason?: string      // 失败原因
-  org_id: string               // 组织ID
-  origin_id?: string           // 来源ID
-  origin_type?: string         // 来源类型
-  origin_type_label?: string   // 来源类型中文
+  id: string
+  answer_sheet_id: string
+  testee_id: string
+  questionnaire_code: string
+  questionnaire_version: string
+  model: ModelIdentity
+  primary_score?: ScoreValue
+  level?: ResultLevel
+  status: 'pending' | 'submitted' | 'evaluated' | 'failed' | string
+  status_label?: string
+  submitted_at?: string
+  failed_at?: string
+  failure_reason?: string
+  org_id?: string
+  origin_id?: string
+  origin_type?: string
+  origin_type_label?: string
 }
 
-// 测评列表响应
 export interface IAssessmentListResponse {
   items: IAssessment[]
   page: number
@@ -43,7 +61,6 @@ export interface IAssessmentListResponse {
   total_pages: number
 }
 
-// 因子得分项（根据 API 文档 response.FactorScoreItem）
 export interface IFactorScoreItem {
   factor_code: string
   factor_name: string
@@ -56,60 +73,60 @@ export interface IFactorScoreItem {
   is_total_score?: boolean
 }
 
-// 因子得分（向后兼容，保留旧接口）
-export interface IFactorScore {
-  factor_code: string
-  factor_name: string
-  raw_score: number
-  max_score?: number
-  t_score?: number
-  percentile?: number
-  risk_level?: string
-}
-
-// 得分响应（根据 API 文档 response.ScoreResponse）
 export interface IScoreResponse {
   assessment_id: string
   factor_scores: IFactorScoreItem[]
-  total_score: number
-  risk_level: string
+  total_score?: number
+  risk_level?: string
   risk_level_label?: string
 }
 
-// 维度项（根据 API 文档 response.DimensionItem）
 export interface IDimensionItem {
   factor_code: string
   factor_name: string
   raw_score: number
   max_score?: number
-  risk_level: string
+  risk_level?: string
   risk_level_label?: string
   description?: string
   suggestion?: string
+  role?: string
+  hierarchy_level?: number
+  parent_code?: string
+  t_score?: number
 }
 
-// 建议项（根据 API 文档 response.SuggestionItem）
 export interface ISuggestionItem {
   category?: string
   content: string
   factor_code?: string
 }
 
-// 报告响应（根据 API 文档 response.ReportResponse）
 export interface IReportResponse {
   assessment_id: string
+  model?: ModelIdentity
+  primary_score?: ScoreValue
+  level?: ResultLevel
   conclusion?: string
   created_at?: string
   dimensions: IDimensionItem[]
-  risk_level: string
-  risk_level_label?: string
-  scale_code: string
-  scale_name: string
   suggestions: ISuggestionItem[]
-  total_score: number
+  model_extra?: Record<string, unknown>
 }
 
-// 高风险因子响应（根据 API 文档 response.HighRiskFactorsResponse）
+export interface IReportListResponse {
+  items: IReportResponse[]
+  page: number
+  page_size: number
+  total: number
+}
+
+export interface IListReportRequest {
+  testee_id: string | number
+  page?: number
+  page_size?: number
+}
+
 export interface IHighRiskFactorsResponse {
   assessment_id: string
   has_high_risk: boolean
@@ -117,36 +134,108 @@ export interface IHighRiskFactorsResponse {
   needs_urgent_care: boolean
 }
 
-// 测评详情（扩展 IAssessment，包含得分和报告信息）
-export interface IAssessmentDetail extends IAssessment {
-  factor_scores?: IFactorScoreItem[]  // 因子得分列表（从 /scores 接口获取）
-  report?: IReportResponse
+export interface IEvaluationRun {
+  run_id: string
+  assessment_id?: string
+  attempt_no: number
+  status: string
+  retryable: boolean
+  error_code?: string
+  error_message?: string
+  trace_id?: string
+  started_at?: string
+  finished_at?: string
 }
 
-// 测评 API
+export interface IEvaluationRunListResponse {
+  items: IEvaluationRun[]
+}
+
+export interface InterpretationFailure {
+  Kind?: string
+  Code?: string
+  SafeMessage?: string
+  Retryable?: boolean
+}
+
+export interface InterpretationRun {
+  ID: string | number
+  Attempt?: number
+  Status?: string
+  TraceID?: string
+  StartedAt?: string
+  FinishedAt?: string
+  Failure?: InterpretationFailure
+}
+
+export interface InterpretationReport {
+  ID: string | number
+  AssessmentID?: string | number
+  GenerationID?: string | number
+  OutcomeID?: string | number
+  GeneratedAt?: string
+  ReportType?: string
+  TemplateVersion?: string
+}
+
+export interface InterpretationGeneration {
+  ID: string | number
+  OutcomeID?: string | number
+  Status: string
+  Version?: number
+  ReportType?: string
+  TemplateVersion?: string
+  LatestRun?: InterpretationRun
+  Report?: InterpretationReport
+  CreatedAt?: string
+  UpdatedAt?: string
+}
+
+export type OutcomeReportState =
+  | { state: 'ready'; report: IReportResponse }
+  | { state: 'pending' }
+  | { state: 'unavailable'; status?: number }
+
+type HttpStatusCarrier = { status?: number; response?: { status?: number } }
+
 export const assessmentApi = {
-  // 查询测评列表
-  list: (params: IListAssessmentRequest): Promise<[any, QSResponse<IAssessmentListResponse> | undefined]> => {
-    return get<IAssessmentListResponse>('/evaluations/assessments', params)
+  list: (params: IListAssessmentRequest): Promise<[any, QSResponse<IAssessmentListResponse> | undefined]> =>
+    v2Get<IAssessmentListResponse>('/evaluations/assessments', params),
+
+  get: (id: number | string): Promise<[any, QSResponse<IAssessment> | undefined]> =>
+    v2Get<IAssessment>(`/evaluations/assessments/${id}`),
+
+  getReport: (id: number | string): Promise<[any, QSResponse<IReportResponse> | undefined]> =>
+    v2Get<IReportResponse>(`/evaluations/assessments/${id}/report`),
+
+  /** A missing report is a normal Interpretation-pending state, not an error. */
+  getReportState: async (id: number | string): Promise<[any, OutcomeReportState]> => {
+    const [err, response] = await v2SilentGet<IReportResponse>(`/evaluations/assessments/${id}/report`)
+    if (response?.data) return [null, { state: 'ready', report: response.data }]
+    const statusCarrier = err as HttpStatusCarrier | undefined
+    const status = getHttpStatus(err) ?? statusCarrier?.status ?? statusCarrier?.response?.status
+    if (status === 404) return [null, { state: 'pending' }]
+    return [err, { state: 'unavailable', status }]
   },
-  
-  // 获取测评详情
-  get: (id: number | string): Promise<[any, QSResponse<IAssessmentDetail> | undefined]> => {
-    return get<IAssessmentDetail>(`/evaluations/assessments/${id}`)
-  },
-  
-  // 获取测评得分（根据 API 文档 response.ScoreResponse）
-  getScores: (id: number | string): Promise<[any, QSResponse<IScoreResponse> | undefined]> => {
-    return get<IScoreResponse>(`/evaluations/assessments/${id}/scores`)
-  },
-  
-  // 获取测评报告（根据 API 文档 response.ReportResponse）
-  getReport: (id: number | string): Promise<[any, QSResponse<IReportResponse> | undefined]> => {
-    return get<IReportResponse>(`/evaluations/assessments/${id}/report`)
-  },
-  
-  // 获取高风险因子（根据 API 文档 response.HighRiskFactorsResponse）
-  getHighRiskFactors: (id: number | string): Promise<[any, QSResponse<IHighRiskFactorsResponse> | undefined]> => {
-    return get<IHighRiskFactorsResponse>(`/evaluations/assessments/${id}/high-risk-factors`)
-  }
+
+  getReports: (params: IListReportRequest): Promise<[any, QSResponse<IReportListResponse> | undefined]> =>
+    v2Get<IReportListResponse>('/evaluations/reports', params),
+
+  getScores: (id: number | string): Promise<[any, QSResponse<IScoreResponse> | undefined]> =>
+    get<IScoreResponse>(`/evaluations/assessments/${id}/scores`),
+
+  getHighRiskFactors: (id: number | string): Promise<[any, QSResponse<IHighRiskFactorsResponse> | undefined]> =>
+    get<IHighRiskFactorsResponse>(`/evaluations/assessments/${id}/high-risk-factors`),
+
+  getRuns: (id: number | string, limit = 20): Promise<[any, QSResponse<IEvaluationRunListResponse> | undefined]> =>
+    get<IEvaluationRunListResponse>(`/evaluations/assessments/${id}/runs`, { limit }),
+
+  getLatestRun: (id: number | string): Promise<[any, QSResponse<IEvaluationRun> | undefined]> =>
+    get<IEvaluationRun>(`/evaluations/assessments/${id}/runs/latest`),
+
+  retry: (id: number | string): Promise<[any, QSResponse<IAssessment> | undefined]> =>
+    post<IAssessment>(`/evaluations/assessments/${id}/retry`, undefined),
+
+  getInterpretationLifecycle: (id: number | string): Promise<[any, QSResponse<InterpretationGeneration[]> | undefined]> =>
+    internalGet<InterpretationGeneration[]>(`/interpretation/assessments/${id}/lifecycle`)
 }

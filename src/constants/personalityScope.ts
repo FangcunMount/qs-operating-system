@@ -1,6 +1,7 @@
 import type { AssessmentModelKind, AssessmentModelSubKind } from '@/models/assessmentModel'
 
-export const PERSONALITY_KIND: AssessmentModelKind = 'personality'
+/** "人格" remains the business-facing label. ModelCatalog persists it as typology. */
+export const PERSONALITY_KIND: AssessmentModelKind = 'typology'
 export const PERSONALITY_SUB_KIND: AssessmentModelSubKind = 'typology'
 
 export const PERSONALITY_TYPOLOGY_ALGORITHMS = [

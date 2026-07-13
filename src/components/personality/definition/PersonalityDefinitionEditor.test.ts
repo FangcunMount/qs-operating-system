@@ -1,24 +1,24 @@
 import {
-  parseRuntimeSpecJson,
-  validateRuntimeSpecShape
+  parseDefinitionV2Json,
+  validateDefinitionV2Shape
 } from './PersonalityDefinitionEditor'
-import mbtiRuntimeSpec from '@/models/__fixtures__/personalityRuntimeSpec.mbti.json'
 
-describe('PersonalityDefinitionEditor JSON helpers', () => {
-  it('parses valid runtime spec json', () => {
-    expect(parseRuntimeSpecJson(JSON.stringify(mbtiRuntimeSpec))).toMatchObject({
-      factor_graph: expect.any(Object),
-      decision: expect.any(Object),
-      outcome_mapping: expect.any(Object),
-      report: expect.any(Object)
+describe('PersonalityDefinitionEditor DefinitionV2 JSON helpers', () => {
+  it('parses the complete wire object without changing PascalCase fields', () => {
+    const source = {
+      Measure: { Factors: [{ Code: 'E', Title: '外向' }] },
+      Conclusions: [{ Kind: 'type', FutureField: { enabled: true } }],
+      ReportMap: { Sections: [{ Kind: 'adapter' }] }
+    }
+    expect(parseDefinitionV2Json(JSON.stringify(source))).toMatchObject({
+      Measure: { Factors: [{ Code: 'E' }] },
+      Conclusions: [{ Kind: 'type', FutureField: { enabled: true } }]
     })
   })
 
-  it('rejects invalid json and invalid runtime spec shape', () => {
-    expect(() => parseRuntimeSpecJson('{')).toThrow()
-    expect(validateRuntimeSpecShape({ factor_graph: {} })).toBe(false)
-    expect(() => parseRuntimeSpecJson(JSON.stringify({ factor_graph: {} }))).toThrow(
-      'JSON 必须包含 factor_graph / decision / outcome_mapping / report'
-    )
+  it('rejects invalid JSON and non-object payloads', () => {
+    expect(() => parseDefinitionV2Json('{')).toThrow()
+    expect(validateDefinitionV2Shape([])).toBe(false)
+    expect(() => parseDefinitionV2Json(JSON.stringify([]))).toThrow('JSON 必须是完整的 DefinitionV2 对象')
   })
 })

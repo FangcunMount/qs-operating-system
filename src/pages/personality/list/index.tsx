@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from 'react'
-import { Button, Card, Input, message, Modal, Select, Space, Table, Tag, Typography } from 'antd'
+import { Button, Input, message, Modal, Select, Space, Table, Tag, Typography } from 'antd'
 import { Link, useHistory } from 'react-router-dom'
 import {
-  CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined,
-  PlusOutlined, ProfileOutlined, QrcodeOutlined, SearchOutlined
+  CopyOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+  PlusOutlined,
+  ProfileOutlined,
+  QrcodeOutlined,
+  SearchOutlined
 } from '@ant-design/icons'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
+import { ModelCatalogListShell, ModelCatalogStatusTag } from '@/features/assessment-editor'
 import { AssessmentModelSummary } from '@/models/assessmentModel'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
@@ -16,6 +23,7 @@ import {
 } from '@/constants/personalityScope'
 import {
   canEditPersonalityModel,
+  canArchivePersonalityModel,
   canPublishPersonalityModel,
   canUnpublishPersonalityModel,
   isPersonalityReadonly
@@ -31,16 +39,6 @@ const statusOptions = [
   { label: '已归档', value: 'archived' }
 ]
 
-const renderStatus = (status?: string) => {
-  const map: Record<string, { text: string; color: string }> = {
-    draft: { text: '草稿', color: 'default' },
-    published: { text: '已发布', color: 'success' },
-    archived: { text: '已归档', color: 'warning' }
-  }
-  const item = status ? map[status] : undefined
-  return item ? <Tag color={item.color}>{item.text}</Tag> : <Tag>{status || '-'}</Tag>
-}
-
 const PersonalityList: React.FC = () => {
   const history = useHistory()
   const [loading, setLoading] = useState(false)
@@ -54,7 +52,7 @@ const PersonalityList: React.FC = () => {
   const [pageInfo, setPageInfo] = useState({ page: 1, pageSize: 10, total: 0 })
 
   const loadOptions = async () => {
-    const [err, res] = await assessmentModelApi.getAssessmentModelOptions('personality')
+    const [err, res] = await assessmentModelApi.getAssessmentModelOptions(PERSONALITY_KIND)
     if (!err && res?.data) {
       setAlgorithmOptions(filterPersonalityAlgorithmOptions(res.data.algorithms))
       setCategoryOptions(res.data.categories)
@@ -106,6 +104,10 @@ const PersonalityList: React.FC = () => {
   }
 
   const handleDelete = (row: AssessmentModelSummary) => {
+    if (row.status !== 'archived') {
+      message.warning('请先归档模型，再执行物理删除')
+      return
+    }
     Modal.confirm({
       title: '确认删除',
       content: `确定删除「${row.title}」？`,
@@ -121,6 +123,22 @@ const PersonalityList: React.FC = () => {
     })
   }
 
+  const handleArchive = (row: AssessmentModelSummary) => {
+    Modal.confirm({
+      title: '确认归档',
+      content: `归档后「${row.title}」不可继续编辑；已发布快照也将移除。`,
+      onOk: async () => {
+        const [err] = await assessmentModelApi.archiveAssessmentModel(row.code)
+        if (err) {
+          message.error(getApiErrorMessage(err, '归档失败'))
+          return
+        }
+        message.success('已归档')
+        loadList()
+      }
+    })
+  }
+
   const handleCopy = async (row: AssessmentModelSummary) => {
     try {
       const [defErr, defRes] = await assessmentModelApi.getAssessmentModelDefinition(row.code)
@@ -131,6 +149,7 @@ const PersonalityList: React.FC = () => {
         kind: PERSONALITY_KIND,
         sub_kind: PERSONALITY_SUB_KIND,
         algorithm: normalizePersonalityAlgorithm(row.algorithm),
+        product_channel: 'typology',
         questionnaire_code: row.questionnaire_code,
         questionnaire_version: row.questionnaire_version,
         category: row.category,
@@ -154,16 +173,22 @@ const PersonalityList: React.FC = () => {
     const canEdit = canEditPersonalityModel({ status: row.status })
     const canPublish = canPublishPersonalityModel({ status: row.status })
     const canUnpublish = canUnpublishPersonalityModel({ status: row.status })
+    const canArchive = canArchivePersonalityModel({ status: row.status })
 
     if (readonly) {
       return (
         <Space>
           <Link to={`/personality/info/${row.code}`}>
-            <Button size="small" icon={<EyeOutlined />}>查看</Button>
+            <Button size="small" icon={<EyeOutlined />}>
+              查看
+            </Button>
           </Link>
           <Link to={`/personality/publish/${row.code}`}>
             <Button size="small">发布信息</Button>
           </Link>
+          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(row)}>
+            删除
+          </Button>
         </Space>
       )
     }
@@ -172,27 +197,51 @@ const PersonalityList: React.FC = () => {
       return (
         <Space wrap>
           <Link to={`/personality/info/${row.code}`}>
-            <Button size="small" icon={<EyeOutlined />}>查看</Button>
+            <Button size="small" icon={<EyeOutlined />}>
+              查看
+            </Button>
           </Link>
           <Link to={`/personality/create/${row.code}/0`}>
-            <Button size="small" icon={<EditOutlined />}>编辑</Button>
+            <Button size="small" icon={<EditOutlined />}>
+              编辑
+            </Button>
           </Link>
-          <Button size="small" icon={<CopyOutlined />} onClick={() => handleCopy(row)}>副本</Button>
+          <Button size="small" icon={<CopyOutlined />} onClick={() => handleCopy(row)}>
+            副本
+          </Button>
           {canPublish ? (
             <Link to={`/personality/publish/${row.code}`}>
-              <Button size="small" type="primary">重新发布</Button>
+              <Button size="small" type="primary">
+                重新发布
+              </Button>
             </Link>
           ) : null}
           {canUnpublish ? (
-            <Button size="small" danger onClick={async () => {
-              const [err] = await assessmentModelApi.unpublishAssessmentModel(row.code)
-              if (err) message.error(getApiErrorMessage(err, '下架失败'))
-              else { message.success('已下架'); loadList() }
-            }}>下架</Button>
+            <Button
+              size="small"
+              danger
+              onClick={async () => {
+                const [err] = await assessmentModelApi.unpublishAssessmentModel(row.code)
+                if (err) message.error(getApiErrorMessage(err, '下架失败'))
+                else {
+                  message.success('已下架')
+                  loadList()
+                }
+              }}
+            >
+              下架
+            </Button>
           ) : null}
           <Link to={`/personality/publish/${row.code}`}>
-            <Button size="small" icon={<QrcodeOutlined />}>二维码</Button>
+            <Button size="small" icon={<QrcodeOutlined />}>
+              二维码
+            </Button>
           </Link>
+          {canArchive ? (
+            <Button size="small" danger onClick={() => handleArchive(row)}>
+              归档
+            </Button>
+          ) : null}
         </Space>
       )
     }
@@ -203,18 +252,28 @@ const PersonalityList: React.FC = () => {
         {canEdit ? (
           <>
             <Link to={`/personality/info/${row.code}`}>
-              <Button size="small" icon={<EditOutlined />}>编辑</Button>
+              <Button size="small" icon={<EditOutlined />}>
+                编辑
+              </Button>
             </Link>
             <Link to={`/personality/definition/${row.code}`}>
               <Button size="small">定义</Button>
             </Link>
             {canPublish ? (
               <Link to={`/personality/publish/${row.code}`}>
-                <Button size="small" type="primary">发布</Button>
+                <Button size="small" type="primary">
+                  发布
+                </Button>
               </Link>
             ) : null}
-            <Button size="small" icon={<CopyOutlined />} onClick={() => handleCopy(row)}>副本</Button>
-            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(row)}>删除</Button>
+            <Button size="small" icon={<CopyOutlined />} onClick={() => handleCopy(row)}>
+              副本
+            </Button>
+            {canArchive ? (
+              <Button size="small" danger onClick={() => handleArchive(row)}>
+                归档
+              </Button>
+            ) : null}
           </>
         ) : null}
       </Space>
@@ -222,71 +281,135 @@ const PersonalityList: React.FC = () => {
   }
 
   return (
-    <div className="personality-page">
-      <div className="personality-page-title">
-        <h2><ProfileOutlined style={{ marginRight: 8 }} />人格测评管理</h2>
-        <div>编辑人格测评内容、模型定义与发布状态</div>
-      </div>
-
-      <Card className="personality-card" style={{ marginBottom: 16 }}>
+    <ModelCatalogListShell
+      className="personality-page"
+      headerClassName="personality-page-title"
+      title={
+        <>
+          <ProfileOutlined style={{ marginRight: 8 }} />
+          人格测评管理
+        </>
+      }
+      description="编辑人格测评内容、模型定义与发布状态"
+      toolbar={
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
           <Space wrap>
-            <Search allowClear enterButton={<><SearchOutlined /> 搜索</>} placeholder="搜索测评名称或描述"
-              size="large" onSearch={handleSearch} style={{ width: 320 }} />
-            <Select allowClear placeholder="状态" size="large" value={status} options={statusOptions}
-              onChange={(v) => { setStatus(v); loadList(1, pageInfo.pageSize, keyword, v) }} style={{ width: 140 }} />
-            <Select allowClear placeholder="算法" size="large" value={algorithm} options={algorithmOptions}
-              onChange={(v) => { setAlgorithm(v); loadList(1, pageInfo.pageSize, keyword, status, v, category) }}
-              style={{ width: 180 }} />
-            <Select allowClear placeholder="分类" size="large" value={category} options={categoryOptions}
-              onChange={(v) => { setCategory(v); loadList(1, pageInfo.pageSize, keyword, status, algorithm, v) }}
-              style={{ width: 180 }} />
+            <Search
+              allowClear
+              enterButton={
+                <>
+                  <SearchOutlined /> 搜索
+                </>
+              }
+              placeholder="搜索测评名称或描述"
+              size="large"
+              onSearch={handleSearch}
+              style={{ width: 320 }}
+            />
+            <Select
+              allowClear
+              placeholder="状态"
+              size="large"
+              value={status}
+              options={statusOptions}
+              onChange={(v) => {
+                setStatus(v)
+                loadList(1, pageInfo.pageSize, keyword, v)
+              }}
+              style={{ width: 140 }}
+            />
+            <Select
+              allowClear
+              placeholder="算法"
+              size="large"
+              value={algorithm}
+              options={algorithmOptions}
+              onChange={(v) => {
+                setAlgorithm(v)
+                loadList(1, pageInfo.pageSize, keyword, status, v, category)
+              }}
+              style={{ width: 180 }}
+            />
+            <Select
+              allowClear
+              placeholder="分类"
+              size="large"
+              value={category}
+              options={categoryOptions}
+              onChange={(v) => {
+                setCategory(v)
+                loadList(1, pageInfo.pageSize, keyword, status, algorithm, v)
+              }}
+              style={{ width: 180 }}
+            />
           </Space>
           <Link to="/personality/info/new">
-            <Button type="primary" size="large" icon={<PlusOutlined />}>新建人格测评</Button>
+            <Button type="primary" size="large" icon={<PlusOutlined />}>
+              新建人格测评
+            </Button>
           </Link>
         </div>
-      </Card>
-
-      <Card className="personality-card" style={{ marginBottom: 16 }}>
+      }
+      summary={
         <Space size="large">
           <Typography.Text type="secondary">测评总数</Typography.Text>
-          <Typography.Text strong style={{ fontSize: 18 }}>{pageInfo.total}</Typography.Text>
+          <Typography.Text strong style={{ fontSize: 18 }}>
+            {pageInfo.total}
+          </Typography.Text>
         </Space>
-      </Card>
-
-      <Card className="personality-card">
-        <Table dataSource={list} rowKey="code" loading={loading}
-          pagination={{
-            total: pageInfo.total, pageSize: pageInfo.pageSize, current: pageInfo.page,
-            showSizeChanger: true, showTotal: (t) => `共 ${t} 条记录`
-          }}
-          onChange={(p) => loadList(p.current || 1, p.pageSize || 10)}
-          scroll={{ x: 1200 }}
-        >
-          <Column title="测评名称" dataIndex="title" fixed="left" width={260}
-            render={(title, row: AssessmentModelSummary) => (
-              <div>
-                <Link to={`/personality/info/${row.code}`} style={{ fontWeight: 500 }}>{title}</Link>
-                {row.description ? <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 4 }}>{row.description}</div> : null}
-                {row.status === 'published' ? <Tag color="blue" style={{ marginTop: 4 }}>修改后需重新发布</Tag> : null}
-              </div>
-            )} />
-          <Column title="状态" dataIndex="status" width={110} render={renderStatus} />
-          <Column title="算法" dataIndex="algorithm" width={160} render={(v) => v || '-'} />
-          <Column title="分类" dataIndex="category" width={140} render={(v) => v || '-'} />
-          <Column title="标签" dataIndex="tags" width={220}
-            render={(tags: string[]) => (
-              <Space size={[4, 4]} wrap>
-                {(tags || []).length > 0 ? tags.map((t) => <Tag key={t}>{t}</Tag>) : <span>-</span>}
-              </Space>
-            )} />
-          <Column title="绑定问卷" dataIndex="questionnaire_code" width={180} render={(v) => v || '-'} />
-          <Column title="更新时间" dataIndex="updated_at" width={180} render={(v) => v || '-'} />
-          <Column title="操作" fixed="right" width={320} render={(_, row: AssessmentModelSummary) => renderActions(row)} />
-        </Table>
-      </Card>
-    </div>
+      }
+    >
+      <Table
+        dataSource={list}
+        rowKey="code"
+        loading={loading}
+        pagination={{
+          total: pageInfo.total,
+          pageSize: pageInfo.pageSize,
+          current: pageInfo.page,
+          showSizeChanger: true,
+          showTotal: (t) => `共 ${t} 条记录`
+        }}
+        onChange={(p) => loadList(p.current || 1, p.pageSize || 10)}
+        scroll={{ x: 1200 }}
+      >
+        <Column
+          title="测评名称"
+          dataIndex="title"
+          fixed="left"
+          width={260}
+          render={(title, row: AssessmentModelSummary) => (
+            <div>
+              <Link to={`/personality/info/${row.code}`} style={{ fontWeight: 500 }}>
+                {title}
+              </Link>
+              {row.description ? <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 4 }}>{row.description}</div> : null}
+              {row.status === 'published' ? (
+                <Tag color="blue" style={{ marginTop: 4 }}>
+                  修改后需重新发布
+                </Tag>
+              ) : null}
+            </div>
+          )}
+        />
+        <Column title="状态" dataIndex="status" width={110} render={(status) => <ModelCatalogStatusTag status={status} />} />
+        <Column title="算法" dataIndex="algorithm" width={160} render={(v) => v || '-'} />
+        <Column title="分类" dataIndex="category" width={140} render={(v) => v || '-'} />
+        <Column
+          title="标签"
+          dataIndex="tags"
+          width={220}
+          render={(tags: string[]) => (
+            <Space size={[4, 4]} wrap>
+              {(tags || []).length > 0 ? tags.map((t) => <Tag key={t}>{t}</Tag>) : <span>-</span>}
+            </Space>
+          )}
+        />
+        <Column title="绑定问卷" dataIndex="questionnaire_code" width={180} render={(v) => v || '-'} />
+        <Column title="更新时间" dataIndex="updated_at" width={180} render={(v) => v || '-'} />
+        <Column title="操作" fixed="right" width={320} render={(_, row: AssessmentModelSummary) => renderActions(row)} />
+      </Table>
+    </ModelCatalogListShell>
   )
 }
 

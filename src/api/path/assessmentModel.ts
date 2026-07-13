@@ -1,7 +1,6 @@
 import { del, get, post, put } from '../qsServer'
 import type { QSResponse } from '@/types/qs'
 import {
-  AssessmentModelDefinition,
   AssessmentModelDetail,
   AssessmentModelKind,
   AssessmentModelOptions,
@@ -12,9 +11,10 @@ import {
   AssessmentModelValidationResult,
   AssessmentQRCodeResponse
 } from '@/models/assessmentModel'
+import type { DefinitionV2 } from '@/models/definitionV2'
 import {
   normalizeAssessmentModelDetail,
-  normalizeAssessmentModelDefinition,
+  normalizeDefinitionV2,
   normalizeAssessmentModelOptions,
   normalizeListResponse,
   normalizePreviewReportResponse,
@@ -27,8 +27,11 @@ export interface AssessmentModelListParams {
   status?: string
   keyword?: string
   algorithm?: string
+  product_channel?: string
   sub_kind?: AssessmentModelSubKind
   category?: string
+  questionnaire_code?: string
+  questionnaire_version?: string
   page?: number
   page_size?: number
 }
@@ -45,12 +48,16 @@ export interface CreateAssessmentModelRequest {
   title: string
   description?: string
   kind: AssessmentModelKind
-  sub_kind: AssessmentModelSubKind
+  sub_kind: AssessmentModelSubKind | string
   algorithm: string
+  product_channel?: string
   questionnaire_code?: string
   questionnaire_version?: string
   category?: string
   tags?: string[]
+  stages?: string[]
+  applicable_ages?: string[]
+  reporters?: string[]
 }
 
 export interface UpdateAssessmentModelBasicInfoRequest {
@@ -60,6 +67,10 @@ export interface UpdateAssessmentModelBasicInfoRequest {
   algorithm?: string
   category?: string
   tags?: string[]
+  product_channel?: string
+  stages?: string[]
+  applicable_ages?: string[]
+  reporters?: string[]
 }
 
 export interface UpdateAssessmentModelQuestionnaireRequest {
@@ -73,6 +84,13 @@ export interface AssessmentModelQuestionnaireResponse {
   questionnaire_version: string
   title?: string
   question_count?: number
+}
+
+export interface PublishedAssessmentModelListResponse {
+  items: AssessmentModelSummary[]
+  page: number
+  page_size: number
+  total: number
 }
 
 export interface ApplyAssessmentModelCodesRequest {
@@ -136,17 +154,52 @@ export async function updateAssessmentModelQuestionnaire(
 
 export async function getAssessmentModelDefinition(
   code: string
-): Promise<[any, QSResponse<AssessmentModelDefinition> | undefined]> {
+): Promise<[any, QSResponse<DefinitionV2> | undefined]> {
   const [err, res] = await get<any>(`/assessment-models/${code}/definition`)
-  return [err, mapResponse(res, normalizeAssessmentModelDefinition)]
+  return [err, mapResponse(res, normalizeDefinitionV2)]
 }
 
 export async function saveAssessmentModelDefinition(
   code: string,
-  definition: AssessmentModelDefinition
-): Promise<[any, QSResponse<AssessmentModelDefinition> | undefined]> {
+  definition: DefinitionV2
+): Promise<[any, QSResponse<DefinitionV2> | undefined]> {
   const [err, res] = await put<any>(`/assessment-models/${code}/definition`, definition)
-  return [err, mapResponse(res, normalizeAssessmentModelDefinition)]
+  return [err, mapResponse(res, normalizeDefinitionV2)]
+}
+
+export function getAssessmentModelQuestionnaire(
+  code: string
+): Promise<[any, QSResponse<AssessmentModelQuestionnaireResponse> | undefined]> {
+  return get<AssessmentModelQuestionnaireResponse>(`/assessment-models/${code}/questionnaire`)
+}
+
+export async function listPublishedAssessmentModels(
+  params: Pick<
+    AssessmentModelListParams,
+    'kind' | 'sub_kind' | 'algorithm' | 'product_channel' | 'category' | 'keyword'
+      | 'questionnaire_code' | 'questionnaire_version' | 'page' | 'page_size'
+  > = {}
+): Promise<[any, QSResponse<PublishedAssessmentModelListResponse> | undefined]> {
+  const [err, res] = await get<any>('/assessment-models/published', params)
+  if (!res) return [err, undefined]
+  const normalized = normalizeListResponse(res.data)
+  return [err, {
+    ...res,
+    data: {
+      items: normalized.models,
+      page: normalized.page,
+      page_size: normalized.page_size,
+      total: normalized.total_count
+    }
+  }]
+}
+
+export async function getPublishedAssessmentModel(
+  code: string,
+  version?: string
+): Promise<[any, QSResponse<AssessmentModelDetail> | undefined]> {
+  const [err, res] = await get<any>(`/assessment-models/published/${code}`, version ? { version } : {})
+  return [err, mapResponse(res, normalizeAssessmentModelDetail)]
 }
 
 export async function publishAssessmentModel(
@@ -220,9 +273,12 @@ export const assessmentModelApi = {
   createAssessmentModel,
   getAssessmentModel,
   updateAssessmentModelBasicInfo,
+  getAssessmentModelQuestionnaire,
   updateAssessmentModelQuestionnaire,
   getAssessmentModelDefinition,
   saveAssessmentModelDefinition,
+  listPublishedAssessmentModels,
+  getPublishedAssessmentModel,
   publishAssessmentModel,
   unpublishAssessmentModel,
   archiveAssessmentModel,

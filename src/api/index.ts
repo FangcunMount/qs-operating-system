@@ -2,8 +2,7 @@ import { questionSheetApi } from './path/questionSheet'
 import { questionApi } from './path/question'
 import { authApi } from './path/auth'
 import { loginIdentityApi } from './path/loginIdentity'
-import { factorApi } from './path/facotr'
-import { analysisApi } from './path/analysis'
+import { scaleDefinitionApi } from './path/scaleDefinition'
 import { codeApi } from './path/code'
 import { answerSheetApi } from './path/answerSheet'
 import { userApi } from './path/user'
@@ -29,8 +28,7 @@ export const api = {
   ...questionApi,
   ...authApi,
   ...loginIdentityApi,
-  ...factorApi,
-  ...analysisApi,
+  ...scaleDefinitionApi,
   ...codeApi,
   ...userApi,
   ...adminApi,

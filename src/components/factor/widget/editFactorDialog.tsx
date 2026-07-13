@@ -43,7 +43,7 @@ const EditFactorDialog: React.FC<EditFactorDialogProps> = (props) => {
       } else {
         // 尝试获取量表编码，使用新的申请 code 接口
         try {
-          const { getScaleByQuestionnaire } = await import('@/api/path/scale')
+          const { getScaleByQuestionnaire } = await import('@/api/path/scaleDefinition')
           const [err, res] = await getScaleByQuestionnaire(questionsheetid)
           if (!err && res?.data?.code) {
             // 有量表编码，使用新接口
