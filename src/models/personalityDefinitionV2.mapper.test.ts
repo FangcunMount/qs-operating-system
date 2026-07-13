@@ -18,7 +18,12 @@ describe('personality DefinitionV2 projection', () => {
       { Kind: 'type', Decision: { Kind: 'pole_composition' }, FutureTypeField: { keep: true } }
     ],
     Outcomes: [{ Code: 'ENFP', Title: '竞选者', Summary: '摘要' }],
-    ReportMap: { Sections: [{ Code: 'personality_report', Kind: 'adapter', AdapterKey: 'legacy' }, { Code: 'risk', Kind: 'risk', SourceRefs: ['E'] }] },
+    ReportMap: {
+      Sections: [
+        { Code: 'personality_report', Kind: 'adapter', AdapterKey: 'legacy' },
+        { Code: 'risk', Kind: 'risk', SourceRefs: ['E'] },
+      ],
+    },
     UnknownTopLevel: { keep: true }
   }
 
@@ -31,7 +36,12 @@ describe('personality DefinitionV2 projection', () => {
 
   it('only replaces form-owned fields and preserves unknown DefinitionV2 data', () => {
     const spec = projectPersonalityRuntimeSpec(source)
-    spec.factor_graph.factors!.E.name = '外向性'
+    const factorE = spec.factor_graph.factors?.E
+    expect(factorE).toBeDefined()
+    if (!factorE) {
+      throw new Error('expected factor E')
+    }
+    factorE.name = '外向性'
     const next = applyPersonalityRuntimeSpec(source, spec)
     expect(next.UnknownTopLevel).toEqual({ keep: true })
     expect(next.Calibration).toEqual(source.Calibration)

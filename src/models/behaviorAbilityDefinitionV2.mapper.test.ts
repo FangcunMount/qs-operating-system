@@ -20,7 +20,12 @@ describe('behavior ability DefinitionV2 projection', () => {
 
   it('merges BRIEF-2 form edits without losing unrelated DefinitionV2 fields', () => {
     const form = projectBehaviorAbilityDefinition(source, 'brief2')
-    form.execution.Brief2!.FormVariant = 'teacher'
+    const brief2 = form.execution.Brief2
+    expect(brief2).toBeDefined()
+    if (!brief2) {
+      throw new Error('expected Brief2 execution')
+    }
+    brief2.FormVariant = 'teacher'
     form.conclusions[0].Rules = [{ MinScore: 40, MaxScore: 60, Level: 'typical' }]
     const next = applyBehaviorAbilityDefinition(source, 'brief2', form)
 

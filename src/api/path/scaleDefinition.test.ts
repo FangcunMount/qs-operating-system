@@ -13,8 +13,20 @@ describe('scaleDefinition adapter', () => {
       ],
     },
     Conclusions: [
-      { Kind: 'risk', FactorCode: 'attention', ScoreBasis: '', Rules: [{ MinScore: 0, MaxScore: 2, Level: 'low', Title: '稳定', Summary: '继续观察' }], Outcomes: [] },
-      { Kind: 'norm', FactorCode: 'attention', ScoreBasis: 't_score', Rules: [{ MinScore: 40, MaxScore: 60, Level: 'normal' }], Outcomes: [] },
+      {
+        Kind: 'risk',
+        FactorCode: 'attention',
+        ScoreBasis: '',
+        Rules: [{ MinScore: 0, MaxScore: 2, Level: 'low', Title: '稳定', Summary: '继续观察' }],
+        Outcomes: [],
+      },
+      {
+        Kind: 'norm',
+        FactorCode: 'attention',
+        ScoreBasis: 't_score',
+        Rules: [{ MinScore: 40, MaxScore: 60, Level: 'normal' }],
+        Outcomes: [],
+      },
     ],
     ReportMap: { Sections: [{ Code: 'factor_scores', Kind: 'factor_scores', SourceRefs: ['attention'] }] },
   }
