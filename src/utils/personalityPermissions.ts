@@ -10,9 +10,6 @@ export const canEditPersonalityModel = (state: PersonalityPermissionState): bool
 export const canPublishPersonalityModel = (state: PersonalityPermissionState): boolean =>
   state.status === 'draft' || state.status === 'published'
 
-export const canUnpublishPersonalityModel = (state: PersonalityPermissionState): boolean =>
-  state.status === 'published'
-
 export const canArchivePersonalityModel = (state: PersonalityPermissionState): boolean =>
   state.status !== 'archived'
 

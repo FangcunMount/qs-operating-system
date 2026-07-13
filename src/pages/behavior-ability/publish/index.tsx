@@ -28,9 +28,7 @@ const BehaviorAbilityPublish: React.FC = observer(() => {
     behaviorAbilityStore.setCurrentStep('publish')
     behaviorAbilityStore
       .init(modelCode)
-      .then(async () => {
-        if (behaviorAbilityStore.status === 'published') await behaviorAbilityStore.publishState.loadPublishedSnapshot(modelCode)
-      })
+		.then(() => undefined)
       .catch((error) => message.error(getApiErrorMessage(error, '加载发布信息失败')))
   }, [modelCode])
 
@@ -109,7 +107,7 @@ const BehaviorAbilityPublish: React.FC = observer(() => {
             <Descriptions.Item label="绑定问卷">
               {behaviorAbilityStore.questionnaireCode || '—'}@{behaviorAbilityStore.questionnaireVersion || '—'}
             </Descriptions.Item>
-            <Descriptions.Item label="发布快照版本">{behaviorAbilityStore.publishState.publishedSnapshot?.version || '—'}</Descriptions.Item>
+			<Descriptions.Item label="问卷版本">{behaviorAbilityStore.publishState.release?.questionnaire_version || behaviorAbilityStore.questionnaireVersion || '—'}</Descriptions.Item>
           </Descriptions>
           <Space style={{ marginTop: 12 }}>
             <Button onClick={validate} loading={behaviorAbilityStore.publishState.validating}>
@@ -120,18 +118,18 @@ const BehaviorAbilityPublish: React.FC = observer(() => {
                 {behaviorAbilityStore.status === 'published' ? '重新发布' : '发布'}
               </Button>
             ) : null}
-            {behaviorAbilityStore.status === 'published' ? (
-              <Button
-                danger
-                loading={loading}
-                onClick={() =>
-                  behaviorAbilityStore
-                    .unpublish()
-                    .then(() => message.success('已下架'))
-                    .catch((error) => message.error(getApiErrorMessage(error, '下架失败')))
-                }
-              >
-                下架
+			{behaviorAbilityStore.status === 'published' ? (
+				<Button
+					danger
+					loading={loading}
+					onClick={() =>
+						behaviorAbilityStore
+							.archive()
+							.then(() => message.success('已归档'))
+							.catch((error) => message.error(getApiErrorMessage(error, '归档失败')))
+					}
+				>
+					归档
               </Button>
             ) : null}
           </Space>

@@ -8,8 +8,6 @@ import type {
 } from '@/models/assessmentModel'
 import type { DefinitionV2 } from '@/models/definitionV2'
 import type { IQuestion, IQuestionShowController } from '@/models/question'
-import { assessmentModelApi } from '@/api/path/assessmentModel'
-import { surveyApi } from '@/api/path/survey'
 import type { EditorFlowContext } from '@/utils/editorFlow'
 import {
   PERSONALITY_SUB_KIND
@@ -272,65 +270,38 @@ export class PersonalityEditorWorkflowStore {
     await personalityPublishStore.loadQRCode(modelCode || requireModelCode())
   }
 
-  /** A model snapshot must bind the exact published questionnaire version. */
-  private async publishAndBindQuestionnaire(modelCode: string): Promise<void> {
-    const questionnaireCode = personalityModelEditorStore.questionnaireCode
-    if (!questionnaireCode) throw new Error('发布人格测评前必须绑定题目问卷')
+	/** Persist draft questions; release publication owns version selection. */
+	private async saveQuestionnaireDraft(): Promise<void> {
+		const questionnaireCode = personalityModelEditorStore.questionnaireCode
+		if (!questionnaireCode) throw new Error('发布人格测评前必须绑定题目问卷')
 
-    await personalityQuestionnaireStore.saveQuestions(questionnaireCode, true)
-    const [readErr, readRes] = await surveyApi.getSurvey(questionnaireCode)
-    if (readErr || !readRes?.data) throw readErr || new Error('读取题目问卷失败')
-
-    let questionnaire = readRes.data
-    if (questionnaire.status !== 'published') {
-      const [publishErr, publishRes] = await surveyApi.publishSurvey(questionnaireCode)
-      if (publishErr || !publishRes?.data) throw publishErr || new Error('发布题目问卷失败')
-      questionnaire = publishRes.data
-    }
-
-    const version = String(questionnaire.version || '').trim()
-    if (!version) throw new Error('已发布题目问卷未返回版本号')
-    const [bindErr] = await assessmentModelApi.updateAssessmentModelQuestionnaire(modelCode, {
-      questionnaire_code: questionnaireCode,
-      questionnaire_version: version
-    })
-    if (bindErr) throw bindErr
-
-    runInAction(() => {
-      personalityModelEditorStore.questionnaireVersion = version
-      personalityDefinitionStore.updateQuestionnaireBinding(questionnaireCode, version)
-    })
-  }
+		await personalityQuestionnaireStore.saveQuestions(questionnaireCode, true)
+	}
 
   async publish(): Promise<void> {
     const modelCode = requireModelCode()
-    await this.publishAndBindQuestionnaire(modelCode)
+		await this.saveQuestionnaireDraft()
     await this.saveAndValidateDefinition()
     const validation = await this.validateForPublish()
     if (!validation.passed) {
       throw Object.assign(new Error('人格测评校验失败'), { validation })
     }
     const result = await personalityPublishStore.publish(modelCode)
-    await personalityPublishStore.loadPublishedSnapshot(modelCode)
-    runInAction(() => {
-      if (result?.status) personalityModelEditorStore.status = result.status
-      this.currentStep = 'publish'
+		runInAction(() => {
+			if (result?.model_status) personalityModelEditorStore.status = result.model_status as typeof personalityModelEditorStore.status
+			if (result?.questionnaire_version) {
+				personalityModelEditorStore.questionnaireVersion = result.questionnaire_version
+				personalityDefinitionStore.updateQuestionnaireBinding(result.questionnaire_code, result.questionnaire_version)
+			}
+			this.currentStep = 'publish'
     })
     this.clearLocalStorage()
   }
 
-  async unpublish(): Promise<void> {
-    const result = await personalityPublishStore.unpublish(requireModelCode())
-    runInAction(() => {
-      if (result?.status) personalityModelEditorStore.status = result.status
-    })
-    personalityPublishStore.setQrCode(null)
-  }
-
-  async archive(modelCode?: string): Promise<void> {
-    const result = await personalityPublishStore.archive(modelCode || requireModelCode())
-    runInAction(() => {
-      if (result?.status) personalityModelEditorStore.status = result.status
+	async archive(modelCode?: string): Promise<void> {
+		const result = await personalityPublishStore.archive(modelCode || requireModelCode())
+		runInAction(() => {
+			if (result?.model_status) personalityModelEditorStore.status = result.model_status as typeof personalityModelEditorStore.status
     })
     personalityPublishStore.setQrCode(null)
   }

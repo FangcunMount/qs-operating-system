@@ -4,7 +4,7 @@ export interface PersonalityPublishActions {
   canValidate: boolean
   canPreview: boolean
   canPublish: boolean
-  canUnpublish: boolean
+	canArchive: boolean
   canShowQRCode: boolean
 }
 
@@ -14,6 +14,6 @@ export const getPersonalityPublishActions = (
   canValidate: status !== 'archived',
   canPreview: status !== 'archived',
   canPublish: status === 'draft' || status === 'published',
-  canUnpublish: status === 'published',
+	canArchive: status === 'published',
   canShowQRCode: status === 'published'
 })

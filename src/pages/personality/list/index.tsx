@@ -12,6 +12,7 @@ import {
   SearchOutlined
 } from '@ant-design/icons'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
+import { assessmentReleaseApi } from '@/api/path/assessmentRelease'
 import { ModelCatalogListShell, ModelCatalogStatusTag } from '@/features/assessment-editor'
 import { AssessmentModelSummary } from '@/models/assessmentModel'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -24,8 +25,7 @@ import {
 import {
   canEditPersonalityModel,
   canArchivePersonalityModel,
-  canPublishPersonalityModel,
-  canUnpublishPersonalityModel,
+	canPublishPersonalityModel,
   isPersonalityReadonly
 } from '@/utils/personalityPermissions'
 import '../index.scss'
@@ -128,7 +128,7 @@ const PersonalityList: React.FC = () => {
       title: '确认归档',
       content: `归档后「${row.title}」不可继续编辑；已发布快照也将移除。`,
       onOk: async () => {
-        const [err] = await assessmentModelApi.archiveAssessmentModel(row.code)
+		const [err] = await assessmentReleaseApi.archiveAssessmentRelease(row.code)
         if (err) {
           message.error(getApiErrorMessage(err, '归档失败'))
           return
@@ -172,8 +172,7 @@ const PersonalityList: React.FC = () => {
     const readonly = isPersonalityReadonly({ status: row.status })
     const canEdit = canEditPersonalityModel({ status: row.status })
     const canPublish = canPublishPersonalityModel({ status: row.status })
-    const canUnpublish = canUnpublishPersonalityModel({ status: row.status })
-    const canArchive = canArchivePersonalityModel({ status: row.status })
+		const canArchive = canArchivePersonalityModel({ status: row.status })
 
     if (readonly) {
       return (
@@ -215,22 +214,6 @@ const PersonalityList: React.FC = () => {
                 重新发布
               </Button>
             </Link>
-          ) : null}
-          {canUnpublish ? (
-            <Button
-              size="small"
-              danger
-              onClick={async () => {
-                const [err] = await assessmentModelApi.unpublishAssessmentModel(row.code)
-                if (err) message.error(getApiErrorMessage(err, '下架失败'))
-                else {
-                  message.success('已下架')
-                  loadList()
-                }
-              }}
-            >
-              下架
-            </Button>
           ) : null}
           <Link to={`/personality/publish/${row.code}`}>
             <Button size="small" icon={<QrcodeOutlined />}>

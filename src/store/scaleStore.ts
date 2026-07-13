@@ -22,6 +22,7 @@ import { convertQuestionFromDTO, ensureDefaultValidateRules } from '@/api/path/q
 import type { IQuestionDTO } from '@/api/path/survey'
 import { getScaleCategories } from '@/api/path/scaleDefinition'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
+import { assessmentReleaseApi } from '@/api/path/assessmentRelease'
 import { QuestionnaireType } from '@/constants/questionnaireType'
 
 // 量表编辑步骤
@@ -629,16 +630,9 @@ export const scaleStore = makeObservable(
       if (surveyReadErr || !surveyReadRes?.data) {
         throw surveyReadErr || new Error('读取量表题目问卷失败')
       }
-      let questionnaire = surveyReadRes.data
-      if (questionnaire.status !== 'published') {
-        const [surveyPublishErr, surveyPublishRes] = await api.publishSurvey(questionnaireCode)
-        if (surveyPublishErr || !surveyPublishRes?.data) {
-          throw surveyPublishErr || new Error('发布量表题目问卷失败')
-        }
-        questionnaire = surveyPublishRes.data
-      }
-      const questionnaireVersion = String(questionnaire.version || '').trim()
-      if (!questionnaireVersion) throw new Error('已发布量表题目问卷未返回版本号')
+		const questionnaire = surveyReadRes.data
+		const questionnaireVersion = String(questionnaire.version || '').trim()
+		if (!questionnaireVersion) throw new Error('题目问卷缺少草稿版本号')
 
       let scaleCode = this.scaleCode
       if (!scaleCode) {
@@ -747,10 +741,9 @@ export const scaleStore = makeObservable(
 
       const scaleCode = await this.persistScaleDraftBeforePublish(scaleId)
 
-      // 使用量表编码调用发布接口
-      const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
-      const [e] = await scaleDefinitionApi.publishScale(scaleCode)
-      if (e) throw e
+		// The release endpoint atomically publishes both the questionnaire and model.
+		const [e] = await assessmentReleaseApi.publishAssessmentRelease(scaleCode)
+		if (e) throw e
 
       runInAction(() => {
         this.currentStep = 'publish'
@@ -784,10 +777,8 @@ export const scaleStore = makeObservable(
         })
       }
 
-      // 使用量表编码调用取消发布接口
-      const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
-      const [e] = await scaleDefinitionApi.unpublishScale(scaleCode)
-      if (e) throw e
+		const [e] = await assessmentReleaseApi.archiveAssessmentRelease(scaleCode)
+		if (e) throw e
     },
 
     /**

@@ -3,6 +3,7 @@ import { Button, message, Modal, Select, Space, Table, Tag } from 'antd'
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import { Link, useHistory } from 'react-router-dom'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
+import { assessmentReleaseApi } from '@/api/path/assessmentRelease'
 import { ModelCatalogListShell, ModelCatalogStatusTag } from '@/features/assessment-editor'
 import type { AssessmentModelSummary } from '@/models/assessmentModel'
 import { BEHAVIOR_ABILITY_PRODUCT_CHANNEL } from '@/constants/behaviorAbility'
@@ -51,7 +52,7 @@ const BehaviorAbilityList: React.FC = () => {
       title: '确认归档',
       content: `归档后「${model.title}」不可编辑，已发布快照也会移除。`,
       onOk: async () => {
-        const [err] = await assessmentModelApi.archiveAssessmentModel(model.code)
+		const [err] = await assessmentReleaseApi.archiveAssessmentRelease(model.code)
         if (err) message.error(getApiErrorMessage(err, '归档失败'))
         else {
           message.success('已归档')

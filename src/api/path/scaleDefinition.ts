@@ -31,9 +31,7 @@ import {
   getAssessmentModelOptions,
   getAssessmentModelQRCode,
   listAssessmentModels,
-  publishAssessmentModel,
   saveAssessmentModelDefinition,
-  unpublishAssessmentModel,
   updateAssessmentModelBasicInfo,
 } from './assessmentModel'
 
@@ -199,14 +197,6 @@ export async function updateScaleModelBasicInfo(
   return [err, withMappedResponse(response, (model) => modelProjection(model))]
 }
 
-export async function publishScaleModel(code: string): Promise<[any, QSResponse<any> | undefined]> {
-  return publishAssessmentModel(code)
-}
-
-export async function unpublishScaleModel(code: string): Promise<[any, QSResponse<any> | undefined]> {
-  return unpublishAssessmentModel(code)
-}
-
 export async function getScaleDefinitionOptions(): Promise<[any, QSResponse<IScaleDefinitionOptions> | undefined]> {
   const [err, response] = await getAssessmentModelOptions('scale')
   return [err, withMappedResponse(response, (options: any) => ({
@@ -296,8 +286,6 @@ export const getScaleByQuestionnaire = getScaleModelByQuestionnaire
 export const getScaleDetail = getScaleModel
 export const createScale = createScaleModel
 export const updateScaleBasicInfo = updateScaleModelBasicInfo
-export const publishScale = publishScaleModel
-export const unpublishScale = unpublishScaleModel
 export const getScaleCategories = getScaleDefinitionOptions
 export const getScaleQRCode = getScaleModelQRCode
 export const getFactorListByScaleCode = getFactorsByScaleCode
@@ -328,8 +316,6 @@ export const scaleDefinitionApi = {
   getScaleModel,
   createScaleModel,
   updateScaleModelBasicInfo,
-  publishScaleModel,
-  unpublishScaleModel,
   getScaleDefinitionOptions,
   getScaleModelQRCode,
   getFactorsByScaleCode,
@@ -342,8 +328,6 @@ export const scaleDefinitionApi = {
   getScaleDetail,
   createScale,
   updateScaleBasicInfo,
-  publishScale,
-  unpublishScale,
   getScaleCategories,
   getScaleQRCode,
   getFactorListByScaleCode,

@@ -202,27 +202,6 @@ export async function getPublishedAssessmentModel(
   return [err, mapResponse(res, normalizeAssessmentModelDetail)]
 }
 
-export async function publishAssessmentModel(
-  code: string
-): Promise<[any, QSResponse<AssessmentModelDetail> | undefined]> {
-  const [err, res] = await post<any>(`/assessment-models/${code}/publish`, undefined)
-  return [err, mapResponse(res, normalizeAssessmentModelDetail)]
-}
-
-export async function unpublishAssessmentModel(
-  code: string
-): Promise<[any, QSResponse<AssessmentModelDetail> | undefined]> {
-  const [err, res] = await post<any>(`/assessment-models/${code}/unpublish`, undefined)
-  return [err, mapResponse(res, normalizeAssessmentModelDetail)]
-}
-
-export async function archiveAssessmentModel(
-  code: string
-): Promise<[any, QSResponse<AssessmentModelDetail> | undefined]> {
-  const [err, res] = await post<any>(`/assessment-models/${code}/archive`, undefined)
-  return [err, mapResponse(res, normalizeAssessmentModelDetail)]
-}
-
 export async function deleteAssessmentModel(
   code: string
 ): Promise<[any, QSResponse<unknown> | undefined]> {
@@ -279,9 +258,6 @@ export const assessmentModelApi = {
   saveAssessmentModelDefinition,
   listPublishedAssessmentModels,
   getPublishedAssessmentModel,
-  publishAssessmentModel,
-  unpublishAssessmentModel,
-  archiveAssessmentModel,
   deleteAssessmentModel,
   getAssessmentModelQRCode,
   getAssessmentModelOptions,

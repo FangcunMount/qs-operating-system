@@ -1,7 +1,8 @@
 import { action, makeObservable, observable, runInAction } from 'mobx'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
+import { assessmentReleaseApi } from '@/api/path/assessmentRelease'
+import type { AssessmentRelease } from '@/api/path/assessmentRelease'
 import {
-  AssessmentModelDetail,
   AssessmentModelPreviewReportRequest,
   AssessmentModelPreviewReportResponse,
   AssessmentModelValidationResult,
@@ -10,14 +11,13 @@ import {
 import { normalizePreviewAnswersInput } from '@/models/assessmentModel.preview'
 
 /**
- * Shared ModelCatalog lifecycle runner. Product workflows retain ownership of
- * their questionnaire-binding and Definition-save sequence, then delegate
- * validate/publish/snapshot endpoint state to this runner.
+ * Shared release runner. Product workflows retain ownership of draft saves;
+ * the server owns publication, questionnaire version selection and archiving.
  */
 export class ModelCatalogPublishStore {
   validation: AssessmentModelValidationResult | null = null
   qrCode: AssessmentQRCodeResponse | null = null
-  publishedSnapshot: AssessmentModelDetail | null = null
+	release: AssessmentRelease | null = null
   previewReport: AssessmentModelPreviewReportResponse | null = null
   previewError = ''
   publishing = false
@@ -28,7 +28,7 @@ export class ModelCatalogPublishStore {
     makeObservable(this, {
       validation: observable,
       qrCode: observable,
-      publishedSnapshot: observable,
+		release: observable,
       previewReport: observable,
       previewError: observable,
       publishing: observable,
@@ -37,7 +37,7 @@ export class ModelCatalogPublishStore {
       reset: action,
       setValidation: action,
       setQrCode: action,
-      setPublishedSnapshot: action,
+		setRelease: action,
       setPreviewReport: action,
       setPreviewError: action
     })
@@ -46,7 +46,7 @@ export class ModelCatalogPublishStore {
   reset(): void {
     this.validation = null
     this.qrCode = null
-    this.publishedSnapshot = null
+		this.release = null
     this.previewReport = null
     this.previewError = ''
     this.publishing = false
@@ -62,8 +62,8 @@ export class ModelCatalogPublishStore {
     this.qrCode = data
   }
 
-  setPublishedSnapshot(data: AssessmentModelDetail | null): void {
-    this.publishedSnapshot = data
+	setRelease(data: AssessmentRelease | null): void {
+		this.release = data
   }
 
   setPreviewReport(data: AssessmentModelPreviewReportResponse | null): void {
@@ -89,11 +89,12 @@ export class ModelCatalogPublishStore {
     }
   }
 
-  async publish(modelCode: string): Promise<AssessmentModelDetail | undefined> {
+	async publish(modelCode: string): Promise<AssessmentRelease | undefined> {
     this.publishing = true
     try {
-      const [err, res] = await assessmentModelApi.publishAssessmentModel(modelCode)
-      if (err) throw err
+		const [err, res] = await assessmentReleaseApi.publishAssessmentRelease(modelCode)
+		if (err) throw err
+		runInAction(() => this.setRelease(res?.data || null))
       return res?.data
     } finally {
       runInAction(() => {
@@ -102,24 +103,12 @@ export class ModelCatalogPublishStore {
     }
   }
 
-  async unpublish(modelCode: string): Promise<AssessmentModelDetail | undefined> {
+	async archive(modelCode: string): Promise<AssessmentRelease | undefined> {
     this.publishing = true
     try {
-      const [err, res] = await assessmentModelApi.unpublishAssessmentModel(modelCode)
-      if (err) throw err
-      return res?.data
-    } finally {
-      runInAction(() => {
-        this.publishing = false
-      })
-    }
-  }
-
-  async archive(modelCode: string): Promise<AssessmentModelDetail | undefined> {
-    this.publishing = true
-    try {
-      const [err, res] = await assessmentModelApi.archiveAssessmentModel(modelCode)
-      if (err) throw err
+		const [err, res] = await assessmentReleaseApi.archiveAssessmentRelease(modelCode)
+		if (err) throw err
+		runInAction(() => this.setRelease(res?.data || null))
       return res?.data
     } finally {
       runInAction(() => {
@@ -136,13 +125,6 @@ export class ModelCatalogPublishStore {
     return res?.data || null
   }
 
-  async loadPublishedSnapshot(modelCode: string): Promise<AssessmentModelDetail | null> {
-    const [err, res] = await assessmentModelApi.getPublishedAssessmentModel(modelCode)
-    if (!err && res?.data) {
-      runInAction(() => this.setPublishedSnapshot(res.data))
-    }
-    return res?.data || null
-  }
 
   async runPreviewReport(modelCode: string, request: AssessmentModelPreviewReportRequest): Promise<AssessmentModelPreviewReportResponse | null> {
     const answers = normalizePreviewAnswersInput(request.answers)

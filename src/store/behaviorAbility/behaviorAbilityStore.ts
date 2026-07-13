@@ -351,48 +351,23 @@ export class BehaviorAbilityStore {
     }
     const code = requireModelCode(this.modelCode)
     await this.questionnaire.saveQuestions(this.questionnaireCode, true)
-    const [readErr, readRes] = await surveyApi.getSurvey(this.questionnaireCode)
-    if (readErr || !readRes?.data) throw readErr || new Error('读取题目问卷失败')
-    let questionnaire = readRes.data
-    if (!isPublishedQuestionnaire(questionnaire.status)) {
-      const [publishErr, publishRes] = await surveyApi.publishSurvey(questionnaire.code)
-      if (publishErr || !publishRes?.data) throw publishErr || new Error('发布题目问卷失败')
-      questionnaire = publishRes.data
-    }
-    if (!questionnaire.version) throw new Error('已发布问卷缺少版本号')
-    const [bindErr] = await assessmentModelApi.updateAssessmentModelQuestionnaire(code, {
-      questionnaire_code: questionnaire.code,
-      questionnaire_version: questionnaire.version
-    })
-    if (bindErr) throw bindErr
-    runInAction(() => {
-      this.questionnaireVersion = questionnaire.version
-      this.questionnaireCode = questionnaire.code
-    })
-    await this.saveDefinition()
+		await this.saveDefinition()
     const validation = await this.validateForPublish()
     if (!validation.passed) throw new Error('服务端模型校验未通过')
     const result = await this.publishState.publish(code)
-    await this.publishState.loadPublishedSnapshot(code)
-    if (result?.status)
-      runInAction(() => {
-        this.status = result.status
-      })
-  }
-
-  async unpublish(): Promise<void> {
-    const result = await this.publishState.unpublish(requireModelCode(this.modelCode))
-    if (result?.status)
-      runInAction(() => {
-        this.status = result.status
-      })
-  }
+		if (result?.model_status)
+			runInAction(() => {
+				this.status = result.model_status as AssessmentModelStatus
+				this.questionnaireCode = result.questionnaire_code
+				this.questionnaireVersion = result.questionnaire_version
+			})
+	}
 
   async archive(): Promise<void> {
     const result = await this.publishState.archive(requireModelCode(this.modelCode))
-    if (result?.status)
-      runInAction(() => {
-        this.status = result.status
+		if (result?.model_status)
+			runInAction(() => {
+				this.status = result.model_status as AssessmentModelStatus
       })
   }
 

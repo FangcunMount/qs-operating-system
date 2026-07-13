@@ -41,10 +41,7 @@ const PersonalityPublish: React.FC = observer(() => {
     const init = async () => {
       try {
         await personalityEditorWorkflowStore.initEditor(modelCode)
-        if (personalityModelStore.status === 'published') {
-          await personalityEditorWorkflowStore.loadQRCode(modelCode)
-          await personalityPublishStore.loadPublishedSnapshot(modelCode)
-        }
+		if (personalityModelStore.status === 'published') await personalityEditorWorkflowStore.loadQRCode(modelCode)
         setPreviewAnswersSource(JSON.stringify(
           buildSamplePreviewAnswersObject(personalityModelStore.questions),
           null,
@@ -117,14 +114,14 @@ const PersonalityPublish: React.FC = observer(() => {
     }
   }
 
-  const handleUnpublish = async () => {
-    if (!publishActions.canUnpublish) return
-    setLoading(true)
-    try {
-      await personalityEditorWorkflowStore.unpublish()
-      message.success('已下架')
-    } catch (error: any) {
-      message.error(getApiErrorMessage(error, '下架失败'))
+	const handleArchive = async () => {
+		if (!publishActions.canArchive) return
+		setLoading(true)
+		try {
+			await personalityEditorWorkflowStore.archive()
+			message.success('已归档')
+		} catch (error: any) {
+			message.error(getApiErrorMessage(error, '归档失败'))
     } finally {
       setLoading(false)
     }
@@ -162,7 +159,7 @@ const PersonalityPublish: React.FC = observer(() => {
                   <Descriptions.Item label="模型编码">{personalityModelStore.modelCode || '-'}</Descriptions.Item>
                   <Descriptions.Item label="绑定问卷">{personalityModelStore.id || '-'}</Descriptions.Item>
                   <Descriptions.Item label="算法">{personalityModelStore.algorithm}</Descriptions.Item>
-                  <Descriptions.Item label="发布快照版本">{personalityPublishStore.publishedSnapshot?.version || '—'}</Descriptions.Item>
+					<Descriptions.Item label="问卷版本">{personalityPublishStore.release?.questionnaire_version || '—'}</Descriptions.Item>
                 </Descriptions>
                 <Space>
                   {publishActions.canValidate ? (
@@ -173,8 +170,8 @@ const PersonalityPublish: React.FC = observer(() => {
                       {personalityModelStore.status === 'published' ? '重新发布' : '发布'}
                     </Button>
                   ) : null}
-                  {publishActions.canUnpublish ? (
-                    <Button danger loading={loading} onClick={handleUnpublish}>下架</Button>
+					{publishActions.canArchive ? (
+						<Button danger loading={loading} onClick={handleArchive}>归档</Button>
                   ) : null}
                 </Space>
               </Space>

@@ -47,9 +47,6 @@ describe('assessmentModelApi', () => {
     })
     await assessmentModelApi.listPublishedAssessmentModels({ kind: 'typology', product_channel: 'typology' })
     await assessmentModelApi.getPublishedAssessmentModel('m1', '1.0.0')
-    await assessmentModelApi.publishAssessmentModel('m1')
-    await assessmentModelApi.unpublishAssessmentModel('m1')
-    await assessmentModelApi.archiveAssessmentModel('m1')
     await assessmentModelApi.getAssessmentModelQRCode('m1')
     await assessmentModelApi.getAssessmentModelOptions('typology')
     await assessmentModelApi.applyAssessmentModelCodes('m1', { target: 'dimension' })
@@ -82,14 +79,11 @@ describe('assessmentModelApi', () => {
     expect(getMock).toHaveBeenCalledWith('/assessment-models/m1/definition')
     expect(getMock).toHaveBeenCalledWith('/assessment-models/published', { kind: 'typology', product_channel: 'typology' })
     expect(getMock).toHaveBeenCalledWith('/assessment-models/published/m1', { version: '1.0.0' })
-    expect(postMock).toHaveBeenNthCalledWith(2, '/assessment-models/m1/publish', undefined)
-    expect(postMock).toHaveBeenNthCalledWith(3, '/assessment-models/m1/unpublish', undefined)
-    expect(postMock).toHaveBeenNthCalledWith(4, '/assessment-models/m1/archive', undefined)
     expect(getMock).toHaveBeenCalledWith('/assessment-models/m1/qrcode')
     expect(getMock).toHaveBeenCalledWith('/assessment-models/options', { kind: 'typology' })
-    expect(postMock).toHaveBeenNthCalledWith(5, '/assessment-models/m1/codes/apply', { target: 'dimension', count: 1 })
-    expect(postMock).toHaveBeenNthCalledWith(6, '/assessment-models/m1/validate', undefined)
-    expect(postMock).toHaveBeenNthCalledWith(7, '/assessment-models/m1/preview-report', {
+	expect(postMock).toHaveBeenNthCalledWith(2, '/assessment-models/m1/codes/apply', { target: 'dimension', count: 1 })
+	expect(postMock).toHaveBeenNthCalledWith(3, '/assessment-models/m1/validate', undefined)
+	expect(postMock).toHaveBeenNthCalledWith(4, '/assessment-models/m1/preview-report', {
       answers: [{ question_code: 'q1', value: 'A' }]
     })
     expect(delMock).toHaveBeenCalledWith('/assessment-models/m1')
