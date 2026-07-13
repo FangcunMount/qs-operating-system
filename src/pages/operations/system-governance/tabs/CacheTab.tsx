@@ -107,6 +107,26 @@ const renderWorkloadSummary = (workload?: CacheCapabilityWorkload): React.ReactE
   )
 }
 
+const renderWarmupResultTag = (value?: string): React.ReactElement => {
+  const color = value === 'ok' ? 'green' : value === 'error' ? 'red' : 'orange'
+  return <Tag color={color}>{value || '-'}</Tag>
+}
+
+const renderCapabilityExpandedRow = (
+  record: CacheCapabilityPolicyView,
+  workload?: CacheCapabilityWorkload
+): React.ReactElement => (
+  <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }}>
+    <Descriptions.Item label="Spec default">{renderPolicySummary(record.spec_default)}</Descriptions.Item>
+    <Descriptions.Item label="Global default">{renderPolicySummary(record.global_default)}</Descriptions.Item>
+    <Descriptions.Item label="Family default">{renderPolicySummary(record.family_default)}</Descriptions.Item>
+    <Descriptions.Item label="Override">{renderPolicySummary(record.override)}</Descriptions.Item>
+    <Descriptions.Item label="Metric evidence" span={4}>
+      <MetricEvidenceList items={metricEvidenceItems(workload)} />
+    </Descriptions.Item>
+  </Descriptions>
+)
+
 export const CacheTab: React.FC<CacheTabProps> = ({
   data,
   loading,
@@ -226,7 +246,12 @@ export const CacheTab: React.FC<CacheTabProps> = ({
       { title: 'Family', dataIndex: 'family', key: 'family', width: 120 },
       { title: '启用', dataIndex: 'enabled', key: 'enabled', width: 90, render: renderBooleanAvailabilityTag },
       { title: 'Effective policy', dataIndex: 'effective', key: 'effective', width: 420, render: renderPolicySummary },
-      { title: '近窗口 workload', key: 'workload', width: 320, render: (_value, record) => renderWorkloadSummary(workloadByCapability.get(record.capability)) },
+      {
+        title: '近窗口 workload',
+        key: 'workload',
+        width: 320,
+        render: (_value, record) => renderWorkloadSummary(workloadByCapability.get(record.capability))
+      },
       { title: 'Metric label', dataIndex: 'metric_label', key: 'metric_label', width: 150, render: renderTooltipText },
       { title: 'Source', dataIndex: 'source', key: 'source', ellipsis: true, render: renderTooltipText }
     ],
@@ -236,7 +261,7 @@ export const CacheTab: React.FC<CacheTabProps> = ({
   const warmupRunColumns = useMemo<ColumnsType<NonNullable<GovernanceCacheResponse['warmup']>['latest_runs'][number]>>(
     () => [
       { title: 'Trigger', dataIndex: 'trigger', key: 'trigger', width: 120 },
-      { title: 'Result', dataIndex: 'result', key: 'result', width: 100, render: (value) => <Tag color={value === 'ok' ? 'green' : value === 'error' ? 'red' : 'orange'}>{value || '-'}</Tag> },
+      { title: 'Result', dataIndex: 'result', key: 'result', width: 100, render: renderWarmupResultTag },
       { title: 'Targets', dataIndex: 'target_count', key: 'target_count', width: 90 },
       { title: 'OK', dataIndex: 'ok_count', key: 'ok_count', width: 80 },
       { title: 'Skipped', dataIndex: 'skipped_count', key: 'skipped_count', width: 90 },
@@ -321,16 +346,9 @@ export const CacheTab: React.FC<CacheTabProps> = ({
             size="small"
             scroll={{ x: 1750 }}
             expandable={{
-              expandedRowRender: (record) => (
-                <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }}>
-                  <Descriptions.Item label="Spec default">{renderPolicySummary(record.spec_default)}</Descriptions.Item>
-                  <Descriptions.Item label="Global default">{renderPolicySummary(record.global_default)}</Descriptions.Item>
-                  <Descriptions.Item label="Family default">{renderPolicySummary(record.family_default)}</Descriptions.Item>
-                  <Descriptions.Item label="Override">{renderPolicySummary(record.override)}</Descriptions.Item>
-                  <Descriptions.Item label="Metric evidence" span={4}>
-                    <MetricEvidenceList items={metricEvidenceItems(workloadByCapability.get(record.capability))} />
-                  </Descriptions.Item>
-                </Descriptions>
+              expandedRowRender: (record) => renderCapabilityExpandedRow(
+                record,
+                workloadByCapability.get(record.capability)
               )
             }}
             locale={{ emptyText: <Empty description="暂无 capability policy" /> }}
