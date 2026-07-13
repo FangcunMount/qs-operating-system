@@ -31,7 +31,11 @@ describe('personality DefinitionV2 projection', () => {
 
   it('projects the editable typology fields', () => {
     const spec = projectPersonalityRuntimeSpec(source)
-    expect(spec.factor_graph.factors?.E).toMatchObject({ id: 'E', name: '外向', contributions: [{ question_code: 'q1' }] })
+    expect(spec.factor_graph.factors?.E).toMatchObject({
+      id: 'E',
+      name: '外向',
+      contributions: [{ question_code: 'q1', scoring_mode: 'option_override', sign: 1, weight: 1, option_scores: { A: 1 } }]
+    })
     expect(spec.outcome_mapping.outcomes).toEqual([expect.objectContaining({ code: 'ENFP', name: '竞选者' })])
     expect(spec.decision.kind).toBe('pole_composition')
   })

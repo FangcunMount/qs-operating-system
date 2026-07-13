@@ -40,7 +40,7 @@ describe('personalityRuntimeSpec.mapper', () => {
     expect(edited.factor_graph.question_mappings).toBeUndefined()
     expect(edited.factor_graph.factors?.f1.contributions).toEqual([{
       question_code: 'q1', scoring_mode: 'question_score', sign: -1, weight: 0.5,
-      option_scores: undefined, legacy_implicit: undefined
+      option_scores: undefined
     }])
   })
 
@@ -61,7 +61,7 @@ describe('personalityRuntimeSpec.mapper', () => {
       report: { kind: 'personality_type' },
     })
     expect(edited.factor_graph.factors?.f1.contributions?.[0]).toMatchObject({
-      scoring_mode: 'option_override', sign: 1, weight: 1, legacy_implicit: true
+      scoring_mode: 'option_override', sign: 1, weight: 1
     })
   })
 

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Alert, Button, InputNumber, Modal, Select, Space, Table, Typography } from 'antd'
+import { Button, InputNumber, Modal, Select, Space, Table, Typography } from 'antd'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import type { IQuestion, IRadioQuestion } from '@/models/question'
 import {
@@ -81,8 +81,7 @@ const QuestionMappingTab: React.FC<Props> = ({ spec, questions, onChange }) => {
   const changeMode = (index: number, contribution: PersonalityQuestionMapping, mode: 'question_score' | 'option_override') => {
     const apply = () => updateContribution(index, {
       scoring_mode: mode,
-      option_scores: mode === 'question_score' ? undefined : (contribution.option_scores || {}),
-      legacy_implicit: false
+      option_scores: mode === 'question_score' ? undefined : (contribution.option_scores || {})
     })
     if (mode === 'question_score' && Object.keys(contribution.option_scores || {}).length > 0) {
       Modal.confirm({ title: '切换为问卷题目分值？', content: '已有的自定义选项分值将被清除。', onOk: apply })
@@ -91,19 +90,10 @@ const QuestionMappingTab: React.FC<Props> = ({ spec, questions, onChange }) => {
     apply()
   }
 
-  const hasLegacy = contributions.some((item) => item.legacy_implicit)
   const questionnaireCode = spec.questionnaire_binding?.questionnaire_code
 
   return (
     <Space direction="vertical" size={12} style={{ width: '100%' }}>
-      {hasLegacy && (
-        <Alert
-          showIcon
-          type="warning"
-          message="检测到旧版隐式计分配置"
-          description="页面已按历史实际结果迁移为显式模式；旧版自定义分值中的反向符号会规范化为正向，保存后使用新契约。"
-        />
-      )}
       <Table
         dataSource={contributions}
         rowKey={(row) => `${row.factor_code}:${row.question_code}:${row.scoring_mode || 'question_score'}`}
@@ -118,7 +108,7 @@ const QuestionMappingTab: React.FC<Props> = ({ spec, questions, onChange }) => {
             value={row.question_code || undefined}
             style={{ width: '100%' }}
             options={questions.map((question) => ({ value: question.code, label: question.title || question.code }))}
-            onChange={(value) => updateContribution(index, { question_code: value, option_scores: undefined, legacy_implicit: false })}
+            onChange={(value) => updateContribution(index, { question_code: value, option_scores: undefined })}
           />
         )} />
         <Table.Column title="目标因子" width={150} render={(_, row: PersonalityQuestionMapping, index: number) => (
@@ -138,11 +128,11 @@ const QuestionMappingTab: React.FC<Props> = ({ spec, questions, onChange }) => {
         )} />
         <Table.Column title="正向/反向" width={105} render={(_, row: PersonalityQuestionMapping, index: number) => (
           <Select value={row.sign ?? 1} style={{ width: '100%' }} options={[{ value: 1, label: '正向' }, { value: -1, label: '反向' }]}
-            onChange={(value) => updateContribution(index, { sign: value, legacy_implicit: false })} />
+            onChange={(value) => updateContribution(index, { sign: value })} />
         )} />
         <Table.Column title="权重" width={100} render={(_, row: PersonalityQuestionMapping, index: number) => (
           <InputNumber min={0.01} step={0.1} value={row.weight ?? 1} style={{ width: '100%' }}
-            onChange={(value) => updateContribution(index, { weight: Number(value), legacy_implicit: false })} />
+            onChange={(value) => updateContribution(index, { weight: Number(value) })} />
         )} />
         <Table.Column title="分值明细" width={280} render={(_, row: PersonalityQuestionMapping, index: number) => {
           if (!row.question_code) return <Typography.Text type="secondary">先选择题目</Typography.Text>

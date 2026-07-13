@@ -39,8 +39,7 @@ const contributionFromSource = (source: DefinitionV2Record): PersonalityQuestion
       ? 1
       : ((sourceSign ?? 1) as 1 | -1),
     weight: asNumber(source.Weight) ?? 1,
-    option_scores: scoringMode === 'option_override' ? optionScores : undefined,
-    legacy_implicit: legacy || undefined
+    option_scores: scoringMode === 'option_override' ? optionScores : undefined
   }
 }
 const asReportKind = (value: unknown, decisionKind: string): 'personality_type' | 'trait_profile' | 'template' => {

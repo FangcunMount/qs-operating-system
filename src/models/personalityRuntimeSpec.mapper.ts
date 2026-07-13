@@ -74,14 +74,12 @@ const normalizeContribution = (value: PersonalityQuestionContribution): Personal
     scoring_mode: scoringMode,
     sign: !explicit && scoringMode === 'option_override' && value.sign === -1 ? 1 : (value.sign ?? 1),
     weight: value.weight === undefined ? 1 : value.weight,
-    option_scores: scoringMode === 'option_override' ? value.option_scores : undefined,
-    legacy_implicit: !explicit || value.legacy_implicit || undefined
+    option_scores: scoringMode === 'option_override' ? value.option_scores : undefined
   }
 }
 
 const stripContributionEditorMetadata = (value: PersonalityQuestionContribution): PersonalityQuestionContribution => {
   const contribution = { ...value }
-  delete contribution.legacy_implicit
   delete contribution.factor_code
   return contribution
 }

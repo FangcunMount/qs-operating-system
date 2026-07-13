@@ -127,7 +127,6 @@ export interface PersonalityQuestionContribution {
   sign?: 1 | -1
   weight?: number
   option_scores?: Record<string, number>
-  legacy_implicit?: boolean
 }
 
 /** @deprecated editor state is canonicalized to factor.contributions. */
@@ -394,8 +393,7 @@ export const getQuestionContributions = (
     ...mapping,
     scoring_mode: mapping.scoring_mode || (mapping.option_scores ? 'option_override' : 'question_score'),
     sign: mapping.sign ?? 1,
-    weight: mapping.weight ?? 1,
-    legacy_implicit: true
+    weight: mapping.weight ?? 1
   }))
 }
 
