@@ -17,7 +17,7 @@ import {
 } from '@/utils/editorFlow'
 import type { DefinitionIssueTabKey } from '@/utils/personalityIssueRouter'
 import { isQuestionnaireBindingIssue } from '@/utils/personalityIssueRouter'
-import type { AssessmentModelValidationIssue } from '@/models/assessmentModel'
+import { AssessmentModelValidationIssue, getQuestionContributions } from '@/models/assessmentModel'
 import { getPersonalityPublishActions } from '@/utils/personalityPublishState'
 import '../index.scss'
 
@@ -41,7 +41,7 @@ const PersonalityPublish: React.FC = observer(() => {
     const init = async () => {
       try {
         await personalityEditorWorkflowStore.initEditor(modelCode)
-		if (personalityModelStore.status === 'published') await personalityEditorWorkflowStore.loadQRCode(modelCode)
+        if (personalityModelStore.status === 'published') await personalityEditorWorkflowStore.loadQRCode(modelCode)
         setPreviewAnswersSource(JSON.stringify(
           buildSamplePreviewAnswersObject(personalityModelStore.questions),
           null,
@@ -57,8 +57,9 @@ const PersonalityPublish: React.FC = observer(() => {
   const spec = personalityModelStore.runtimeSpec
   const factorCount = Object.keys(spec.factor_graph?.factors || {}).length
   const outcomeCount = spec.outcome_mapping?.outcomes?.length || 0
-  const mappingCount = spec.factor_graph?.question_mappings?.length || 0
-  const mappedQuestions = (spec.factor_graph?.question_mappings || []).filter((m) => m.question_code && m.factor_code).length
+  const contributions = getQuestionContributions(spec)
+  const mappingCount = contributions.length
+  const mappedQuestions = contributions.filter((item) => item.question_code && item.factor_code).length
   const questionMappingDone = mappingCount > 0 && mappedQuestions === mappingCount
 
   const checklist = useMemo(() => [
@@ -67,9 +68,9 @@ const PersonalityPublish: React.FC = observer(() => {
     { label: '路由配置', done: true, detail: `${personalityModelStore.showControllers.length} 条显隐规则` },
     { label: '模型定义', done: factorCount > 0 && outcomeCount > 0, detail: `${factorCount} 个因子 / ${outcomeCount} 个结果` },
     {
-      label: '题目映射',
+      label: '题目贡献',
       done: questionMappingDone,
-      detail: `${mappedQuestions}/${mappingCount || personalityModelStore.questions.length} 已映射`
+      detail: `${mappedQuestions}/${mappingCount || personalityModelStore.questions.length} 已配置`
     },
     { label: '报告配置', done: Boolean(spec.report?.kind) },
     { label: '后端校验', done: personalityPublishStore.validation?.passed === true }
@@ -114,14 +115,14 @@ const PersonalityPublish: React.FC = observer(() => {
     }
   }
 
-	const handleArchive = async () => {
-		if (!publishActions.canArchive) return
-		setLoading(true)
-		try {
-			await personalityEditorWorkflowStore.archive()
-			message.success('已归档')
-		} catch (error: any) {
-			message.error(getApiErrorMessage(error, '归档失败'))
+  const handleArchive = async () => {
+    if (!publishActions.canArchive) return
+    setLoading(true)
+    try {
+      await personalityEditorWorkflowStore.archive()
+      message.success('已归档')
+    } catch (error: any) {
+      message.error(getApiErrorMessage(error, '归档失败'))
     } finally {
       setLoading(false)
     }
@@ -159,7 +160,7 @@ const PersonalityPublish: React.FC = observer(() => {
                   <Descriptions.Item label="模型编码">{personalityModelStore.modelCode || '-'}</Descriptions.Item>
                   <Descriptions.Item label="绑定问卷">{personalityModelStore.id || '-'}</Descriptions.Item>
                   <Descriptions.Item label="算法">{personalityModelStore.algorithm}</Descriptions.Item>
-					<Descriptions.Item label="问卷版本">{personalityPublishStore.release?.questionnaire_version || '—'}</Descriptions.Item>
+                  <Descriptions.Item label="问卷版本">{personalityPublishStore.release?.questionnaire_version || '—'}</Descriptions.Item>
                 </Descriptions>
                 <Space>
                   {publishActions.canValidate ? (
@@ -170,8 +171,8 @@ const PersonalityPublish: React.FC = observer(() => {
                       {personalityModelStore.status === 'published' ? '重新发布' : '发布'}
                     </Button>
                   ) : null}
-					{publishActions.canArchive ? (
-						<Button danger loading={loading} onClick={handleArchive}>归档</Button>
+                  {publishActions.canArchive ? (
+                    <Button danger loading={loading} onClick={handleArchive}>归档</Button>
                   ) : null}
                 </Space>
               </Space>

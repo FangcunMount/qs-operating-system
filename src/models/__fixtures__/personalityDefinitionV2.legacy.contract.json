@@ -1,0 +1,22 @@
+{
+  "Measure": {
+    "Factors": [{ "Code": "legacy", "Title": "旧版因子", "Role": "dimension" }],
+    "FactorGraph": { "Roots": ["legacy"], "Edges": [] },
+    "Scoring": [{
+      "FactorCode": "legacy",
+      "Sources": [{ "Kind": "question", "Code": "q_legacy", "Sign": -1, "OptionScores": { "A": 4, "B": 0 } }],
+      "Strategy": "sum",
+      "OptionScoring": "strict"
+    }]
+  },
+  "Calibration": { "NormRefs": [] },
+  "Conclusions": [{
+    "Kind": "type",
+    "Decision": { "Kind": "dominant_factor", "TopK": 1 },
+    "OutcomeMapping": { "DetailKind": "personality_type", "DetailAdapterKey": "personality_type" },
+    "Profiles": [{ "OutcomeCode": "legacy", "Traits": [], "Strengths": [], "Weaknesses": [], "Suggestions": [] }],
+    "SpecialRules": []
+  }],
+  "Outcomes": [{ "Code": "legacy", "Title": "旧版结果" }],
+  "ReportMap": { "Sections": [{ "Code": "personality_report", "Kind": "personality_type", "AdapterKey": "personality_type" }] }
+}

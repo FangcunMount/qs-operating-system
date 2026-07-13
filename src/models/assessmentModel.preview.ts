@@ -19,32 +19,33 @@ export const normalizePreviewAnswersInput = (
     }))
   }
   if (raw && typeof raw === 'object') {
-    return Object.entries(raw as Record<string, unknown>).map(([questionCode, value]) => ({
-      question_code: questionCode,
-      value
-    }))
+    return Object.entries(raw as Record<string, unknown>).map(([questionCode, value]) => (
+      typeof value === 'number'
+        ? { question_code: questionCode, score: value }
+        : { question_code: questionCode, value }
+    ))
   }
   return []
 }
 
 export const buildSamplePreviewAnswersObject = (
   questions: IQuestion[]
-): Record<string, string> => Object.fromEntries(
+): Record<string, string | number> => Object.fromEntries(
   questions.map((question) => {
     const firstOption = getQuestionOptions(question)[0]?.code
-    return [question.code, firstOption || '']
+    return [question.code, firstOption || 0]
   })
 )
 
 export const buildRandomPreviewAnswersObject = (
   questions: IQuestion[]
-): Record<string, string> => Object.fromEntries(
+): Record<string, string | number> => Object.fromEntries(
   questions.map((question) => {
     const options = getQuestionOptions(question)
     const picked = options.length > 0
       ? options[Math.floor(Math.random() * options.length)]?.code
       : undefined
-    return [question.code, picked || '']
+    return [question.code, picked || 0]
   })
 )
 

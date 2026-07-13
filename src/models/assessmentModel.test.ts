@@ -174,7 +174,7 @@ describe('assessment model mappers', () => {
     const savedSpec = def.payload as PersonalityTypologyRuntimeSpec
 
     expect(savedSpec.factor_graph.factors?.E.contributions).toEqual([
-      { question_code: 'q_e_1', sign: 1, option_scores: { yes: 1 } }
+      { question_code: 'q_e_1', scoring_mode: 'option_override', sign: 1, weight: 1, option_scores: { yes: 1 } }
     ])
   })
 
@@ -195,7 +195,7 @@ describe('assessment model mappers', () => {
 
     expect((mbtiDef.payload as PersonalityTypologyRuntimeSpec).factor_graph.factors?.factor_e.id).toBe('factor_e')
     expect((sbtiDef.payload as PersonalityTypologyRuntimeSpec).factor_graph.factors?.factor_empathy.contributions).toEqual([
-      { question_code: 'q_empathy', sign: 1, option_scores: { yes: 1, no: 0 } }
+      { question_code: 'q_empathy', scoring_mode: 'option_override', sign: 1, weight: 1, option_scores: { yes: 1, no: 0 } }
     ])
   })
 })

@@ -2,152 +2,74 @@ import {
   createEmptyRuntimeSpec,
   normalizeRuntimeSpecForEdit,
   normalizeRuntimeSpecForSave,
-  syncContributionsToQuestionMappings,
   syncQuestionMappingsToContributions
 } from './personalityRuntimeSpec.mapper'
 import type { PersonalityTypologyRuntimeSpec } from './assessmentModel'
 import mbtiRuntimeSpec from './__fixtures__/personalityRuntimeSpec.mbti.json'
 
 describe('personalityRuntimeSpec.mapper', () => {
-  it('projects question_mappings to factor.contributions on save', () => {
+  it('migrates legacy question_mappings to canonical factor contributions', () => {
     const spec: PersonalityTypologyRuntimeSpec = {
       ...createEmptyRuntimeSpec('q1'),
       factor_graph: {
-        ...createEmptyRuntimeSpec('q1').factor_graph,
         factors: { f1: { id: 'f1', kind: 'leaf' } },
         roots: ['f1'],
-        question_mappings: [{
-          question_code: 'q1',
-          factor_code: 'f1',
-          option_scores: { A: 1, B: -1 }
-        }]
+        question_mappings: [{ question_code: 'q1', factor_code: 'f1', option_scores: { A: 1, B: -1 } }]
       }
     }
 
     const saved = normalizeRuntimeSpecForSave(spec)
-    expect(saved.factor_graph?.factors?.f1?.contributions).toEqual([{
-      question_code: 'q1',
-      sign: undefined,
+    expect(saved.factor_graph.question_mappings).toBeUndefined()
+    expect(saved.factor_graph.factors?.f1.contributions).toEqual([{
+      question_code: 'q1', scoring_mode: 'option_override', sign: 1, weight: 1,
       option_scores: { A: 1, B: -1 }
     }])
   })
 
-  it('restores question_mappings from contributions on edit', () => {
-    const spec: PersonalityTypologyRuntimeSpec = {
-      ...createEmptyRuntimeSpec('q1'),
+  it('keeps explicit contributions as the only editor source of truth', () => {
+    const edited = normalizeRuntimeSpecForEdit({
       factor_graph: {
-        ...createEmptyRuntimeSpec('q1').factor_graph,
-        factors: {
-          f1: {
-            id: 'f1',
-            kind: 'leaf',
-            contributions: [{ question_code: 'q1', option_scores: { A: 1 } }]
-          }
-        },
+        factors: { f1: { id: 'f1', kind: 'leaf', contributions: [{ question_code: 'q1', scoring_mode: 'question_score', sign: -1, weight: 0.5 }] } },
         roots: ['f1'],
-        question_mappings: []
-      }
-    }
-
-    const edited = syncContributionsToQuestionMappings(spec)
-    expect(edited.factor_graph?.question_mappings).toEqual([{
-      question_code: 'q1',
-      factor_code: 'f1',
-      sign: undefined,
-      option_scores: { A: 1 }
-    }])
-  })
-
-  it('keeps existing question_mappings when already present', () => {
-    const spec: PersonalityTypologyRuntimeSpec = {
-      ...createEmptyRuntimeSpec('q1'),
-      factor_graph: {
-        ...createEmptyRuntimeSpec('q1').factor_graph,
-        factors: {
-          f1: {
-            id: 'f1',
-            kind: 'leaf',
-            contributions: [{ question_code: 'q1', option_scores: { A: 1 } }]
-          }
-        },
-        roots: ['f1'],
-        question_mappings: [{ question_code: 'q2', factor_code: 'f1', option_scores: { A: 2 } }]
-      }
-    }
-
-    expect(syncContributionsToQuestionMappings(spec).factor_graph?.question_mappings).toEqual([
-      { question_code: 'q2', factor_code: 'f1', option_scores: { A: 2 } }
-    ])
-  })
-
-  it('normalizes backend runtime spec for edit with contributions recovery', () => {
-    const backendPayload = {
-      factor_graph: {
-        factors: {
-          f1: {
-            id: 'f1',
-            kind: 'leaf',
-            contributions: [{ question_code: 'q1', option_scores: { A: 1, B: 0 } }]
-          }
-        },
-        roots: ['f1'],
-        question_mappings: []
+        question_mappings: [{ question_code: 'ignored', factor_code: 'f1' }]
       },
       decision: { kind: 'pole_composition' },
-      outcome_mapping: { outcomes: [{ code: 'ENFP', name: 'ENFP' }] },
-      report: { kind: 'default' }
-    }
-
-    const edited = normalizeRuntimeSpecForEdit(backendPayload, 'q1')
-    expect(edited.factor_graph?.question_mappings).toEqual([{
-      question_code: 'q1',
-      factor_code: 'f1',
-      sign: undefined,
-      option_scores: { A: 1, B: 0 }
-    }])
-    const saved = normalizeRuntimeSpecForSave(edited)
-    expect(saved.factor_graph?.factors?.f1?.contributions).toEqual([{
-      question_code: 'q1',
-      sign: undefined,
-      option_scores: { A: 1, B: 0 }
+      outcome_mapping: { outcomes: [] },
+      report: { kind: 'personality_type' }
+    })
+    expect(edited.factor_graph.question_mappings).toBeUndefined()
+    expect(edited.factor_graph.factors?.f1.contributions).toEqual([{
+      question_code: 'q1', scoring_mode: 'question_score', sign: -1, weight: 0.5,
+      option_scores: undefined, legacy_implicit: undefined
     }])
   })
 
-  it('normalizes legacy question_mappings.dimension to factor_code', () => {
+  it('preserves legacy override results by normalizing an ignored negative sign', () => {
+    const edited = normalizeRuntimeSpecForEdit({
+      factor_graph: { factors: { f1: { id: 'f1', kind: 'leaf', contributions: [{ question_code: 'q1', sign: -1, option_scores: { A: 2 } }] } }, roots: ['f1'] },
+      decision: { kind: 'pole_composition' }, outcome_mapping: { outcomes: [] }, report: { kind: 'personality_type' }
+    })
+    expect(edited.factor_graph.factors?.f1.contributions?.[0]).toMatchObject({
+      scoring_mode: 'option_override', sign: 1, weight: 1, legacy_implicit: true
+    })
+  })
+
+  it('normalizes legacy question_mappings.dimension to the matching factor', () => {
     const edited = normalizeRuntimeSpecForEdit({
       factor_graph: {
         factors: { f1: { id: 'f1', kind: 'leaf' } },
-        question_mappings: [{ question_code: 'q1', dimension: 'f1', option_scores: { A: 1 } }]
+        question_mappings: [{ question_code: 'q1', dimension: 'f1' }]
       },
-      decision: { kind: 'pole_composition' },
-      outcome_mapping: { outcomes: [{ code: 'O1', name: '结果' }] },
-      report: { kind: 'default' }
+      decision: { kind: 'pole_composition' }, outcome_mapping: { outcomes: [] }, report: { kind: 'personality_type' }
     })
-    expect(edited.factor_graph?.question_mappings).toEqual([{
-      question_code: 'q1',
-      factor_code: 'f1',
-      option_scores: { A: 1 }
-    }])
+    expect(edited.factor_graph.factors?.f1.contributions?.[0]).toMatchObject({
+      question_code: 'q1', scoring_mode: 'question_score', sign: 1, weight: 1
+    })
   })
 
-  it('keeps the configured decision independent of a legacy model algorithm', () => {
-    const edited = normalizeRuntimeSpecForEdit({
-      decision: { kind: 'trait_profile' },
-      factor_graph: { factors: { f1: { id: 'f1', kind: 'leaf' } } },
-      outcome_mapping: { outcomes: [{ code: 'O1', title: '结果' }] },
-      report: { kind: 'default' }
-    }, '', undefined, 'mbti')
-    expect(edited.decision?.kind).toBe('trait_profile')
-    expect(edited.outcome_mapping?.outcomes).toEqual([expect.objectContaining({ code: 'O1', name: '结果' })])
-  })
-
-  it('roundtrips mappings through sync helpers', () => {
-    const original = mbtiRuntimeSpec as PersonalityTypologyRuntimeSpec
-    const saved = syncQuestionMappingsToContributions(original)
-    const restored = syncContributionsToQuestionMappings({
-      ...saved,
-      factor_graph: { ...saved.factor_graph, question_mappings: [] }
-    })
-    expect(restored.factor_graph?.question_mappings?.length).toBeGreaterThan(0)
+  it('canonicalizes checked-in legacy runtime fixtures without restoring question_mappings', () => {
+    const saved = syncQuestionMappingsToContributions(mbtiRuntimeSpec as PersonalityTypologyRuntimeSpec)
+    expect(saved.factor_graph.question_mappings).toBeUndefined()
+    expect(Object.values(saved.factor_graph.factors || {}).flatMap((factor) => factor.contributions || []).length).toBeGreaterThan(0)
   })
 })

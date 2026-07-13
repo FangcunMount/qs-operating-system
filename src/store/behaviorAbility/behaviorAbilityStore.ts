@@ -351,23 +351,23 @@ export class BehaviorAbilityStore {
     }
     const code = requireModelCode(this.modelCode)
     await this.questionnaire.saveQuestions(this.questionnaireCode, true)
-		await this.saveDefinition()
+    await this.saveDefinition()
     const validation = await this.validateForPublish()
     if (!validation.passed) throw new Error('服务端模型校验未通过')
     const result = await this.publishState.publish(code)
-		if (result?.model_status)
-			runInAction(() => {
-				this.status = result.model_status as AssessmentModelStatus
-				this.questionnaireCode = result.questionnaire_code
-				this.questionnaireVersion = result.questionnaire_version
-			})
-	}
+    if (result?.model_status)
+      runInAction(() => {
+        this.status = result.model_status as AssessmentModelStatus
+        this.questionnaireCode = result.questionnaire_code
+        this.questionnaireVersion = result.questionnaire_version
+      })
+  }
 
   async archive(): Promise<void> {
     const result = await this.publishState.archive(requireModelCode(this.modelCode))
-		if (result?.model_status)
-			runInAction(() => {
-				this.status = result.model_status as AssessmentModelStatus
+    if (result?.model_status)
+      runInAction(() => {
+        this.status = result.model_status as AssessmentModelStatus
       })
   }
 

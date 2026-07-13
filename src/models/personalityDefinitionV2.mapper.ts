@@ -13,7 +13,6 @@ import {
   PersonalityFactorSpec,
   PersonalityOutcome,
   PersonalityQuestionContribution,
-  PersonalityQuestionMapping,
   PersonalitySpecialRuleSpec,
   PersonalityTypologyRuntimeSpec,
   createEmptyRuntimeSpec
@@ -26,6 +25,24 @@ const asRecord = (value: unknown): DefinitionV2Record => (
 const asArray = <T = unknown>(value: unknown): T[] => Array.isArray(value) ? value as T[] : []
 const asString = (value: unknown): string => value === undefined || value === null ? '' : String(value)
 const asNumber = (value: unknown): number | undefined => typeof value === 'number' && Number.isFinite(value) ? value : undefined
+const contributionFromSource = (source: DefinitionV2Record): PersonalityQuestionContribution => {
+  const optionScores = asRecord(source.OptionScores) as Record<string, number>
+  const explicitMode = asString(source.ScoringMode)
+  const legacy = explicitMode !== 'question_score' && explicitMode !== 'option_override'
+  const inferredMode = Object.keys(optionScores).length > 0 ? 'option_override' : 'question_score'
+  const scoringMode = legacy ? inferredMode : explicitMode as 'question_score' | 'option_override'
+  const sourceSign = asNumber(source.Sign)
+  return {
+    question_code: asString(source.Code),
+    scoring_mode: scoringMode,
+    sign: legacy && scoringMode === 'option_override' && sourceSign === -1
+      ? 1
+      : ((sourceSign ?? 1) as 1 | -1),
+    weight: asNumber(source.Weight) ?? 1,
+    option_scores: scoringMode === 'option_override' ? optionScores : undefined,
+    legacy_implicit: legacy || undefined
+  }
+}
 const asReportKind = (value: unknown, decisionKind: string): 'personality_type' | 'trait_profile' | 'template' => {
   const kind = asString(value)
   if (kind === 'template' || kind === 'trait_profile' || kind === 'personality_type') return kind
@@ -107,11 +124,7 @@ export const projectPersonalityRuntimeSpec = (
       option_scoring: item?.OptionScoring === 'strict' || item?.OptionScoring === 'compat' ? item.OptionScoring : undefined,
       contributions: sources
         .filter((source) => asString(source.Kind) === 'question')
-        .map((source) => ({
-          question_code: asString(source.Code),
-          sign: asNumber(source.Sign) as 1 | -1 | undefined,
-          option_scores: asRecord(source.OptionScores) as Record<string, number>
-        }))
+        .map(contributionFromSource)
         .filter((source) => source.question_code)
     }
     dimensions[code] = { code, title: asString(factor.Title) }
@@ -124,16 +137,6 @@ export const projectPersonalityRuntimeSpec = (
     if (parent && child && factors[parent]) {
       factors[parent] = { ...factors[parent], kind: 'composite', children: [...(factors[parent].children || []), child] }
     }
-  })
-
-  const mappings: PersonalityQuestionMapping[] = []
-  Object.values(factors).forEach((factor) => {
-    (factor.contributions || []).forEach((contribution) => mappings.push({
-      question_code: contribution.question_code,
-      factor_code: factor.id,
-      sign: contribution.sign,
-      option_scores: contribution.option_scores
-    }))
   })
 
   const conclusion = typeConclusion(definition)
@@ -155,7 +158,6 @@ export const projectPersonalityRuntimeSpec = (
       dimension_order: Object.keys(dimensions),
       dimensions,
       factors,
-      question_mappings: mappings,
       roots: asArray<string>(graph.Roots)
     },
     decision: {
@@ -205,25 +207,19 @@ const mergeFactors = (definition: DefinitionV2, spec: PersonalityTypologyRuntime
 const mergeScoring = (definition: DefinitionV2, spec: PersonalityTypologyRuntimeSpec): DefinitionScoring[] => {
   const measure = asRecord(definition.Measure)
   const existing = new Map(asArray<DefinitionScoring>(measure.Scoring).map((item) => [item.FactorCode, item]))
-  const mappingsByFactor = new Map<string, PersonalityQuestionMapping[]>()
-  const questionMappings = spec.factor_graph.question_mappings || []
-  questionMappings.forEach((mapping) => {
-    const current = mappingsByFactor.get(mapping.factor_code) || []
-    current.push(mapping)
-    mappingsByFactor.set(mapping.factor_code, current)
-  })
 
   return Object.values(spec.factor_graph.factors || {}).map((factor) => {
-    const contributions = factor.contributions?.length
-      ? factor.contributions
-      : (mappingsByFactor.get(factor.id) || []).map((mapping): PersonalityQuestionContribution => ({
-        question_code: mapping.question_code,
-        sign: mapping.sign,
-        option_scores: mapping.option_scores
-      }))
+    const contributions = factor.contributions || []
     const questionSources = contributions
       .filter((item) => item.question_code)
-      .map((item) => ({ Kind: 'question', Code: item.question_code, Sign: item.sign, OptionScores: item.option_scores }))
+      .map((item) => ({
+        Kind: 'question',
+        Code: item.question_code,
+        ScoringMode: item.scoring_mode || 'question_score',
+        Sign: item.sign ?? 1,
+        Weight: item.weight ?? 1,
+        OptionScores: item.scoring_mode === 'option_override' ? item.option_scores : undefined
+      }))
     const factorSources = factor.kind === 'composite'
       ? (factor.children || []).map((code) => ({ Kind: 'factor', Code: code }))
       : []

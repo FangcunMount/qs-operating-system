@@ -1,0 +1,29 @@
+{
+  "Measure": {
+    "Factors": [{ "Code": "override", "Title": "覆盖因子", "Role": "dimension" }],
+    "FactorGraph": { "Roots": ["override"], "Edges": [] },
+    "Scoring": [{
+      "FactorCode": "override",
+      "Sources": [{
+        "Kind": "question",
+        "Code": "q_override",
+        "ScoringMode": "option_override",
+        "Sign": -1,
+        "Weight": 0.5,
+        "OptionScores": { "A": 4, "B": 0 }
+      }],
+      "Strategy": "sum",
+      "OptionScoring": "strict"
+    }]
+  },
+  "Calibration": { "NormRefs": [] },
+  "Conclusions": [{
+    "Kind": "type",
+    "Decision": { "Kind": "dominant_factor", "TopK": 1 },
+    "OutcomeMapping": { "DetailKind": "personality_type", "DetailAdapterKey": "personality_type" },
+    "Profiles": [{ "OutcomeCode": "override", "Traits": [], "Strengths": [], "Weaknesses": [], "Suggestions": [] }],
+    "SpecialRules": []
+  }],
+  "Outcomes": [{ "Code": "override", "Title": "覆盖结果" }],
+  "ReportMap": { "Sections": [{ "Code": "personality_report", "Kind": "personality_type", "AdapterKey": "personality_type" }] }
+}

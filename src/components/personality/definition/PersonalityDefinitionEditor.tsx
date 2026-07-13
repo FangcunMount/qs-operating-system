@@ -112,7 +112,7 @@ const PersonalityDefinitionEditor: React.FC<Props> = ({
           <TabPane tab="因子图" key="factor_graph">
             <FactorGraphTab spec={spec} onChange={onSpecChange} />
           </TabPane>
-          <TabPane tab="题目映射" key="question_mapping">
+          <TabPane tab="题目贡献" key="question_mapping">
             <QuestionMappingTab spec={spec} questions={questions} onChange={onSpecChange} />
           </TabPane>
           <TabPane tab="结果决策机制" key="decision">

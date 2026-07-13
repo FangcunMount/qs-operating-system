@@ -79,7 +79,7 @@ class PersonalityModelStoreFacade {
   saveAndValidateDefinition = () => personalityEditorWorkflowStore.saveAndValidateDefinition()
   validateForPublish = () => personalityEditorWorkflowStore.validateForPublish()
   publish = () => personalityEditorWorkflowStore.publish()
-	archive = () => personalityEditorWorkflowStore.archive()
+  archive = () => personalityEditorWorkflowStore.archive()
 
   setRuntimeSpec(spec: PersonalityTypologyRuntimeSpec) {
     personalityEditorWorkflowStore.setRuntimeSpec(spec)

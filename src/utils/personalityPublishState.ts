@@ -14,6 +14,6 @@ export const getPersonalityPublishActions = (
   canValidate: status !== 'archived',
   canPreview: status !== 'archived',
   canPublish: status === 'draft' || status === 'published',
-	canArchive: status === 'published',
+  canArchive: status === 'published',
   canShowQRCode: status === 'published'
 })

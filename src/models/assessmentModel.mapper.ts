@@ -14,7 +14,8 @@ import {
   PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT,
   PersonalityDimension,
   PersonalityPayloadV1,
-  PersonalityTypologyRuntimeSpec
+  PersonalityTypologyRuntimeSpec,
+  getQuestionContributions
 } from './assessmentModel'
 import { cloneDefinitionV2, createEmptyDefinitionV2, isDefinitionV2, DefinitionV2 } from './definitionV2'
 import {
@@ -112,7 +113,7 @@ export const mapRuntimeSpecToFormState = (
     special_rules: spec.special_rules,
     outcome_mapping: spec.outcome_mapping?.mapping_rules,
     report: spec.report,
-    question_mappings: spec.factor_graph?.question_mappings
+    question_mappings: getQuestionContributions(spec)
   }
 
   return {

@@ -125,7 +125,7 @@ const Publish: React.FC = observer(() => {
       }
 
       message.destroy()
-		message.success('测评发布成功！')
+      message.success('测评发布成功！')
     } catch (error: any) {
       message.destroy()
       message.error(`发布失败: ${error?.errmsg || error.message || error}`)
@@ -134,16 +134,16 @@ const Publish: React.FC = observer(() => {
 
   const handleUnpublish = async () => {
     try {
-		message.loading({ content: '归档中...', duration: 0, key: 'unpublish' })
+      message.loading({ content: '归档中...', duration: 0, key: 'unpublish' })
 
       await scaleStore.unpublish()
       setIsPublished(false)
 
       message.destroy()
-		message.success('已归档')
+      message.success('已归档')
     } catch (error: any) {
       message.destroy()
-		message.error(`归档失败: ${error?.errmsg ?? error}`)
+      message.error(`归档失败: ${error?.errmsg ?? error}`)
     }
   }
 

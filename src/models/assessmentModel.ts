@@ -122,20 +122,21 @@ export interface PersonalityFactorSpec {
 
 export interface PersonalityQuestionContribution {
   question_code: string
+  factor_code?: string
+  scoring_mode?: 'question_score' | 'option_override'
   sign?: 1 | -1
+  weight?: number
   option_scores?: Record<string, number>
+  legacy_implicit?: boolean
 }
 
-export interface PersonalityQuestionMapping {
-  question_code: string
-  factor_code: string
-  option_scores?: Record<string, number>
-  sign?: 1 | -1
-}
+/** @deprecated editor state is canonicalized to factor.contributions. */
+export type PersonalityQuestionMapping = PersonalityQuestionContribution & { factor_code: string }
 
 export interface PersonalityFactorGraphSpec {
   dimension_order?: string[]
   dimensions?: Record<string, PersonalityDimension>
+  /** @deprecated accepted only while importing legacy runtime payloads. */
   question_mappings?: PersonalityQuestionMapping[]
   factors?: Record<string, PersonalityFactorSpec>
   roots?: string[]
@@ -280,7 +281,6 @@ export const createEmptyRuntimeSpec = (
   factor_graph: {
     dimension_order: [],
     dimensions: {},
-    question_mappings: [],
     factors: {},
     roots: []
   },
@@ -377,12 +377,26 @@ const buildFactorAliasMap = (
 const getFactorReference = (factor: PersonalityFactorSpec, fallback: string) => factor.id || factor.code || fallback
 
 const hasContributionForFactor = (
-  factor: PersonalityFactorSpec,
-  mappings: PersonalityQuestionMapping[],
-  factorAliases: Map<string, PersonalityFactorSpec>
-): boolean => {
-  if ((factor.contributions || []).length > 0) return true
-  return mappings.some((mapping) => factorAliases.get(mapping.factor_code) === factor)
+  factor: PersonalityFactorSpec
+): boolean => (factor.contributions || []).length > 0
+
+export const getQuestionContributions = (
+  spec: PersonalityTypologyRuntimeSpec
+): PersonalityQuestionMapping[] => {
+  const canonical = Object.values(spec.factor_graph?.factors || {}).flatMap((factor) =>
+    (factor.contributions || []).map((contribution) => ({
+      ...contribution,
+      factor_code: factor.id || factor.code || ''
+    }))
+  )
+  if (canonical.length > 0) return canonical
+  return (spec.factor_graph?.question_mappings || []).map((mapping) => ({
+    ...mapping,
+    scoring_mode: mapping.scoring_mode || (mapping.option_scores ? 'option_override' : 'question_score'),
+    sign: mapping.sign ?? 1,
+    weight: mapping.weight ?? 1,
+    legacy_implicit: true
+  }))
 }
 
 export const validateFactorGraph = (
@@ -392,7 +406,7 @@ export const validateFactorGraph = (
   const factors = spec.factor_graph?.factors || {}
   const factorEntries = Object.entries(factors)
   const factorAliases = buildFactorAliasMap(factors)
-  const mappings = spec.factor_graph?.question_mappings || []
+  const contributions = getQuestionContributions(spec)
 
   if (factorEntries.length === 0) {
     issues.push({ field: 'factor_graph', message: '至少需要配置一个因子' })
@@ -423,10 +437,11 @@ export const validateFactorGraph = (
       })
     }
 
-    if (factor.kind === 'leaf' && !hasContributionForFactor(factor, mappings, factorAliases)) {
+    const hasLegacyContribution = contributions.some((item) => factorAliases.get(item.factor_code) === factor)
+    if (factor.kind === 'leaf' && !hasContributionForFactor(factor) && !hasLegacyContribution) {
       issues.push({
         field: `factor_graph.${factorRef}.contributions`,
-        message: `叶子因子 ${factorRef} 至少需要一条题目贡献或题目映射`
+        message: `叶子因子 ${factorRef} 至少需要一条题目贡献`
       })
     }
 
@@ -491,17 +506,17 @@ export const validateQuestionMappings = (
   const issues: AssessmentModelValidationIssue[] = []
   const factors = spec.factor_graph?.factors || {}
   const factorAliases = buildFactorAliasMap(factors)
-  const mappings = spec.factor_graph?.question_mappings || []
+  const mappings = getQuestionContributions(spec)
   const questionMap = new Map(questions.map((question) => [question.code, question]))
   const shouldValidateQuestionExistence = questions.length > 0
 
   if (mappings.length === 0) {
-    issues.push({ field: 'question_mapping', message: '至少需要配置一条题目映射' })
+    issues.push({ field: 'question_mapping', message: '至少需要配置一条题目贡献' })
     return issues
   }
 
   mappings.forEach((mapping, index) => {
-    const rowLabel = `第 ${index + 1} 条题目映射`
+    const rowLabel = `第 ${index + 1} 条题目贡献`
     const question = questionMap.get(mapping.question_code)
     if (!mapping.question_code || (shouldValidateQuestionExistence && !question)) {
       issues.push({ field: `question_mapping.${index}.question_code`, message: `${rowLabel} 必须选择当前问卷中的有效题目` })
@@ -510,14 +525,30 @@ export const validateQuestionMappings = (
       issues.push({ field: `question_mapping.${index}.factor_code`, message: `${rowLabel} 必须选择有效因子` })
     }
 
+    const mode = mapping.scoring_mode || 'question_score'
+    if (mode !== 'question_score' && mode !== 'option_override') {
+      issues.push({ field: `question_mapping.${index}.scoring_mode`, message: `${rowLabel} 的计分来源无效` })
+    }
+    const sign = mapping.sign ?? 1
+    const weight = mapping.weight ?? 1
+    if (sign !== 1 && sign !== -1) {
+      issues.push({ field: `question_mapping.${index}.sign`, message: `${rowLabel} 必须选择正向或反向` })
+    }
+    if (!isFiniteNumber(weight) || weight <= 0) {
+      issues.push({ field: `question_mapping.${index}.weight`, message: `${rowLabel} 的权重必须是大于 0 的有限数字` })
+    }
+
     const options = getQuestionOptions(question)
-    if (mapping.question_code && question && options.length === 0) {
-      issues.push({ field: `question_mapping.${index}.option_scores`, message: `${rowLabel} 对应题型没有可计分选项` })
+    if (mode === 'option_override' && question?.type !== 'Radio') {
+      issues.push({ field: `question_mapping.${index}.scoring_mode`, message: `${rowLabel} 只有单选题可以自定义选项计分` })
     }
 
     const optionScores = mapping.option_scores || {}
     const optionCodes = new Set(options.map((option) => option.code).filter(Boolean) as string[])
-    if (question && options.length > 0) {
+    if (mode === 'question_score' && mapping.option_scores !== undefined) {
+      issues.push({ field: `question_mapping.${index}.option_scores`, message: `${rowLabel} 使用问卷分值时不能保留自定义选项分值` })
+    }
+    if (mode === 'option_override' && question && options.length > 0) {
       const missingOptionScores = options
         .filter((option) => !isFiniteNumber(optionScores[option.code as string]))
         .map((option) => option.code as string)
@@ -529,7 +560,7 @@ export const validateQuestionMappings = (
       }
     }
 
-    Object.entries(optionScores).forEach(([optionCode, score]) => {
+    Object.entries(mode === 'option_override' ? optionScores : {}).forEach(([optionCode, score]) => {
       if (!isFiniteNumber(score)) {
         issues.push({ field: `question_mapping.${index}.option_scores`, message: `${rowLabel} 的选项 ${optionCode} 分值必须是有限数字` })
       }
@@ -537,6 +568,15 @@ export const validateQuestionMappings = (
         issues.push({ field: `question_mapping.${index}.option_scores`, message: `${rowLabel} 引用了不存在的选项：${optionCode}` })
       }
     })
+  })
+
+  const seen = new Set<string>()
+  mappings.forEach((mapping, index) => {
+    const key = `${mapping.factor_code}\u0000${mapping.question_code}`
+    if (mapping.factor_code && mapping.question_code && seen.has(key)) {
+      issues.push({ field: `question_mapping.${index}`, message: `题目 ${mapping.question_code} 对因子 ${mapping.factor_code} 的贡献重复` })
+    }
+    seen.add(key)
   })
 
   return issues

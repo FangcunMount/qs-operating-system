@@ -59,11 +59,10 @@ describe('personality DefinitionV2 projection', () => {
     const definition = applyPersonalityRuntimeSpec(createEmptyDefinitionV2(), {
       factor_graph: {
         factors: {
-          drive: { id: 'drive', code: 'drive', name: '驱动力', kind: 'leaf', option_scoring: 'strict', contributions: [{ question_code: 'q_drive', sign: 1, option_scores: { low: 0, high: 2 } }] },
-          care: { id: 'care', code: 'care', name: '关怀力', kind: 'leaf', option_scoring: 'strict', contributions: [{ question_code: 'q_care', sign: 1, option_scores: { low: 0, high: 2 } }] }
+          drive: { id: 'drive', code: 'drive', name: '驱动力', kind: 'leaf', option_scoring: 'strict', contributions: [{ question_code: 'q_drive', scoring_mode: 'question_score', sign: 1, weight: 1 }] },
+          care: { id: 'care', code: 'care', name: '关怀力', kind: 'leaf', option_scoring: 'strict', contributions: [{ question_code: 'q_care', scoring_mode: 'question_score', sign: -1, weight: 0.5 }] }
         },
         roots: ['drive', 'care'],
-        question_mappings: []
       },
       decision: { kind: 'dominant_factor', top_k: 2, poles: [] },
       special_rules: [],

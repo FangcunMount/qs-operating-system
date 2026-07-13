@@ -630,9 +630,9 @@ export const scaleStore = makeObservable(
       if (surveyReadErr || !surveyReadRes?.data) {
         throw surveyReadErr || new Error('读取量表题目问卷失败')
       }
-		const questionnaire = surveyReadRes.data
-		const questionnaireVersion = String(questionnaire.version || '').trim()
-		if (!questionnaireVersion) throw new Error('题目问卷缺少草稿版本号')
+      const questionnaire = surveyReadRes.data
+      const questionnaireVersion = String(questionnaire.version || '').trim()
+      if (!questionnaireVersion) throw new Error('题目问卷缺少草稿版本号')
 
       let scaleCode = this.scaleCode
       if (!scaleCode) {
@@ -741,9 +741,9 @@ export const scaleStore = makeObservable(
 
       const scaleCode = await this.persistScaleDraftBeforePublish(scaleId)
 
-		// The release endpoint atomically publishes both the questionnaire and model.
-		const [e] = await assessmentReleaseApi.publishAssessmentRelease(scaleCode)
-		if (e) throw e
+      // The release endpoint atomically publishes both the questionnaire and model.
+      const [e] = await assessmentReleaseApi.publishAssessmentRelease(scaleCode)
+      if (e) throw e
 
       runInAction(() => {
         this.currentStep = 'publish'
@@ -777,8 +777,8 @@ export const scaleStore = makeObservable(
         })
       }
 
-		const [e] = await assessmentReleaseApi.archiveAssessmentRelease(scaleCode)
-		if (e) throw e
+      const [e] = await assessmentReleaseApi.archiveAssessmentRelease(scaleCode)
+      if (e) throw e
     },
 
     /**

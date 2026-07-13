@@ -25,7 +25,7 @@ import {
 import {
   canEditPersonalityModel,
   canArchivePersonalityModel,
-	canPublishPersonalityModel,
+  canPublishPersonalityModel,
   isPersonalityReadonly
 } from '@/utils/personalityPermissions'
 import '../index.scss'
@@ -128,7 +128,7 @@ const PersonalityList: React.FC = () => {
       title: '确认归档',
       content: `归档后「${row.title}」不可继续编辑；已发布快照也将移除。`,
       onOk: async () => {
-		const [err] = await assessmentReleaseApi.archiveAssessmentRelease(row.code)
+        const [err] = await assessmentReleaseApi.archiveAssessmentRelease(row.code)
         if (err) {
           message.error(getApiErrorMessage(err, '归档失败'))
           return
@@ -172,7 +172,7 @@ const PersonalityList: React.FC = () => {
     const readonly = isPersonalityReadonly({ status: row.status })
     const canEdit = canEditPersonalityModel({ status: row.status })
     const canPublish = canPublishPersonalityModel({ status: row.status })
-		const canArchive = canArchivePersonalityModel({ status: row.status })
+    const canArchive = canArchivePersonalityModel({ status: row.status })
 
     if (readonly) {
       return (

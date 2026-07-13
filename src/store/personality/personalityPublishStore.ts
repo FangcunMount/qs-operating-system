@@ -28,7 +28,7 @@ export class ModelCatalogPublishStore {
     makeObservable(this, {
       validation: observable,
       qrCode: observable,
-		release: observable,
+      release: observable,
       previewReport: observable,
       previewError: observable,
       publishing: observable,
@@ -37,7 +37,7 @@ export class ModelCatalogPublishStore {
       reset: action,
       setValidation: action,
       setQrCode: action,
-		setRelease: action,
+      setRelease: action,
       setPreviewReport: action,
       setPreviewError: action
     })
@@ -46,7 +46,7 @@ export class ModelCatalogPublishStore {
   reset(): void {
     this.validation = null
     this.qrCode = null
-		this.release = null
+    this.release = null
     this.previewReport = null
     this.previewError = ''
     this.publishing = false
@@ -62,8 +62,8 @@ export class ModelCatalogPublishStore {
     this.qrCode = data
   }
 
-	setRelease(data: AssessmentRelease | null): void {
-		this.release = data
+  setRelease(data: AssessmentRelease | null): void {
+    this.release = data
   }
 
   setPreviewReport(data: AssessmentModelPreviewReportResponse | null): void {
@@ -89,12 +89,12 @@ export class ModelCatalogPublishStore {
     }
   }
 
-	async publish(modelCode: string): Promise<AssessmentRelease | undefined> {
+  async publish(modelCode: string): Promise<AssessmentRelease | undefined> {
     this.publishing = true
     try {
-		const [err, res] = await assessmentReleaseApi.publishAssessmentRelease(modelCode)
-		if (err) throw err
-		runInAction(() => this.setRelease(res?.data || null))
+      const [err, res] = await assessmentReleaseApi.publishAssessmentRelease(modelCode)
+      if (err) throw err
+      runInAction(() => this.setRelease(res?.data || null))
       return res?.data
     } finally {
       runInAction(() => {
@@ -103,12 +103,12 @@ export class ModelCatalogPublishStore {
     }
   }
 
-	async archive(modelCode: string): Promise<AssessmentRelease | undefined> {
+  async archive(modelCode: string): Promise<AssessmentRelease | undefined> {
     this.publishing = true
     try {
-		const [err, res] = await assessmentReleaseApi.archiveAssessmentRelease(modelCode)
-		if (err) throw err
-		runInAction(() => this.setRelease(res?.data || null))
+      const [err, res] = await assessmentReleaseApi.archiveAssessmentRelease(modelCode)
+      if (err) throw err
+      runInAction(() => this.setRelease(res?.data || null))
       return res?.data
     } finally {
       runInAction(() => {

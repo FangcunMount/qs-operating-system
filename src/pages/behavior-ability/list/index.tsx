@@ -52,7 +52,7 @@ const BehaviorAbilityList: React.FC = () => {
       title: '确认归档',
       content: `归档后「${model.title}」不可编辑，已发布快照也会移除。`,
       onOk: async () => {
-		const [err] = await assessmentReleaseApi.archiveAssessmentRelease(model.code)
+        const [err] = await assessmentReleaseApi.archiveAssessmentRelease(model.code)
         if (err) message.error(getApiErrorMessage(err, '归档失败'))
         else {
           message.success('已归档')

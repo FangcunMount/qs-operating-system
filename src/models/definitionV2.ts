@@ -26,7 +26,9 @@ export interface DefinitionFactorGraph extends DefinitionV2Record {
 export interface DefinitionScoringSource extends DefinitionV2Record {
   Kind: 'question' | 'factor' | string
   Code: string
+  ScoringMode?: 'question_score' | 'option_override' | string
   Sign?: number
+  Weight?: number
   OptionScores?: Record<string, number>
 }
 

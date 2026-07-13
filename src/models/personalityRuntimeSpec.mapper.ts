@@ -57,10 +57,33 @@ const normalizeQuestionMappings = (mappings: unknown): PersonalityQuestionMappin
     return {
       question_code: String(raw.question_code || ''),
       factor_code: String(raw.factor_code || raw.dimension || ''),
+      scoring_mode: raw.scoring_mode as PersonalityQuestionMapping['scoring_mode'],
       sign: raw.sign as PersonalityQuestionMapping['sign'],
+      weight: raw.weight as PersonalityQuestionMapping['weight'],
       option_scores: raw.option_scores as PersonalityQuestionMapping['option_scores']
     }
   })
+}
+
+const normalizeContribution = (value: PersonalityQuestionContribution): PersonalityQuestionContribution => {
+  const hasOverrides = Boolean(value.option_scores && Object.keys(value.option_scores).length > 0)
+  const explicit = value.scoring_mode === 'question_score' || value.scoring_mode === 'option_override'
+  const scoringMode = explicit ? value.scoring_mode : (hasOverrides ? 'option_override' : 'question_score')
+  return {
+    question_code: value.question_code || '',
+    scoring_mode: scoringMode,
+    sign: !explicit && scoringMode === 'option_override' && value.sign === -1 ? 1 : (value.sign ?? 1),
+    weight: value.weight === undefined ? 1 : value.weight,
+    option_scores: scoringMode === 'option_override' ? value.option_scores : undefined,
+    legacy_implicit: !explicit || value.legacy_implicit || undefined
+  }
+}
+
+const stripContributionEditorMetadata = (value: PersonalityQuestionContribution): PersonalityQuestionContribution => {
+  const contribution = { ...value }
+  delete contribution.legacy_implicit
+  delete contribution.factor_code
+  return contribution
 }
 
 const normalizeRuntimeSpecFactors = (
@@ -68,7 +91,7 @@ const normalizeRuntimeSpecFactors = (
 ): Record<string, PersonalityFactorSpec> => (
   Object.entries(factors).reduce<Record<string, PersonalityFactorSpec>>((acc, [key, factor]) => {
     const id = factor.id || key
-    acc[id] = { ...factor, id }
+    acc[id] = { ...factor, id, contributions: (factor.contributions || []).map(normalizeContribution) }
     return acc
   }, {})
 )
@@ -80,7 +103,6 @@ export const createEmptyRuntimeSpec = (
   factor_graph: {
     dimension_order: [],
     dimensions: {},
-    question_mappings: [],
     factors: {},
     roots: []
   },
@@ -155,36 +177,7 @@ export const mapSimplePayloadToRuntimeSpec = (
 
 export const syncContributionsToQuestionMappings = (
   spec: PersonalityTypologyRuntimeSpec
-): PersonalityTypologyRuntimeSpec => {
-  const existingMappings = spec.factor_graph?.question_mappings || []
-  if (existingMappings.length > 0) return spec
-
-  const factors = spec.factor_graph?.factors || {}
-  const mappings: PersonalityQuestionMapping[] = []
-
-  Object.values(factors).forEach((factor) => {
-    const factorCode = factor.code || factor.id
-    ;(factor.contributions || []).forEach((contrib) => {
-      if (!contrib.question_code) return
-      mappings.push({
-        question_code: contrib.question_code,
-        factor_code: factorCode,
-        sign: contrib.sign,
-        option_scores: contrib.option_scores
-      })
-    })
-  })
-
-  if (mappings.length === 0) return spec
-
-  return {
-    ...spec,
-    factor_graph: {
-      ...spec.factor_graph,
-      question_mappings: mappings
-    }
-  }
-}
+): PersonalityTypologyRuntimeSpec => syncQuestionMappingsToContributions(spec)
 
 export const syncQuestionMappingsToContributions = (
   runtimeSpec: PersonalityTypologyRuntimeSpec
@@ -198,11 +191,12 @@ export const syncQuestionMappingsToContributions = (
       ...factor,
       id,
       children: factor.children || [],
-      contributions: factor.contributions || []
+      contributions: (factor.contributions || []).map(normalizeContribution)
     }
   })
 
-  ;(runtimeSpec.factor_graph?.question_mappings || []).forEach((mapping) => {
+  const hasCanonicalContributions = Object.values(nextFactors).some((factor) => (factor.contributions || []).length > 0)
+  ;(hasCanonicalContributions ? [] : (runtimeSpec.factor_graph?.question_mappings || [])).forEach((mapping) => {
     if (!mapping.question_code || !mapping.factor_code) return
     const matchedKey = Object.keys(nextFactors).find((key) => {
       const factor = nextFactors[key]
@@ -212,7 +206,9 @@ export const syncQuestionMappingsToContributions = (
 
     const contribution: PersonalityQuestionContribution = {
       question_code: mapping.question_code,
+      scoring_mode: mapping.scoring_mode,
       sign: mapping.sign,
+      weight: mapping.weight,
       option_scores: mapping.option_scores
     }
     const factor = nextFactors[matchedKey]
@@ -220,7 +216,7 @@ export const syncQuestionMappingsToContributions = (
     const nextContributions = existing.filter((item) => item.question_code !== mapping.question_code)
     nextFactors[matchedKey] = {
       ...factor,
-      contributions: [...nextContributions, contribution]
+      contributions: [...nextContributions, normalizeContribution(contribution)]
     }
   })
 
@@ -233,6 +229,7 @@ export const syncQuestionMappingsToContributions = (
     factor_graph: {
       ...runtimeSpec.factor_graph,
       factors: nextFactors,
+      question_mappings: undefined,
       roots: (runtimeSpec.factor_graph?.roots || []).map((root) => {
         const matched = nextFactors[root]
         if (matched) return matched.id
@@ -281,7 +278,7 @@ export const normalizeRuntimeSpecForEdit = (
     spec = createEmptyRuntimeSpec(questionnaireCode, questionnaireVersion)
   }
 
-  return syncContributionsToQuestionMappings({
+  return syncQuestionMappingsToContributions({
     ...spec,
     decision: {
       ...spec.decision,
@@ -294,7 +291,20 @@ export const normalizeRuntimeSpecForSave = (
   runtimeSpec: PersonalityTypologyRuntimeSpec,
   algorithm?: string
 ): PersonalityTypologyRuntimeSpec => {
-  const synced = syncQuestionMappingsToContributions(runtimeSpec)
+  const canonical = syncQuestionMappingsToContributions(runtimeSpec)
+  const synced = {
+    ...canonical,
+    factor_graph: {
+      ...canonical.factor_graph,
+      factors: Object.entries(canonical.factor_graph.factors || {}).reduce<Record<string, PersonalityFactorSpec>>((result, [key, factor]) => {
+        result[key] = {
+          ...factor,
+          contributions: (factor.contributions || []).map(stripContributionEditorMetadata)
+        }
+        return result
+      }, {})
+    }
+  }
   if (!algorithm) return synced
   return {
     ...synced,

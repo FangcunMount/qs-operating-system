@@ -8,13 +8,13 @@
     "Scoring": [
       {
         "FactorCode": "drive",
-        "Sources": [{ "Kind": "question", "Code": "q_drive", "Sign": 1, "OptionScores": { "low": 0, "high": 2 } }],
+        "Sources": [{ "Kind": "question", "Code": "q_drive", "ScoringMode": "question_score", "Sign": 1, "Weight": 1 }],
         "Strategy": "sum",
         "OptionScoring": "strict"
       },
       {
         "FactorCode": "care",
-        "Sources": [{ "Kind": "question", "Code": "q_care", "Sign": 1, "OptionScores": { "low": 0, "high": 2 } }],
+        "Sources": [{ "Kind": "question", "Code": "q_care", "ScoringMode": "question_score", "Sign": -1, "Weight": 0.5 }],
         "Strategy": "sum",
         "OptionScoring": "strict"
       }

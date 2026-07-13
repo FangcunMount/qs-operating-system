@@ -7,7 +7,7 @@ const FIELD_GROUPS: Record<string, string> = {
   basic_info: '基本信息',
   questionnaire: '题目配置',
   factor_graph: '因子图',
-  question_mapping: '题目映射',
+  question_mapping: '题目贡献',
   decision: '决策规则',
   outcome: '结果类型',
   outcome_mapping: '结果类型',
