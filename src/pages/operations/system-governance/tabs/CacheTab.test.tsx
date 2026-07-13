@@ -1,6 +1,6 @@
-import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import cacheHotsetFixture from '@/api/path/__fixtures__/systemGovernance.cache-hotset.json'
+import cacheDegradedFixture from '@/api/path/__fixtures__/systemGovernance.cache-degraded.json'
 import { ActionDescriptor, normalizeSystemGovernanceCache } from '@/api/path/systemGovernance'
 import { CacheTab } from './CacheTab'
 
@@ -32,5 +32,36 @@ describe('CacheTab', () => {
 
     expect(screen.getByText('手工预热缓存')).toBeInTheDocument()
     expect((screen.getByDisplayValue(/"targets"/) as HTMLTextAreaElement).value).toContain('"scope": "org:7"')
+  })
+
+  it('renders effective policies and prefills reload with the current snapshot version', () => {
+    const data = normalizeSystemGovernanceCache(cacheDegradedFixture)
+    const reloadPolicyAction: ActionDescriptor = {
+      id: 'cache.reload_policy',
+      domain: 'cache',
+      label: '重载缓存策略',
+      risk_level: 'medium',
+      enabled: true,
+      planned: false,
+      requires_confirmation: true,
+      input_schema: {
+        type: 'object',
+        required: ['expected_version']
+      }
+    }
+
+    render(<CacheTab data={data} reloadPolicyAction={reloadPolicyAction} />)
+
+    expect(screen.getByText('statistics.query')).toBeInTheDocument()
+    expect(screen.getByText('TTL 10m0s')).toBeInTheDocument()
+    expect(screen.getByText('Hit 87.5%')).toBeInTheDocument()
+    expect(screen.getByText('Errors 2')).toBeInTheDocument()
+    expect(screen.getByText('Get p95 32.0ms')).toBeInTheDocument()
+    expect(screen.getByText('最近预热运行')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '重载策略' }))
+
+    expect(screen.getByText('重载缓存策略')).toBeInTheDocument()
+    expect((screen.getByDisplayValue(/expected_version/) as HTMLTextAreaElement).value).toContain('"expected_version": 3')
   })
 })

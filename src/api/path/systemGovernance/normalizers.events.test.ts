@@ -5,7 +5,7 @@ import { normalizeSystemGovernanceEvents } from './normalizers.events'
 describe('systemGovernance events normalizer', () => {
   it('normalizes backend events snapshot and event type groups', () => {
     const events = normalizeSystemGovernanceEvents(eventBacklogFixture)
-    expect(events.catalog.topic_count).toBe(4)
+    expect(events.catalog.topic_count).toBe(3)
     expect(events.outboxes[0].name).toBe('mysql')
     expect(events.summary.pending_count).toBe(120)
     expect(events.outbox_rows[0]).toMatchObject({
@@ -17,7 +17,7 @@ describe('systemGovernance events normalizer', () => {
     })
     expect(events.event_types?.[0]).toMatchObject({
       store: 'mysql',
-      event_type: 'assessment.submitted',
+      event_type: 'evaluation.requested',
       pending_count: 90,
       failed_count: 2,
       oldest_age_seconds: 300,
@@ -25,7 +25,7 @@ describe('systemGovernance events normalizer', () => {
     })
     expect(events.event_type_rows[0]).toMatchObject({
       store: 'mysql',
-      event_type: 'assessment.submitted',
+      event_type: 'evaluation.requested',
       severity: 'critical'
     })
   })
@@ -48,9 +48,23 @@ describe('systemGovernance events normalizer', () => {
       value: 12
     })
     expect(events.event_type_rows[0]).toMatchObject({
-      event_type: 'assessment.submitted',
+      event_type: 'evaluation.requested',
       pending_count: 9,
       severity: 'critical'
     })
+  })
+
+  it('preserves the runtime topology and effective event contract from the status snapshot', () => {
+    const events = normalizeSystemGovernanceEvents(eventTypeBacklogFixture)
+
+    expect(events.snapshot?.profiles).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'mongo_domain_events', running: true, relay_enabled: true })
+    ]))
+    expect(events.snapshot?.consumers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'modelcatalog.hot_rank_projection', healthy: false })
+    ]))
+    expect(events.snapshot?.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'evaluation.requested', profile: 'assessment_mysql_events', priority: 'p0' })
+    ]))
   })
 })

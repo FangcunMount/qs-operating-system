@@ -25,10 +25,51 @@ export interface IEventOutboxSummary {
   buckets?: IEventOutboxBucket[]
 }
 
+// IEventRuntimeEvent describes the effective, process-independent event contract.
+// It is emitted by qs-server from the merged EventSpec and wire catalog.
+export interface IEventRuntimeEvent {
+  type: string
+  owner: string
+  delivery: string
+  profile?: string
+  immediate: boolean
+  priority?: string
+  handler: string
+  idempotency: string
+  settlement: string
+}
+
+// IEventRuntimeProfile describes the lifecycle state of one durable outbox profile.
+export interface IEventRuntimeProfile {
+  name: string
+  event_count: number
+  immediate_event_types?: string[]
+  running: boolean
+  relay_enabled: boolean
+  reconciler_enabled: boolean
+  immediate_enabled: boolean
+}
+
+// IEventRuntimeConsumer describes an additional, independently settled consumer.
+export interface IEventRuntimeConsumer {
+  id: string
+  event_type: string
+  runtime: string
+  topic: string
+  channel: string
+  enabled: boolean
+  healthy: boolean
+  last_error?: string
+  settlement: string
+}
+
 export interface IEventStatusResponse {
   generated_at?: string
   catalog: IEventCatalogSummary
   outboxes: IEventOutboxSummary[]
+  events?: IEventRuntimeEvent[]
+  profiles?: IEventRuntimeProfile[]
+  consumers?: IEventRuntimeConsumer[]
 }
 
 export interface IEventGovernanceLinks {

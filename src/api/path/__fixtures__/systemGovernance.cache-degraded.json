@@ -19,6 +19,36 @@
   "metrics": {
     "available": true
   },
+  "capability_rows": [
+    {
+      "capability": "statistics.query",
+      "family": "query_result",
+      "metric_label": "stats_query",
+      "workload": {
+        "hit_rate": {
+          "name": "cache_hit_rate_statistics_query",
+          "window": "5m",
+          "value": 0.875,
+          "unit": "ratio",
+          "available": true
+        },
+        "error_count": {
+          "name": "cache_error_count_statistics_query",
+          "window": "5m",
+          "value": 2,
+          "unit": "count",
+          "available": true
+        },
+        "get_latency_p95": {
+          "name": "cache_get_p95_statistics_query",
+          "window": "5m",
+          "value": 0.032,
+          "unit": "seconds",
+          "available": true
+        }
+      }
+    }
+  ],
   "snapshot": {
     "generated_at": "2026-07-03T10:00:00Z",
     "component": "apiserver",
@@ -54,7 +84,79 @@
         "top_n": 20,
         "max_items_per_kind": 20
       },
-      "latest_runs": []
+      "latest_runs": [
+        {
+          "trigger": "startup",
+          "started_at": "2026-07-03T09:59:40Z",
+          "finished_at": "2026-07-03T10:00:00Z",
+          "result": "ok",
+          "target_count": 2,
+          "ok_count": 2,
+          "skipped_count": 0,
+          "error_count": 0
+        }
+      ]
+    },
+    "effective_registry": {
+      "snapshot_version": 3,
+      "catalog_version": "v2",
+      "generated_at": "2026-07-03T10:00:00Z",
+      "reload": {
+        "last_attempt_at": "2026-07-03T09:58:00Z",
+        "last_success_at": "2026-07-03T09:58:00Z"
+      },
+      "capabilities": [
+        {
+          "capability": "statistics.query",
+          "owner": "statistics",
+          "kind": "cache",
+          "layer": "l2",
+          "family": "query_result",
+          "enabled": true,
+          "spec_default": {
+            "ttl": "5m0s",
+            "negative_ttl": "0s",
+            "ttl_jitter_ratio": 0,
+            "compress": "inherit",
+            "singleflight": "disabled",
+            "negative": "inherit"
+          },
+          "global_default": {
+            "ttl": "0s",
+            "negative_ttl": "0s",
+            "ttl_jitter_ratio": 0.2,
+            "compress": "disabled",
+            "singleflight": "inherit",
+            "negative": "inherit"
+          },
+          "family_default": {
+            "ttl": "0s",
+            "negative_ttl": "30s",
+            "ttl_jitter_ratio": 0,
+            "compress": "inherit",
+            "singleflight": "inherit",
+            "negative": "enabled"
+          },
+          "override": {
+            "ttl": "10m0s",
+            "negative_ttl": "0s",
+            "ttl_jitter_ratio": 0,
+            "compress": "inherit",
+            "singleflight": "inherit",
+            "negative": "inherit"
+          },
+          "effective": {
+            "ttl": "10m0s",
+            "negative_ttl": "30s",
+            "ttl_jitter_ratio": 0.2,
+            "compress": "disabled",
+            "singleflight": "disabled",
+            "negative": "enabled"
+          },
+          "source": "cache.capabilities.statistics.query",
+          "metric_label": "stats_query"
+        }
+      ]
     }
   }
 }

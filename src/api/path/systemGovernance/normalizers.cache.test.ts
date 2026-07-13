@@ -16,6 +16,26 @@ describe('systemGovernance cache normalizer', () => {
       severity: 'warning'
     })
     expect(cache.warmup_kinds.map((item) => item.kind)).toContain('query.stats_system')
+    expect(cache.effective_registry).toMatchObject({
+      snapshot_version: 3,
+      catalog_version: 'v2'
+    })
+    expect(cache.effective_registry?.capabilities[0]).toMatchObject({
+      capability: 'statistics.query',
+      effective: {
+        ttl: '10m0s',
+        negative_ttl: '30s',
+        singleflight: 'disabled'
+      }
+    })
+    expect(cache.capability_rows[0]).toMatchObject({
+      capability: 'statistics.query',
+      workload: {
+        hit_rate: { value: 0.875, unit: 'ratio' },
+        error_count: { value: 2, unit: 'count' },
+        get_latency_p95: { value: 0.032, unit: 'seconds' }
+      }
+    })
   })
 
   it('prefers backend cache governance rows and hotsets when present', () => {

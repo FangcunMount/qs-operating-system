@@ -118,6 +118,8 @@ const SystemGovernancePage: React.FC = () => {
               data={cache}
               loading={loading}
               manualWarmupAction={actions.find((item) => item.id === 'cache.manual_warmup')}
+              reloadPolicyAction={actions.find((item) => item.id === 'cache.reload_policy')}
+              onGovernanceActionFinished={reload}
             />
           </TabPane>
           <TabPane tab="承压保护" key="resilience">

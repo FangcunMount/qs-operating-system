@@ -25,10 +25,10 @@
   "snapshot": {
     "generated_at": "2026-07-03T10:00:00Z",
     "catalog": {
-      "topic_count": 4,
+      "topic_count": 3,
       "event_count": 12,
-      "best_effort_count": 2,
-      "durable_outbox_count": 2
+      "best_effort_count": 6,
+      "durable_outbox_count": 6
     },
     "outboxes": [
       {
@@ -51,13 +51,13 @@
       "store": "mysql",
       "buckets": [
         {
-          "EventType": "assessment.submitted",
+          "EventType": "evaluation.requested",
           "Status": "pending",
           "Count": 90,
           "OldestCreatedAt": "2026-07-03T09:55:00Z"
         },
         {
-          "EventType": "assessment.submitted",
+          "EventType": "evaluation.requested",
           "Status": "failed",
           "Count": 2
         }

@@ -6,12 +6,69 @@
   "snapshot": {
     "generated_at": "2026-07-04T10:00:00Z",
     "catalog": {
-      "topic_count": 4,
+      "topic_count": 3,
       "event_count": 12,
-      "best_effort_count": 2,
-      "durable_outbox_count": 2
+      "best_effort_count": 6,
+      "durable_outbox_count": 6
     },
-    "outboxes": []
+    "outboxes": [],
+    "profiles": [
+      {
+        "name": "mongo_domain_events",
+        "event_count": 3,
+        "immediate_event_types": ["answersheet.submitted"],
+        "running": true,
+        "relay_enabled": true,
+        "reconciler_enabled": true,
+        "immediate_enabled": true
+      },
+      {
+        "name": "assessment_mysql_events",
+        "event_count": 3,
+        "immediate_event_types": ["evaluation.outcome.committed", "evaluation.requested"],
+        "running": true,
+        "relay_enabled": true,
+        "reconciler_enabled": true,
+        "immediate_enabled": true
+      }
+    ],
+    "consumers": [
+      {
+        "id": "modelcatalog.hot_rank_projection",
+        "event_type": "answersheet.submitted",
+        "runtime": "apiserver",
+        "topic": "qs.evaluation.lifecycle",
+        "channel": "qs-apiserver-modelcatalog-hot-rank-v1",
+        "enabled": true,
+        "healthy": false,
+        "last_error": "redis unavailable",
+        "settlement": "handler_error_nack"
+      }
+    ],
+    "events": [
+      {
+        "type": "answersheet.submitted",
+        "owner": "survey/answersheet",
+        "delivery": "durable_outbox",
+        "profile": "mongo_domain_events",
+        "immediate": true,
+        "priority": "p0",
+        "handler": "answersheet_submitted_handler",
+        "idempotency": "answersheet-id-lease-and-ensure-assessment",
+        "settlement": "handler_error_nack"
+      },
+      {
+        "type": "evaluation.requested",
+        "owner": "evaluation",
+        "delivery": "durable_outbox",
+        "profile": "assessment_mysql_events",
+        "immediate": true,
+        "priority": "p0",
+        "handler": "evaluation_requested_handler",
+        "idempotency": "evaluation-run-state-claim",
+        "settlement": "handler_error_nack"
+      }
+    ]
   },
   "summary": {
     "outbox_count": 1,
@@ -46,7 +103,7 @@
   "event_type_rows": [
     {
       "store": "mysql",
-      "event_type": "assessment.submitted",
+      "event_type": "evaluation.requested",
       "pending_count": 9,
       "failed_count": 1,
       "oldest_age_seconds": 610,
@@ -54,7 +111,7 @@
       "degraded": true,
       "metric_evidence": [
         {
-          "name": "outbox_event_type_pending_backlog_mysql_assessment.submitted",
+          "name": "outbox_event_type_pending_backlog_mysql_evaluation.requested",
           "window": "5m",
           "value": 9,
           "unit": "count",

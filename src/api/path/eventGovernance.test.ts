@@ -22,13 +22,24 @@ describe('eventGovernance API', () => {
     internalRawGetMock.mockResolvedValueOnce([null, {
       generated_at: '2026-01-01T00:00:00Z',
       catalog: { topic_count: 1, event_count: 2, best_effort_count: 0, durable_outbox_count: 2 },
-      outboxes: []
+      outboxes: [],
+      profiles: [{
+        name: 'mongo_domain_events', event_count: 1, running: true,
+        relay_enabled: true, reconciler_enabled: true, immediate_enabled: true
+      }],
+      consumers: [{
+        id: 'modelcatalog.hot_rank_projection', event_type: 'answersheet.submitted', runtime: 'apiserver',
+        topic: 'qs.evaluation.lifecycle', channel: 'qs-apiserver-modelcatalog-hot-rank-v1',
+        enabled: true, healthy: true, settlement: 'handler_error_nack'
+      }]
     }])
 
     const [error, response] = await getEventStatus()
     expect(error).toBeNull()
     expect(response?.code).toBe(0)
     expect(response?.data.catalog.event_count).toBe(2)
+    expect(response?.data.profiles?.[0].name).toBe('mongo_domain_events')
+    expect(response?.data.consumers?.[0].id).toBe('modelcatalog.hot_rank_projection')
   })
 
   it('keeps QSResponse envelope unchanged', async () => {
