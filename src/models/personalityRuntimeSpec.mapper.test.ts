@@ -46,8 +46,19 @@ describe('personalityRuntimeSpec.mapper', () => {
 
   it('preserves legacy override results by normalizing an ignored negative sign', () => {
     const edited = normalizeRuntimeSpecForEdit({
-      factor_graph: { factors: { f1: { id: 'f1', kind: 'leaf', contributions: [{ question_code: 'q1', sign: -1, option_scores: { A: 2 } }] } }, roots: ['f1'] },
-      decision: { kind: 'pole_composition' }, outcome_mapping: { outcomes: [] }, report: { kind: 'personality_type' }
+      factor_graph: {
+        factors: {
+          f1: {
+            id: 'f1',
+            kind: 'leaf',
+            contributions: [{ question_code: 'q1', sign: -1, option_scores: { A: 2 } }],
+          },
+        },
+        roots: ['f1'],
+      },
+      decision: { kind: 'pole_composition' },
+      outcome_mapping: { outcomes: [] },
+      report: { kind: 'personality_type' },
     })
     expect(edited.factor_graph.factors?.f1.contributions?.[0]).toMatchObject({
       scoring_mode: 'option_override', sign: 1, weight: 1, legacy_implicit: true

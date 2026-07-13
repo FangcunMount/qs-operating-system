@@ -59,8 +59,22 @@ describe('personality DefinitionV2 projection', () => {
     const definition = applyPersonalityRuntimeSpec(createEmptyDefinitionV2(), {
       factor_graph: {
         factors: {
-          drive: { id: 'drive', code: 'drive', name: '驱动力', kind: 'leaf', option_scoring: 'strict', contributions: [{ question_code: 'q_drive', scoring_mode: 'question_score', sign: 1, weight: 1 }] },
-          care: { id: 'care', code: 'care', name: '关怀力', kind: 'leaf', option_scoring: 'strict', contributions: [{ question_code: 'q_care', scoring_mode: 'question_score', sign: -1, weight: 0.5 }] }
+          drive: {
+            id: 'drive',
+            code: 'drive',
+            name: '驱动力',
+            kind: 'leaf',
+            option_scoring: 'strict',
+            contributions: [{ question_code: 'q_drive', scoring_mode: 'question_score', sign: 1, weight: 1 }],
+          },
+          care: {
+            id: 'care',
+            code: 'care',
+            name: '关怀力',
+            kind: 'leaf',
+            option_scoring: 'strict',
+            contributions: [{ question_code: 'q_care', scoring_mode: 'question_score', sign: -1, weight: 0.5 }],
+          },
         },
         roots: ['drive', 'care'],
       },
@@ -69,8 +83,26 @@ describe('personality DefinitionV2 projection', () => {
       outcome_mapping: {
         detail_kind: 'personality_type', detail_adapter_key: 'personality_type',
         outcomes: [
-          { code: 'drive', name: '驱动型', summary: '擅长推进', traits: ['行动'], strengths: ['推进'], weaknesses: [], suggestions: ['兼顾他人'], is_special: false },
-          { code: 'care', name: '关怀型', summary: '擅长共情', traits: ['关怀'], strengths: ['共情'], weaknesses: [], suggestions: ['保持边界'], is_special: false }
+          {
+            code: 'drive',
+            name: '驱动型',
+            summary: '擅长推进',
+            traits: ['行动'],
+            strengths: ['推进'],
+            weaknesses: [],
+            suggestions: ['兼顾他人'],
+            is_special: false,
+          },
+          {
+            code: 'care',
+            name: '关怀型',
+            summary: '擅长共情',
+            traits: ['关怀'],
+            strengths: ['共情'],
+            weaknesses: [],
+            suggestions: ['保持边界'],
+            is_special: false,
+          },
         ]
       },
       report: { kind: 'personality_type', adapter_key: 'personality_type' }

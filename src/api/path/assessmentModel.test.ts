@@ -81,9 +81,9 @@ describe('assessmentModelApi', () => {
     expect(getMock).toHaveBeenCalledWith('/assessment-models/published/m1', { version: '1.0.0' })
     expect(getMock).toHaveBeenCalledWith('/assessment-models/m1/qrcode')
     expect(getMock).toHaveBeenCalledWith('/assessment-models/options', { kind: 'typology' })
-	expect(postMock).toHaveBeenNthCalledWith(2, '/assessment-models/m1/codes/apply', { target: 'dimension', count: 1 })
-	expect(postMock).toHaveBeenNthCalledWith(3, '/assessment-models/m1/validate', undefined)
-	expect(postMock).toHaveBeenNthCalledWith(4, '/assessment-models/m1/preview-report', {
+    expect(postMock).toHaveBeenNthCalledWith(2, '/assessment-models/m1/codes/apply', { target: 'dimension', count: 1 })
+    expect(postMock).toHaveBeenNthCalledWith(3, '/assessment-models/m1/validate', undefined)
+    expect(postMock).toHaveBeenNthCalledWith(4, '/assessment-models/m1/preview-report', {
       answers: [{ question_code: 'q1', value: 'A' }]
     })
     expect(delMock).toHaveBeenCalledWith('/assessment-models/m1')
