@@ -40,7 +40,7 @@ const QuestionEdit: React.FC = observer(() => {
   useEffect(() => {
     // 根据路由自动设置当前步骤
     scaleStore.setCurrentStep('edit-questions')
-    ;(async () => {
+    void (async () => {
       try {
         // 强制重新加载数据，确保总是从服务器获取最新数据
         console.log('开始调用 initEditor，questionsheetid:', questionsheetid, 'scaleCode:', scaleCode)

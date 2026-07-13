@@ -12,18 +12,18 @@ export const BEHAVIOR_ABILITY_STEPS: EditorStep[] = [
 
 export const behaviorAbilityPathForStep = (step: BehaviorAbilityStep, modelCode: string): string => {
   switch (step) {
-    case 'create':
-      return `/behavior-ability/info/${modelCode}`
-    case 'edit-questions':
-      return `/behavior-ability/create/${modelCode}/0`
-    case 'set-routing':
-      return `/behavior-ability/routing/${modelCode}`
-    case 'edit-definition':
-      return `/behavior-ability/definition/${modelCode}`
-    case 'publish':
-      return `/behavior-ability/publish/${modelCode}`
-    default:
-      return '/behavior-ability/list'
+  case 'create':
+    return `/behavior-ability/info/${modelCode}`
+  case 'edit-questions':
+    return `/behavior-ability/create/${modelCode}/0`
+  case 'set-routing':
+    return `/behavior-ability/routing/${modelCode}`
+  case 'edit-definition':
+    return `/behavior-ability/definition/${modelCode}`
+  case 'publish':
+    return `/behavior-ability/publish/${modelCode}`
+  default:
+    return '/behavior-ability/list'
   }
 }
 

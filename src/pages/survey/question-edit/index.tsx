@@ -57,7 +57,7 @@ const QuestionEdit: React.FC = observer(() => {
       })
     }
 
-    ;(async () => {
+    void (async () => {
       try {
         if (needInit) {
           await surveyStore.initEditor(questionsheetid)

@@ -441,13 +441,13 @@ const Factor: React.FC = observer(() => {
   // 获取可选的因子项数据
   const getTransferData = (factorType?: string) => {
     switch (factorType) {
-      case 'first_grade':
-        // 只返回结构化题型
-        return scaleStore.questions.filter((q) => structuredQuestionTypes.includes(q.type)).map((q) => ({ key: q.code, title: q.title }))
-      case 'multi_grade':
-        return scaleStore.factors.filter((f) => f.code !== editingFactorCode).map((f) => ({ key: f.code, title: f.title }))
-      default:
-        return []
+    case 'first_grade':
+      // 只返回结构化题型
+      return scaleStore.questions.filter((q) => structuredQuestionTypes.includes(q.type)).map((q) => ({ key: q.code, title: q.title }))
+    case 'multi_grade':
+      return scaleStore.factors.filter((f) => f.code !== editingFactorCode).map((f) => ({ key: f.code, title: f.title }))
+    default:
+      return []
     }
   }
 

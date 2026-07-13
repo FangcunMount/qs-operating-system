@@ -45,42 +45,42 @@ export const getScaleStepIndex = (stepKey: string): number => {
 
 export const getSurveyEditorPath = (stepKey: string, questionnaireCode: string): string => {
   switch (stepKey) {
-    case 'create':
-      return `/survey/info/${questionnaireCode}`
-    case 'edit-questions':
-      return `/survey/create/${questionnaireCode}/0`
-    case 'set-routing':
-      return `/survey/routing/${questionnaireCode}`
-    case 'publish':
-      return `/survey/publish/${questionnaireCode}`
-    default:
-      return '/survey/list'
+  case 'create':
+    return `/survey/info/${questionnaireCode}`
+  case 'edit-questions':
+    return `/survey/create/${questionnaireCode}/0`
+  case 'set-routing':
+    return `/survey/routing/${questionnaireCode}`
+  case 'publish':
+    return `/survey/publish/${questionnaireCode}`
+  default:
+    return '/survey/list'
   }
 }
 
 export const getScaleEditorPath = (stepKey: string, questionnaireCode: string, scaleCode?: string): string => {
   let path = '/scale/list'
   switch (stepKey) {
-    case 'create':
-      path = `/scale/info/${questionnaireCode}`
-      break
-    case 'edit-questions':
-      path = `/scale/create/${questionnaireCode}/0`
-      break
-    case 'set-routing':
-      path = `/scale/routing/${questionnaireCode}`
-      break
-    case 'edit-factors':
-      path = `/scale/factor/${questionnaireCode}`
-      break
-    case 'set-interpretation':
-      path = `/scale/analysis/${questionnaireCode}`
-      break
-    case 'publish':
-      path = `/scale/publish/${questionnaireCode}`
-      break
-    default:
-      break
+  case 'create':
+    path = `/scale/info/${questionnaireCode}`
+    break
+  case 'edit-questions':
+    path = `/scale/create/${questionnaireCode}/0`
+    break
+  case 'set-routing':
+    path = `/scale/routing/${questionnaireCode}`
+    break
+  case 'edit-factors':
+    path = `/scale/factor/${questionnaireCode}`
+    break
+  case 'set-interpretation':
+    path = `/scale/analysis/${questionnaireCode}`
+    break
+  case 'publish':
+    path = `/scale/publish/${questionnaireCode}`
+    break
+  default:
+    break
   }
   return scaleCode ? `${path}?scaleCode=${encodeURIComponent(scaleCode)}` : path
 }

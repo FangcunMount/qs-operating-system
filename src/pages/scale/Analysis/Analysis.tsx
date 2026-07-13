@@ -520,7 +520,8 @@ const Analysis: React.FC = observer(() => {
 
         // 如果有解读规则，将其添加到因子对象中（用于 API 调用）
         if (factorRule && factorRule.interpret_rule.interpretation.length > 0) {
-          ;(factorWithRules as any).interpret_rules = factorRule.interpret_rule.interpretation.map((interp) => ({
+          const factorAny = factorWithRules as any
+          factorAny.interpret_rules = factorRule.interpret_rule.interpretation.map((interp) => ({
             min_score: Number(interp.start) || 0,
             max_score: Number(interp.end) || 0,
             conclusion: interp.conclusion || '',
@@ -531,10 +532,10 @@ const Analysis: React.FC = observer(() => {
           // 因子级别的风险等级：从第一个解读规则中提取（根据 API 文档）
           const firstInterpretation = factorRule.interpret_rule.interpretation[0]
           if (firstInterpretation?.risk_level) {
-            ;(factorWithRules as any).risk_level = firstInterpretation.risk_level
+            factorAny.risk_level = firstInterpretation.risk_level
           } else {
             // 如果第一个解读规则没有风险等级，使用默认值 none
-            ;(factorWithRules as any).risk_level = 'none'
+            factorAny.risk_level = 'none'
           }
         }
 

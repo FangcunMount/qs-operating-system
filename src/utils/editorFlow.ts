@@ -61,23 +61,23 @@ export const getBlockedReasonForStep = (stepKey: string, ctx: EditorFlowContext)
     return '归档模型仅可查看'
   }
   switch (stepKey) {
-    case 'create':
-      return ''
-    case 'edit-questions':
-      if (!ctx.modelCode || ctx.modelCode === 'new') return '请先保存基本信息'
-      if (!ctx.questionnaireCode) return '请先绑定题目问卷'
-      return ''
-    case 'set-routing':
-      if (!ctx.hasQuestions) return '请先添加题目'
-      return canEnterPersonalityStep('edit-questions', ctx) ? '' : getBlockedReasonForStep('edit-questions', ctx)
-    case 'edit-definition':
-      if (!ctx.hasQuestions) return '请先添加题目'
-      return canEnterPersonalityStep('edit-questions', ctx) ? '' : getBlockedReasonForStep('edit-questions', ctx)
-    case 'publish':
-      if (!ctx.hasDefinition) return '请先完成模型定义'
-      return canEnterPersonalityStep('edit-definition', ctx) ? '' : getBlockedReasonForStep('edit-definition', ctx)
-    default:
-      return ''
+  case 'create':
+    return ''
+  case 'edit-questions':
+    if (!ctx.modelCode || ctx.modelCode === 'new') return '请先保存基本信息'
+    if (!ctx.questionnaireCode) return '请先绑定题目问卷'
+    return ''
+  case 'set-routing':
+    if (!ctx.hasQuestions) return '请先添加题目'
+    return canEnterPersonalityStep('edit-questions', ctx) ? '' : getBlockedReasonForStep('edit-questions', ctx)
+  case 'edit-definition':
+    if (!ctx.hasQuestions) return '请先添加题目'
+    return canEnterPersonalityStep('edit-questions', ctx) ? '' : getBlockedReasonForStep('edit-questions', ctx)
+  case 'publish':
+    if (!ctx.hasDefinition) return '请先完成模型定义'
+    return canEnterPersonalityStep('edit-definition', ctx) ? '' : getBlockedReasonForStep('edit-definition', ctx)
+  default:
+    return ''
   }
 }
 
@@ -87,18 +87,18 @@ export const personalityEditorFlowConfig: EditorFlowConfig = {
   steps: PERSONALITY_STEPS,
   getPathForStep: (stepKey: string, modelCode: string) => {
     switch (stepKey) {
-      case 'create':
-        return `/personality/info/${modelCode}`
-      case 'edit-questions':
-        return `/personality/create/${modelCode}/0`
-      case 'set-routing':
-        return `/personality/routing/${modelCode}`
-      case 'edit-definition':
-        return `/personality/definition/${modelCode}`
-      case 'publish':
-        return `/personality/publish/${modelCode}`
-      default:
-        return '/personality/list'
+    case 'create':
+      return `/personality/info/${modelCode}`
+    case 'edit-questions':
+      return `/personality/create/${modelCode}/0`
+    case 'set-routing':
+      return `/personality/routing/${modelCode}`
+    case 'edit-definition':
+      return `/personality/definition/${modelCode}`
+    case 'publish':
+      return `/personality/publish/${modelCode}`
+    default:
+      return '/personality/list'
     }
   },
   getStepFromPath: getPersonalityStepFromPath,
