@@ -37,17 +37,14 @@ const BehaviorAbilityBasicInfo: React.FC = observer(() => {
           questionnaireStrategy: behaviorAbilityStore.questionnaireStrategy,
           bindQuestionnaireCode: behaviorAbilityStore.bindQuestionnaireCode
         })
-        const [brief, spm] = await Promise.all([
-          assessmentModelApi.getAssessmentModelOptions('behavioral_rating'),
-          assessmentModelApi.getAssessmentModelOptions('cognitive')
-        ])
+        const behavioral = await assessmentModelApi.getAssessmentModelOptions('behavioral_rating')
         const next = new Set<string>()
         const supports = (data: any, kind: string, algorithm: string) =>
           data?.kinds?.some((item: any) => item.value === kind) &&
           data?.algorithms?.some((item: any) => item.value === algorithm) &&
           data?.product_channels?.some((item: any) => item.value === 'behavior_ability')
-        if (!brief[0] && supports(brief[1]?.data, 'behavioral_rating', 'brief2')) next.add('brief2')
-        if (!spm[0] && supports(spm[1]?.data, 'cognitive', 'spm')) next.add('spm')
+        if (!behavioral[0] && supports(behavioral[1]?.data, 'behavioral_rating', 'brief2')) next.add('brief2')
+        if (!behavioral[0] && supports(behavioral[1]?.data, 'behavioral_rating', 'spm_sensory')) next.add('spm_sensory')
         setAvailable(next)
         setOptionsLoaded(true)
       } catch (error) {

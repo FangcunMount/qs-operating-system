@@ -1,4 +1,4 @@
-import { applyBehaviorAbilityDefinition, projectBehaviorAbilityDefinition, validateSPMDefinitionForm } from './behaviorAbilityDefinitionV2.mapper'
+import { applyBehaviorAbilityDefinition, projectBehaviorAbilityDefinition } from './behaviorAbilityDefinitionV2.mapper'
 import type { DefinitionV2 } from './definitionV2'
 
 describe('behavior ability DefinitionV2 projection', () => {
@@ -41,25 +41,24 @@ describe('behavior ability DefinitionV2 projection', () => {
     expect(next.ReportMap).toEqual(source.ReportMap)
   })
 
-  it('validates SPM item codes against the bound questionnaire and rejects duplicate questions', () => {
-    const form = projectBehaviorAbilityDefinition(
-      {
-        ...source,
-        Execution: {
-          SPM: {
-            TimeLimitSeconds: 900,
-            TotalFactorCode: 'TOTAL',
-            ItemSets: [
-              { Code: 'A', Items: [{ QuestionCode: 'Q1', CorrectOptionCode: 'A' }] },
-              { Code: 'B', Items: [{ QuestionCode: 'Q1', CorrectOptionCode: 'B' }] }
-            ]
-          }
+  it('does not manufacture or retain Raven SPM execution for sensory SPM', () => {
+    const legacyRavenSource: DefinitionV2 = {
+      ...source,
+      Execution: {
+        SPM: {
+          TimeLimitSeconds: 900,
+          TotalFactorCode: 'TOTAL',
+          ItemSets: [
+            { Code: 'A', Items: [{ QuestionCode: 'Q1', CorrectOptionCode: 'A' }] },
+            { Code: 'B', Items: [{ QuestionCode: 'Q1', CorrectOptionCode: 'B' }] }
+          ]
         }
-      },
-      'spm'
-    )
-    const issues = validateSPMDefinitionForm(form, [{ code: 'Q1', options: [{ code: 'A', content: '答案 A' }] }])
+      }
+    }
+    const form = projectBehaviorAbilityDefinition(legacyRavenSource, 'spm_sensory')
+    const next = applyBehaviorAbilityDefinition(legacyRavenSource, 'spm_sensory', form)
 
-    expect(issues.map((item) => item.code)).toEqual(expect.arrayContaining(['spm.question.duplicate', 'spm.option.not_found']))
+    expect(form.execution.SPM).toBeUndefined()
+    expect(next.Execution?.SPM).toBeUndefined()
   })
 })

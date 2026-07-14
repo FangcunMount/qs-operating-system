@@ -2,7 +2,7 @@ import type { AssessmentModelKind } from '@/models/assessmentModel'
 
 export const BEHAVIOR_ABILITY_PRODUCT_CHANNEL = 'behavior_ability'
 
-export type BehaviorAbilityAlgorithm = 'brief2' | 'spm'
+export type BehaviorAbilityAlgorithm = 'brief2' | 'spm_sensory'
 
 export interface BehaviorAbilityModelProfile {
   key: BehaviorAbilityAlgorithm
@@ -21,10 +21,10 @@ export const BEHAVIOR_ABILITY_MODEL_PROFILES: BehaviorAbilityModelProfile[] = [
     productChannel: BEHAVIOR_ABILITY_PRODUCT_CHANNEL
   },
   {
-    key: 'spm',
-    label: 'SPM 瑞文标准推理测验',
-    kind: 'cognitive',
-    algorithm: 'spm',
+    key: 'spm_sensory',
+    label: '感觉统合 SPM',
+    kind: 'behavioral_rating',
+    algorithm: 'spm_sensory',
     productChannel: BEHAVIOR_ABILITY_PRODUCT_CHANNEL
   }
 ]

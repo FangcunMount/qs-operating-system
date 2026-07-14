@@ -6,6 +6,8 @@ export type RouteCapability =
   | 'platform_admin'
   | 'org_admin'
   | 'manage_content'
+  | 'read_norm_tables'
+  | 'manage_norm_tables'
   | 'manage_evaluation_plans'
   | 'evaluate_assessments'
   | 'audit_interpretation'

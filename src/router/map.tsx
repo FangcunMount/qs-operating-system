@@ -269,7 +269,7 @@ export const routes: Array<IRoute> = [
         component: BehaviorAbilityNormTables,
         hideInMenu: !isBehaviorAbilityPublishingEnabled(),
         menuScope: 'org_admin',
-        requiredCapabilities: ['manage_content']
+        requiredCapabilities: ['manage_norm_tables']
       },
       {
         title: '问卷编辑',

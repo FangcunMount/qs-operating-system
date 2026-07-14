@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Alert, Button, Card, Drawer, Input, message, Select, Space, Table, Tag } from 'antd'
 import { observer } from 'mobx-react-lite'
 import { normTableApi } from '@/api/path/normTable'
-import type { NormTableSummary } from '@/api/path/normTable'
+import type { ImportNormTablePayload, NormTableDetail, NormTableSummary } from '@/api/path/normTable'
 import { isBehaviorAbilityPublishingEnabled } from '@/constants/behaviorAbilityFeature'
 import { getApiErrorMessage } from '@/utils/apiError'
 
@@ -11,13 +11,13 @@ const BehaviorAbilityNormTables: React.FC = observer(() => {
   const [kind, setKind] = useState<string | undefined>()
   const [algorithm, setAlgorithm] = useState<string | undefined>()
   const [source, setSource] = useState('')
-  const [detail, setDetail] = useState<unknown | null>(null)
+  const [detail, setDetail] = useState<NormTableDetail | null>(null)
 
   const load = async () => {
     try {
       const [err, res] = await normTableApi.listNormTables({ kind, algorithm })
       if (err) throw err
-      setItems(res?.data?.items || res?.data?.tables || [])
+      setItems(res?.data?.items || [])
     } catch (error) {
       message.error(getApiErrorMessage(error, '获取常模表失败'))
     }
@@ -37,7 +37,7 @@ const BehaviorAbilityNormTables: React.FC = observer(() => {
 
   const importTable = async () => {
     try {
-      const parsed = JSON.parse(source)
+      const parsed = JSON.parse(source) as ImportNormTablePayload
       const [err] = await normTableApi.importNormTable(parsed)
       if (err) throw err
       message.success('常模表已导入')
@@ -74,8 +74,7 @@ const BehaviorAbilityNormTables: React.FC = observer(() => {
             style={{ width: 150 }}
             value={kind}
             options={[
-              { value: 'behavioral_rating', label: '行为评分' },
-              { value: 'cognitive', label: '认知测评' }
+              { value: 'behavioral_rating', label: '行为评分' }
             ]}
             onChange={setKind}
           />
@@ -86,7 +85,7 @@ const BehaviorAbilityNormTables: React.FC = observer(() => {
             value={algorithm}
             options={[
               { value: 'brief2', label: 'BRIEF-2' },
-              { value: 'spm', label: 'SPM' }
+              { value: 'spm_sensory', label: '感觉统合 SPM' }
             ]}
             onChange={setAlgorithm}
           />
@@ -97,6 +96,7 @@ const BehaviorAbilityNormTables: React.FC = observer(() => {
           <Table.Column title="模型族" dataIndex="kind" />
           <Table.Column title="算法" dataIndex="algorithm" />
           <Table.Column title="表单变体" dataIndex="form_variant" render={(value) => (value ? <Tag>{value}</Tag> : '—')} />
+          <Table.Column title="因子数" dataIndex="factor_count" />
           <Table.Column
             title="操作"
             render={(_, item: NormTableSummary) => (

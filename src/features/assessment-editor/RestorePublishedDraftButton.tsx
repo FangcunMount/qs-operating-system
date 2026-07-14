@@ -47,7 +47,7 @@ const RestorePublishedDraftButton: React.FC<Props> = ({ onRestored }) => {
       </Button>
       <Modal
         title="恢复已发布测评的草稿"
-        open={open}
+        visible={open}
         okText="恢复草稿"
         cancelText="取消"
         confirmLoading={loading}

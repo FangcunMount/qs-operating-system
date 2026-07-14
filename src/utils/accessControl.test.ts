@@ -10,3 +10,17 @@ describe('assessment interpretation audit access', () => {
     expect(buildAccessContext(['qs:evaluator'], false).capabilities.has('audit_interpretation')).toBe(false)
   })
 })
+
+describe('norm-table access', () => {
+  it('allows content managers to read and import norm tables', () => {
+    const access = buildAccessContext(['qs:content_manager'], false)
+    expect(access.capabilities.has('read_norm_tables')).toBe(true)
+    expect(access.capabilities.has('manage_norm_tables')).toBe(true)
+  })
+
+  it('does not expose norm-table administration to evaluators', () => {
+    const access = buildAccessContext(['qs:evaluator'], false)
+    expect(access.capabilities.has('read_norm_tables')).toBe(false)
+    expect(access.capabilities.has('manage_norm_tables')).toBe(false)
+  })
+})

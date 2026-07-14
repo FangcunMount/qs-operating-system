@@ -83,7 +83,7 @@ const BehaviorAbilityList: React.FC = () => {
           行为能力测评管理
         </>
       }
-      description="管理 BRIEF-2 与 SPM 的模型、问卷绑定和发布状态"
+      description="管理 BRIEF-2 与感觉统合 SPM 的模型、问卷绑定和发布状态"
       toolbar={
         <Space wrap style={{ display: 'flex', justifyContent: 'space-between' }}>
           <Space wrap>

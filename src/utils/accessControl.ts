@@ -5,9 +5,10 @@ const PLATFORM_ADMIN_ROLES = ['super_admin', 'platform:admin', 'iam:admin']
 const ROLE_CAPABILITY_MAP: Record<string, RouteCapability[]> = {
   'qs:admin': [
     'org_admin', 'manage_content', 'manage_evaluation_plans', 'evaluate_assessments',
-    'audit_interpretation', 'read_subjects', 'read_assessment_records'
+    'audit_interpretation', 'read_subjects', 'read_assessment_records',
+    'read_norm_tables', 'manage_norm_tables'
   ],
-  'qs:content_manager': ['manage_content'],
+  'qs:content_manager': ['manage_content', 'read_norm_tables', 'manage_norm_tables'],
   'qs:evaluation_plan_manager': ['manage_evaluation_plans', 'read_subjects'],
   'qs:evaluator': ['evaluate_assessments', 'read_subjects', 'read_assessment_records']
 }
@@ -28,6 +29,8 @@ function deriveCapabilities(roles: string[]): Set<RouteCapability> {
       'platform_admin',
       'org_admin',
       'manage_content',
+      'read_norm_tables',
+      'manage_norm_tables',
       'manage_evaluation_plans',
       'evaluate_assessments',
       'audit_interpretation',

@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Card, Input, InputNumber, Radio, Select, Space, Tabs } from 'antd'
+import { Alert, Button, Card, Input, Radio, Select, Space, Tabs } from 'antd'
 import type { IQuestion } from '@/models/question'
 import { isBehaviorAbilityPublishingEnabled } from '@/constants/behaviorAbilityFeature'
 import { normTableApi } from '@/api/path/normTable'
 import type { NormTableSummary } from '@/api/path/normTable'
 import type { BehaviorAbilityAlgorithm } from '@/constants/behaviorAbility'
-import type { DefinitionConclusion, DefinitionFactor, DefinitionScoring, DefinitionSPMItemSet, DefinitionV2 } from '@/models/definitionV2'
+import type { DefinitionConclusion, DefinitionFactor, DefinitionScoring, DefinitionV2 } from '@/models/definitionV2'
 import { applyBehaviorAbilityDefinition, projectBehaviorAbilityDefinition } from '@/models/behaviorAbilityDefinitionV2.mapper'
 import type { BehaviorAbilityDefinitionForm } from '@/models/behaviorAbilityDefinitionV2.mapper'
 
@@ -33,17 +33,7 @@ const parseJSON = <T,>(source: string, fallback: T): T => {
   }
 }
 
-const questionOptions = (question?: IQuestion): Array<{ value: string; label: string }> => {
-  const options = (question as any)?.options || []
-  return options
-    .filter((item: any) => item?.code)
-    .map((item: any) => ({
-      value: item.code,
-      label: `${item.code}${item.content ? ` · ${item.content}` : ''}`
-    }))
-}
-
-const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorithm, questions, onChange, activeTab, onTabChange }) => {
+const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorithm, onChange, activeTab, onTabChange }) => {
   const [mode, setMode] = useState<'form' | 'json'>('form')
   const [innerActiveTab, setInnerActiveTab] = useState<BehaviorAbilityDefinitionFormTabKey>('measure')
   const [form, setForm] = useState<BehaviorAbilityDefinitionForm>(() => projectBehaviorAbilityDefinition(definition, algorithm))
@@ -87,7 +77,7 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
     const formVariant = algorithm === 'brief2' ? form.execution.Brief2?.FormVariant : undefined
     normTableApi
       .listNormTables({
-        kind: algorithm === 'brief2' ? 'behavioral_rating' : 'cognitive',
+        kind: 'behavioral_rating',
         algorithm,
         form_variant: formVariant || undefined
       })
@@ -96,7 +86,7 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
           setNormError('常模表服务暂不可用')
           return
         }
-        setNorms(res?.data?.items || res?.data?.tables || [])
+        setNorms(res?.data?.items || [])
         setNormError('')
       })
       .catch(() => setNormError('常模表服务暂不可用'))
@@ -238,107 +228,17 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
     )
   }
 
-  const renderSPMExecution = () => {
-    const spm = form.execution.SPM || { TimeLimitSeconds: 0, TotalFactorCode: '', ItemSets: [] }
-    const setSPM = (patch: Partial<typeof spm>) => updateExecution({ SPM: { ...spm, ...patch } })
-    return (
-      <Space direction="vertical" style={{ width: '100%' }}>
-        <Space>
-          <span>展示时限（秒）</span>
-          <InputNumber min={1} value={spm.TimeLimitSeconds} onChange={(value) => setSPM({ TimeLimitSeconds: Number(value || 0) })} />
-        </Space>
-        <Select
-          placeholder="总分因子"
-          value={spm.TotalFactorCode || undefined}
-          options={factorOptions}
-          onChange={(value) => setSPM({ TotalFactorCode: value })}
-        />
-        {(spm.ItemSets || []).map((set, setIndex) => (
-          <Card
-            key={`${set.Code || 'set'}-${setIndex}`}
-            size="small"
-            title={`题组 ${setIndex + 1}`}
-            extra={
-              <Button danger size="small" onClick={() => setSPM({ ItemSets: spm.ItemSets.filter((_, index) => index !== setIndex) })}>
-                删除题组
-              </Button>
-            }
-          >
-            <Input
-              placeholder="题组编码"
-              value={set.Code}
-              onChange={(event) => {
-                const itemSets = clone(spm.ItemSets)
-                itemSets[setIndex] = { ...itemSets[setIndex], Code: event.target.value }
-                setSPM({ ItemSets: itemSets })
-              }}
-            />
-            <Space direction="vertical" style={{ width: '100%', marginTop: 8 }}>
-              {(set.Items || []).map((item, itemIndex) => {
-                const question = questions.find((current) => current.code === item.QuestionCode)
-                return (
-                  <Space key={`${item.QuestionCode || 'item'}-${itemIndex}`} wrap>
-                    <Select
-                      style={{ width: 220 }}
-                      placeholder="选择题目"
-                      value={item.QuestionCode || undefined}
-                      options={questions
-                        .filter((current) => current.code)
-                        .map((current) => ({ value: current.code, label: `${current.code} · ${current.title}` }))}
-                      onChange={(questionCode) => {
-                        const itemSets = clone(spm.ItemSets)
-                        itemSets[setIndex].Items[itemIndex] = { QuestionCode: questionCode, CorrectOptionCode: '' }
-                        setSPM({ ItemSets: itemSets })
-                      }}
-                    />
-                    <Select
-                      style={{ width: 220 }}
-                      placeholder="正确 option code"
-                      value={item.CorrectOptionCode || undefined}
-                      options={questionOptions(question)}
-                      onChange={(correctOptionCode) => {
-                        const itemSets = clone(spm.ItemSets)
-                        itemSets[setIndex].Items[itemIndex] = { ...itemSets[setIndex].Items[itemIndex], CorrectOptionCode: correctOptionCode }
-                        setSPM({ ItemSets: itemSets })
-                      }}
-                    />
-                    <Button
-                      danger
-                      size="small"
-                      onClick={() => {
-                        const itemSets = clone(spm.ItemSets)
-                        itemSets[setIndex] = { ...itemSets[setIndex], Items: itemSets[setIndex].Items.filter((_, index) => index !== itemIndex) }
-                        setSPM({ ItemSets: itemSets })
-                      }}
-                    >
-                      删除题目
-                    </Button>
-                  </Space>
-                )
-              })}
-              <Button
-                size="small"
-                onClick={() => {
-                  const itemSets = clone(spm.ItemSets)
-                  itemSets[setIndex] = {
-                    ...itemSets[setIndex],
-                    Items: [...(itemSets[setIndex].Items || []), { QuestionCode: '', CorrectOptionCode: '' }]
-                  }
-                  setSPM({ ItemSets: itemSets })
-                }}
-              >
-                添加题目
-              </Button>
-            </Space>
-          </Card>
-        ))}
-        <Button onClick={() => setSPM({ ItemSets: [...(spm.ItemSets || []), { Code: '', Items: [] } as DefinitionSPMItemSet] })}>添加题组</Button>
-      </Space>
-    )
-  }
+  const renderSensorySPMExecution = () => (
+    <Alert
+      type="info"
+      showIcon
+      message="感觉统合 SPM 使用通用行为评分执行机制"
+      description="题目选项分值、因子汇总和常模引用分别在“因子与计分”和“常模与解释”中配置；无需 Raven SPM 的限时、题组或正确答案设置。"
+    />
+  )
 
   const renderNorm = () => {
-    const kind = algorithm === 'brief2' ? 'norm' : 'ability'
+    const kind = 'norm'
     if (!isBehaviorAbilityPublishingEnabled()) {
       return (
         <Alert
@@ -412,21 +312,6 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
                   updateConclusions(conclusions)
                 }}
               />
-              {kind === 'ability' ? (
-                <Select
-                  value={String(conclusion.ScoreBasis || 'raw_score')}
-                  options={[
-                    { value: 'raw_score', label: '原始分' },
-                    { value: 't_score', label: 'T 分' },
-                    { value: 'percentile', label: '百分位' }
-                  ]}
-                  onChange={(value) => {
-                    const conclusions = clone(form.conclusions)
-                    conclusions[index] = { ...conclusions[index], ScoreBasis: value }
-                    updateConclusions(conclusions)
-                  }}
-                />
-              ) : null}
               <Input.TextArea
                 rows={4}
                 defaultValue={JSON.stringify(conclusion.Rules || [], null, 2)}
@@ -443,7 +328,7 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
           onClick={() =>
             updateConclusions([
               ...(form.conclusions || []),
-              { Kind: kind, FactorCode: '', ScoreBasis: kind === 'norm' ? 't_score' : 'raw_score', Rules: [], Outcomes: [] }
+              { Kind: kind, FactorCode: '', ScoreBasis: 't_score', Rules: [], Outcomes: [] }
             ])
           }
         >
@@ -493,7 +378,7 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
             {renderMeasure()}
           </TabPane>
           <TabPane tab="运行规则" key="execution">
-            {algorithm === 'brief2' ? renderBrief2Execution() : renderSPMExecution()}
+            {algorithm === 'brief2' ? renderBrief2Execution() : renderSensorySPMExecution()}
           </TabPane>
           <TabPane tab="常模与解释" key="norm">
             {renderNorm()}
