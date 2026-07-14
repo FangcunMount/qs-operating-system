@@ -13,7 +13,7 @@ import {
 } from '@ant-design/icons'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
 import { assessmentReleaseApi } from '@/api/path/assessmentRelease'
-import { ModelCatalogListShell, ModelCatalogStatusTag } from '@/features/assessment-editor'
+import { ModelCatalogListShell, ModelCatalogStatusTag, RestorePublishedDraftButton } from '@/features/assessment-editor'
 import { AssessmentModelSummary } from '@/models/assessmentModel'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
@@ -326,11 +326,14 @@ const PersonalityList: React.FC = () => {
               style={{ width: 180 }}
             />
           </Space>
-          <Link to="/personality/info/new">
-            <Button type="primary" size="large" icon={<PlusOutlined />}>
-              新建人格测评
-            </Button>
-          </Link>
+          <Space wrap>
+            <RestorePublishedDraftButton onRestored={() => loadList(1, pageInfo.pageSize)} />
+            <Link to="/personality/info/new">
+              <Button type="primary" size="large" icon={<PlusOutlined />}>
+                新建人格测评
+              </Button>
+            </Link>
+          </Space>
         </div>
       }
       summary={

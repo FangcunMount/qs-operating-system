@@ -15,6 +15,7 @@ import { getScaleList } from '@/api/path/template'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
 import { statisticsApi } from '@/api/path/statistics'
 import { scaleStore } from '@/store'
+import { RestorePublishedDraftButton } from '@/features/assessment-editor'
 
 const { Column } = Table
 const { Search } = Input
@@ -197,6 +198,7 @@ const List: React.FC = observer(() => {
               新建量表
             </Button>
           </Link>
+          <RestorePublishedDraftButton onRestored={() => initData(pageInfo.pagesize, 1, keyWord, statusFilter, categoryFilter)} />
         </div>
       </Card>
 
