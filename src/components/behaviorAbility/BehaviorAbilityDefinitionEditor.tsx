@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Card, Input, Radio, Select, Space, Tabs } from 'antd'
+import { Alert, Button, Card, Input, InputNumber, Radio, Select, Space, Tabs } from 'antd'
 import type { IQuestion } from '@/models/question'
 import { isBehaviorAbilityPublishingEnabled } from '@/constants/behaviorAbilityFeature'
 import { normTableApi } from '@/api/path/normTable'
 import type { NormTableSummary } from '@/api/path/normTable'
 import type { BehaviorAbilityAlgorithm } from '@/constants/behaviorAbility'
-import type { DefinitionConclusion, DefinitionFactor, DefinitionScoring, DefinitionV2 } from '@/models/definitionV2'
+import type { DefinitionConclusion, DefinitionFactor, DefinitionOutcome, DefinitionScoring, DefinitionV2 } from '@/models/definitionV2'
 import { applyBehaviorAbilityDefinition, projectBehaviorAbilityDefinition } from '@/models/behaviorAbilityDefinitionV2.mapper'
 import type { BehaviorAbilityDefinitionForm } from '@/models/behaviorAbilityDefinitionV2.mapper'
+import './BehaviorAbilityDefinitionEditor.scss'
 
 const { TabPane } = Tabs
 
@@ -25,15 +26,25 @@ interface Props {
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
-const parseJSON = <T,>(source: string, fallback: T): T => {
-  try {
-    return JSON.parse(source) as T
-  } catch {
-    return fallback
-  }
+type NormConclusion = DefinitionConclusion & {
+  FactorCode?: string
+  ScoreBasis?: string
+  Primary?: boolean
+  Rules?: ConclusionRule[]
 }
 
-const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorithm, onChange, activeTab, onTabChange }) => {
+type ConclusionRule = {
+  MinScore?: number
+  MaxScore?: number
+  Level?: string
+  OutcomeCode?: string
+  [key: string]: unknown
+}
+
+const rulesFor = (conclusion: DefinitionConclusion): ConclusionRule[] =>
+  (Array.isArray((conclusion as NormConclusion).Rules) ? (conclusion as NormConclusion).Rules : []) as ConclusionRule[]
+
+const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorithm, questions, onChange, activeTab, onTabChange }) => {
   const [mode, setMode] = useState<'form' | 'json'>('form')
   const [innerActiveTab, setInnerActiveTab] = useState<BehaviorAbilityDefinitionFormTabKey>('measure')
   const [form, setForm] = useState<BehaviorAbilityDefinitionForm>(() => projectBehaviorAbilityDefinition(definition, algorithm))
@@ -117,6 +128,8 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
 
   const updateConclusions = (conclusions: DefinitionConclusion[]) => updateForm({ ...form, conclusions })
 
+  const updateOutcomes = (outcomes: DefinitionOutcome[]) => updateForm({ ...form, outcomes })
+
   const applyScoring = () => {
     try {
       const scoring = JSON.parse(scoringSource) as DefinitionScoring[]
@@ -141,7 +154,7 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
 
   const renderMeasure = () => (
     <Space direction="vertical" style={{ width: '100%' }} size={16}>
-      <Alert type="info" showIcon message="因子与计分" description="因子编码用于运行规则和常模引用；计分配置保持 DefinitionV2 PascalCase。" />
+      <Alert type="info" showIcon message="因子与计分" description={`因子编码用于运行规则和常模引用；计分配置保持 DefinitionV2 PascalCase。当前绑定问卷含 ${questions.length} 道题。`} />
       {(form.measure.Factors || []).map((factor, index) => (
         <Space key={`${factor.Code || 'factor'}-${index}`} wrap style={{ width: '100%' }}>
           <Input
@@ -250,10 +263,46 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
       )
     }
     return (
-      <Space direction="vertical" style={{ width: '100%' }}>
+      <Space direction="vertical" style={{ width: '100%' }} size={16}>
         {normError ? <Alert type="error" showIcon message={normError} /> : null}
+        <Alert
+          type="info"
+          showIcon
+          message="配置顺序"
+          description="先维护结果编码，再为每个因子选择常模和解释区间。只需指定一个“主解释因子”，它会作为报告的主结果。"
+        />
+        <Card size="small" title="结果编码">
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            {(form.outcomes || []).map((outcome, index) => (
+              <Space key={`${outcome.Code || 'outcome'}-${index}`} wrap className="behavior-ability-definition-row">
+                <Input
+                  placeholder="结果编码，例如 typical"
+                  value={outcome.Code}
+                  onChange={(event) => {
+                    const outcomes = clone(form.outcomes || [])
+                    outcomes[index] = { ...outcomes[index], Code: event.target.value }
+                    updateOutcomes(outcomes)
+                  }}
+                />
+                <Input
+                  placeholder="结果名称"
+                  value={outcome.Title}
+                  onChange={(event) => {
+                    const outcomes = clone(form.outcomes || [])
+                    outcomes[index] = { ...outcomes[index], Title: event.target.value }
+                    updateOutcomes(outcomes)
+                  }}
+                />
+                <Button danger onClick={() => updateOutcomes((form.outcomes || []).filter((_, itemIndex) => itemIndex !== index))}>
+                  删除
+                </Button>
+              </Space>
+            ))}
+            <Button onClick={() => updateOutcomes([...(form.outcomes || []), { Code: '', Title: '' }])}>添加结果编码</Button>
+          </Space>
+        </Card>
         {(form.calibration.NormRefs || []).map((ref, index) => (
-          <Space key={`${ref.FactorCode || 'norm'}-${index}`} wrap>
+          <Space key={`${ref.FactorCode || 'norm'}-${index}`} wrap className="behavior-ability-definition-row">
             <Select
               style={{ width: 220 }}
               placeholder="因子"
@@ -285,9 +334,12 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
           </Space>
         ))}
         <Button onClick={() => updateNormRefs([...(form.calibration.NormRefs || []), { FactorCode: '', NormTableVersion: '' }])}>添加常模引用</Button>
-        {(form.conclusions || []).map((conclusion, index) => (
+        {(form.conclusions || []).map((conclusion, index) => {
+          const normConclusion = conclusion as NormConclusion
+          const rules = rulesFor(conclusion)
+          return (
           <Card
-            key={`${String(conclusion.FactorCode || kind)}-${index}`}
+            key={`${String(normConclusion.FactorCode || kind)}-${index}`}
             size="small"
             title={`${kind === 'norm' ? 'T 分' : '能力'}解释 ${index + 1}`}
             extra={
@@ -299,7 +351,7 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
             <Space direction="vertical" style={{ width: '100%' }}>
               <Select
                 placeholder="因子"
-                value={String(conclusion.FactorCode || '') || undefined}
+                value={String(normConclusion.FactorCode || '') || undefined}
                 options={factorOptions}
                 onChange={(value) => {
                   const conclusions = clone(form.conclusions)
@@ -307,23 +359,100 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
                     ...conclusions[index],
                     FactorCode: value,
                     Kind: kind,
-                    ScoreBasis: kind === 'norm' ? 't_score' : conclusions[index].ScoreBasis || 'raw_score'
+                    ScoreBasis: kind === 'norm' ? 't_score' : (conclusions[index] as NormConclusion).ScoreBasis || 'raw_score'
                   }
                   updateConclusions(conclusions)
                 }}
               />
-              <Input.TextArea
-                rows={4}
-                defaultValue={JSON.stringify(conclusion.Rules || [], null, 2)}
-                onBlur={(event) => {
+              <Radio.Group
+                value={Boolean(normConclusion.Primary)}
+                onChange={(event) => {
                   const conclusions = clone(form.conclusions)
-                  conclusions[index] = { ...conclusions[index], Rules: parseJSON(event.target.value, conclusion.Rules || []) }
+                  conclusions.forEach((item, itemIndex) => {
+                    conclusions[itemIndex] = { ...item, Primary: itemIndex === index ? event.target.value : false }
+                  })
                   updateConclusions(conclusions)
                 }}
-              />
+              >
+                <Radio.Button value={true}>主解释因子</Radio.Button>
+                <Radio.Button value={false}>普通解释因子</Radio.Button>
+              </Radio.Group>
+              <div className="behavior-ability-rule-list">
+                {rules.map((rule, ruleIndex) => (
+                  <Space key={ruleIndex} wrap className="behavior-ability-definition-row">
+                    <InputNumber
+                      placeholder="最小分"
+                      value={rule.MinScore}
+                      onChange={(value) => {
+                        const conclusions = clone(form.conclusions)
+                        const nextRules = rulesFor(conclusions[index])
+                        nextRules[ruleIndex] = { ...nextRules[ruleIndex], MinScore: typeof value === 'number' ? value : undefined }
+                        conclusions[index] = { ...conclusions[index], Rules: nextRules }
+                        updateConclusions(conclusions)
+                      }}
+                    />
+                    <InputNumber
+                      placeholder="最大分"
+                      value={rule.MaxScore}
+                      onChange={(value) => {
+                        const conclusions = clone(form.conclusions)
+                        const nextRules = rulesFor(conclusions[index])
+                        nextRules[ruleIndex] = { ...nextRules[ruleIndex], MaxScore: typeof value === 'number' ? value : undefined }
+                        conclusions[index] = { ...conclusions[index], Rules: nextRules }
+                        updateConclusions(conclusions)
+                      }}
+                    />
+                    <Input
+                      placeholder="等级，例如 typical"
+                      value={rule.Level}
+                      onChange={(event) => {
+                        const conclusions = clone(form.conclusions)
+                        const nextRules = rulesFor(conclusions[index])
+                        nextRules[ruleIndex] = { ...nextRules[ruleIndex], Level: event.target.value }
+                        conclusions[index] = { ...conclusions[index], Rules: nextRules }
+                        updateConclusions(conclusions)
+                      }}
+                    />
+                    <Select
+                      allowClear
+                      placeholder="关联结果编码"
+                      style={{ width: 180 }}
+                      value={rule.OutcomeCode || undefined}
+                      options={(form.outcomes || []).filter((outcome) => outcome.Code).map((outcome) => ({ value: outcome.Code, label: `${outcome.Code}${outcome.Title ? ` · ${outcome.Title}` : ''}` }))}
+                      onChange={(value) => {
+                        const conclusions = clone(form.conclusions)
+                        const nextRules = rulesFor(conclusions[index])
+                        nextRules[ruleIndex] = { ...nextRules[ruleIndex], OutcomeCode: value }
+                        conclusions[index] = { ...conclusions[index], Rules: nextRules }
+                        updateConclusions(conclusions)
+                      }}
+                    />
+                    <Button
+                      danger
+                      onClick={() => {
+                        const conclusions = clone(form.conclusions)
+                        conclusions[index] = { ...conclusions[index], Rules: rules.filter((_, itemIndex) => itemIndex !== ruleIndex) }
+                        updateConclusions(conclusions)
+                      }}
+                    >
+                      删除区间
+                    </Button>
+                  </Space>
+                ))}
+                <Button
+                  onClick={() => {
+                    const conclusions = clone(form.conclusions)
+                    conclusions[index] = { ...conclusions[index], Rules: [...rules, { MinScore: undefined, MaxScore: undefined, Level: '', OutcomeCode: '' }] }
+                    updateConclusions(conclusions)
+                  }}
+                >
+                  添加解释区间
+                </Button>
+              </div>
             </Space>
           </Card>
-        ))}
+          )
+        })}
         <Button
           onClick={() =>
             updateConclusions([

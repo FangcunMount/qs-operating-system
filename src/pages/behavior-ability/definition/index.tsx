@@ -3,12 +3,14 @@ import { Alert, Button, message, Space } from 'antd'
 import { observer } from 'mobx-react-lite'
 import { useLocation, useParams } from 'react-router-dom'
 import BaseLayout from '@/components/layout/BaseLayout'
+import { ValidationIssuesPanel } from '@/features/assessment-editor'
 import BehaviorAbilityDefinitionEditor from '@/components/behaviorAbility/BehaviorAbilityDefinitionEditor'
 import type { BehaviorAbilityDefinitionTabKey } from '@/components/behaviorAbility/BehaviorAbilityDefinitionEditor'
 import { behaviorAbilityStore } from '@/store/behaviorAbility'
 import { behaviorAbilityEditorFlowConfig, buildBehaviorAbilityFlowContext } from '@/utils/behaviorAbilityFlow'
 import { useEditorFlow } from '@/utils/editorFlow'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { resolveBehaviorAbilityIssueTab } from '@/utils/behaviorAbilityIssueRouter'
 
 const BehaviorAbilityDefinition: React.FC = observer(() => {
   const { modelCode } = useParams<{ modelCode: string }>()
@@ -65,7 +67,12 @@ const BehaviorAbilityDefinition: React.FC = observer(() => {
             showIcon
             style={{ marginBottom: 12 }}
             message="定义校验未通过"
-            description={behaviorAbilityStore.validationIssues.map((item) => `${item.field}: ${item.message}`).join('；')}
+            description={
+              <ValidationIssuesPanel
+                issues={behaviorAbilityStore.validationIssues}
+                onIssueClick={(issue) => setActiveTab(resolveBehaviorAbilityIssueTab(issue))}
+              />
+            }
           />
         ) : null}
         <BehaviorAbilityDefinitionEditor

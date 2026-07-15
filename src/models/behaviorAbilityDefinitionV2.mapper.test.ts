@@ -27,6 +27,7 @@ describe('behavior ability DefinitionV2 projection', () => {
     }
     brief2.FormVariant = 'teacher'
     form.conclusions[0].Rules = [{ MinScore: 40, MaxScore: 60, Level: 'typical' }]
+    form.outcomes[0].Title = '典型范围'
     const next = applyBehaviorAbilityDefinition(source, 'brief2', form)
 
     expect(next.FutureTopLevel).toEqual({ keep: true })
@@ -38,6 +39,7 @@ describe('behavior ability DefinitionV2 projection', () => {
         expect.objectContaining({ Kind: 'norm', FactorCode: 'TOTAL', FutureNorm: true })
       ])
     )
+    expect(next.Outcomes).toEqual([expect.objectContaining({ Code: 'A', Title: '典型范围' })])
     expect(next.ReportMap).toEqual(source.ReportMap)
   })
 

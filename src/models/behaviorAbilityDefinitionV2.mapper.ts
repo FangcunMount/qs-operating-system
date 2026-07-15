@@ -6,6 +6,7 @@ import type {
   DefinitionExecution,
   DefinitionMeasure,
   DefinitionNormRef,
+  DefinitionOutcome,
   DefinitionV2,
   DefinitionV2Record
 } from './definitionV2'
@@ -18,6 +19,7 @@ export interface BehaviorAbilityDefinitionForm {
   calibration: DefinitionCalibration
   execution: DefinitionExecution
   conclusions: DefinitionConclusion[]
+  outcomes: DefinitionOutcome[]
 }
 
 const asRecord = (value: unknown): DefinitionV2Record =>
@@ -61,7 +63,8 @@ export const projectBehaviorAbilityDefinition = (
       NormRefs: cloneValue(asArray<DefinitionNormRef>(calibration.NormRefs))
     },
     execution: relevantExecution(asRecord(definition.Execution) as DefinitionExecution, algorithm),
-    conclusions: cloneValue(asArray<DefinitionConclusion>(definition.Conclusions).filter((item) => item?.Kind === kind))
+    conclusions: cloneValue(asArray<DefinitionConclusion>(definition.Conclusions).filter((item) => item?.Kind === kind)),
+    outcomes: cloneValue(asArray<DefinitionOutcome>(definition.Outcomes))
   }
 }
 
@@ -112,6 +115,7 @@ export const applyBehaviorAbilityDefinition = (
     asArray<DefinitionConclusion>(form.conclusions),
     conclusionKindFor()
   )
+  definition.Outcomes = cloneValue(asArray<DefinitionOutcome>(form.outcomes))
   return definition
 }
 

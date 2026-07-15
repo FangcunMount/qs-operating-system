@@ -1,0 +1,27 @@
+.behavior-ability-definition-row {
+  align-items: flex-start;
+  display: flex;
+  width: 100%;
+
+  .ant-input,
+  .ant-input-number {
+    min-width: 180px;
+  }
+}
+
+.behavior-ability-rule-list {
+  background: #fafcff;
+  border: 1px solid #e6f4ff;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+@media (max-width: 900px) {
+  .behavior-ability-definition-row {
+    .ant-input,
+    .ant-input-number,
+    .ant-select {
+      width: 100% !important;
+    }
+  }
+}

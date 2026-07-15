@@ -22,6 +22,7 @@ import {
   projectBehaviorAbilityDefinition
 } from '@/models/behaviorAbilityDefinitionV2.mapper'
 import type { BehaviorAbilityDefinitionForm } from '@/models/behaviorAbilityDefinitionV2.mapper'
+import { validateBehaviorAbilityDefinition } from '@/models/behaviorAbilityDefinitionValidation'
 import type { IQuestion, IQuestionShowController } from '@/models/question'
 import type { IOptionKeys } from '@/models/question'
 import { ModelQuestionnaireStore } from '@/store/personality/personalityQuestionnaireStore'
@@ -300,7 +301,7 @@ export class BehaviorAbilityStore {
   }
 
   validateDefinition(): AssessmentModelValidationIssue[] {
-    const issues: AssessmentModelValidationIssue[] = []
+    const issues = validateBehaviorAbilityDefinition(this.definition, this.algorithm, this.questions)
     if (isBehaviorAbilityPublishingEnabled() && isNormReferenceMissing(this.definitionForm)) {
       issues.push({ field: 'Calibration.NormRefs', code: 'norm_ref.required', message: '正式发布前必须选择常模表' })
     }

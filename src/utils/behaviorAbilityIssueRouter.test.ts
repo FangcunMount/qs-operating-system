@@ -6,6 +6,7 @@ describe('behavior ability DefinitionV2 issue routing', () => {
       'execution'
     )
     expect(resolveBehaviorAbilityIssueTab({ field: 'calibration.norm_refs', code: 'norm.not_found', message: 'missing' })).toBe('norm')
+    expect(resolveBehaviorAbilityIssueTab({ field: 'Outcomes[0].Code', code: 'outcome.code.duplicate', message: 'duplicate' })).toBe('norm')
     expect(resolveBehaviorAbilityIssueTab({ field: 'Measure.Scoring', message: 'invalid' })).toBe('measure')
     expect(resolveBehaviorAbilityIssueTab({ field: 'future.server_field', message: 'unknown' })).toBe('json')
   })

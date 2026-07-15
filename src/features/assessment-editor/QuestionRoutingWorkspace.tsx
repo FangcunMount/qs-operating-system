@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Alert } from 'antd'
 import ShowControllerEditor from '@/components/showController/ShowControllerEditor'
 import type { IQuestion, IQuestionShowController } from '@/models/question'
 import type { RoutingPort } from './contracts'
+import './QuestionRoutingWorkspace.scss'
 
 interface Props {
   editor: RoutingPort
@@ -13,6 +14,12 @@ interface Props {
 
 const QuestionRoutingWorkspace: React.FC<Props> = ({ editor, className = '', warning, emptyText = '暂无题目，请先在上一步添加题目' }) => {
   const [editingQuestionCode, setEditingQuestionCode] = useState<string | null>(null)
+  const questionCodes = editor.questions.map((question) => question.code).join('|')
+
+  useEffect(() => {
+    const selectedQuestionStillExists = editor.questions.some((question) => question.code === editingQuestionCode)
+    if (!selectedQuestionStillExists) setEditingQuestionCode(editor.questions[0]?.code || null)
+  }, [questionCodes, editingQuestionCode])
   // MobX mutates these observable arrays in place. Derive the groups on each observer
   // render so saving or removing a rule immediately moves the question between groups.
   const configuredQuestions: Array<{ question: IQuestion; showController: IQuestionShowController }> = []
