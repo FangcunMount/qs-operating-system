@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import OutcomeTab from './OutcomeTab'
 import type { PersonalityTypologyRuntimeSpec } from '@/models/assessmentModel'
 
@@ -15,13 +15,22 @@ const spec: PersonalityTypologyRuntimeSpec = {
 }
 
 describe('OutcomeTab', () => {
-  it('shows MBTI operators only the fields consumed by the current report', () => {
+  it('keeps MBTI cards read-only until the operator opens the full-screen editor', () => {
     render(<OutcomeTab spec={spec} algorithm="mbti" onChange={jest.fn()} onApplyCode={async () => 'INTJ'} />)
 
-    expect(screen.getByPlaceholderText('类型摘要（作为成长建议首条）')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('一句话描述（展示在报告顶部）')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('人群占比标签，如 约 2%')).toBeInTheDocument()
-    expect(screen.getByText('请为每个结果上传人物图片（0/1）；发布校验会阻止缺图的 MBTI 定义。结果明细和报告适配器会由结果决策机制自动维护。')).toBeInTheDocument()
+    expect(screen.getByText('按报告阅读顺序配置 MBTI 类型资料')).toBeInTheDocument()
+    expect(screen.getByText('图片完成度 0/1')).toBeInTheDocument()
+    expect(screen.getByText('全屏查看并修改')).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('用 1–2 句话解释这个类型的典型倾向')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('全屏查看并修改'))
+
+    expect(screen.getByPlaceholderText('用 1–2 句话解释这个类型的典型倾向')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('如 理性、独立、有远见')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('如 约 2%')).toBeInTheDocument()
+    expect(screen.getByText('每一行会成为报告中的“优势：…”内容。')).toBeInTheDocument()
+    expect(screen.getByText('每一行会成为报告中的“注意：…”内容。')).toBeInTheDocument()
+    expect(screen.getByText('每一行会成为报告中的“建议：…”内容。')).toBeInTheDocument()
     expect(screen.getByText('上传人物图片')).toBeInTheDocument()
     expect(screen.getByText('未上传')).toBeInTheDocument()
     expect(screen.queryByPlaceholderText('Pattern，如 HML / 3w2')).not.toBeInTheDocument()
@@ -33,6 +42,7 @@ describe('OutcomeTab', () => {
   it('keeps the MBTI image controls visible after legacy models use the unified runtime identity', () => {
     render(<OutcomeTab spec={spec} algorithm="personality_typology" onChange={jest.fn()} onApplyCode={async () => 'INTJ'} />)
 
+    fireEvent.click(screen.getByText('全屏查看并修改'))
     expect(screen.getByText('上传人物图片')).toBeInTheDocument()
   })
 

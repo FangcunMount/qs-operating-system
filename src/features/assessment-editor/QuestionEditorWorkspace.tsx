@@ -15,7 +15,7 @@ interface Props {
 }
 
 const QuestionEditorWorkspace: React.FC<Props> = ({ editor, className = '', showKey }) => {
-  const showContainerRef = useRef<HTMLInputElement>(null)
+  const showContainerRef = useRef<HTMLDivElement>(null)
   const legacyStore = useMemo(() => toLegacyQuestionEditorStore(editor), [editor])
   const scrollToBottom = () => {
     if (showContainerRef.current) {

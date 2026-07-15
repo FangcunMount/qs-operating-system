@@ -31,8 +31,8 @@ const QuestionShow: React.FC<{
   })
 
   return (
-    <div className="qs-edit-show">
-      <div className="qs-edit-show-list s-mx-lg s-bg-white" ref={showContainerRef}>
+    <div className="qs-edit-show" ref={showContainerRef}>
+      <div className="qs-edit-show-list s-mx-lg s-bg-white">
         <ShowQuestionShowHeader title={actualStore.title}></ShowQuestionShowHeader>
         <Divider className="s-ma-none"></Divider>
         {actualStore.questions.length === 0 ? (

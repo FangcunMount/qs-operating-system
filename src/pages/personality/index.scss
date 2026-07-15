@@ -44,8 +44,10 @@
 .personality-question-edit-shell {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 120px);
+  height: calc(100vh - 120px);
+  min-height: 0;
   background: #f5f7f8;
+  overflow: hidden;
 }
 
 .personality-republish-hint {
@@ -71,6 +73,11 @@
   margin: 12px 32px 0;
 }
 
+.personality-question-edit-shell > .qs-question-edit-container {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .personality-question-edit {
   display: grid;
   grid-template-columns: 220px minmax(360px, 1fr) 360px;
@@ -92,4 +99,296 @@
 
 .personality-definition-json {
   font-family: Menlo, Monaco, Consolas, monospace;
+}
+
+.personality-mbti-outcomes {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.personality-mbti-outcomes-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--personality-border);
+  border-radius: 8px;
+  background: var(--personality-soft);
+  color: #4e5969;
+  font-size: 13px;
+}
+
+.personality-mbti-outcome-card {
+  height: 100%;
+  border-color: var(--personality-border);
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+
+.personality-mbti-outcome-card:hover {
+  border-color: #91caff;
+  box-shadow: 0 4px 14px rgb(31 35 41 / 8%);
+}
+
+.personality-mbti-outcome-card .ant-card-head {
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.personality-mbti-outcome-card .ant-card-body {
+  padding: 16px;
+}
+
+.personality-mbti-outcome-preview {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 14px;
+  min-height: 104px;
+}
+
+.personality-mbti-outcome-preview-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  min-height: 96px;
+  border-radius: 6px;
+  background: #f5f7f8;
+  color: #86909c;
+  font-size: 12px;
+  text-align: center;
+}
+
+.personality-mbti-outcome-preview-image .ant-image,
+.personality-mbti-outcome-preview-image img {
+  width: 72px;
+  height: 96px;
+}
+
+.personality-mbti-outcome-preview-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.personality-mbti-outcome-preview-label {
+  color: #86909c;
+  font-size: 12px;
+}
+
+.personality-mbti-outcome-preview-copy strong {
+  overflow: hidden;
+  color: #1f2329;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personality-mbti-outcome-preview-copy p {
+  display: -webkit-box;
+  min-height: 36px;
+  margin: 0;
+  overflow: hidden;
+  color: #4e5969;
+  font-size: 13px;
+  line-height: 18px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.personality-mbti-outcome-preview-rarity {
+  color: #86909c;
+  font-size: 12px;
+}
+
+.personality-mbti-outcome-preview-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f1f2;
+}
+
+.personality-mbti-outcome-preview-stats span {
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #f5f7f8;
+  color: #4e5969;
+  font-size: 12px;
+}
+
+.personality-mbti-editor-modal .ant-modal {
+  top: 0;
+  max-width: none;
+  margin: 0;
+  padding-bottom: 0;
+}
+
+.personality-mbti-editor-modal .ant-modal-content {
+  min-height: 100vh;
+  border-radius: 0;
+}
+
+.personality-mbti-editor-modal .ant-modal-body {
+  height: calc(100vh - 112px);
+  overflow: auto;
+  padding: 24px;
+  background: #f5f7f8;
+}
+
+.personality-mbti-outcome-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  padding: 24px;
+  border: 1px solid var(--personality-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.personality-mbti-outcome-grid {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.personality-mbti-outcome-image {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 14px;
+  border-right: 1px solid var(--personality-border);
+}
+
+.personality-mbti-outcome-label {
+  color: #1f2329;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.personality-mbti-outcome-upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.personality-mbti-outcome-hint {
+  color: #86909c;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.personality-mbti-outcome-fields,
+.personality-mbti-outcome-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.personality-mbti-outcome-section-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.personality-mbti-outcome-section-heading span:first-child,
+.personality-mbti-outcome-field-heading span:first-child {
+  color: #1f2329;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.personality-mbti-outcome-section-heading span:last-child,
+.personality-mbti-outcome-field-heading span:last-child,
+.personality-mbti-outcome-example {
+  color: #86909c;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.personality-mbti-outcome-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.personality-mbti-outcome-field-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.personality-mbti-outcome-content-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.personality-mbti-outcome-danger-zone {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid var(--personality-border);
+}
+
+.personality-mbti-outcome-inline-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.personality-mbti-outcome-percent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.personality-mbti-outcome-percent .ant-input-number {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .personality-mbti-outcomes-toolbar,
+  .personality-mbti-outcome-grid {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .personality-mbti-outcomes-toolbar {
+    flex-direction: column;
+  }
+
+  .personality-mbti-outcome-image {
+    padding: 0 0 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--personality-border);
+  }
+
+  .personality-mbti-outcome-inline-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .personality-mbti-outcome-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .personality-mbti-outcome-editor {
+    padding: 16px;
+  }
+
+  .personality-mbti-editor-modal .ant-modal-body {
+    padding: 12px;
+  }
 }
