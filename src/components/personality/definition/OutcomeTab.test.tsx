@@ -35,4 +35,14 @@ describe('OutcomeTab', () => {
 
     expect(screen.getByText('上传人物图片')).toBeInTheDocument()
   })
+
+  it('exposes the same outcome image upload for non-MBTI typology results', () => {
+    const genericSpec: PersonalityTypologyRuntimeSpec = {
+      ...spec,
+      outcome_mapping: { ...spec.outcome_mapping, outcomes: [{ code: 'HIGH', name: '高匹配', traits: [], strengths: [], weaknesses: [], suggestions: [] }] }
+    }
+    render(<OutcomeTab spec={genericSpec} algorithm="personality_typology" onChange={jest.fn()} onApplyCode={async () => 'HIGH'} />)
+
+    expect(screen.getByText('上传结果图片')).toBeInTheDocument()
+  })
 })

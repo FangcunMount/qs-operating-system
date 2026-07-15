@@ -38,10 +38,10 @@ const OutcomeTab: React.FC<Props> = ({ spec, algorithm, modelCode, canEdit = tru
     updateMapping({ outcomes: [...outcomes, { code, name: '', traits: [], strengths: [], weaknesses: [], suggestions: [] }] })
   }
   const removeOutcome = (code: string) => updateMapping({ outcomes: outcomes.filter((outcome) => outcome.code !== code) })
-  const uploadMBTIImage = async (index: number, file: File) => {
+  const uploadOutcomeImage = async (index: number, file: File) => {
     const outcome = outcomes[index]
     if (!modelCode || !outcome?.code) {
-      message.warning('请先保存模型并填写结果 Code，再上传人物图片')
+      message.warning('请先保存模型并填写结果 Code，再上传结果图片')
       return
     }
     setUploadingOutcomeCode(outcome.code)
@@ -49,14 +49,33 @@ const OutcomeTab: React.FC<Props> = ({ spec, algorithm, modelCode, canEdit = tru
       const [error, response] = await assessmentModelApi.uploadAssessmentModelOutcomeImage(modelCode, outcome.code, file)
       if (error || !response?.data?.image_url) throw error || new Error('上传结果缺少图片链接')
       updateOutcome(index, { image_url: response.data.image_url, image: undefined })
-      message.success('人物图片上传成功，请保存定义以应用到后续报告')
+      message.success('结果图片上传成功，请保存定义以应用到后续报告')
     } catch (error: any) {
-      message.error(error?.message || '上传人物图片失败')
+      message.error(error?.message || '上传结果图片失败')
     } finally {
       setUploadingOutcomeCode('')
     }
   }
   const uploadedImageCount = outcomes.filter((outcome) => Boolean(outcome.image_url)).length
+  const outcomeImageLabel = isMBTI ? '人物图片' : '结果图片'
+  const renderOutcomeImageUpload = (row: PersonalityOutcome, index: number) => (
+    <>
+      <Upload
+        accept="image/png,image/jpeg,image/webp"
+        showUploadList={false}
+        beforeUpload={(file) => {
+          void uploadOutcomeImage(index, file)
+          return false
+        }}
+      >
+        <Button icon={<UploadOutlined />} loading={uploadingOutcomeCode === row.code} disabled={!canEdit || !modelCode || !row.code}>
+          {row.image_url ? `替换${outcomeImageLabel}` : `上传${outcomeImageLabel}`}
+        </Button>
+      </Upload>
+      {row.image_url ? <Image width={48} height={48} style={{ objectFit: 'cover' }} src={row.image_url} preview={{ mask: '预览' }} /> : <span>未上传</span>}
+      {row.image_url ? <Button danger size="small" onClick={() => updateOutcome(index, { image_url: undefined, image: undefined })}>移除图片</Button> : null}
+    </>
+  )
 
   return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
     {isMBTI ? <Alert
@@ -82,23 +101,10 @@ const OutcomeTab: React.FC<Props> = ({ spec, algorithm, modelCode, canEdit = tru
           {isMBTI ? <Space style={{ width: '100%' }}>
             <Input placeholder="人群占比标签，如 约 2%" value={row.rarity?.label} onChange={(event) => updateOutcome(index, { rarity: { ...row.rarity, label: event.target.value } })} />
             <InputNumber placeholder="人群占比 %" value={row.rarity?.percent} onChange={(value) => updateOutcome(index, { rarity: { ...row.rarity, percent: value ?? undefined } })} />
-            <Upload
-              accept="image/png,image/jpeg,image/webp"
-              showUploadList={false}
-              beforeUpload={(file) => {
-                void uploadMBTIImage(index, file)
-                return false
-              }}
-            >
-              <Button icon={<UploadOutlined />} loading={uploadingOutcomeCode === row.code} disabled={!canEdit || !modelCode || !row.code}>
-                {row.image_url ? '替换人物图片' : '上传人物图片'}
-              </Button>
-            </Upload>
-            {row.image_url ? <Image width={48} height={48} style={{ objectFit: 'cover' }} src={row.image_url} preview={{ mask: '预览' }} /> : <span>未上传</span>}
-            {row.image_url ? <Button danger size="small" onClick={() => updateOutcome(index, { image_url: undefined })}>移除图片</Button> : null}
+            {renderOutcomeImageUpload(row, index)}
           </Space> : <>
             <Space style={{ width: '100%' }}>
-              <Input placeholder="图片 URL" value={row.image_url} onChange={(event) => updateOutcome(index, { image_url: event.target.value })} />
+              {renderOutcomeImageUpload(row, index)}
               <Input placeholder="图片资源标识" value={row.image} onChange={(event) => updateOutcome(index, { image: event.target.value })} />
               <Input placeholder="触发说明" value={row.trigger} onChange={(event) => updateOutcome(index, { trigger: event.target.value })} />
               <InputNumber placeholder="稀有度 %" value={row.rarity?.percent} onChange={(value) => updateOutcome(index, { rarity: { ...row.rarity, percent: value ?? undefined } })} />
