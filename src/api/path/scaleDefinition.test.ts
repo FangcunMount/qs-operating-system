@@ -17,7 +17,7 @@ describe('scaleDefinition adapter', () => {
         Kind: 'risk',
         FactorCode: 'attention',
         ScoreBasis: '',
-        Rules: [{ MinScore: 0, MaxScore: 2, Level: 'low', Title: '稳定', Summary: '继续观察' }],
+        Rules: [{ MinScore: 0, MaxScore: 2, OutcomeCode: 'low', Title: '低风险', Summary: '稳定', Description: '继续观察' }],
         Outcomes: [],
       },
       {
@@ -51,8 +51,8 @@ describe('scaleDefinition adapter', () => {
       interpret_rules: [{ min_score: 3, max_score: 5, conclusion: '需要关注', suggestion: '复评', risk_level: 'high' }],
     }])
 
-    expect(next.Measure.Scoring).toEqual([expect.objectContaining({ FactorCode: 'attention', MaxScore: 5 })])
-    expect(next.Conclusions).toEqual(expect.arrayContaining([
+    expect(next.Measure!.Scoring).toEqual([expect.objectContaining({ FactorCode: 'attention', MaxScore: 5 })])
+    expect(next.Conclusions!).toEqual(expect.arrayContaining([
       expect.objectContaining({ Kind: 'norm', ScoreBasis: 't_score' }),
       expect.objectContaining({
         Kind: 'risk',
@@ -61,11 +61,11 @@ describe('scaleDefinition adapter', () => {
         Outcomes: [expect.objectContaining({ Code: 'high', Title: '高风险' })],
       }),
     ]))
-    expect(next.Conclusions.filter((item: any) => item.Kind === 'risk' && item.FactorCode === 'attention')).toHaveLength(1)
+    expect(next.Conclusions!.filter((item: any) => item.Kind === 'risk' && item.FactorCode === 'attention')).toHaveLength(1)
     expect(next.Outcomes).toEqual(expect.arrayContaining([
       expect.objectContaining({ Code: 'high', Title: '高风险' }),
     ]))
-    expect(next.ReportMap.Sections).toEqual([expect.objectContaining({ Kind: 'factor_scores', SourceRefs: [] })])
+    expect(next.ReportMap!.Sections).toEqual([expect.objectContaining({ Kind: 'factor_scores', SourceRefs: [] })])
   })
 
   it('registers default risk level none as an Outcome so the API can resolve Level', () => {
@@ -82,8 +82,16 @@ describe('scaleDefinition adapter', () => {
     expect(next.Conclusions).toEqual(expect.arrayContaining([
       expect.objectContaining({
         Kind: 'risk',
-        Rules: [expect.objectContaining({ Level: 'none', OutcomeCode: 'none' })],
+        Rules: [expect.objectContaining({
+          Level: 'none', OutcomeCode: 'none', Title: '无风险', Summary: '正常', Description: '',
+        })],
       }),
     ]))
+  })
+
+  it('projects canonical risk level, conclusion and suggestion fields without swapping them', () => {
+    expect(projectScaleFactorsFromDefinition(definition)[0].interpret_rules).toEqual([
+      expect.objectContaining({ risk_level: 'low', conclusion: '稳定', suggestion: '继续观察' }),
+    ])
   })
 })

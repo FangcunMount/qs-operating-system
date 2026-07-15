@@ -28,6 +28,7 @@ const ScaleDefinition: React.FC = observer(() => {
   const [source, setSource] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [applying, setApplying] = useState(false)
 
   const loadDefinition = async () => {
     setLoading(true)
@@ -62,13 +63,30 @@ const ScaleDefinition: React.FC = observer(() => {
   }
 
   const saveDefinition = async () => {
-    if (!modelCode) throw new Error('量表定义尚未加载完成')
-    const definition = parseDefinitionV2Json(source)
-    const [saveError, response] = await assessmentModelApi.saveAssessmentModelDefinition(modelCode, definition)
-    if (saveError || !response?.data) throw saveError || new Error('保存量表定义失败')
-    setSource(JSON.stringify(response.data, null, 2))
-    setError('')
-    message.success('完整量表定义已保存')
+    try {
+      if (!modelCode) throw new Error('量表定义尚未加载完成')
+      const definition = parseDefinitionV2Json(source)
+      const [saveError, response] = await assessmentModelApi.saveAssessmentModelDefinition(modelCode, definition)
+      if (saveError || !response?.data) throw saveError || new Error('保存量表定义失败')
+      setSource(JSON.stringify(response.data, null, 2))
+      setError('')
+      message.success('完整量表定义已保存')
+    } catch (saveError: any) {
+      const detail = saveError?.message || saveError?.errmsg || 'JSON 应用失败'
+      setError(detail)
+      throw saveError
+    }
+  }
+
+  const applyJson = async () => {
+    setApplying(true)
+    try {
+      await saveDefinition()
+    } catch {
+      // saveDefinition has already rendered the concrete parse or API error.
+    } finally {
+      setApplying(false)
+    }
   }
 
   const handleStepChange = (stepIndex: number) => {
@@ -114,6 +132,7 @@ const ScaleDefinition: React.FC = observer(() => {
             <Space>
               <Button disabled={loading} onClick={formatJson}>格式化 JSON</Button>
               <Button disabled={loading} onClick={loadDefinition}>恢复服务器版本</Button>
+              <Button type="primary" disabled={loading} loading={applying} onClick={applyJson}>应用并保存 JSON</Button>
             </Space>
           </Space>
         </Card>

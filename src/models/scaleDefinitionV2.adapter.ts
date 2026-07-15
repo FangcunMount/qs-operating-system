@@ -82,13 +82,27 @@ const factorFromDefinition = (definition: RawDefinition, rawFactor: any): IScale
   const factorSources = sources.filter((source: any) => asString(readField(source, 'Kind', 'kind')) === 'factor')
   const visible = visibleFactorCodes(definition)
   const risk = riskConclusionForFactor(definition, code)
-  const rules = asArray(readField(risk, 'Rules', 'rules')).map((rule: any) => ({
-    min_score: asNumber(readField(rule, 'MinScore', 'min_score')) || 0,
-    max_score: asNumber(readField(rule, 'MaxScore', 'max_score')) || 0,
-    conclusion: asString(readField(rule, 'Title', 'title')),
-    suggestion: asString(readField(rule, 'Summary', 'summary')),
-    risk_level: asString(readField(rule, 'Level', 'level')) || 'none',
-  }))
+  const rules = asArray(readField(risk, 'Rules', 'rules')).map((rule: any) => {
+    const level = asString(readField(rule, 'OutcomeCode', 'outcome_code'))
+      || asString(readField(rule, 'Level', 'level'))
+      || 'none'
+    const description = asString(readField(rule, 'Description', 'description'))
+    // Old admin projections put conclusion/suggestion in Title/Summary and
+    // left Description blank. Keep those saved definitions editable while
+    // preferring the server's canonical ScoreRangeOutcome fields.
+    const isLegacyProjection = Boolean(readField(rule, 'Level', 'level')) && !description
+    return {
+      min_score: asNumber(readField(rule, 'MinScore', 'min_score')) || 0,
+      max_score: asNumber(readField(rule, 'MaxScore', 'max_score')) || 0,
+      conclusion: isLegacyProjection
+        ? asString(readField(rule, 'Title', 'title'))
+        : asString(readField(rule, 'Summary', 'summary')) || asString(readField(rule, 'Title', 'title')),
+      suggestion: isLegacyProjection
+        ? asString(readField(rule, 'Summary', 'summary'))
+        : description,
+      risk_level: level,
+    }
+  })
   const params = readField(scoring, 'Params', 'params') || undefined
   const maxScore = asNumber(readField(scoring, 'MaxScore', 'max_score'))
 
@@ -177,8 +191,9 @@ const riskConclusion = (factor: any) => {
       MaxScore: Number(rule.max_score) || 0,
       Level: level,
       OutcomeCode: level,
-      Title: asString(rule.conclusion),
-      Summary: asString(rule.suggestion),
+      Title: RISK_LEVEL_TITLES[level] || level,
+      Summary: asString(rule.conclusion),
+      Description: asString(rule.suggestion),
     }
   })
   const outcomeCodes = Array.from(new Set(rules.map((rule) => rule.Level).filter(Boolean)))

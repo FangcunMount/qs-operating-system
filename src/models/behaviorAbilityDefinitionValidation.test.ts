@@ -9,7 +9,13 @@ describe('behavior ability DefinitionV2 local validation', () => {
     },
     Calibration: { NormRefs: [{ FactorCode: 'TOTAL', NormTableVersion: 'brief2-parent-v1' }] },
     Execution: { Brief2: { FormVariant: 'parent', PrimaryFactorCode: 'TOTAL', IndexFactorCodes: [], ValidityFactorCodes: [] } },
-    Conclusions: [{ Kind: 'norm', FactorCode: 'TOTAL', ScoreBasis: 't_score', Primary: true, Rules: [{ MinScore: 40, MaxScore: 60, OutcomeCode: 'typical' }] }],
+    Conclusions: [{
+      Kind: 'norm',
+      FactorCode: 'TOTAL',
+      ScoreBasis: 't_score',
+      Primary: true,
+      Rules: [{ MinScore: 40, MaxScore: 60, OutcomeCode: 'typical' }]
+    }],
     Outcomes: [{ Code: 'typical', Title: '典型范围' }]
   }
 
@@ -28,7 +34,12 @@ describe('behavior ability DefinitionV2 local validation', () => {
       },
       Calibration: { NormRefs: [{ FactorCode: 'MISSING', NormTableVersion: '' }] },
       Execution: { Brief2: { FormVariant: '', PrimaryFactorCode: 'MISSING' } },
-      Conclusions: [{ Kind: 'norm', FactorCode: 'MISSING', ScoreBasis: 'unsupported', Rules: [{ MinScore: 60, MaxScore: 40, OutcomeCode: 'missing' }] }],
+      Conclusions: [{
+        Kind: 'norm',
+        FactorCode: 'MISSING',
+        ScoreBasis: 'unsupported',
+        Rules: [{ MinScore: 60, MaxScore: 40, OutcomeCode: 'missing' }]
+      }],
       Outcomes: [{ Code: 'same' }, { Code: 'same' }]
     }
 
