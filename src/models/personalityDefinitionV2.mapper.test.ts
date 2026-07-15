@@ -126,4 +126,16 @@ describe('personality DefinitionV2 projection', () => {
     expect(projected.decision).toMatchObject({ kind: 'dominant_factor', top_k: 2 })
     expect(JSON.parse(JSON.stringify(applyPersonalityRuntimeSpec(contractDefinition, projected)))).toEqual(contractDefinition)
   })
+
+  it('writes uploaded MBTI portrait links to TypeProfile ImageURL and reads them back', () => {
+    const spec = projectPersonalityRuntimeSpec(source)
+    spec.outcome_mapping.outcomes = [{
+      code: 'ENFP', name: '竞选者', traits: [], strengths: [], weaknesses: [], suggestions: [],
+      image_url: 'https://qs.example/api/v1/assessment-assets/typology/MBTI/ENFP/portrait.png'
+    }]
+    const next = applyPersonalityRuntimeSpec(source, spec)
+    const typeConclusion = next.Conclusions?.find((item: any) => item.Kind === 'type') as any
+    expect(typeConclusion.Profiles[0].ImageURL).toBe('https://qs.example/api/v1/assessment-assets/typology/MBTI/ENFP/portrait.png')
+    expect(projectPersonalityRuntimeSpec(next).outcome_mapping.outcomes[0].image_url).toBe(typeConclusion.Profiles[0].ImageURL)
+  })
 })

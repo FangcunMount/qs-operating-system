@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Alert, Button, Card, Input, Radio, Space, Tabs } from 'antd'
 import type { PersonalityTypologyRuntimeSpec } from '@/models/assessmentModel'
+import { normalizeLegacyDecisionKind } from '@/constants/personalityScope'
 import type { DefinitionV2 } from '@/models/definitionV2'
 import { isDefinitionV2 } from '@/models/definitionV2'
 import type { IQuestion } from '@/models/question'
@@ -25,10 +26,28 @@ export const parseDefinitionV2Json = (source: string): DefinitionV2 => {
   return parsed
 }
 
+/** The form exposes business choices only. Runtime detail/report adapters are
+ * derived from the selected decision mechanism and remain editable in JSON mode
+ * for the exceptional custom-template case. */
+export const normalizePersonalityFormSpec = (spec: PersonalityTypologyRuntimeSpec): PersonalityTypologyRuntimeSpec => {
+  const detailKind = normalizeLegacyDecisionKind(spec.decision?.kind) === 'trait_profile'
+    ? 'trait_profile' : 'personality_type'
+  const usesCustomTemplate = spec.report?.kind === 'template'
+  return {
+    ...spec,
+    outcome_mapping: { ...spec.outcome_mapping, detail_kind: detailKind, detail_adapter_key: detailKind },
+    report: usesCustomTemplate
+      ? { ...spec.report }
+      : { ...spec.report, kind: detailKind, adapter_key: detailKind }
+  }
+}
+
 interface Props {
   definition: DefinitionV2
   spec: PersonalityTypologyRuntimeSpec
   algorithm: string
+  modelCode?: string
+  canEdit?: boolean
   questions: IQuestion[]
   onDefinitionChange: (definition: DefinitionV2) => void
   onSpecChange: (spec: PersonalityTypologyRuntimeSpec) => void
@@ -43,6 +62,8 @@ const PersonalityDefinitionEditor: React.FC<Props> = ({
   definition,
   spec,
   algorithm,
+  modelCode,
+  canEdit,
   questions,
   onDefinitionChange,
   onSpecChange,
@@ -97,6 +118,8 @@ const PersonalityDefinitionEditor: React.FC<Props> = ({
     onTabChange?.(next)
   }
 
+  const handleFormSpecChange = (next: PersonalityTypologyRuntimeSpec) => onSpecChange(normalizePersonalityFormSpec(next))
+
   return (
     <Card
       className="personality-card"
@@ -110,19 +133,19 @@ const PersonalityDefinitionEditor: React.FC<Props> = ({
       {mode === 'form' ? (
         <Tabs activeKey={innerActiveTab} onChange={handleTabChange}>
           <TabPane tab="因子图" key="factor_graph">
-            <FactorGraphTab spec={spec} onChange={onSpecChange} />
+            <FactorGraphTab spec={spec} onChange={handleFormSpecChange} />
           </TabPane>
           <TabPane tab="题目贡献" key="question_mapping">
-            <QuestionMappingTab spec={spec} questions={questions} onChange={onSpecChange} />
+            <QuestionMappingTab spec={spec} questions={questions} onChange={handleFormSpecChange} />
           </TabPane>
           <TabPane tab="结果决策机制" key="decision">
-            <DecisionTab spec={spec} algorithm={algorithm} onChange={onSpecChange} />
+            <DecisionTab spec={spec} algorithm={algorithm} onChange={handleFormSpecChange} />
           </TabPane>
           <TabPane tab="结果类型" key="outcome">
-            <OutcomeTab spec={spec} onChange={onSpecChange} onApplyCode={onApplyOutcomeCode} />
+            <OutcomeTab spec={spec} algorithm={algorithm} modelCode={modelCode} canEdit={canEdit} onChange={handleFormSpecChange} onApplyCode={onApplyOutcomeCode} />
           </TabPane>
           <TabPane tab="报告配置" key="report">
-            <ReportTab spec={spec} onChange={onSpecChange} />
+            <ReportTab spec={spec} onChange={handleFormSpecChange} />
           </TabPane>
         </Tabs>
       ) : (

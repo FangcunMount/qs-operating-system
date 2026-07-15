@@ -103,6 +103,12 @@ export interface ApplyAssessmentModelCodesResponse {
   count: number
 }
 
+export interface AssessmentModelOutcomeImageUploadResponse {
+  image_url: string
+  content_type: string
+  size: number
+}
+
 export type { AssessmentQRCodeResponse }
 
 const mapResponse = <T, U>(
@@ -240,6 +246,19 @@ export function applyAssessmentModelCodes(
   })
 }
 
+export function uploadAssessmentModelOutcomeImage(
+  code: string,
+  outcomeCode: string,
+  file: File
+): Promise<[any, QSResponse<AssessmentModelOutcomeImageUploadResponse> | undefined]> {
+  const form = new FormData()
+  form.append('file', file)
+  return post<AssessmentModelOutcomeImageUploadResponse>(
+    `/assessment-models/${encodeURIComponent(code)}/outcomes/${encodeURIComponent(outcomeCode)}/image`,
+    form
+  )
+}
+
 export async function validateAssessmentModel(
   code: string
 ): Promise<[any, QSResponse<AssessmentModelValidationResult> | undefined]> {
@@ -271,6 +290,7 @@ export const assessmentModelApi = {
   getAssessmentModelQRCode,
   getAssessmentModelOptions,
   applyAssessmentModelCodes,
+  uploadAssessmentModelOutcomeImage,
   validateAssessmentModel,
   previewAssessmentModelReport
 }

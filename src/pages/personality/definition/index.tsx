@@ -129,6 +129,8 @@ const PersonalityDefinition: React.FC = observer(() => {
           definition={definition}
           spec={spec}
           algorithm={personalityModelStore.algorithm}
+          modelCode={personalityModelStore.modelCode || modelCode}
+          canEdit={personalityModelStore.canEdit}
           questions={personalityModelStore.questions}
           onDefinitionChange={handleDefinitionChange}
           onSpecChange={handleSpecChange}

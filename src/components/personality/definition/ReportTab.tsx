@@ -1,5 +1,6 @@
 import React from 'react'
-import { Input, Select } from 'antd'
+import { Alert, Input } from 'antd'
+import { normalizeLegacyDecisionKind } from '@/constants/personalityScope'
 import type { PersonalityReportSpec, PersonalityTypologyRuntimeSpec } from '@/models/assessmentModel'
 
 interface Props {
@@ -9,28 +10,12 @@ interface Props {
 
 const ReportTab: React.FC<Props> = ({ spec, onChange }) => {
   const report = spec.report || { kind: 'personality_type' }
+  const isTraitProfile = normalizeLegacyDecisionKind(spec.decision?.kind) === 'trait_profile'
+  const reportKind = isTraitProfile ? '特质画像报告' : '人格类型报告'
   const update = (patch: Partial<PersonalityReportSpec>) => onChange({ ...spec, report: { ...report, ...patch } })
 
   return <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 560 }}>
-    <div>
-      <div style={{ marginBottom: 8 }}>报告类型</div>
-      <Select value={report.kind} style={{ width: '100%' }} options={[
-        { value: 'personality_type', label: '人格类型报告' },
-        { value: 'trait_profile', label: '特质画像报告' },
-        { value: 'template', label: '自定义模板报告' }
-      ]} onChange={(kind) => update({ kind })} />
-    </div>
-    <div>
-      <div style={{ marginBottom: 8 }}>报告适配器</div>
-      <Select value={report.adapter_key} allowClear style={{ width: '100%' }} options={[
-        { value: 'personality_type', label: 'personality_type' },
-        { value: 'trait_profile', label: 'trait_profile' }
-      ]} onChange={(adapter_key) => update({ adapter_key })} />
-    </div>
-    {report.kind === 'template' ? <div>
-      <div style={{ marginBottom: 8 }}>模板 ID</div>
-      <Input value={report.template_id} onChange={(event) => update({ template_id: event.target.value })} />
-    </div> : null}
+    <Alert type="info" showIcon message={`当前决策机制会生成${reportKind}`} description="报告类型和适配器由决策机制自动维护；需要自定义模板时，请使用 JSON 高级模式。" />
     <div>
       <div style={{ marginBottom: 8 }}>分类标签</div>
       <Input value={report.category_label} onChange={(event) => update({ category_label: event.target.value })} />
