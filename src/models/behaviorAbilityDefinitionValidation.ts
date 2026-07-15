@@ -91,7 +91,8 @@ export const validateBehaviorAbilityDefinition = (
       if (!brief2.PrimaryFactorCode || !factorCodes.has(brief2.PrimaryFactorCode)) {
         issues.push(issue('Execution.Brief2.PrimaryFactorCode', 'brief2.primary_factor.not_found', 'BRIEF-2 主指标必须是已定义因子'))
       }
-      ;[...(brief2.IndexFactorCodes || []), ...(brief2.ValidityFactorCodes || [])].forEach((factorCode) => {
+      const executionFactorCodes = [...(brief2.IndexFactorCodes || []), ...(brief2.ValidityFactorCodes || [])]
+      executionFactorCodes.forEach((factorCode) => {
         if (!factorCode || !factorCodes.has(factorCode)) {
           issues.push(issue('Execution.Brief2', 'execution.factor.not_found', `运行规则因子 ${factorCode || '（空）'} 未定义`))
         }
@@ -120,7 +121,8 @@ export const validateBehaviorAbilityDefinition = (
     if (!['raw_score', 't_score', 'percentile', 'standard_score'].includes(conclusion.ScoreBasis || '')) {
       issues.push(issue(`${field}.ScoreBasis`, 'conclusion.score_basis.invalid', '解释计分依据必须是原始分、T 分、百分位或标准分'))
     }
-    ;(conclusion.Rules || []).forEach((rule, ruleIndex) => {
+    const conclusionRules = conclusion.Rules || []
+    conclusionRules.forEach((rule, ruleIndex) => {
       const ruleField = `${field}.Rules[${ruleIndex}]`
       if (typeof rule.MinScore === 'number' && typeof rule.MaxScore === 'number' && rule.MinScore > rule.MaxScore) {
         issues.push(issue(ruleField, 'conclusion.range.invalid', '解释规则的最小分不能大于最大分'))

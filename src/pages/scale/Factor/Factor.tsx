@@ -12,7 +12,7 @@ import { useParams, useLocation } from 'react-router'
 import { api } from '@/api'
 import BaseLayout from '@/components/layout/BaseLayout'
 import { scaleStore } from '@/store'
-import { getScaleEditorPath, SCALE_STEPS, getScaleStepIndex, getScaleStepFromPath } from '@/utils/steps'
+import { getScaleDefinitionPath, getScaleEditorPath, SCALE_STEPS, getScaleStepIndex, getScaleStepFromPath } from '@/utils/steps'
 import { useHistory } from 'react-router-dom'
 
 const { Option } = Select
@@ -566,6 +566,15 @@ const Factor: React.FC = observer(() => {
       >
         <div className="scale-factor-container scale-page-theme">
           <DndProvider backend={HTML5Backend}>
+            <div className="scale-definition-entry">
+              <div>
+                <strong>需要完整配置？</strong>
+                <span>可直接编辑并保存完整 DefinitionV2，不会丢失高级字段。</span>
+              </div>
+              <Button onClick={() => history.push(getScaleDefinitionPath(questionsheetid, scaleStore.scaleCode || scaleCode))}>
+                JSON 高级模式
+              </Button>
+            </div>
             {scaleStore.factors.length === 0 && !editingFactorCode ? (
               <EmptyState onAdd={handleCreateFactor} />
             ) : (

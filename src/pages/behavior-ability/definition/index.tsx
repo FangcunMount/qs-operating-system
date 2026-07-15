@@ -6,6 +6,7 @@ import BaseLayout from '@/components/layout/BaseLayout'
 import { ValidationIssuesPanel } from '@/features/assessment-editor'
 import BehaviorAbilityDefinitionEditor from '@/components/behaviorAbility/BehaviorAbilityDefinitionEditor'
 import type { BehaviorAbilityDefinitionTabKey } from '@/components/behaviorAbility/BehaviorAbilityDefinitionEditor'
+import { normalizeBehaviorAbilityDefinitionTab } from '@/components/behaviorAbility/BehaviorAbilityDefinitionEditor'
 import { behaviorAbilityStore } from '@/store/behaviorAbility'
 import { behaviorAbilityEditorFlowConfig, buildBehaviorAbilityFlowContext } from '@/utils/behaviorAbilityFlow'
 import { useEditorFlow } from '@/utils/editorFlow'
@@ -29,7 +30,7 @@ const BehaviorAbilityDefinition: React.FC = observer(() => {
 
   useEffect(() => {
     const tab = new URLSearchParams(location.search).get('tab')
-    setActiveTab(tab === 'measure' || tab === 'execution' || tab === 'norm' || tab === 'json' ? tab : undefined)
+    setActiveTab(normalizeBehaviorAbilityDefinitionTab(tab || undefined))
   }, [location.search])
 
   return (

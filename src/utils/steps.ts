@@ -85,6 +85,16 @@ export const getScaleEditorPath = (stepKey: string, questionnaireCode: string, s
   return scaleCode ? `${path}?scaleCode=${encodeURIComponent(scaleCode)}` : path
 }
 
+/** 完整 DefinitionV2 的高级编辑入口，不额外占用量表配置步骤。 */
+export const getScaleDefinitionPath = (questionnaireCode: string, scaleCode?: string, section?: 'factors' | 'interpretation'): string => {
+  const path = `/scale/definition/${questionnaireCode}`
+  const query = [
+    scaleCode ? `scaleCode=${encodeURIComponent(scaleCode)}` : '',
+    section ? `section=${encodeURIComponent(section)}` : ''
+  ].filter(Boolean).join('&')
+  return query ? `${path}?${query}` : path
+}
+
 /**
  * 根据路由路径获取量表编辑步骤 key
  * @param pathname 当前路由路径

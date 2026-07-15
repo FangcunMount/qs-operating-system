@@ -5,9 +5,9 @@ describe('behavior ability DefinitionV2 issue routing', () => {
     expect(resolveBehaviorAbilityIssueTab({ field: 'execution.spm.item_sets', code: 'spm.question.duplicate', message: 'duplicate' })).toBe(
       'execution'
     )
-    expect(resolveBehaviorAbilityIssueTab({ field: 'calibration.norm_refs', code: 'norm.not_found', message: 'missing' })).toBe('norm')
-    expect(resolveBehaviorAbilityIssueTab({ field: 'Outcomes[0].Code', code: 'outcome.code.duplicate', message: 'duplicate' })).toBe('norm')
-    expect(resolveBehaviorAbilityIssueTab({ field: 'Measure.Scoring', message: 'invalid' })).toBe('measure')
+    expect(resolveBehaviorAbilityIssueTab({ field: 'calibration.norm_refs', code: 'norm.not_found', message: 'missing' })).toBe('interpretation')
+    expect(resolveBehaviorAbilityIssueTab({ field: 'Outcomes[0].Code', code: 'outcome.code.duplicate', message: 'duplicate' })).toBe('interpretation')
+    expect(resolveBehaviorAbilityIssueTab({ field: 'Measure.Scoring', message: 'invalid' })).toBe('question_mapping')
     expect(resolveBehaviorAbilityIssueTab({ field: 'future.server_field', message: 'unknown' })).toBe('json')
   })
 })

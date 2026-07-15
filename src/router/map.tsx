@@ -29,6 +29,7 @@ const ScaleBasicInfo = lazy(() => import('../pages/scale/basic-info/index'))
 const ScaleQuestionEdit = lazy(() => import('../pages/scale/question-edit/index'))
 const ScaleQuestionRouting = lazy(() => import('../pages/scale/question-routing/index'))
 const ScaleFactor = lazy(() => import('../pages/scale/Factor/Factor'))
+const ScaleDefinition = lazy(() => import('../pages/scale/definition/index'))
 const ScaleAnalysis = lazy(() => import('../pages/scale/Analysis/Analysis'))
 const ScalePublish = lazy(() => import('../pages/scale/publish/index'))
 const PersonalityList = lazy(() => import('../pages/personality/list/index'))
@@ -376,6 +377,16 @@ export const routes: Array<IRoute> = [
         name: 'scale-factor',
         path: '/scale/factor/:questionsheetid',
         component: ScaleFactor,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'scale-list'
+      },
+      {
+        title: '量表定义高级配置',
+        name: 'scale-definition',
+        path: '/scale/definition/:questionsheetid',
+        component: ScaleDefinition,
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],

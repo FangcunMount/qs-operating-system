@@ -5,13 +5,36 @@
   padding: 32px;
   display: flex;
   justify-content: center;
+  position: relative;
+
+  .scale-definition-entry {
+    align-items: center;
+    background: #f0f7ff;
+    border: 1px solid #bae0ff;
+    border-radius: 8px;
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    left: 32px;
+    padding: 10px 14px;
+    position: absolute;
+    right: 32px;
+    top: 12px;
+    z-index: 1;
+
+    span {
+      color: #595959;
+      margin-left: 10px;
+    }
+  }
 
   .analysis-layout {
     display: flex;
     gap: 32px;
     width: 100%;
     max-width: 1400px;
-    height: 100%;
+    height: calc(100% - 56px);
+    margin-top: 56px;
   }
 
   .factor-list-panel {
@@ -379,7 +402,9 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100%;
+    box-sizing: border-box;
+    height: calc(100% - 56px);
+    margin-top: 56px;
     background: #ffffff;
     border-radius: 12px;
     border: 1px solid #e8e8e8;

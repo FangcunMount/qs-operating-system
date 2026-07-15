@@ -11,7 +11,7 @@ import { IFactorAnalysis, IInterpretation, RiskLevel } from '@/models/analysis'
 import { IFactor, FactorTypeMap } from '@/models/factor'
 import { observer } from 'mobx-react-lite'
 import BaseLayout from '@/components/layout/BaseLayout'
-import { getScaleEditorPath, SCALE_STEPS, getScaleStepIndex, getScaleStepFromPath } from '@/utils/steps'
+import { getScaleDefinitionPath, getScaleEditorPath, SCALE_STEPS, getScaleStepIndex, getScaleStepFromPath } from '@/utils/steps'
 import { useHistory } from 'react-router-dom'
 import ScoreRangeInput from './widget/components/ScoreRangeInput'
 import RiskLevelSelector from './widget/components/RiskLevelSelector'
@@ -667,6 +667,15 @@ const Analysis: React.FC = observer(() => {
         themeClass="scale-page-theme"
       >
         <div className="scale-analysis-container scale-page-theme">
+          <div className="scale-definition-entry">
+            <div>
+              <strong>需要完整配置？</strong>
+              <span>可直接编辑并保存包含解读规则在内的完整 DefinitionV2。</span>
+            </div>
+            <Button onClick={() => history.push(getScaleDefinitionPath(questionsheetid, scaleStore.scaleCode || scaleCode, 'interpretation'))}>
+              JSON 高级模式
+            </Button>
+          </div>
           {scaleStore.factor_rules.length === 0 ? (
             <EmptyState />
           ) : (

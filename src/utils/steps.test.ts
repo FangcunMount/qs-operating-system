@@ -1,4 +1,4 @@
-import { getScaleEditorPath, getSurveyEditorPath } from './steps'
+import { getScaleDefinitionPath, getScaleEditorPath, getSurveyEditorPath } from './steps'
 
 describe('legacy editor route helpers', () => {
   it('keeps survey editor URLs stable', () => {
@@ -12,5 +12,7 @@ describe('legacy editor route helpers', () => {
     expect(getScaleEditorPath('set-interpretation', 'q1', 'scale A')).toBe('/scale/analysis/q1?scaleCode=scale%20A')
     expect(getScaleEditorPath('publish', 'q1', 'scale A')).toBe('/scale/publish/q1?scaleCode=scale%20A')
     expect(getScaleEditorPath('publish', 'q1')).toBe('/scale/publish/q1')
+    expect(getScaleDefinitionPath('q1', 'scale A')).toBe('/scale/definition/q1?scaleCode=scale%20A')
+    expect(getScaleDefinitionPath('q1', 'scale A', 'interpretation')).toBe('/scale/definition/q1?scaleCode=scale%20A&section=interpretation')
   })
 })
