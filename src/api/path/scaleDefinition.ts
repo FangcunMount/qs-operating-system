@@ -16,6 +16,7 @@ import type {
 
 export {
   analysisFromScaleResponse,
+  ensureScaleDefinitionOutcomeRegistry,
   factorToEditorModel,
   projectScaleFactorsFromDefinition,
   replaceScaleDefinitionFactors,

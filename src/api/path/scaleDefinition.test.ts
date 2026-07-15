@@ -1,4 +1,8 @@
-import { projectScaleFactorsFromDefinition, replaceScaleDefinitionFactors } from './scaleDefinition'
+import {
+  ensureScaleDefinitionOutcomeRegistry,
+  projectScaleFactorsFromDefinition,
+  replaceScaleDefinitionFactors,
+} from './scaleDefinition'
 
 describe('scaleDefinition adapter', () => {
   const definition = {
@@ -58,7 +62,9 @@ describe('scaleDefinition adapter', () => {
         Kind: 'risk',
         FactorCode: 'attention',
         Rules: [expect.objectContaining({ Level: 'high', OutcomeCode: 'high' })],
-        Outcomes: [expect.objectContaining({ Code: 'high', Title: '高风险' })],
+        Outcomes: [expect.objectContaining({
+          Code: 'high', Title: '高风险', Summary: '需要关注', Description: '复评',
+        })],
       }),
     ]))
     expect(next.Conclusions!.filter((item: any) => item.Kind === 'risk' && item.FactorCode === 'attention')).toHaveLength(1)
@@ -92,6 +98,23 @@ describe('scaleDefinition adapter', () => {
   it('projects canonical risk level, conclusion and suggestion fields without swapping them', () => {
     expect(projectScaleFactorsFromDefinition(definition)[0].interpret_rules).toEqual([
       expect.objectContaining({ risk_level: 'low', conclusion: '稳定', suggestion: '继续观察' }),
+    ])
+  })
+
+  it('registers canonical JSON OutcomeCode values before the definition is saved', () => {
+    const next = ensureScaleDefinitionOutcomeRegistry({
+      ...definition,
+      Outcomes: null,
+      Conclusions: [{
+        Kind: 'risk',
+        FactorCode: 'attention',
+        Rules: [{ MinScore: 0, MaxScore: 5, Level: '', OutcomeCode: 'severe' }],
+        Outcomes: [],
+      }],
+    })
+
+    expect(next.Outcomes).toEqual([
+      expect.objectContaining({ Code: 'severe', Title: '严重风险' }),
     ])
   })
 })

@@ -7,6 +7,7 @@ import BaseLayout from '@/components/layout/BaseLayout'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
 import type { DefinitionV2 } from '@/models/definitionV2'
 import { isDefinitionV2 } from '@/models/definitionV2'
+import { ensureScaleDefinitionOutcomeRegistry } from '@/models/scaleDefinitionV2.adapter'
 import { scaleStore } from '@/store'
 import { getScaleEditorPath, SCALE_STEPS } from '@/utils/steps'
 import './index.scss'
@@ -65,7 +66,7 @@ const ScaleDefinition: React.FC = observer(() => {
   const saveDefinition = async () => {
     try {
       if (!modelCode) throw new Error('量表定义尚未加载完成')
-      const definition = parseDefinitionV2Json(source)
+      const definition = ensureScaleDefinitionOutcomeRegistry(parseDefinitionV2Json(source))
       const [saveError, response] = await assessmentModelApi.saveAssessmentModelDefinition(modelCode, definition)
       if (saveError || !response?.data) throw saveError || new Error('保存量表定义失败')
       setSource(JSON.stringify(response.data, null, 2))
@@ -118,8 +119,8 @@ const ScaleDefinition: React.FC = observer(() => {
               showIcon
               message={isInterpretationMode ? '直接编辑解读规则所在的完整 DefinitionV2' : '直接编辑完整 DefinitionV2'}
               description={isInterpretationMode
-                ? '请编辑 Conclusions、Outcomes 等解读字段；保存会保留因子、计分及其他未知字段。返回表单模式时会重新加载最新定义。'
-                : '此模式会原样保存因子、计分、解读和其他高级字段。保存后如要继续使用表单模式，请先重新进入对应页面以加载最新定义。'}
+                ? '请编辑 Conclusions、Outcomes 等解读字段；保存会保留因子、计分及其他未知字段，并自动补齐区间规则引用的结果代码。返回表单模式时会重新加载最新定义。'
+                : '此模式会原样保存因子、计分、解读和其他高级字段，并自动补齐区间规则引用的结果代码。保存后如要继续使用表单模式，请先重新进入对应页面以加载最新定义。'}
             />
             {error ? <Alert type="error" showIcon message={error} /> : null}
             <Input.TextArea
