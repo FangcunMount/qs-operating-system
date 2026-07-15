@@ -29,4 +29,10 @@ describe('OutcomeTab', () => {
     expect(screen.queryByPlaceholderText('特质，每行一条')).not.toBeInTheDocument()
     expect(screen.queryByText('明细适配器')).not.toBeInTheDocument()
   })
+
+  it('keeps the MBTI image controls visible after legacy models use the unified runtime identity', () => {
+    render(<OutcomeTab spec={spec} algorithm="personality_typology" onChange={jest.fn()} onApplyCode={async () => 'INTJ'} />)
+
+    expect(screen.getByText('上传人物图片')).toBeInTheDocument()
+  })
 })

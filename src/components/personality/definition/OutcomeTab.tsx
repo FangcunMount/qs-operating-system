@@ -16,10 +16,15 @@ interface Props {
 }
 
 const lines = (value: string) => value.split('\n').map((item) => item.trim()).filter(Boolean)
+const MBTI_OUTCOME_CODE = /^[EI][SN][TF][JP]$/i
 
 const OutcomeTab: React.FC<Props> = ({ spec, algorithm, modelCode, canEdit = true, onChange, onApplyCode }) => {
   const outcomes = spec.outcome_mapping?.outcomes || []
+  // Legacy MBTI models are loaded through the unified personality_typology
+  // runtime. Keep the MBTI asset UI visible after that normalization by using
+  // their canonical four-letter outcome codes as a second signal.
   const isMBTI = String(algorithm || '').toLowerCase() === 'mbti'
+    || outcomes.some((outcome) => MBTI_OUTCOME_CODE.test(String(outcome.code || '')))
   const usesPattern = normalizeLegacyDecisionKind(spec.decision?.kind) === 'nearest_pattern'
   const [uploadingOutcomeCode, setUploadingOutcomeCode] = useState('')
   const updateMapping = (patch: Partial<PersonalityTypologyRuntimeSpec['outcome_mapping']>) => {

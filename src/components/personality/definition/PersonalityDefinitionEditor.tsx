@@ -142,7 +142,14 @@ const PersonalityDefinitionEditor: React.FC<Props> = ({
             <DecisionTab spec={spec} algorithm={algorithm} onChange={handleFormSpecChange} />
           </TabPane>
           <TabPane tab="结果类型" key="outcome">
-            <OutcomeTab spec={spec} algorithm={algorithm} modelCode={modelCode} canEdit={canEdit} onChange={handleFormSpecChange} onApplyCode={onApplyOutcomeCode} />
+            <OutcomeTab
+              spec={spec}
+              algorithm={algorithm}
+              modelCode={modelCode}
+              canEdit={canEdit}
+              onChange={handleFormSpecChange}
+              onApplyCode={onApplyOutcomeCode}
+            />
           </TabPane>
           <TabPane tab="报告配置" key="report">
             <ReportTab spec={spec} onChange={handleFormSpecChange} />
