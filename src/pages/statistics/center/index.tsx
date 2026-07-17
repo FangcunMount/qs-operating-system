@@ -341,6 +341,18 @@ const StatisticsCenterPage: React.FC = () => {
                     <span>活跃入口</span>
                     <b>{formatNumber(overview?.organization_overview.active_entry_count || 0)}</b>
                   </div>
+                  <div className="overview-org-scale__metric">
+                    <span>使用内容</span>
+                    <b>{formatNumber(overview?.organization_overview.content_count || 0)}</b>
+                  </div>
+                  <div className="overview-org-scale__metric">
+                    <span>累计答卷提交</span>
+                    <b>{formatNumber(overview?.organization_overview.answer_sheet_submission_count || 0)}</b>
+                  </div>
+                  <div className="overview-org-scale__metric">
+                    <span>今日答卷提交</span>
+                    <b>{formatNumber(overview?.organization_overview.today_answer_sheet_submission_count || 0)}</b>
+                  </div>
                 </div>
               </Card>
 

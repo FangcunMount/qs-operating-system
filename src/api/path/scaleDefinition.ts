@@ -2,6 +2,7 @@ import type { QSResponse } from '@/types/qs'
 import type { IFactor } from '@/models/factor'
 import type { IFactorAnalysis } from '@/models/analysis'
 import type { IQuestionSheetInfo } from '@/models/questionSheet'
+import type { ReleaseState } from '@/models/assessmentModel'
 import {
   analysisFromScaleResponse,
   factorToEditorModel,
@@ -49,6 +50,7 @@ export interface IScaleDefinitionResponse {
   reporters?: string[]
   tags?: string[]
   factors?: IScaleFactorResponse[]
+  release_state?: ReleaseState
 }
 
 export interface IScaleDefinitionOptions {
@@ -74,6 +76,7 @@ const modelProjection = (model: any, definition?: RawDefinition): IScaleDefiniti
   applicable_ages: asArray<string>(model?.applicable_ages),
   reporters: asArray<string>(model?.reporters),
   tags: asArray<string>(model?.tags),
+  release_state: model?.release_state,
   factors: definition ? projectScaleFactorsFromDefinition(definition) : undefined,
 })
 
@@ -148,6 +151,7 @@ export async function getScaleListCompat(
         stages: scale.stages || [],
         tags: scale.tags || [],
         scaleCode: scale.code,
+        release_state: scale.release_state,
       }) as IQuestionSheetInfo),
     },
   }]

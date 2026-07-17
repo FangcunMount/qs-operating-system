@@ -238,6 +238,24 @@ const Home: React.FC = observer(() => {
                       {formatNumber(overviewStats?.organization_overview.active_entry_count || 0)}
                     </b>
                   </div>
+                  <div className="home-org-scale__metric">
+                    <span className="home-org-scale__label">使用内容</span>
+                    <b className="home-org-scale__value">
+                      {formatNumber(overviewStats?.organization_overview.content_count || 0)}
+                    </b>
+                  </div>
+                  <div className="home-org-scale__metric">
+                    <span className="home-org-scale__label">累计答卷提交</span>
+                    <b className="home-org-scale__value">
+                      {formatNumber(overviewStats?.organization_overview.answer_sheet_submission_count || 0)}
+                    </b>
+                  </div>
+                  <div className="home-org-scale__metric">
+                    <span className="home-org-scale__label">今日答卷提交</span>
+                    <b className="home-org-scale__value">
+                      {formatNumber(overviewStats?.organization_overview.today_answer_sheet_submission_count || 0)}
+                    </b>
+                  </div>
                 </div>
               </Card>
 

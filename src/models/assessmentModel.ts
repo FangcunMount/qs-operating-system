@@ -4,6 +4,14 @@ import type { DefinitionV2 } from './definitionV2'
 
 export type AssessmentModelKind = 'scale' | 'typology' | 'personality' | 'behavioral_rating' | 'cognitive' | 'behavior_ability'
 export type AssessmentModelStatus = 'draft' | 'published' | 'archived'
+
+export interface ReleaseState {
+  working_status: AssessmentModelStatus | string
+  working_version: string
+  online_status: 'online' | 'offline' | 'archived' | string
+  active_version?: string
+  has_unpublished_changes: boolean
+}
 export type AssessmentModelSubKind = 'typology' | 'dimension_score'
 export type AssessmentModelAlgorithm =
   | 'personality_typology'
@@ -43,6 +51,7 @@ export interface AssessmentModelSummary {
   archived_at?: string
   created_by?: string
   updated_by?: string
+  release_state?: ReleaseState
 }
 
 export interface AssessmentModelDetail extends AssessmentModelSummary {

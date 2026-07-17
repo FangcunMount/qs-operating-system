@@ -116,12 +116,6 @@ describe('assessmentModelApi', () => {
     expect(res?.data.total_count).toBe(45)
   })
 
-  it('uses the protected draft recovery endpoint', async () => {
-    await assessmentModelApi.restoreAssessmentModelDraft('IPIP_BF50')
-
-    expect(postMock).toHaveBeenCalledWith('/assessment-models/IPIP_BF50/restore-draft', undefined)
-  })
-
   it('forwards the behavior-ability product channel and canonical BRIEF-2 identity', async () => {
     await assessmentModelApi.listAssessmentModels({ product_channel: 'behavior_ability' })
     await assessmentModelApi.listPublishedAssessmentModels({ product_channel: 'behavior_ability' })

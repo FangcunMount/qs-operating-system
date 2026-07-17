@@ -4,7 +4,7 @@ import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, SafetyCertific
 import { Link, useHistory } from 'react-router-dom'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
 import { assessmentReleaseApi } from '@/api/path/assessmentRelease'
-import { ModelCatalogListShell, ModelCatalogStatusTag } from '@/features/assessment-editor'
+import { ModelCatalogListShell, ModelReleaseState, ReleaseHistoryButton } from '@/features/assessment-editor'
 import type { AssessmentModelSummary } from '@/models/assessmentModel'
 import { BEHAVIOR_ABILITY_PRODUCT_CHANNEL } from '@/constants/behaviorAbility'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -50,12 +50,26 @@ const BehaviorAbilityList: React.FC = () => {
   const archive = (model: AssessmentModelSummary) =>
     Modal.confirm({
       title: '确认归档',
-      content: `归档后「${model.title}」不可编辑，已发布快照也会移除。`,
+      content: `归档后「${model.title}」不可编辑，历史发布版本仍保留供既有测评执行。`,
       onOk: async () => {
         const [err] = await assessmentReleaseApi.archiveAssessmentRelease(model.code)
         if (err) message.error(getApiErrorMessage(err, '归档失败'))
         else {
           message.success('已归档')
+          load()
+        }
+      }
+    })
+
+  const unpublish = (model: AssessmentModelSummary) =>
+    Modal.confirm({
+      title: '确认下架',
+      content: `下架后「${model.title}」不能用于新建测评，既有测评不受影响。`,
+      onOk: async () => {
+        const [err] = await assessmentReleaseApi.unpublishAssessmentRelease(model.code)
+        if (err) message.error(getApiErrorMessage(err, '下架失败'))
+        else {
+          message.success('已下架')
           load()
         }
       }
@@ -126,7 +140,7 @@ const BehaviorAbilityList: React.FC = () => {
         />
         <Table.Column title="模型族" dataIndex="kind" width={130} render={kindLabel} />
         <Table.Column title="算法" dataIndex="algorithm" width={100} />
-        <Table.Column title="状态" dataIndex="status" width={100} render={(status) => <ModelCatalogStatusTag status={status} />} />
+        <Table.Column title="编辑 / 线上状态" width={220} render={(_, row: AssessmentModelSummary) => <ModelReleaseState model={row} />} />
         <Table.Column
           title="常模版本"
           dataIndex="norm_table_versions"
@@ -140,7 +154,8 @@ const BehaviorAbilityList: React.FC = () => {
           width={260}
           render={(_, row: AssessmentModelSummary) =>
             row.status === 'archived' ? (
-              <Space>
+              <Space wrap>
+                <ReleaseHistoryButton modelCode={row.code} />
                 <Link to={`/behavior-ability/info/${row.code}`}>
                   <Button size="small" icon={<EyeOutlined />}>
                     查看
@@ -152,6 +167,7 @@ const BehaviorAbilityList: React.FC = () => {
               </Space>
             ) : (
               <Space wrap>
+                <ReleaseHistoryButton modelCode={row.code} />
                 <Link to={`/behavior-ability/info/${row.code}`}>
                   <Button size="small" icon={<EditOutlined />}>
                     编辑
@@ -168,6 +184,9 @@ const BehaviorAbilityList: React.FC = () => {
                 <Button size="small" danger onClick={() => archive(row)}>
                   归档
                 </Button>
+                {row.release_state?.online_status === 'online' ? (
+                  <Button size="small" onClick={() => unpublish(row)}>下架</Button>
+                ) : null}
               </Space>
             )
           }

@@ -6,7 +6,6 @@ import { adminStore } from './adminStore'
 import { authStore } from './authStore'
 import { questionSheetListStore } from './questionSheetListStore'
 import { answerSheetStore } from './answerSheetStore'
-import { statisticsStore } from './statisticsStore'
 import { subjectStore } from './subject'
 import { surveyStore } from './surveyStore'
 import { scaleStore } from './scaleStore'
@@ -21,7 +20,6 @@ export {
   questionSheetStore,
   questionSheetListStore,
   answerSheetStore,
-  statisticsStore,
   analysisStore,
   subjectStore,
   surveyStore,
@@ -43,7 +41,6 @@ export const rootStore = {
   authStore,
   questionSheetListStore,
   answerSheetStore,
-  statisticsStore,
   
   // 新模块的 store
   subjectStore,

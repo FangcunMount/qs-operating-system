@@ -1,4 +1,5 @@
 import { IQuestion } from './question'
+import type { ReleaseState } from './assessmentModel'
 
 export interface IQuestionSheet {
   id?: string
@@ -24,4 +25,6 @@ export interface IQuestionSheetInfo {
   reporters?: string[]
   stages?: string[]
   tags?: string[]
+  scaleCode?: string
+  release_state?: ReleaseState
 }

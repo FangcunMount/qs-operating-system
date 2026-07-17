@@ -17,6 +17,7 @@ import { statisticsApi } from '@/api/path/statistics'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
 import { QuestionnaireType } from '@/constants/questionnaireType'
 import { message } from 'antd'
+import { ModelReleaseState, QuestionnaireReleaseHistoryButton } from '@/features/assessment-editor'
 // 列表页面暂时不使用提取的组件，保持原有实现
 
 const { Column } = Table
@@ -68,14 +69,17 @@ const List: React.FC = observer(() => {
         create_user: q.created_by || q.create_user || '系统',
         createtime: q.created_at || q.createtime || '',
         last_update_user: q.updated_by || q.last_update_user || '系统',
-        last_update_time: q.updated_at || q.last_update_time || ''
+        last_update_time: q.updated_at || q.last_update_time || '',
+        release_state: q.release_state
       } as IQuestionSheetInfo))
 
       setSurveyList(surveyListBasic)
 
       const codes = questionnaires.map((q: any) => q.code).filter(Boolean)
       if (codes.length > 0) {
-        const [statErr, statRes] = await statisticsApi.batchQuestionnaireStatistics(codes)
+        const [statErr, statRes] = await statisticsApi.batchContentStatistics(
+          codes.map((code: string) => ({ type: 'questionnaire' as const, code }))
+        )
         if (!statErr && statRes?.data) {
           const countMap = new Map(statRes.data.items.map((item) => [item.code, item.total_submissions]))
           setSurveyList((prev: IQuestionSheetInfo[]) =>
@@ -257,11 +261,13 @@ const List: React.FC = observer(() => {
             )}
           />
           <Column
-            title="状态"
-            dataIndex="status"
-            width={100}
+            title="编辑 / 线上状态"
+            width={220}
             align="center"
-            render={(v: string | undefined) => {
+            render={(_v, row: IQuestionSheetInfo) => row.release_state ? (
+              <ModelReleaseState model={{ status: (row.status || 'draft') as any, release_state: row.release_state }} />
+            ) : (() => {
+              const v = row.status
               const statusMap: Record<string, { text: string; color: string }> = {
                 draft: { text: '草稿', color: 'default' },
                 published: { text: '已发布', color: 'success' },
@@ -269,7 +275,7 @@ const List: React.FC = observer(() => {
               }
               const statusInfo = statusMap[v || 'draft'] || { text: `未知(${v || '-'})`, color: 'default' }
               return <Tag color={statusInfo.color}>{statusInfo.text}</Tag>
-            }}
+            })()}
           />
           <Column 
             title="创建信息" 
@@ -305,10 +311,11 @@ const List: React.FC = observer(() => {
           />
           <Column
             title="操作"
-            width={250}
+            width={340}
             fixed="right"
             render={(_v, row: any) => (
               <Space size="small">
+                {row.id ? <QuestionnaireReleaseHistoryButton code={row.id} /> : null}
                 <Tooltip title='编辑问卷信息'>
                   <Link to={`/survey/info/${row.id}`}>
                     <Button

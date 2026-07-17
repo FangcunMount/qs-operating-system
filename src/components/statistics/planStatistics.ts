@@ -36,8 +36,8 @@ export const PLAN_FULFILLMENT_COLORS = {
 
 export function resolvePlanActivity(plan?: IPlanDomainStatistics | null): IPlanTaskActivityStatistics {
   return {
-    window: plan?.activity?.window ?? plan?.window ?? emptyActivityWindow(),
-    trend: plan?.activity?.trend ?? plan?.trend ?? emptyActivityTrend()
+    window: plan?.activity?.window ?? emptyActivityWindow(),
+    trend: plan?.activity?.trend ?? emptyActivityTrend()
   }
 }
 

@@ -777,7 +777,7 @@ export const scaleStore = makeObservable(
         })
       }
 
-      const [e] = await assessmentReleaseApi.archiveAssessmentRelease(scaleCode)
+      const [e] = await assessmentReleaseApi.unpublishAssessmentRelease(scaleCode)
       if (e) throw e
     },
 

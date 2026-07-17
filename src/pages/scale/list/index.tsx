@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Table, Card, Input, Button, Tag, Space, Tooltip, message, Typography, Select } from 'antd'
+import { Table, Card, Input, Button, Tag, Space, Tooltip, message, Typography, Select, Modal } from 'antd'
 import { Link } from 'react-router-dom'
 import { observer } from 'mobx-react'
 import { 
@@ -15,7 +15,8 @@ import { getScaleList } from '@/api/path/template'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
 import { statisticsApi } from '@/api/path/statistics'
 import { scaleStore } from '@/store'
-import { RestorePublishedDraftButton } from '@/features/assessment-editor'
+import { assessmentReleaseApi } from '@/api/path/assessmentRelease'
+import { ModelReleaseState, ReleaseHistoryButton } from '@/features/assessment-editor'
 
 const { Column } = Table
 const { Search } = Input
@@ -68,7 +69,9 @@ const List: React.FC = observer(() => {
 
         const codes = list.map((item: IQuestionSheetInfo) => item.id).filter(Boolean) as string[]
         if (codes.length > 0) {
-          const [statErr, statRes] = await statisticsApi.batchQuestionnaireStatistics(codes)
+          const [statErr, statRes] = await statisticsApi.batchContentStatistics(
+            codes.map((code) => ({ type: 'scale' as const, code }))
+          )
           if (!statErr && statRes?.data) {
             const countMap = new Map(statRes.data.items.map((item) => [item.code, item.total_submissions]))
             setScaleList((prev: IQuestionSheetInfo[]) =>
@@ -86,6 +89,22 @@ const List: React.FC = observer(() => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const unpublish = (row: IQuestionSheetInfo) => {
+    if (!row.scaleCode) return
+    Modal.confirm({
+      title: '确认下架',
+      content: `下架后「${row.title}」不能用于新建测评，已有测评仍可继续执行。`,
+      onOk: async () => {
+        const [err] = await assessmentReleaseApi.unpublishAssessmentRelease(row.scaleCode as string)
+        if (err) message.error('下架失败')
+        else {
+          message.success('已下架')
+          initData(pageInfo.pagesize, pageInfo.pagenum, keyWord, statusFilter, categoryFilter)
+        }
+      }
+    })
   }
 
   const handleChangePagination = (size: number, num: number) => {
@@ -198,7 +217,6 @@ const List: React.FC = observer(() => {
               新建量表
             </Button>
           </Link>
-          <RestorePublishedDraftButton onRestored={() => initData(pageInfo.pagesize, 1, keyWord, statusFilter, categoryFilter)} />
         </div>
       </Card>
 
@@ -341,9 +359,8 @@ const List: React.FC = observer(() => {
             }}
           />
           <Column
-            title="状态"
-            dataIndex="status"
-            width={120}
+            title="编辑 / 线上状态"
+            width={220}
             align="center"
             filters={[
               { text: '草稿', value: 'draft' },
@@ -354,7 +371,11 @@ const List: React.FC = observer(() => {
             sorter={(a, b) =>
               getStatusOrder((a as IQuestionSheetInfo).status) - getStatusOrder((b as IQuestionSheetInfo).status)
             }
-            render={(v) => renderStatusTag(v)}
+            render={(_, row: any) => row.release_state ? (
+              <ModelReleaseState
+                model={{ status: (row.status || 'draft') as any, release_state: row.release_state }}
+              />
+            ) : renderStatusTag(row.status)}
           />
           <Column 
             title="问题数量" 
@@ -423,10 +444,11 @@ const List: React.FC = observer(() => {
           />
           <Column
             title="操作"
-            width={250}
+            width={360}
             fixed="right"
             render={(_v, row: any) => (
               <Space size="small">
+                {row.scaleCode ? <ReleaseHistoryButton modelCode={row.scaleCode} /> : null}
                 <Tooltip title='基本信息'>
                   <Link to={`/scale/info/${row.id}${row.scaleCode ? `?scaleCode=${row.scaleCode}` : ''}`}>
                     <Button
@@ -438,6 +460,9 @@ const List: React.FC = observer(() => {
                     </Button>
                   </Link>
                 </Tooltip>
+                {row.release_state?.online_status === 'online' ? (
+                  <Button type="link" size="small" onClick={() => unpublish(row)}>下架</Button>
+                ) : null}
                 <Tooltip title='编辑问题'>
                   <Link to={`/scale/create/${row.id}/${row.answersheet_cnt || '0'}${row.scaleCode ? `?scaleCode=${row.scaleCode}` : ''}`}>
                     <Button

@@ -20,6 +20,21 @@ export interface IQuestionnaireResponse {
   type: QuestionnaireType
   version: string
   questions: any[] // QuestionDTO[]
+  release_state?: {
+    working_status: string
+    working_version: string
+    online_status: 'online' | 'offline' | 'archived' | string
+    active_version?: string
+    has_unpublished_changes: boolean
+  }
+}
+
+export interface IQuestionnaireReleaseVersion {
+  version: string
+  release_status: 'active' | 'archived' | string
+  published_at?: string
+  archived_at?: string
+  current: boolean
 }
 
 // 问卷列表响应
@@ -163,6 +178,12 @@ export async function getSurvey(
   questionsheetid: string
 ): Promise<[any, QSResponse<IQuestionnaireResponse> | undefined]> {
   return get<IQuestionnaireResponse>(`/questionnaires/${questionsheetid}`)
+}
+
+export function listQuestionnaireReleaseVersions(
+  questionsheetid: string
+): Promise<[any, QSResponse<IQuestionnaireReleaseVersion[]> | undefined]> {
+  return get<IQuestionnaireReleaseVersion[]>(`/questionnaires/${questionsheetid}/versions`)
 }
 
 
@@ -406,5 +427,6 @@ export const surveyApi = {
   updateQuestion,
   deleteQuestion,
   reorderQuestions,
-  getQuestionnaireQRCode
+  getQuestionnaireQRCode,
+  listQuestionnaireReleaseVersions
 }

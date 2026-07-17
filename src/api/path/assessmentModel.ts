@@ -143,14 +143,6 @@ export async function getAssessmentModel(
   return [err, mapResponse(res, normalizeAssessmentModelDetail)]
 }
 
-/** Restores a missing mutable draft from the active published snapshot. */
-export async function restoreAssessmentModelDraft(
-  code: string
-): Promise<[any, QSResponse<AssessmentModelDetail> | undefined]> {
-  const [err, res] = await post<any>(`/assessment-models/${code}/restore-draft`, undefined)
-  return [err, mapResponse(res, normalizeAssessmentModelDetail)]
-}
-
 export async function updateAssessmentModelBasicInfo(
   code: string,
   data: UpdateAssessmentModelBasicInfoRequest
@@ -278,7 +270,6 @@ export const assessmentModelApi = {
   listAssessmentModels,
   createAssessmentModel,
   getAssessmentModel,
-  restoreAssessmentModelDraft,
   updateAssessmentModelBasicInfo,
   getAssessmentModelQuestionnaire,
   updateAssessmentModelQuestionnaire,

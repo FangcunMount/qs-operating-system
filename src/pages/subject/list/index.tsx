@@ -4,7 +4,6 @@ import { SearchOutlined, StarOutlined, StarFilled } from '@ant-design/icons'
 import { useHistory } from 'react-router-dom'
 import moment from 'moment'
 import { testeeApi, ITestee } from '@/api/path/subject'
-import { statisticsApi, ITesteeStatistics } from '@/api/path/statistics'
 import { identityApi, IChildSuggestItem } from '@/api/path/identity'
 import { clinicianApi, IClinician } from '@/api/path/clinician'
 import { LazyTable } from '@/components/lazyTable'
@@ -15,10 +14,7 @@ import './index.scss'
 
 const { RangePicker } = DatePicker
 
-interface ITesteeWithStats extends ITestee {
-  statsLoading?: boolean
-  statsData?: ITesteeStatistics | null
-}
+type ITesteeWithStats = ITestee
 
 const SubjectList: React.FC = () => {
   const history = useHistory()
@@ -52,16 +48,6 @@ const SubjectList: React.FC = () => {
     } catch {
       return 0
     }
-  }
-
-  const getHighestRiskLevel = (riskDistribution: Record<string, number>): string | undefined => {
-    const riskOrder = ['severe', 'high', 'medium', 'low', 'none']
-    for (const level of riskOrder) {
-      if (riskDistribution[level] && riskDistribution[level] > 0) {
-        return level
-      }
-    }
-    return undefined
   }
 
   const getRiskLevelColor = (level: string): string => {
@@ -111,13 +97,7 @@ const SubjectList: React.FC = () => {
           return
         }
 
-        const itemsWithStats: ITesteeWithStats[] = response.data.items.map((item) => ({
-          ...item,
-          statsLoading: false,
-          statsData: undefined
-        }))
-
-        setDataSource(itemsWithStats)
+        setDataSource(response.data.items)
         setTotal(response.data.total)
       } catch (error) {
         console.error('获取受试者列表失败:', error)
@@ -157,46 +137,6 @@ const SubjectList: React.FC = () => {
       }
     }
   }, [])
-
-  const loadStatisticsForTestee = useCallback(
-    async (testeeId: string | number) => {
-      const targetId = String(testeeId)
-      setDataSource((prev) => prev.map((item) => (String(item.id) === targetId ? { ...item, statsLoading: true } : item)))
-
-      let stats: ITesteeStatistics | null = null
-      try {
-        const [error, data] = await statisticsApi.getTesteeStatistics(testeeId)
-        if (error || !data?.data) {
-          console.warn(`获取受试者 ${testeeId} 的统计数据失败:`, error)
-          stats = null
-        } else {
-          stats = data.data
-        }
-      } catch (error) {
-        console.warn(`获取受试者 ${testeeId} 的统计数据异常:`, error)
-        stats = null
-      }
-
-      setDataSource((prev) =>
-        prev.map((item) => {
-          if (String(item.id) !== targetId) return item
-          return {
-            ...item,
-            statsLoading: false,
-            statsData: stats,
-            assessment_stats: stats
-              ? {
-                total_count: stats.total_assessments,
-                last_assessment_at: stats.last_assessment_date,
-                last_risk_level: getHighestRiskLevel(stats.risk_distribution)
-              }
-              : undefined
-          }
-        })
-      )
-    },
-    [getHighestRiskLevel]
-  )
 
   const handlePaginationChange = (newPage: number, newPageSize?: number) => {
     setPage(newPage)
@@ -267,14 +207,6 @@ const SubjectList: React.FC = () => {
     setPage(1)
   }, [])
 
-  const handleRowVisible = useCallback(
-    (record: ITesteeWithStats) => {
-      if (record.statsLoading || record.statsData !== undefined) return
-      loadStatisticsForTestee(record.id)
-    },
-    [loadStatisticsForTestee]
-  )
-
   const columns = useMemo(
     () => [
       {
@@ -333,41 +265,6 @@ const SubjectList: React.FC = () => {
         key: 'assessment_stats',
         width: 200,
         render: function renderStats(_: any, record: ITesteeWithStats) {
-          if (record.statsLoading) {
-            return <Spin size="small" />
-          }
-
-          if (record.statsData) {
-            const stats = record.statsData
-            const totalCount = stats.total_assessments || 0
-            const riskLevel = getHighestRiskLevel(stats.risk_distribution)
-            return (
-              <div className="stats-container">
-                <div className="stats-badge">
-                  <span className="count">{totalCount}</span>
-                  <span>次测评</span>
-                </div>
-                {riskLevel && (
-                  <div className="risk-level">
-                    <Tag color={getRiskLevelColor(riskLevel)}>{getRiskLevelText(riskLevel)}</Tag>
-                  </div>
-                )}
-              </div>
-            )
-          }
-
-          if (record.statsData === null) {
-            return <span className="time-text no-data">暂无数据</span>
-          }
-
-          if (record.statsData === undefined) {
-            return (
-              <Button size="small" onClick={() => loadStatisticsForTestee(record.id)}>
-                加载统计
-              </Button>
-            )
-          }
-
           const stats = record.assessment_stats
           if (!stats) {
             return <span className="time-text no-data">暂无数据</span>
@@ -407,13 +304,7 @@ const SubjectList: React.FC = () => {
         key: 'last_assessment_at',
         width: 160,
         render: function renderLastTime(_: any, record: ITesteeWithStats) {
-          if (record.statsLoading) {
-            return <Spin size="small" />
-          }
-
-          const time = record.statsData?.last_assessment_date || record.assessment_stats?.last_assessment_at
-          if (record.statsData === undefined) return <span className="time-text no-data">未加载</span>
-          if (record.statsData === null) return <span className="time-text no-data">未测评</span>
+          const time = record.assessment_stats?.last_assessment_at
           if (!time) return <span className="time-text no-data">未测评</span>
           return <span className="time-text">{moment(time).format('YYYY-MM-DD')}</span>
         }
@@ -433,7 +324,7 @@ const SubjectList: React.FC = () => {
         }
       }
     ],
-    [calculateAge, getHighestRiskLevel, getRiskLevelColor, getRiskLevelText, history, loadStatisticsForTestee]
+    [calculateAge, getRiskLevelColor, getRiskLevelText, history]
   )
 
   return (
@@ -524,7 +415,6 @@ const SubjectList: React.FC = () => {
           dataSource={dataSource as (ITesteeWithStats & Record<string, unknown>)[]}
           loading={loading}
           rowKey="id"
-          onRowVisible={handleRowVisible as (record: ITesteeWithStats & Record<string, unknown>) => void}
           size="middle"
           scroll={{ x: 1200 }}
           pagination={{

@@ -85,7 +85,16 @@ export const normalizeAssessmentModelSummary = (raw: Record<string, any>): Asses
     published_at: raw?.published_at,
     archived_at: raw?.archived_at,
     created_by: raw?.created_by,
-    updated_by: raw?.updated_by
+    updated_by: raw?.updated_by,
+    release_state: {
+      working_status: raw?.release_state?.working_status || raw?.status || 'draft',
+      working_version: raw?.release_state?.working_version || raw?.version || '',
+      online_status: raw?.release_state?.online_status || (
+        raw?.status === 'archived' ? 'archived' : raw?.status === 'published' ? 'online' : 'offline'
+      ),
+      active_version: raw?.release_state?.active_version,
+      has_unpublished_changes: Boolean(raw?.release_state?.has_unpublished_changes)
+    }
   }
 }
 

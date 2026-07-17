@@ -13,7 +13,7 @@ import {
 } from '@ant-design/icons'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
 import { assessmentReleaseApi } from '@/api/path/assessmentRelease'
-import { ModelCatalogListShell, ModelCatalogStatusTag, RestorePublishedDraftButton } from '@/features/assessment-editor'
+import { ModelCatalogListShell, ModelReleaseState, ReleaseHistoryButton } from '@/features/assessment-editor'
 import { AssessmentModelSummary } from '@/models/assessmentModel'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
@@ -126,7 +126,7 @@ const PersonalityList: React.FC = () => {
   const handleArchive = (row: AssessmentModelSummary) => {
     Modal.confirm({
       title: '确认归档',
-      content: `归档后「${row.title}」不可继续编辑；已发布快照也将移除。`,
+      content: `归档后「${row.title}」不可继续编辑；历史发布版本仍保留供既有测评执行。`,
       onOk: async () => {
         const [err] = await assessmentReleaseApi.archiveAssessmentRelease(row.code)
         if (err) {
@@ -134,6 +134,22 @@ const PersonalityList: React.FC = () => {
           return
         }
         message.success('已归档')
+        loadList()
+      }
+    })
+  }
+
+  const handleUnpublish = (row: AssessmentModelSummary) => {
+    Modal.confirm({
+      title: '确认下架',
+      content: `下架后「${row.title}」不能用于新建测评，已有测评仍可按历史版本执行。`,
+      onOk: async () => {
+        const [err] = await assessmentReleaseApi.unpublishAssessmentRelease(row.code)
+        if (err) {
+          message.error(getApiErrorMessage(err, '下架失败'))
+          return
+        }
+        message.success('已下架')
         loadList()
       }
     })
@@ -225,6 +241,9 @@ const PersonalityList: React.FC = () => {
               归档
             </Button>
           ) : null}
+          {row.release_state?.online_status === 'online' ? (
+            <Button size="small" onClick={() => handleUnpublish(row)}>下架</Button>
+          ) : null}
         </Space>
       )
     }
@@ -256,6 +275,9 @@ const PersonalityList: React.FC = () => {
               <Button size="small" danger onClick={() => handleArchive(row)}>
                 归档
               </Button>
+            ) : null}
+            {row.release_state?.online_status === 'online' ? (
+              <Button size="small" onClick={() => handleUnpublish(row)}>下架</Button>
             ) : null}
           </>
         ) : null}
@@ -327,7 +349,6 @@ const PersonalityList: React.FC = () => {
             />
           </Space>
           <Space wrap>
-            <RestorePublishedDraftButton onRestored={() => loadList(1, pageInfo.pageSize)} />
             <Link to="/personality/info/new">
               <Button type="primary" size="large" icon={<PlusOutlined />}>
                 新建人格测评
@@ -378,7 +399,7 @@ const PersonalityList: React.FC = () => {
             </div>
           )}
         />
-        <Column title="状态" dataIndex="status" width={110} render={(status) => <ModelCatalogStatusTag status={status} />} />
+        <Column title="编辑 / 线上状态" width={220} render={(_, row: AssessmentModelSummary) => <ModelReleaseState model={row} />} />
         <Column title="算法" dataIndex="algorithm" width={160} render={(v) => v || '-'} />
         <Column title="分类" dataIndex="category" width={140} render={(v) => v || '-'} />
         <Column
@@ -393,7 +414,17 @@ const PersonalityList: React.FC = () => {
         />
         <Column title="绑定问卷" dataIndex="questionnaire_code" width={180} render={(v) => v || '-'} />
         <Column title="更新时间" dataIndex="updated_at" width={180} render={(v) => v || '-'} />
-        <Column title="操作" fixed="right" width={320} render={(_, row: AssessmentModelSummary) => renderActions(row)} />
+        <Column
+          title="操作"
+          fixed="right"
+          width={380}
+          render={(_, row: AssessmentModelSummary) => (
+            <Space wrap>
+              <ReleaseHistoryButton modelCode={row.code} />
+              {renderActions(row)}
+            </Space>
+          )}
+        />
       </Table>
     </ModelCatalogListShell>
   )

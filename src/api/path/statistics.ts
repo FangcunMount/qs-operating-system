@@ -29,6 +29,9 @@ export interface IOrganizationOverviewStatistics {
   active_entry_count: number
   assessment_count: number
   report_count: number
+  content_count: number
+  answer_sheet_submission_count: number
+  today_answer_sheet_submission_count: number
 }
 
 export interface IAccessFunnelWindow {
@@ -75,7 +78,6 @@ export interface IDimensionAnalysisSummary {
   content_count: number
 }
 
-/** 事件活动窗口指标，语义同 IPlanTaskWindow */
 export type IPlanTaskActivityWindow = {
   task_created_count: number
   task_opened_count: number
@@ -85,19 +87,12 @@ export type IPlanTaskActivityWindow = {
   active_testees: number
 }
 
-/** 事件活动趋势，语义同 IPlanTaskTrend */
 export type IPlanTaskActivityTrend = {
   task_created: IDailyCount[]
   task_opened: IDailyCount[]
   task_completed: IDailyCount[]
   task_expired: IDailyCount[]
 }
-
-/** @deprecated 使用 IPlanTaskActivityWindow */
-export type IPlanTaskWindow = IPlanTaskActivityWindow
-
-/** @deprecated 使用 IPlanTaskActivityTrend */
-export type IPlanTaskTrend = IPlanTaskActivityTrend
 
 export interface IPlanTaskActivityStatistics {
   window: IPlanTaskActivityWindow
@@ -131,10 +126,6 @@ export interface IPlanTaskFulfillmentStatistics {
 export interface IPlanDomainStatistics {
   activity: IPlanTaskActivityStatistics
   fulfillment: IPlanTaskFulfillmentStatistics
-  /** @deprecated 使用 activity.window */
-  window?: IPlanTaskWindow
-  /** @deprecated 使用 activity.trend */
-  trend?: IPlanTaskTrend
 }
 
 export interface IStatisticsOverviewResponse {
@@ -243,15 +234,22 @@ export interface IClinicianTesteeSummaryStatistics {
   assessed_in_window_count: number
 }
 
-export interface IQuestionnaireBatchStatisticsItem {
+export type ContentStatisticsType = 'questionnaire' | 'scale'
+
+export interface IContentStatisticsReference {
+  type: ContentStatisticsType
+  code: string
+}
+
+export interface IContentBatchStatisticsItem extends IContentStatisticsReference {
   code: string
   total_submissions: number
   total_completions: number
   completion_rate: number
 }
 
-export interface IQuestionnaireBatchStatisticsResponse {
-  items: IQuestionnaireBatchStatisticsItem[]
+export interface IContentBatchStatisticsResponse {
+  items: IContentBatchStatisticsItem[]
 }
 
 export interface IPeriodicTaskStatus {
@@ -281,70 +279,6 @@ export interface ITesteePeriodicStatisticsResponse {
   projects: IPeriodicProject[]
   total_projects: number
   active_projects: number
-}
-
-// ===== legacy compatibility types =====
-
-export interface ISystemStatistics {
-  org_id: number
-  questionnaire_count: number
-  answer_sheet_count: number
-  testee_count: number
-  assessment_count: number
-  today_new_answer_sheets: number
-  today_new_testees: number
-  today_new_assessments: number
-  assessment_trend: IDailyCount[]
-  assessment_status_distribution: Record<string, number>
-}
-
-export interface IQuestionnaireStatistics {
-  org_id: number
-  questionnaire_code: string
-  total_submissions: number
-  total_completions: number
-  completion_rate: number
-  last_7_days_count: number
-  last_15_days_count: number
-  last_30_days_count: number
-  daily_trend: IDailyCount[]
-  origin_distribution: Record<string, number>
-}
-
-export interface IPlanStatistics {
-  org_id: number
-  plan_id: number
-  enrolled_testees: number
-  active_testees: number
-  total_tasks: number
-  completed_tasks: number
-  pending_tasks: number
-  expired_tasks: number
-  completion_rate: number
-  activity: IPlanTaskActivityStatistics
-  fulfillment: IPlanTaskFulfillmentStatistics
-  /** @deprecated 使用 activity.window */
-  window?: IPlanTaskWindow
-  /** @deprecated 使用 activity.trend */
-  trend?: IPlanTaskTrend
-}
-
-export interface ITesteeStatistics {
-  org_id: number
-  testee_id: number
-  total_assessments: number
-  completed_assessments: number
-  pending_assessments: number
-  first_assessment_date?: string
-  last_assessment_date?: string
-  risk_distribution: Record<string, number>
-}
-
-export interface IStatistics {
-  totalQuestionSheets: number
-  totalAnswerSheets: number
-  totalUsers: number
-  todayAnswers: number
 }
 
 function buildQueryParams(params?: IStatisticsQueryParams) {
@@ -409,58 +343,13 @@ export const getTesteePeriodicStatistics = async (
   return get<ITesteePeriodicStatisticsResponse>(`/statistics/testees/${testeeId}/periodic`, buildQueryParams(params))
 }
 
-export const batchQuestionnaireStatistics = async (
-  codes: string[]
-): Promise<[any, QSResponse<IQuestionnaireBatchStatisticsResponse> | undefined]> => {
-  return post<IQuestionnaireBatchStatisticsResponse>('/statistics/questionnaires/batch', { codes })
-}
-
-// ===== legacy compatibility endpoints kept for old pages =====
-
-export const getSystemStatistics = async (): Promise<[any, QSResponse<ISystemStatistics> | undefined]> => {
-  return get<ISystemStatistics>('/statistics/system')
-}
-
-export const getQuestionnaireStatistics = async (
-  code: string
-): Promise<[any, QSResponse<IQuestionnaireStatistics> | undefined]> => {
-  return get<IQuestionnaireStatistics>(`/statistics/questionnaires/${code}`)
-}
-
-export const getPlanStatistics = async (
-  planId: number | string
-): Promise<[any, QSResponse<IPlanStatistics> | undefined]> => {
-  return get<IPlanStatistics>(`/statistics/plans/${planId}`)
-}
-
-export const getTesteeStatistics = async (
-  testeeId: number | string
-): Promise<[any, QSResponse<ITesteeStatistics> | undefined]> => {
-  return get<ITesteeStatistics>(`/statistics/testees/${testeeId}`)
-}
-
-export const getStatistics = async (): Promise<[any, QSResponse<IStatistics> | undefined]> => {
-  const [error, data] = await getSystemStatistics()
-  if (error || !data?.data) {
-    return [error, undefined]
-  }
-
-  const legacyStats: IStatistics = {
-    totalQuestionSheets: data.data.questionnaire_count,
-    totalAnswerSheets: data.data.answer_sheet_count,
-    totalUsers: data.data.testee_count,
-    todayAnswers: data.data.today_new_answer_sheets
-  }
-
-  return [null, { ...data, data: legacyStats }]
+export const batchContentStatistics = async (
+  items: IContentStatisticsReference[]
+): Promise<[any, QSResponse<IContentBatchStatisticsResponse> | undefined]> => {
+  return post<IContentBatchStatisticsResponse>('/statistics/contents/batch', { items })
 }
 
 export const statisticsApi = {
-  getStatistics,
-  getSystemStatistics,
-  getQuestionnaireStatistics,
-  getPlanStatistics,
-  getTesteeStatistics,
   getOverviewStatistics,
   listClinicianStatistics,
   getClinicianStatistics,
@@ -470,5 +359,5 @@ export const statisticsApi = {
   listMyClinicianEntryStatistics,
   getMyClinicianTesteeSummaryStatistics,
   getTesteePeriodicStatistics,
-  batchQuestionnaireStatistics
+  batchContentStatistics
 }
