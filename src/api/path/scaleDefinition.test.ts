@@ -55,8 +55,8 @@ describe('scaleDefinition adapter', () => {
       interpret_rules: [{ min_score: 3, max_score: 5, conclusion: '需要关注', suggestion: '复评', risk_level: 'high' }],
     }])
 
-    expect(next.Measure!.Scoring).toEqual([expect.objectContaining({ FactorCode: 'attention', MaxScore: 5 })])
-    expect(next.Conclusions!).toEqual(expect.arrayContaining([
+    expect(next.Measure?.Scoring).toEqual([expect.objectContaining({ FactorCode: 'attention', MaxScore: 5 })])
+    expect(next.Conclusions).toEqual(expect.arrayContaining([
       expect.objectContaining({ Kind: 'norm', ScoreBasis: 't_score' }),
       expect.objectContaining({
         Kind: 'risk',
@@ -67,11 +67,11 @@ describe('scaleDefinition adapter', () => {
         })],
       }),
     ]))
-    expect(next.Conclusions!.filter((item: any) => item.Kind === 'risk' && item.FactorCode === 'attention')).toHaveLength(1)
+    expect((next.Conclusions ?? []).filter((item: any) => item.Kind === 'risk' && item.FactorCode === 'attention')).toHaveLength(1)
     expect(next.Outcomes).toEqual(expect.arrayContaining([
       expect.objectContaining({ Code: 'high', Title: '高风险' }),
     ]))
-    expect(next.ReportMap!.Sections).toEqual([expect.objectContaining({ Kind: 'factor_scores', SourceRefs: [] })])
+    expect(next.ReportMap?.Sections).toEqual([expect.objectContaining({ Kind: 'factor_scores', SourceRefs: [] })])
   })
 
   it('registers default risk level none as an Outcome so the API can resolve Level', () => {
