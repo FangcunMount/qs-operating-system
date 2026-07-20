@@ -14,8 +14,6 @@ import './index.scss'
 
 const { RangePicker } = DatePicker
 
-type ITesteeWithStats = ITestee
-
 const SubjectList: React.FC = () => {
   const history = useHistory()
   const [keyword, setKeyword] = useState('')
@@ -26,7 +24,7 @@ const SubjectList: React.FC = () => {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [loading, setLoading] = useState(false)
-  const [dataSource, setDataSource] = useState<ITesteeWithStats[]>([])
+  const [dataSource, setDataSource] = useState<ITestee[]>([])
   const [total, setTotal] = useState(0)
   const [childSuggests, setChildSuggests] = useState<IChildSuggestItem[]>([])
   const [suggestLoading, setSuggestLoading] = useState(false)
@@ -97,6 +95,7 @@ const SubjectList: React.FC = () => {
           return
         }
 
+        // 测评统计由 GET /testees 内嵌 assessment_stats，不再异步拉取
         setDataSource(response.data.items)
         setTotal(response.data.total)
       } catch (error) {
@@ -215,7 +214,7 @@ const SubjectList: React.FC = () => {
         key: 'name',
         width: 120,
         fixed: 'left' as const,
-        render: function renderName(name: string, record: ITesteeWithStats) {
+        render: function renderName(name: string, record: ITestee) {
           return (
             <Space size={8}>
               <span className="subject-name">{name}</span>
@@ -234,7 +233,7 @@ const SubjectList: React.FC = () => {
         key: 'gender',
         width: 60,
         align: 'center' as const,
-        render: function renderGender(gender: string, record: ITesteeWithStats) {
+        render: function renderGender(gender: string, record: ITestee) {
           const genderConfig = {
             male: { text: '男', class: 'male' },
             female: { text: '女', class: 'female' }
@@ -264,7 +263,7 @@ const SubjectList: React.FC = () => {
         title: '测评统计',
         key: 'assessment_stats',
         width: 200,
-        render: function renderStats(_: any, record: ITesteeWithStats) {
+        render: function renderStats(_: any, record: ITestee) {
           const stats = record.assessment_stats
           if (!stats) {
             return <span className="time-text no-data">暂无数据</span>
@@ -303,7 +302,7 @@ const SubjectList: React.FC = () => {
         title: '最近测评日期',
         key: 'last_assessment_at',
         width: 160,
-        render: function renderLastTime(_: any, record: ITesteeWithStats) {
+        render: function renderLastTime(_: any, record: ITestee) {
           const time = record.assessment_stats?.last_assessment_at
           if (!time) return <span className="time-text no-data">未测评</span>
           return <span className="time-text">{moment(time).format('YYYY-MM-DD')}</span>
@@ -315,7 +314,7 @@ const SubjectList: React.FC = () => {
         width: 120,
         fixed: 'right' as const,
         align: 'center' as const,
-        render: function renderAction(_: any, record: ITesteeWithStats) {
+        render: function renderAction(_: any, record: ITestee) {
           return (
             <Button type="link" size="small" className="action-btn" onClick={() => history.push(`/subject/detail/${record.id}`)}>
               查看详情
@@ -324,7 +323,7 @@ const SubjectList: React.FC = () => {
         }
       }
     ],
-    [calculateAge, getRiskLevelColor, getRiskLevelText, history]
+    [history]
   )
 
   return (
@@ -410,9 +409,9 @@ const SubjectList: React.FC = () => {
         </Space>
       </div>
       <div className="table-container">
-        <LazyTable<ITesteeWithStats & Record<string, unknown>>
+        <LazyTable<ITestee & Record<string, unknown>>
           columns={columns}
-          dataSource={dataSource as (ITesteeWithStats & Record<string, unknown>)[]}
+          dataSource={dataSource as (ITestee & Record<string, unknown>)[]}
           loading={loading}
           rowKey="id"
           size="middle"
