@@ -241,6 +241,14 @@ export const qsV2Get = <T>(url: string, params: any = {}, clearFn?: Fn<T>): Prom
       .catch((err) => resolve([err, undefined]))
   })
 
+export const qsV2Post = <T>(url: string, data: any = {}, params: any = {}): Promise<[any, QSResponse<T> | undefined]> =>
+  new Promise((resolve) => {
+    qsV2Axios
+      .post(url, data === undefined || data === null ? undefined : data, { params })
+      .then((result) => resolve([null, result.data as QSResponse<T>]))
+      .catch((err) => resolve([err, undefined]))
+  })
+
 /**
  * Silent reads keep 404/403/429 available to the caller without displaying a
  * global network toast.  This is required for report-not-generated state.
@@ -365,6 +373,7 @@ export const get = qsGet
 export const silentGet = qsSilentGet
 export const v2Get = qsV2Get
 export const v2SilentGet = qsV2SilentGet
+export const v2Post = qsV2Post
 export const post = qsPost
 export const put = qsPut
 export const del = qsDelete

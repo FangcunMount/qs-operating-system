@@ -7,6 +7,7 @@ interface IConfigBase {
   qsHost?: string
   grafanaURL?: string
   token?: string
+	statisticsApiVersion?: 'v1' | 'v2'
 }
 
 // 环境映射（参考小程序 develop/trial/release 语义）
@@ -55,6 +56,7 @@ const domain = base.domain || 'fangcunmount.cn'
 const iamHost = iamHostFromEnv || base.iamHost || `https://iam.${domain}/api/v2`
 const qsHost = qsHostFromEnv || base.qsHost || `https://qs.${domain}/api/v1`
 const grafanaURL = grafanaURLFromEnv || ''
+const statisticsApiVersion = process.env.REACT_APP_STATISTICS_API_VERSION === 'v2' ? 'v2' : 'v1'
 
 // 兼容旧代码：host 继续指向旧业务域名（不带 /api 前缀），供 /api/xxx 路径拼接
 const host = hostFromEnv || base.host || `//${domain}`
@@ -66,5 +68,6 @@ export const config: IConfigBase = {
   iamHost,
   qsHost,
   grafanaURL,
+  statisticsApiVersion,
   token: ''
 }

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button, Card, Col, DatePicker, Empty, Row, Select, Space, Statistic, Table, Tabs, Typography, message } from 'antd'
+import { Alert, Button, Card, Col, DatePicker, Empty, Row, Select, Space, Statistic, Table, Tabs, Typography, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   Bar,
@@ -59,7 +59,7 @@ const { Title, Text } = Typography
 const { RangePicker } = DatePicker
 const { TabPane } = Tabs
 
-type PresetValue = 'today' | '7d' | '30d'
+type PresetValue = 'latest_complete_day' | '7d' | '30d'
 
 const CHART_COLORS = ['#1677ff', '#00b578', '#faad14', '#ff7a45', '#722ed1', '#13c2c2', '#eb2f96']
 
@@ -289,7 +289,7 @@ const StatisticsCenterPage: React.FC = () => {
               }}
               style={{ width: 140 }}
               options={[
-                { label: '今天', value: 'today' },
+                { label: '最近完整日', value: 'latest_complete_day' },
                 { label: '近 7 天', value: '7d' },
                 { label: '近 30 天', value: '30d' }
               ]}
@@ -304,6 +304,15 @@ const StatisticsCenterPage: React.FC = () => {
             </Button>
           </Space>
         </div>
+
+        {overview?.freshness ? (
+          <Alert
+            type={overview.freshness.is_stale ? 'warning' : 'info'}
+            showIcon
+            message={`数据截至 ${overview.freshness.as_of_date}`}
+            description={overview.freshness.is_stale ? '统计批次存在延迟，当前展示的是最近一次成功结果。' : undefined}
+          />
+        ) : null}
 
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
           <TabPane tab="统计中心概览" key="overview">
@@ -350,8 +359,8 @@ const StatisticsCenterPage: React.FC = () => {
                     <b>{formatNumber(overview?.organization_overview.answer_sheet_submission_count || 0)}</b>
                   </div>
                   <div className="overview-org-scale__metric">
-                    <span>今日答卷提交</span>
-                    <b>{formatNumber(overview?.organization_overview.today_answer_sheet_submission_count || 0)}</b>
+                    <span>窗口答卷提交</span>
+                    <b>{formatNumber(overview?.assessment_service.window.answersheet_submitted_count || 0)}</b>
                   </div>
                 </div>
               </Card>

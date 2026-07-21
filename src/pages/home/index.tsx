@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Card, Row, Col, Button, Typography, Space, Spin, Empty } from 'antd'
+import { Alert, Card, Row, Col, Button, Typography, Space, Spin, Empty } from 'antd'
 import { 
   ExperimentOutlined, 
   FormOutlined, 
@@ -208,6 +208,14 @@ const Home: React.FC = observer(() => {
         {showAdminStats && (
           <Spin spinning={overviewLoading}>
             <div className="stats-section">
+              {overviewStats?.freshness ? (
+                <Alert
+                  type={overviewStats.freshness.is_stale ? 'warning' : 'info'}
+                  showIcon
+                  message={`统计数据截至 ${overviewStats.freshness.as_of_date}`}
+                  style={{ marginBottom: 16 }}
+                />
+              ) : null}
               <Card
                 className="home-org-scale"
                 hoverable
@@ -251,9 +259,9 @@ const Home: React.FC = observer(() => {
                     </b>
                   </div>
                   <div className="home-org-scale__metric">
-                    <span className="home-org-scale__label">今日答卷提交</span>
+                    <span className="home-org-scale__label">窗口答卷提交</span>
                     <b className="home-org-scale__value">
-                      {formatNumber(overviewStats?.organization_overview.today_answer_sheet_submission_count || 0)}
+                      {formatNumber(overviewStats?.assessment_service.window.answersheet_submitted_count || 0)}
                     </b>
                   </div>
                 </div>

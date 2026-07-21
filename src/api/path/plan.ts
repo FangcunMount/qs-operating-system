@@ -1,4 +1,4 @@
-import { get, post, internalPost } from '../qsServer'
+import { get, post, internalPost, v2Get } from '../qsServer'
 import type { QSResponse } from '@/types/qs'
 
 // ==================== 计划相关类型定义 ====================
@@ -56,6 +56,44 @@ export interface ICreatePlanRequest {
 // 恢复计划请求参数
 export interface IResumePlanRequest {
   testee_start_dates?: Record<string, string>  // 受试者ID -> 开始日期（格式：YYYY-MM-DD）
+}
+
+export interface IPlanEnrollmentTask {
+  id: string | number
+  seq: number
+  scale_code: string
+  status: string
+  planned_at: string
+  open_at?: string
+  expire_at?: string
+  completed_at?: string
+  expired_at?: string
+  canceled_at?: string
+  assessment_id?: string
+}
+
+export interface IPlanEnrollment {
+  id: string | number
+  org_id: number
+  plan_id: string | number
+  testee_id: string | number
+  round: number
+  start_date: string
+  status: 'active' | 'closed' | 'terminated'
+  joined_at: string
+  closed_at?: string
+  terminated_at?: string
+  terminated_reason?: string
+  record_origin: 'native' | 'derived_legacy'
+  tasks: IPlanEnrollmentTask[]
+}
+
+export interface IPlanEnrollmentPage {
+  items: IPlanEnrollment[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
 }
 
 // ==================== 任务相关类型定义 ====================
@@ -195,6 +233,14 @@ export const planApi = {
   // GET /testees/{testee_id}/tasks - 查询受试者的所有任务
   getTesteeTasks: (testeeId: string): Promise<[any, QSResponse<ITaskListResponse> | undefined]> => {
     return get<ITaskListResponse>(`/testees/${testeeId}/tasks`)
+  },
+
+  // V2 周期真相以 Enrollment round 为边界；替代 Statistics V1 periodic 端点。
+  getTesteeEnrollments: (
+    testeeId: string,
+    params: { plan_id?: string; status?: 'active' | 'closed' | 'terminated'; page?: number; page_size?: number } = {}
+  ): Promise<[any, QSResponse<IPlanEnrollmentPage> | undefined]> => {
+    return v2Get<IPlanEnrollmentPage>(`/plans/testees/${testeeId}/enrollments`, params)
   }
 }
 
