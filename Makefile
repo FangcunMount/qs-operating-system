@@ -16,7 +16,7 @@ cd-validate: ## 校验 CD 脚本 (SERVICE=ops)
 	@test -x "$(CD_SCRIPT_DIR)/remote-deploy.sh"
 	@echo "CD metadata validated for SERVICE=$(SERVICE)"
 
-cd-export-image: cd-validate ## ServerD 从 ACR pull 并导出镜像 tarball
+cd-export-image: cd-validate ## Runner 从 ACR pull 并导出镜像 tarball（linux/amd64）
 	@SERVICE="$(SERVICE)" DEPLOY_SHA="$(DEPLOY_SHA)" "$(CD_SCRIPT_DIR)/export-image.sh"
 
 cd-image: cd-validate ## 构建并发布到 GHCR、Docker Hub、ACR

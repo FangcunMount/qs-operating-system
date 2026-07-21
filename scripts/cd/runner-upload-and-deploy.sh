@@ -11,16 +11,24 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 IMAGE_FILE="${DEPLOY_IMAGE_PACKAGE}"
 REMOTE_DIR="/tmp/qs-ops-cd-${DEPLOY_SHA}"
 
+# 使用 setup-runner-ssh.sh 写出的隔离 config（Mac mini 场景必需）
+SSH=(ssh)
+SCP=(scp)
+if [ -n "${RUNNER_SSH_CONFIG:-}" ] && [ -f "${RUNNER_SSH_CONFIG}" ]; then
+  SSH=(ssh -F "${RUNNER_SSH_CONFIG}")
+  SCP=(scp -F "${RUNNER_SSH_CONFIG}")
+fi
+
 if [ ! -f "$IMAGE_FILE" ]; then
   echo "Missing file: $IMAGE_FILE" >&2
   exit 1
 fi
 
 echo "Preparing ${REMOTE_DIR} on ${RUNNER_SSH_ALIAS}..."
-ssh "${RUNNER_SSH_ALIAS}" "mkdir -p '${REMOTE_DIR}'"
+"${SSH[@]}" "${RUNNER_SSH_ALIAS}" "mkdir -p '${REMOTE_DIR}'"
 
 echo "Uploading image and deploy scripts..."
-scp "$IMAGE_FILE" \
+"${SCP[@]}" "$IMAGE_FILE" \
   "${SCRIPT_DIR}/remote-deploy.sh" \
   "${SCRIPT_DIR}/image-metadata.sh" \
   "${RUNNER_SSH_ALIAS}:${REMOTE_DIR}/"
@@ -28,7 +36,7 @@ scp "$IMAGE_FILE" \
 echo "Running remote-deploy.sh on ${RUNNER_SSH_ALIAS}..."
 # 勿把 SUDO_PASSWORD 拼进 ssh 命令行：含空格/引号/! 等字符时会破坏远端 shell，
 # 导致 remote-deploy 未执行而 ssh 仍返回 0。密码通过 stdin 单独传递（若需要）。
-if ! ssh "${RUNNER_SSH_ALIAS}" bash -s <<EOF
+if ! "${SSH[@]}" "${RUNNER_SSH_ALIAS}" bash -s <<EOF
 set -Eeuo pipefail
 export DEPLOY_SHA='${DEPLOY_SHA//\'/\'\\\'\'}'
 export IMAGE_TARBALL='${REMOTE_DIR}/${DEPLOY_IMAGE_PACKAGE}'
@@ -45,12 +53,12 @@ then
 fi
 
 echo "Verifying remote deployment on ${RUNNER_SSH_ALIAS}..."
-if ssh "${RUNNER_SSH_ALIAS}" "test -f '${REMOTE_DIR}/${DEPLOY_IMAGE_PACKAGE}'"; then
+if "${SSH[@]}" "${RUNNER_SSH_ALIAS}" "test -f '${REMOTE_DIR}/${DEPLOY_IMAGE_PACKAGE}'"; then
   echo "Deploy verification failed: image tarball still present on remote host." >&2
   exit 1
 fi
 
-running_image="$(ssh "${RUNNER_SSH_ALIAS}" "sudo docker inspect --format '{{.Config.Image}}' ${CONTAINER_NAME} 2>/dev/null || true")"
+running_image="$("${SSH[@]}" "${RUNNER_SSH_ALIAS}" "sudo docker inspect --format '{{.Config.Image}}' ${CONTAINER_NAME} 2>/dev/null || true")"
 if [ -z "${running_image}" ] || ! printf '%s' "${running_image}" | grep -q "${DEPLOY_SHA}"; then
   echo "Deploy verification failed: container ${CONTAINER_NAME} is not running image sha-${DEPLOY_SHA}." >&2
   echo "Current image: ${running_image:-<none>}" >&2
