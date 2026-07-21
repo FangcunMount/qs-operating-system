@@ -24,6 +24,6 @@ docker buildx build \
   --build-arg "REACT_APP_BUILD_SHA=${DEPLOY_SHA}" \
   --build-arg "REACT_APP_BUILD_REF=${DEPLOY_REF}" \
   --build-arg "REACT_APP_GRAFANA_URL=${REACT_APP_GRAFANA_URL}" \
-  --cache-from type=gha \
-  --cache-to type=gha,mode=max \
+  --cache-from "type=gha,scope=qs-ops" \
+  --cache-to "type=gha,mode=max,scope=qs-ops" \
   .
