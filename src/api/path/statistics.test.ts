@@ -6,13 +6,16 @@ jest.mock('../qsServer', () => ({
   v2Post: jest.fn(() => Promise.resolve([null, { data: { items: [], freshness: {} } }]))
 }))
 
+const v2GetMock = v2Get as jest.Mock
+const v2PostMock = v2Post as jest.Mock
+
 describe('Statistics V2-only API', () => {
   afterEach(() => {
     jest.clearAllMocks()
   })
 
   it('sends typed content identities and preserves completion semantics', async () => {
-    ;(v2Post as jest.Mock).mockResolvedValue([
+    v2PostMock.mockResolvedValue([
       null,
       {
         code: 0,
@@ -26,7 +29,7 @@ describe('Statistics V2-only API', () => {
 
     const [, response] = await batchContentStatistics([{ type: 'questionnaire', code: 'Q-1' }])
 
-    expect(v2Post).toHaveBeenCalledWith('/statistics/contents/batch', {
+    expect(v2PostMock).toHaveBeenCalledWith('/statistics/contents/batch', {
       items: [{ kind: 'questionnaire', code: 'Q-1' }]
     })
     expect(response?.data.items[0]).toEqual({
@@ -43,8 +46,8 @@ describe('Statistics V2-only API', () => {
     await getOverviewStatistics({ preset: 'latest_complete_day' })
     await getOverviewStatistics({ from: '2026-07-01 00:00:00', to: '2026-07-20 23:59:59' })
 
-    expect(v2Get).toHaveBeenNthCalledWith(1, '/statistics/overview', { preset: 'latest_complete_day' })
-    expect(v2Get).toHaveBeenNthCalledWith(2, '/statistics/overview', {
+    expect(v2GetMock).toHaveBeenNthCalledWith(1, '/statistics/overview', { preset: 'latest_complete_day' })
+    expect(v2GetMock).toHaveBeenNthCalledWith(2, '/statistics/overview', {
       preset: 'custom',
       from: '2026-07-01',
       to: '2026-07-20'
