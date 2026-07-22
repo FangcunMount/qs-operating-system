@@ -1,4 +1,3 @@
-import type { ICacheGovernanceStatusResponse } from '../cacheGovernance'
 import type { MetricEvidence } from './types.shared'
 import type {
   CacheCapabilityPolicyView,
@@ -8,6 +7,7 @@ import type {
   CacheFamilyRow,
   CacheHotsetItem,
   CacheHotsetView,
+  ICacheGovernanceStatusResponse,
   CachePolicyReloadStatus,
   CachePolicyView,
   CacheStatusSnapshot,
@@ -15,13 +15,7 @@ import type {
   GovernanceCacheResponse,
   RawSystemGovernanceCacheResponse
 } from './types.cache'
-import {
-  isRecord,
-  normalizeMetricEvidence,
-  normalizeSignals,
-  numberFrom,
-  stringFrom
-} from './normalizers.shared'
+import { isRecord, normalizeMetricEvidence, normalizeSignals, numberFrom, stringFrom } from './normalizers.shared'
 
 const EMPTY_CACHE_SUMMARY: ICacheGovernanceStatusResponse['summary'] = {
   family_total: 0,
@@ -69,24 +63,26 @@ const normalizeEffectiveRegistry = (value: unknown): CacheEffectiveRegistrySnaps
     snapshot_version: numberFrom(value.snapshot_version),
     catalog_version: stringFrom(value.catalog_version),
     generated_at: stringFrom(value.generated_at) || undefined,
-    capabilities: capabilities.map((item): CacheCapabilityPolicyView => {
-      const raw = isRecord(item) ? item : {}
-      return {
-        capability: stringFrom(raw.capability),
-        owner: stringFrom(raw.owner),
-        kind: stringFrom(raw.kind),
-        layer: stringFrom(raw.layer),
-        family: stringFrom(raw.family),
-        enabled: Boolean(raw.enabled),
-        spec_default: normalizePolicyView(raw.spec_default),
-        global_default: normalizePolicyView(raw.global_default),
-        family_default: normalizePolicyView(raw.family_default),
-        override: normalizePolicyView(raw.override),
-        effective: normalizePolicyView(raw.effective),
-        source: stringFrom(raw.source),
-        metric_label: stringFrom(raw.metric_label)
-      }
-    }).sort((left, right) => left.capability.localeCompare(right.capability)),
+    capabilities: capabilities
+      .map((item): CacheCapabilityPolicyView => {
+        const raw = isRecord(item) ? item : {}
+        return {
+          capability: stringFrom(raw.capability),
+          owner: stringFrom(raw.owner),
+          kind: stringFrom(raw.kind),
+          layer: stringFrom(raw.layer),
+          family: stringFrom(raw.family),
+          enabled: Boolean(raw.enabled),
+          spec_default: normalizePolicyView(raw.spec_default),
+          global_default: normalizePolicyView(raw.global_default),
+          family_default: normalizePolicyView(raw.family_default),
+          override: normalizePolicyView(raw.override),
+          effective: normalizePolicyView(raw.effective),
+          source: stringFrom(raw.source),
+          metric_label: stringFrom(raw.metric_label)
+        }
+      })
+      .sort((left, right) => left.capability.localeCompare(right.capability)),
     reload: {
       last_attempt_at: stringFrom(reload.last_attempt_at) || undefined,
       last_success_at: stringFrom(reload.last_success_at) || undefined,
@@ -111,21 +107,23 @@ const normalizeMetricEvidenceItem = (value: unknown): MetricEvidence | undefined
 }
 
 const normalizeCapabilityRows = (rows: unknown): CacheCapabilityRow[] =>
-  (Array.isArray(rows) ? rows : []).map((item): CacheCapabilityRow => {
-    const raw = isRecord(item) ? item : {}
-    const workload = isRecord(raw.workload) ? raw.workload : {}
-    const normalizedWorkload: CacheCapabilityWorkload = {
-      hit_rate: normalizeMetricEvidenceItem(workload.hit_rate),
-      error_count: normalizeMetricEvidenceItem(workload.error_count),
-      get_latency_p95: normalizeMetricEvidenceItem(workload.get_latency_p95)
-    }
-    return {
-      capability: stringFrom(raw.capability),
-      family: stringFrom(raw.family),
-      metric_label: stringFrom(raw.metric_label),
-      workload: normalizedWorkload
-    }
-  }).sort((left, right) => left.capability.localeCompare(right.capability))
+  (Array.isArray(rows) ? rows : [])
+    .map((item): CacheCapabilityRow => {
+      const raw = isRecord(item) ? item : {}
+      const workload = isRecord(raw.workload) ? raw.workload : {}
+      const normalizedWorkload: CacheCapabilityWorkload = {
+        hit_rate: normalizeMetricEvidenceItem(workload.hit_rate),
+        error_count: normalizeMetricEvidenceItem(workload.error_count),
+        get_latency_p95: normalizeMetricEvidenceItem(workload.get_latency_p95)
+      }
+      return {
+        capability: stringFrom(raw.capability),
+        family: stringFrom(raw.family),
+        metric_label: stringFrom(raw.metric_label),
+        workload: normalizedWorkload
+      }
+    })
+    .sort((left, right) => left.capability.localeCompare(right.capability))
 
 const DEFAULT_CACHE_WARMUP_KINDS: CacheWarmupKind[] = [
   { kind: 'static.scale', family: 'static_meta', scope_example: 'scale:S-001', supports_manual_warmup: true },
@@ -183,9 +181,7 @@ const normalizeCacheHotsets = (hotsets: CacheHotsetView[] | undefined): CacheHot
     metric_evidence: normalizeMetricEvidence(hotset.metric_evidence)
   }))
 
-export const normalizeSystemGovernanceCache = (
-  raw: RawSystemGovernanceCacheResponse = {}
-): GovernanceCacheResponse => {
+export const normalizeSystemGovernanceCache = (raw: RawSystemGovernanceCacheResponse = {}): GovernanceCacheResponse => {
   const rawSnapshot = (raw.snapshot || raw) as CacheStatusSnapshot
   const snapshot: CacheStatusSnapshot = {
     ...rawSnapshot,

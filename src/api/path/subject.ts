@@ -134,40 +134,6 @@ export interface IScaleAnalysisResponse {
   scales: IScaleTrend[] // 量表趋势列表
 }
 
-// ==================== GET /statistics/testees/{id}/periodic - 周期性测评统计 ====================
-
-// 单周任务状态
-export interface ITaskStatus {
-  week: number // 第几周（从1开始）
-  status: 'completed' | 'pending' | 'overdue' | 'canceled' // 状态
-  status_label?: string // 状态中文
-  completed_at?: string // 完成时间，格式：YYYY-MM-DD HH:mm:ss
-  planned_at?: string // 计划时间，格式：YYYY-MM-DD HH:mm:ss
-  due_date?: string // 截止时间，格式：YYYY-MM-DD
-  assessment_id?: string // 关联的测评ID（如已完成）
-}
-
-// 单个周期性项目统计
-export interface IPeriodicProject {
-  project_id: string // 项目ID（使用字符串避免精度问题）
-  project_name: string // 项目名称
-  scale_name: string // 关联的量表名称
-  total_weeks: number // 总周数
-  completed_weeks: number // 已完成周数
-  completion_rate: number // 完成率（0-100）
-  current_week: number // 当前应该完成的周次
-  tasks: ITaskStatus[] // 各周任务状态（按周次升序排列）
-  start_date?: string // 项目开始日期
-  end_date?: string // 项目结束日期
-}
-
-// 周期性测评统计响应
-export interface IPeriodicStatsResponse {
-  projects: IPeriodicProject[] // 周期性项目列表
-  total_projects: number // 项目总数
-  active_projects: number // 进行中的项目数
-}
-
 // 受试者API
 export const testeeApi = {
   // 查询受试者列表
@@ -189,12 +155,6 @@ export const testeeApi = {
   // 返回该受试者在各个量表上的历史测评数据，用于绘制趋势图表
   getScaleAnalysis: (id: number | string): Promise<[any, QSResponse<IScaleAnalysisResponse> | undefined]> => {
     return get<IScaleAnalysisResponse>(`/testees/${id}/scale-analysis`)
-  },
-
-  // GET /statistics/testees/{id}/periodic - 获取周期性测评统计
-  // 返回该受试者参与的周期性测评项目的完成进度
-  getPeriodicStats: (id: number | string): Promise<[any, QSResponse<IPeriodicStatsResponse> | undefined]> => {
-    return get<IPeriodicStatsResponse>(`/statistics/testees/${id}/periodic`)
   }
 }
 
@@ -297,100 +257,6 @@ export const deleteSubject = async (id: string): Promise<any> => {
     throw new Error('删除受试者失败')
   }
   return res as unknown as FcResponse<{ success: boolean }>
-}
-
-// 受试者详情页相关接口
-
-interface Guardian {
-  name: string
-  relation: string
-  phone: string
-}
-
-interface SubjectBasicInfo {
-  name: string
-  gender: string
-  age: number
-  attentionLevel: string
-  guardians: Guardian[]
-}
-
-interface TaskStatus {
-  week: number
-  status: 'completed' | 'pending' | 'overdue' | 'canceled'
-  completedAt?: string
-  dueDate?: string
-  plannedAt?: string
-}
-
-interface PeriodicProject {
-  id: string
-  name: string
-  totalWeeks: number
-  completedWeeks: number
-  completionRate: number
-  tasks: TaskStatus[]
-}
-
-interface SurveyRecord {
-  id: string
-  questionnaireName: string
-  completedAt: string
-  status: string
-  source: string
-}
-
-export interface FactorScore {
-  name: string
-  score: number
-  level: string
-}
-
-interface ScaleRecord {
-  id: string
-  scaleName: string
-  completedAt: string
-  totalScore: number
-  result: string
-  riskLevel: string
-  source: string
-  factors?: FactorScore[]
-}
-
-interface TestRecord {
-  testId: string
-  testDate: string
-  totalScore: number
-  result: string
-  factors: Array<{
-    factorName: string
-    score: number
-    level?: string
-  }>
-}
-
-interface ScaleAnalysisData {
-  scaleId: string
-  scaleName: string
-  tests: TestRecord[]
-}
-
-interface SubjectDetailData {
-  basicInfo: SubjectBasicInfo
-  periodicStats: PeriodicProject[]
-  scaleAnalysis: ScaleAnalysisData[]
-  surveys: SurveyRecord[]
-  scales: ScaleRecord[]
-}
-
-// Mock subject detail data removed; using real API
-
-export const getSubjectDetailPage = async (id: string): Promise<FcResponse<SubjectDetailData>> => {
-  const [err, res] = await get<SubjectDetailData>(`/subject/${id}/detail-page`, {})
-  if (err || !res) {
-    throw new Error('获取受试者详情页数据失败')
-  }
-  return res as unknown as FcResponse<SubjectDetailData>
 }
 
 // 受试者答卷详情类型

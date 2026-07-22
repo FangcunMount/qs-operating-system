@@ -1,13 +1,10 @@
 /* eslint-disable react/prop-types */
 import React, { useState, useEffect, useMemo } from 'react'
+import { Card, Row, Col, Statistic, Progress, Timeline, Tag, Collapse, Button, Modal, Form, Select, DatePicker, message, Popconfirm } from 'antd'
 import {
-  Card, Row, Col, Statistic, Progress, Timeline, Tag, Collapse, Button,
-  Modal, Form, Select, DatePicker, message, Popconfirm
-} from 'antd'
-import { 
-  CheckCircleOutlined, 
-  ClockCircleOutlined, 
-  CalendarOutlined, 
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CalendarOutlined,
   ExclamationCircleOutlined,
   StopOutlined,
   DownOutlined,
@@ -21,7 +18,8 @@ import dayjs, { Dayjs } from 'dayjs'
 const { Panel } = Collapse
 
 interface TaskStatus {
-  week: number
+  taskId: string
+  sequence: number
   status: 'completed' | 'pending' | 'overdue' | 'canceled'
   completedAt?: string
   dueDate?: string
@@ -30,17 +28,19 @@ interface TaskStatus {
 
 interface PeriodicProject {
   id: string
+  planId: string
+  round: number
   name: string
-  totalWeeks: number
-  completedWeeks: number
+  totalTasks: number
+  completedTasks: number
   completionRate: number
   tasks: TaskStatus[]
 }
 
 interface PeriodicStatsProps {
   data: PeriodicProject[]
-  testeeId: string  // 受试者ID
-  onRefresh?: () => void  // 刷新数据的回调
+  testeeId: string // 受试者ID
+  onRefresh?: () => void // 刷新数据的回调
 }
 
 const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh }) => {
@@ -57,7 +57,7 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
   const taskMap = useMemo(() => {
     const map = new Map<string, ITask>()
     testeeTasks.forEach((task) => {
-      map.set(`${task.plan_id}_${task.seq}`, task)
+      map.set(String(task.id), task)
     })
     return map
   }, [testeeTasks])
@@ -93,12 +93,14 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
     )
 
     return (
-      <div style={{ 
-        padding: '16px',
-        background: '#fafafa',
-        borderRadius: 4,
-        marginBottom: 16
-      }}>
+      <div
+        style={{
+          padding: '16px',
+          background: '#fafafa',
+          borderRadius: 4,
+          marginBottom: 16
+        }}
+      >
         <Row gutter={24} align="middle">
           <Col>
             <div style={{ textAlign: 'center' }}>
@@ -109,52 +111,62 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
                 strokeWidth={6}
                 status={project.completionRate >= 80 ? 'success' : 'normal'}
               />
-              <div style={{ 
-                marginTop: 8, 
-                fontSize: 12, 
-                color: '#8c8c8c'
-              }}>
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  color: '#8c8c8c'
+                }}
+              >
                 完成率
               </div>
             </div>
           </Col>
-          
+
           <Col flex={1}>
             <Row gutter={[24, 16]}>
               <Col xs={24} sm={8}>
                 <div>
-                  <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 4 }}>总周次</div>
+                  <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 4 }}>任务总数</div>
                   <div style={{ fontSize: 20, fontWeight: 500 }}>
-                    {project.totalWeeks} <span style={{ fontSize: 14 }}>周</span>
+                    {project.totalTasks} <span style={{ fontSize: 14 }}>次</span>
                   </div>
                 </div>
               </Col>
-              
+
               <Col xs={24} sm={8}>
                 <div>
                   <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 4 }}>已完成</div>
                   <div style={{ fontSize: 20, fontWeight: 500, color: '#52c41a' }}>
                     <CheckCircleOutlined style={{ marginRight: 4 }} />
-                    {statusCount.completed || 0} <span style={{ fontSize: 14 }}>周</span>
+                    {statusCount.completed || 0} <span style={{ fontSize: 14 }}>次</span>
                   </div>
                 </div>
               </Col>
-              
+
               <Col xs={24} sm={8}>
                 <div>
                   <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 4 }}>状态分布</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {statusCount.completed > 0 && (
-                      <Tag color="success" style={{ margin: 0 }}>完成 {statusCount.completed}</Tag>
+                      <Tag color="success" style={{ margin: 0 }}>
+                        完成 {statusCount.completed}
+                      </Tag>
                     )}
                     {statusCount.pending > 0 && (
-                      <Tag color="processing" style={{ margin: 0 }}>待完成 {statusCount.pending}</Tag>
+                      <Tag color="processing" style={{ margin: 0 }}>
+                        待完成 {statusCount.pending}
+                      </Tag>
                     )}
                     {statusCount.overdue > 0 && (
-                      <Tag color="error" style={{ margin: 0 }}>逾期 {statusCount.overdue}</Tag>
+                      <Tag color="error" style={{ margin: 0 }}>
+                        逾期 {statusCount.overdue}
+                      </Tag>
                     )}
                     {statusCount.canceled > 0 && (
-                      <Tag color="default" style={{ margin: 0 }}>已取消 {statusCount.canceled}</Tag>
+                      <Tag color="default" style={{ margin: 0 }}>
+                        已取消 {statusCount.canceled}
+                      </Tag>
                     )}
                   </div>
                 </div>
@@ -207,16 +219,8 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
 
     if (realTask.status === 'pending' && canOpen) {
       return (
-        <Popconfirm
-          title="确定要开放此任务吗？系统将自动生成入口令牌、入口 URL 和过期时间。"
-          onConfirm={() => handleOpenTask(realTask.id)}
-        >
-          <Button
-            type="link"
-            size="small"
-            style={{ padding: 0, height: 'auto' }}
-            loading={openingTaskId === realTask.id}
-          >
+        <Popconfirm title="确定要开放此任务吗？系统将自动生成入口令牌、入口 URL 和过期时间。" onConfirm={() => handleOpenTask(realTask.id)}>
+          <Button type="link" size="small" style={{ padding: 0, height: 'auto' }} loading={openingTaskId === realTask.id}>
             开放任务
           </Button>
         </Popconfirm>
@@ -238,19 +242,21 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
   const renderProjectTimeline = (project: PeriodicProject) => {
     return (
       <div style={{ marginTop: 16 }}>
-        <div style={{ 
-          marginBottom: 12,
-          paddingBottom: 8,
-          borderBottom: '1px solid #f0f0f0',
-          fontSize: 13,
-          fontWeight: 500,
-          color: '#595959'
-        }}>
+        <div
+          style={{
+            marginBottom: 12,
+            paddingBottom: 8,
+            borderBottom: '1px solid #f0f0f0',
+            fontSize: 13,
+            fontWeight: 500,
+            color: '#595959'
+          }}
+        >
           测评时间轴
         </div>
         <Timeline mode="left">
           {project.tasks.map((task) => {
-            const realTask = taskMap.get(`${project.id}_${task.week}`)
+            const realTask = taskMap.get(task.taskId)
             const canOpen = !!realTask && openableTaskIds.has(realTask.id)
             let color = 'gray'
             let icon = <ClockCircleOutlined />
@@ -283,40 +289,29 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
             }
 
             return (
-              <Timeline.Item key={task.week} color={color} dot={icon}>
+              <Timeline.Item key={task.sequence} color={color} dot={icon}>
                 <div style={{ paddingBottom: 12 }}>
-                  <div style={{
-                    marginBottom: 4,
-                    display: 'flex',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: 8
-                  }}
+                  <div
+                    style={{
+                      marginBottom: 4,
+                      display: 'flex',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: 8
+                    }}
                   >
-                    <span style={{ fontSize: 14, fontWeight: 500 }}>第 {task.week} 周</span>
+                    <span style={{ fontSize: 14, fontWeight: 500 }}>第 {task.sequence} 次任务</span>
                     {statusTag}
                     {renderTaskActions(realTask, canOpen)}
                   </div>
                   <div style={{ color: '#8c8c8c', fontSize: 13 }}>
                     <CalendarOutlined style={{ marginRight: 4 }} />
-                    {task.status === 'completed' && task.completedAt && (
-                      <span>完成时间：{task.completedAt}</span>
-                    )}
-                    {task.status === 'pending' && task.dueDate && (
-                      <span>截止日期：{task.dueDate}</span>
-                    )}
-                    {task.status === 'pending' && !task.dueDate && task.plannedAt && (
-                      <span>计划时间：{task.plannedAt}</span>
-                    )}
-                    {task.status === 'overdue' && task.dueDate && (
-                      <span>截止日期：{task.dueDate}</span>
-                    )}
-                    {task.status === 'canceled' && task.plannedAt && (
-                      <span>计划时间：{task.plannedAt}</span>
-                    )}
-                    {task.status === 'canceled' && !task.plannedAt && (
-                      <span>该周任务已取消</span>
-                    )}
+                    {task.status === 'completed' && task.completedAt && <span>完成时间：{task.completedAt}</span>}
+                    {task.status === 'pending' && task.dueDate && <span>截止日期：{task.dueDate}</span>}
+                    {task.status === 'pending' && !task.dueDate && task.plannedAt && <span>计划时间：{task.plannedAt}</span>}
+                    {task.status === 'overdue' && task.dueDate && <span>截止日期：{task.dueDate}</span>}
+                    {task.status === 'canceled' && task.plannedAt && <span>计划时间：{task.plannedAt}</span>}
+                    {task.status === 'canceled' && !task.plannedAt && <span>该周任务已取消</span>}
                   </div>
                 </div>
               </Timeline.Item>
@@ -330,15 +325,13 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
   // 计算总体统计
   const totalStats = data.reduce(
     (acc, project) => ({
-      totalWeeks: acc.totalWeeks + project.totalWeeks,
-      completedWeeks: acc.completedWeeks + project.completedWeeks
+      totalTasks: acc.totalTasks + project.totalTasks,
+      completedTasks: acc.completedTasks + project.completedTasks
     }),
-    { totalWeeks: 0, completedWeeks: 0 }
+    { totalTasks: 0, completedTasks: 0 }
   )
 
-  const overallRate = totalStats.totalWeeks > 0 
-    ? Math.round((totalStats.completedWeeks / totalStats.totalWeeks) * 100)
-    : 0
+  const overallRate = totalStats.totalTasks > 0 ? Math.round((totalStats.completedTasks / totalStats.totalTasks) * 100) : 0
 
   useEffect(() => {
     fetchTesteeTasks()
@@ -382,14 +375,14 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
         testee_id: testeeId,
         start_date: values.start_date.format('YYYY-MM-DD')
       })
-      
+
       if (err) {
         console.error('加入计划失败:', err)
         const errorMsg = err?.response?.data?.message || err?.message || '加入计划失败'
         message.error(`加入计划失败: ${errorMsg}`)
         return
       }
-      
+
       if (!response?.data) {
         message.error('加入计划失败: 服务器未返回数据')
         return
@@ -430,18 +423,14 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
 
   return (
     <>
-      <Card 
+      <Card
         title={
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>
               <ClockCircleOutlined style={{ marginRight: 8 }} />
               周期性测评填写情况
             </span>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setEnrollModalVisible(true)}
-            >
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setEnrollModalVisible(true)}>
               加入测评计划
             </Button>
           </div>
@@ -453,20 +442,15 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
         <Row gutter={16} style={{ marginBottom: 24 }}>
           <Col xs={24} sm={8}>
             <Card size="small" bordered={true}>
-              <Statistic
-                title="参与项目"
-                value={data.length}
-                suffix="个"
-                valueStyle={{ fontSize: 24 }}
-              />
+              <Statistic title="参与项目" value={data.length} suffix="个" valueStyle={{ fontSize: 24 }} />
             </Card>
           </Col>
           <Col xs={24} sm={8}>
             <Card size="small" bordered={true}>
               <Statistic
-                title="已完成周次"
-                value={totalStats.completedWeeks}
-                suffix={`/ ${totalStats.totalWeeks}`}
+                title="已完成任务"
+                value={totalStats.completedTasks}
+                suffix={`/ ${totalStats.totalTasks}`}
                 valueStyle={{ fontSize: 24, color: '#52c41a' }}
                 prefix={<CheckCircleOutlined />}
               />
@@ -486,11 +470,13 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
 
         {/* 各项目卡片 */}
         {data.length === 0 ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '40px 20px',
-            color: '#8c8c8c'
-          }}>
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '40px 20px',
+              color: '#8c8c8c'
+            }}
+          >
             <CalendarOutlined style={{ fontSize: 48, marginBottom: 16, color: '#d9d9d9' }} />
             <div style={{ fontSize: 14, marginBottom: 8 }}>暂无周期性测评计划</div>
             <div style={{ fontSize: 12 }}>点击右上角&ldquo;加入测评计划&rdquo;按钮开始</div>
@@ -500,14 +486,16 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
             bordered={false}
             activeKey={expandedKeys}
             onChange={(keys) => setExpandedKeys(keys as string[])}
-            expandIcon={({ isActive }) => 
-              <div style={{ 
-                transition: 'all 0.3s',
-                transform: isActive ? 'rotate(180deg)' : 'rotate(0deg)'
-              }}>
+            expandIcon={({ isActive }) => (
+              <div
+                style={{
+                  transition: 'all 0.3s',
+                  transform: isActive ? 'rotate(180deg)' : 'rotate(0deg)'
+                }}
+              >
                 <DownOutlined style={{ fontSize: 12 }} />
               </div>
-            }
+            )}
             style={{ background: 'transparent' }}
           >
             {data.map((project) => (
@@ -518,11 +506,11 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
                     <CalendarOutlined style={{ color: '#1890ff', fontSize: 16 }} />
                     <span style={{ fontSize: 14, fontWeight: 500 }}>{project.name}</span>
                     <span style={{ fontSize: 12, color: '#8c8c8c' }}>
-                      ({project.completedWeeks}/{project.totalWeeks})
+                      ({project.completedTasks}/{project.totalTasks})
                     </span>
                   </div>
                 }
-                style={{ 
+                style={{
                   marginBottom: 16,
                   background: '#fff',
                   borderRadius: 4,
@@ -532,7 +520,7 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
               >
                 {/* 项目简要信息 */}
                 {renderProjectSummary(project)}
-                
+
                 {/* 时间轴详情 */}
                 {renderProjectTimeline(project)}
               </Panel>
@@ -560,18 +548,14 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
             start_date: dayjs()
           }}
         >
-          <Form.Item
-            label="选择计划"
-            name="plan_id"
-            rules={[{ required: true, message: '请选择计划' }]}
-          >
+          <Form.Item label="选择计划" name="plan_id" rules={[{ required: true, message: '请选择计划' }]}>
             <Select
               placeholder="请选择要加入的计划"
               loading={planLoading}
               showSearch
               notFoundContent={planLoading ? '加载中...' : planList.length === 0 ? '暂无可用计划' : '未找到匹配的计划'}
               filterOption={(input, option) => {
-                const plan = planList.find(p => p.id === option?.value)
+                const plan = planList.find((p) => p.id === option?.value)
                 if (!plan) return false
                 const searchText = input.toLowerCase()
                 return (
@@ -584,9 +568,7 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
               {planList.map((plan) => (
                 <Select.Option key={plan.id} value={plan.id}>
                   <div>
-                    <div style={{ fontWeight: 500, marginBottom: 4 }}>
-                      {getPlanScaleTitle(plan)}
-                    </div>
+                    <div style={{ fontWeight: 500, marginBottom: 4 }}>{getPlanScaleTitle(plan)}</div>
                     <div style={{ fontSize: 12, color: '#8c8c8c' }}>
                       {plan.scale_title && plan.scale_title !== plan.scale_code && `编码: ${plan.scale_code} | `}
                       调度类型: {getScheduleTypeText(plan.schedule_type)}
@@ -600,16 +582,8 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
             </Select>
           </Form.Item>
 
-          <Form.Item
-            label="开始日期"
-            name="start_date"
-            rules={[{ required: true, message: '请选择开始日期' }]}
-          >
-            <DatePicker
-              style={{ width: '100%' }}
-              format="YYYY-MM-DD"
-              disabledDate={(current) => current && current < dayjs().startOf('day')}
-            />
+          <Form.Item label="开始日期" name="start_date" rules={[{ required: true, message: '请选择开始日期' }]}>
+            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" disabledDate={(current) => current && current < dayjs().startOf('day')} />
           </Form.Item>
 
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>

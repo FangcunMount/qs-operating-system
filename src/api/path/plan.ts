@@ -6,26 +6,26 @@ import type { QSResponse } from '@/types/qs'
 // 查询计划列表请求参数
 export interface IListPlanRequest {
   org_id?: number
-  scale_code?: string  // 量表编码（如 '3adyDE'），用于筛选特定量表的计划
-  status?: string  // 状态筛选：active/paused/finished/canceled
+  scale_code?: string // 量表编码（如 '3adyDE'），用于筛选特定量表的计划
+  status?: string // 状态筛选：active/paused/finished/canceled
   page: number
   page_size: number
 }
 
 // 计划响应数据
 export interface IPlan {
-  id: string  // 计划ID
-  org_id: number  // 机构ID
-  scale_code: string  // 量表编码（如 "3adyDE"）
-  scale_title?: string  // 量表标题
-  schedule_type: string  // 周期类型：by_week/by_day/fixed_date/custom
+  id: string // 计划ID
+  org_id: number // 机构ID
+  scale_code: string // 量表编码（如 "3adyDE"）
+  scale_title?: string // 量表标题
+  schedule_type: string // 周期类型：by_week/by_day/fixed_date/custom
   schedule_type_label?: string
-  trigger_time: string  // 触发时间（HH:mm:ss）
-  total_times?: number  // 总次数（用于 by_week/by_day）
-  interval?: number  // 间隔（周/天，用于 by_week/by_day）
-  fixed_dates?: string[]  // 固定日期列表（用于 fixed_date）
-  relative_weeks?: number[]  // 相对周次列表（用于 custom）
-  status: string  // 状态：active/paused/finished/canceled
+  trigger_time: string // 触发时间（HH:mm:ss）
+  total_times?: number // 总次数（用于 by_week/by_day）
+  interval?: number // 间隔（周/天，用于 by_week/by_day）
+  fixed_dates?: string[] // 固定日期列表（用于 fixed_date）
+  relative_weeks?: number[] // 相对周次列表（用于 custom）
+  status: string // 状态：active/paused/finished/canceled
   status_label?: string
 }
 
@@ -44,18 +44,18 @@ export interface IPlanListResponse {
 // - fixed_date: 需要 fixed_dates
 // - custom: 需要 relative_weeks
 export interface ICreatePlanRequest {
-  scale_code: string  // 量表编码（如 '3adyDE'）
-  schedule_type: string  // by_week/by_day/fixed_date/custom
-  trigger_time?: string  // 触发时间（HH:mm:ss）
-  total_times?: number  // 总次数（用于 by_week/by_day）
-  interval?: number  // 间隔（用于 by_week/by_day）
-  fixed_dates?: string[]  // 固定日期列表（用于 fixed_date，格式：YYYY-MM-DD）
-  relative_weeks?: number[]  // 相对周次列表（用于 custom，如 [2,4,8,12]）
+  scale_code: string // 量表编码（如 '3adyDE'）
+  schedule_type: string // by_week/by_day/fixed_date/custom
+  trigger_time?: string // 触发时间（HH:mm:ss）
+  total_times?: number // 总次数（用于 by_week/by_day）
+  interval?: number // 间隔（用于 by_week/by_day）
+  fixed_dates?: string[] // 固定日期列表（用于 fixed_date，格式：YYYY-MM-DD）
+  relative_weeks?: number[] // 相对周次列表（用于 custom，如 [2,4,8,12]）
 }
 
 // 恢复计划请求参数
 export interface IResumePlanRequest {
-  testee_start_dates?: Record<string, string>  // 受试者ID -> 开始日期（格式：YYYY-MM-DD）
+  testee_start_dates?: Record<string, string> // 受试者ID -> 开始日期（格式：YYYY-MM-DD）
 }
 
 export interface IPlanEnrollmentTask {
@@ -85,6 +85,12 @@ export interface IPlanEnrollment {
   terminated_at?: string
   terminated_reason?: string
   record_origin: 'native' | 'derived_legacy'
+  scale_code: string
+  scale_title: string
+  task_count: number
+  completed_task_count: number
+  /** Ratio in [0, 1], scoped to this enrollment round. */
+  completion_rate: number
   tasks: IPlanEnrollmentTask[]
 }
 
@@ -109,22 +115,22 @@ export interface IListTaskRequest {
 
 // 任务响应数据
 export interface ITask {
-  id: string  // 任务ID
-  plan_id: string  // 计划ID
-  testee_id: string  // 受试者ID
-  org_id: number  // 机构ID
-  scale_code: string  // 量表编码（如 "3adyDE"）
-  scale_title?: string  // 量表标题
-  seq: number  // 序号（计划内的第N次测评）
-  status: string  // 状态：pending/opened/completed/expired/canceled
+  id: string // 任务ID
+  plan_id: string // 计划ID
+  testee_id: string // 受试者ID
+  org_id: number // 机构ID
+  scale_code: string // 量表编码（如 "3adyDE"）
+  scale_title?: string // 量表标题
+  seq: number // 序号（计划内的第N次测评）
+  status: string // 状态：pending/opened/completed/expired/canceled
   status_label?: string
-  planned_at: string  // 计划时间点
-  open_at?: string  // 实际开放时间
-  expire_at?: string  // 截止时间
-  completed_at?: string  // 完成时间
-  entry_token?: string  // 入口令牌
-  entry_url?: string  // 入口URL
-  assessment_id?: string  // 关联的测评ID（如已完成）
+  planned_at: string // 计划时间点
+  open_at?: string // 实际开放时间
+  expire_at?: string // 截止时间
+  completed_at?: string // 完成时间
+  entry_token?: string // 入口令牌
+  entry_url?: string // 入口URL
+  assessment_id?: string // 关联的测评ID（如已完成）
 }
 
 // 任务列表响应
@@ -143,7 +149,7 @@ export interface ICompleteTaskRequest {
 
 // 调度任务请求参数（通过 query 参数传递）
 export interface IScheduleTaskRequest {
-  before?: string  // 截止时间（格式：YYYY-MM-DD HH:mm:ss），默认当前时间
+  before?: string // 截止时间（格式：YYYY-MM-DD HH:mm:ss），默认当前时间
   source?: string
   plan_id?: string
   testee_ids?: string[]
@@ -163,7 +169,7 @@ export interface ITaskScheduleStats {
 export interface IEnrollTesteeRequest {
   plan_id: string
   testee_id: string
-  start_date: string  // 格式：YYYY-MM-DD
+  start_date: string // 格式：YYYY-MM-DD
 }
 
 // 受试者加入计划响应

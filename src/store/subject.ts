@@ -4,6 +4,7 @@ import * as subjectApi from '../api/path/subject'
 import { testeeApi } from '../api/path/subject'
 import { assessmentApi } from '../api/path/assessment'
 import { answerSheetApi } from '../api/path/answerSheet'
+import { planApi, IPlanEnrollmentPage } from '../api/path/plan'
 import { formatAssessmentOriginType, formatGender, formatRiskLevel } from '@/utils/display'
 
 // 受试者详情页数据类型
@@ -22,7 +23,8 @@ export interface SubjectBasicInfo {
 }
 
 export interface TaskStatus {
-  week: number
+  taskId: string
+  sequence: number
   status: 'completed' | 'pending' | 'overdue' | 'canceled'
   completedAt?: string
   dueDate?: string
@@ -31,9 +33,11 @@ export interface TaskStatus {
 
 export interface PeriodicProject {
   id: string
+  planId: string
+  round: number
   name: string
-  totalWeeks: number
-  completedWeeks: number
+  totalTasks: number
+  completedTasks: number
   completionRate: number
   tasks: TaskStatus[]
 }
@@ -95,7 +99,7 @@ class SubjectStore {
   subjectDetail: SubjectDetail | null = null
   loading = false
   factorLoading: Record<string, boolean> = {}
-  
+
   // 新增：受试者基础信息（完整版）
   testeeInfo: subjectApi.ITesteeDetail | null = null
   // 新增：测评记录列表
@@ -105,7 +109,7 @@ class SubjectStore {
   // 新增：量表趋势分析
   scaleAnalysis: subjectApi.IScaleAnalysisResponse | null = null
   // 新增：周期性测评统计
-  periodicStats: subjectApi.IPeriodicStatsResponse | null = null
+  periodicStats: IPlanEnrollmentPage | null = null
 
   constructor() {
     makeAutoObservable(this)
@@ -118,24 +122,24 @@ class SubjectStore {
   setSubjectDetail(detail: SubjectDetail | null) {
     this.subjectDetail = detail
   }
-  
+
   setTesteeInfo(info: subjectApi.ITesteeDetail | null) {
     this.testeeInfo = info
   }
-  
+
   setAssessmentList(list: any[]) {
     this.assessmentList = list
   }
-  
+
   setAnswerSheetList(list: any[]) {
     this.answerSheetList = list
   }
-  
+
   setScaleAnalysis(data: subjectApi.IScaleAnalysisResponse | null) {
     this.scaleAnalysis = data
   }
-  
-  setPeriodicStats(data: subjectApi.IPeriodicStatsResponse | null) {
+
+  setPeriodicStats(data: IPlanEnrollmentPage | null) {
     this.periodicStats = data
   }
 
@@ -153,12 +157,12 @@ class SubjectStore {
     this.setLoading(true)
     try {
       const [err, response] = await testeeApi.getTestee(id)
-      
+
       if (err || !response?.data) {
         message.error('获取受试者详情失败')
         return
       }
-      
+
       this.setTesteeInfo(response.data)
     } catch (error) {
       console.error('获取受试者详情失败:', error)
@@ -167,7 +171,7 @@ class SubjectStore {
       this.setLoading(false)
     }
   }
-  
+
   // 获取受试者的测评记录
   async fetchTesteeAssessments(testeeId: number) {
     try {
@@ -176,31 +180,31 @@ class SubjectStore {
         page: 1,
         page_size: 100 // 获取所有记录
       })
-      
+
       if (err || !response?.data) {
         message.error('获取测评记录失败')
         return
       }
-      
+
       this.setAssessmentList(response.data.items || [])
     } catch (error) {
       console.error('获取测评记录失败:', error)
       message.error('获取测评记录失败')
     }
   }
-  
+
   // 获取受试者的答卷记录
   async fetchTesteeAnswerSheets(fillerId: number) {
     try {
       // 使用新 API，支持 filler_id 筛选
       const [err, response] = await answerSheetApi.getAnswerSheetList(undefined, 1, 100, fillerId)
-      
+
       if (err || !response?.data) {
         console.warn('获取答卷记录失败')
         this.setAnswerSheetList([])
         return
       }
-      
+
       // 新 API 返回格式：{ items, total }
       this.setAnswerSheetList(response.data.items || [])
     } catch (error) {
@@ -213,7 +217,7 @@ class SubjectStore {
   async fetchAssessmentFactors(assessmentId: string, force = false) {
     if (!assessmentId) return
     if (this.factorLoading[assessmentId]) return
-    const target = this.subjectDetail?.scales?.find(item => item.id === String(assessmentId))
+    const target = this.subjectDetail?.scales?.find((item) => item.id === String(assessmentId))
     if (!target || (!force && target.factors)) return
 
     this.setFactorLoading(String(assessmentId), true)
@@ -233,9 +237,7 @@ class SubjectStore {
 
       runInAction(() => {
         if (!this.subjectDetail) return
-        const updatedScales = this.subjectDetail.scales.map((item) =>
-          item.id === String(assessmentId) ? { ...item, factors } : item
-        )
+        const updatedScales = this.subjectDetail.scales.map((item) => (item.id === String(assessmentId) ? { ...item, factors } : item))
         this.subjectDetail = { ...this.subjectDetail, scales: updatedScales }
       })
     } catch (error) {
@@ -246,34 +248,36 @@ class SubjectStore {
       })
     }
   }
-  
+
   // 获取量表趋势分析
   async fetchScaleAnalysis(testeeId: number | string) {
     try {
       const [err, response] = await testeeApi.getScaleAnalysis(testeeId)
-      
+
       if (err || !response?.data) {
         console.warn('获取量表趋势分析失败')
         return
       }
-      
+
       this.setScaleAnalysis(response.data)
     } catch (error) {
       console.error('获取量表趋势分析失败:', error)
     }
   }
-  
-  // 获取周期性测评统计（统一走 statistics 读模型）
+
+  // 周期履约属于 Plan；每个 Enrollment round 独立展示。
   async fetchPeriodicStats(testeeId: number | string) {
     try {
-      const [error, response] = await testeeApi.getPeriodicStats(testeeId)
+      const [error, response] = await planApi.getTesteeEnrollments(String(testeeId), { page: 1, page_size: 100 })
 
       if (error || !response?.data) {
         console.warn('获取周期性测评统计失败:', error)
         this.setPeriodicStats({
-          projects: [],
-          total_projects: 0,
-          active_projects: 0
+          items: [],
+          total: 0,
+          page: 1,
+          page_size: 100,
+          total_pages: 0
         })
         return
       }
@@ -281,13 +285,15 @@ class SubjectStore {
     } catch (error) {
       console.error('获取周期性测评统计失败:', error)
       this.setPeriodicStats({
-        projects: [],
-        total_projects: 0,
-        active_projects: 0
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: 100,
+        total_pages: 0
       })
     }
   }
-  
+
   // 计算年龄
   private calculateAge(birthday?: string): number {
     if (!birthday) return 0
@@ -311,11 +317,11 @@ class SubjectStore {
     try {
       // 1. 获取受试者基础信息
       await this.fetchTesteeDetail(id)
-      
+
       if (!this.testeeInfo) {
         return
       }
-      
+
       // 2. 并行获取所有相关数据
       await Promise.all([
         this.fetchTesteeAssessments(this.testeeInfo.id),
@@ -347,7 +353,7 @@ class SubjectStore {
       gender: this.testeeInfo.gender_label || formatGender(this.testeeInfo.gender),
       age: this.calculateAge(this.testeeInfo.birthday),
       attentionLevel: this.testeeInfo.is_key_focus ? 'high' : 'low',
-      guardians: (this.testeeInfo.guardians || []).map(g => ({
+      guardians: (this.testeeInfo.guardians || []).map((g) => ({
         name: g.name,
         relation: g.relation,
         phone: g.phone
@@ -355,31 +361,34 @@ class SubjectStore {
     }
 
     // 转换周期性统计
-    const periodicStats: PeriodicProject[] = (this.periodicStats?.projects || []).map(project => ({
-      id: project.project_id,
-      name: project.project_name || project.scale_name || project.project_id,
-      totalWeeks: project.total_weeks,
-      completedWeeks: project.completed_weeks,
-      completionRate: project.completion_rate,
-      tasks: project.tasks.map(task => ({
-        week: task.week,
-        status: task.status,
+    const periodicStats: PeriodicProject[] = (this.periodicStats?.items || []).map((enrollment) => ({
+      id: String(enrollment.id),
+      planId: String(enrollment.plan_id),
+      round: enrollment.round,
+      name: `${enrollment.scale_title || enrollment.scale_code}（第 ${enrollment.round} 轮）`,
+      totalTasks: enrollment.task_count,
+      completedTasks: enrollment.completed_task_count,
+      completionRate: Math.round(enrollment.completion_rate * 100),
+      tasks: enrollment.tasks.map((task) => ({
+        taskId: String(task.id),
+        sequence: task.seq,
+        status: task.status === 'expired' ? 'overdue' : task.status === 'completed' || task.status === 'canceled' ? task.status : 'pending',
         completedAt: task.completed_at,
-        dueDate: task.due_date,
+        dueDate: task.expire_at,
         plannedAt: task.planned_at
       }))
     }))
 
     // 转换量表分析
-    const scaleAnalysis: ScaleAnalysisData[] = (this.scaleAnalysis?.scales || []).map(scale => ({
+    const scaleAnalysis: ScaleAnalysisData[] = (this.scaleAnalysis?.scales || []).map((scale) => ({
       scaleId: String(scale.scale_id),
       scaleName: scale.scale_name,
-      tests: scale.tests.map(test => ({
+      tests: scale.tests.map((test) => ({
         testId: String(test.assessment_id),
         testDate: test.test_date,
         totalScore: test.total_score,
         result: test.result || '',
-        factors: test.factors.map(factor => ({
+        factors: test.factors.map((factor) => ({
           factorName: factor.factor_name,
           score: factor.raw_score,
           level: factor.risk_level_label || factor.risk_level
@@ -418,21 +427,6 @@ class SubjectStore {
     }
 
     this.setSubjectDetail(detail)
-  }
-
-  // 保留旧方法用于兼容
-  async fetchSubjectDetailPage(id: string) {
-    this.setLoading(true)
-    try {
-      const res = await subjectApi.getSubjectDetailPage(id)
-      if (res?.data) {
-        this.setSubjectDetail(res.data)
-      }
-    } catch (error) {
-      console.error('获取受试者详情页数据失败:', error)
-    } finally {
-      this.setLoading(false)
-    }
   }
 }
 

@@ -1,6 +1,5 @@
-import { get, post, v2Get, v2Post } from '../qsServer'
+import { v2Get, v2Post } from '../qsServer'
 import type { QSResponse } from '@/types/qs'
-import { config } from '@/config/config'
 
 export interface IDailyCount {
   date: string
@@ -8,13 +7,13 @@ export interface IDailyCount {
 }
 
 export interface IStatisticsTimeRange {
-  preset: 'today' | 'latest_complete_day' | '7d' | '30d' | 'custom' | string
+  preset: 'latest_complete_day' | '7d' | '30d' | 'custom' | string
   from: string
   to: string
 }
 
 export interface IStatisticsQueryParams {
-  preset?: 'today' | 'latest_complete_day' | '7d' | '30d' | 'custom'
+  preset?: 'latest_complete_day' | '7d' | '30d' | 'custom'
   from?: string
   to?: string
   page?: number
@@ -32,7 +31,6 @@ export interface IOrganizationOverviewStatistics {
   report_count: number
   content_count: number
   answer_sheet_submission_count: number
-  today_answer_sheet_submission_count: number
 }
 
 export interface IAccessFunnelWindow {
@@ -254,39 +252,12 @@ export interface IContentBatchStatisticsItem extends IContentStatisticsReference
   total_submissions: number
   total_completions: number
   completion_rate: number
+  /** Independent questionnaires do not have an Assessment/Outcome completion fact. */
+  has_completion: boolean
 }
 
 export interface IContentBatchStatisticsResponse {
   items: IContentBatchStatisticsItem[]
-}
-
-export interface IPeriodicTaskStatus {
-  week: number
-  status: 'completed' | 'pending' | 'overdue' | 'canceled'
-  status_label?: string
-  completed_at?: string
-  planned_at?: string
-  due_date?: string
-  assessment_id?: string
-}
-
-export interface IPeriodicProject {
-  project_id: string
-  project_name: string
-  scale_name: string
-  total_weeks: number
-  completed_weeks: number
-  completion_rate: number
-  current_week: number
-  tasks: IPeriodicTaskStatus[]
-  start_date?: string
-  end_date?: string
-}
-
-export interface ITesteePeriodicStatisticsResponse {
-  projects: IPeriodicProject[]
-  total_projects: number
-  active_projects: number
 }
 
 function buildQueryParams(params?: IStatisticsQueryParams) {
@@ -294,24 +265,17 @@ function buildQueryParams(params?: IStatisticsQueryParams) {
   return Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== ''))
 }
 
-const useStatisticsV2 = () => config.statisticsApiVersion === 'v2'
-
-function buildVersionedQueryParams(params?: IStatisticsQueryParams) {
+function buildStatisticsQueryParams(params?: IStatisticsQueryParams) {
   const values = buildQueryParams(params) as Record<string, any>
-  if (useStatisticsV2()) {
-    if (values.preset === 'today') values.preset = 'latest_complete_day'
-    if (values.from || values.to) {
-      values.preset = 'custom'
-      if (values.from) values.from = String(values.from).slice(0, 10)
-      if (values.to) values.to = String(values.to).slice(0, 10)
-    }
-  } else if (values.preset === 'latest_complete_day') {
-    values.preset = 'today'
+  if (values.from || values.to) {
+    values.preset = 'custom'
+    if (values.from) values.from = String(values.from).slice(0, 10)
+    if (values.to) values.to = String(values.to).slice(0, 10)
   }
   return values
 }
 
-type V2ClinicianItem = {
+type StatisticsClinicianItem = {
   id: number
   operator_id?: number
   name: string
@@ -332,7 +296,7 @@ type V2ClinicianItem = {
   active_entry_count: number
 }
 
-type V2EntryItem = {
+type StatisticsEntryItem = {
   id: number
   clinician_id: number
   clinician_name?: string
@@ -350,7 +314,7 @@ type V2EntryItem = {
   report_generated_count: number
 }
 
-type V2Page<T> = {
+type StatisticsPage<T> = {
   items: T[]
   total: number
   page: number
@@ -360,13 +324,13 @@ type V2Page<T> = {
   freshness: IStatisticsFreshness
 }
 
-type V2Detail<T> = {
+type StatisticsDetail<T> = {
   item: T
   time_range: IStatisticsTimeRange
   freshness: IStatisticsFreshness
 }
 
-type V2ContentResponse = {
+type StatisticsContentResponse = {
   items: Array<{
     kind: ContentStatisticsType
     code: string
@@ -378,7 +342,7 @@ type V2ContentResponse = {
   freshness: IStatisticsFreshness
 }
 
-function adaptClinician(item: V2ClinicianItem, timeRange: IStatisticsTimeRange): IClinicianStatisticsResponse {
+function adaptClinician(item: StatisticsClinicianItem, timeRange: IStatisticsTimeRange): IClinicianStatisticsResponse {
   return {
     time_range: timeRange,
     clinician: {
@@ -412,7 +376,7 @@ function adaptClinician(item: V2ClinicianItem, timeRange: IStatisticsTimeRange):
   }
 }
 
-function adaptEntry(item: V2EntryItem, timeRange: IStatisticsTimeRange): IAssessmentEntryStatisticsResponse {
+function adaptEntry(item: StatisticsEntryItem, timeRange: IStatisticsTimeRange): IAssessmentEntryStatisticsResponse {
   const counts = {
     resolve_count: item.entry_opened_count,
     intake_count: item.intake_confirmed_count,
@@ -439,8 +403,8 @@ function adaptEntry(item: V2EntryItem, timeRange: IStatisticsTimeRange): IAssess
   }
 }
 
-function mapV2Page<TSource, TTarget>(
-  response: QSResponse<V2Page<TSource>>,
+function mapStatisticsPage<TSource, TTarget>(
+  response: QSResponse<StatisticsPage<TSource>>,
   mapper: (item: TSource, range: IStatisticsTimeRange) => TTarget
 ): QSResponse<any> {
   const data = response.data
@@ -457,117 +421,89 @@ function mapV2Page<TSource, TTarget>(
   }
 }
 
-export const getOverviewStatistics = async (
-  params?: IStatisticsQueryParams
-): Promise<[any, QSResponse<IStatisticsOverviewResponse> | undefined]> => {
-  const query = buildVersionedQueryParams(params)
-  return useStatisticsV2()
-    ? v2Get<IStatisticsOverviewResponse>('/statistics/overview', query)
-    : get<IStatisticsOverviewResponse>('/statistics/overview', query)
+export const getOverviewStatistics = async (params?: IStatisticsQueryParams): Promise<[any, QSResponse<IStatisticsOverviewResponse> | undefined]> => {
+  return v2Get<IStatisticsOverviewResponse>('/statistics/overview', buildStatisticsQueryParams(params))
 }
 
 export const listClinicianStatistics = async (
   params?: IStatisticsQueryParams
 ): Promise<[any, QSResponse<IClinicianStatisticsListResponse> | undefined]> => {
-  const query = buildVersionedQueryParams(params)
-  if (!useStatisticsV2()) return get<IClinicianStatisticsListResponse>('/statistics/clinicians', query)
-  const [error, response] = await v2Get<V2Page<V2ClinicianItem>>('/statistics/clinicians', query)
-  return [error, response ? mapV2Page(response, adaptClinician) as QSResponse<IClinicianStatisticsListResponse> : undefined]
+  const query = buildStatisticsQueryParams(params)
+  const [error, response] = await v2Get<StatisticsPage<StatisticsClinicianItem>>('/statistics/clinicians', query)
+  return [error, response ? (mapStatisticsPage(response, adaptClinician) as QSResponse<IClinicianStatisticsListResponse>) : undefined]
 }
 
 export const getClinicianStatistics = async (
   clinicianId: string,
   params?: IStatisticsQueryParams
 ): Promise<[any, QSResponse<IClinicianStatisticsResponse> | undefined]> => {
-  const query = buildVersionedQueryParams(params)
-  if (!useStatisticsV2()) return get<IClinicianStatisticsResponse>(`/statistics/clinicians/${clinicianId}`, query)
-  const [error, response] = await v2Get<V2Detail<V2ClinicianItem>>(
-    `/statistics/clinicians/${clinicianId}`,
-    query
-  )
+  const query = buildStatisticsQueryParams(params)
+  const [error, response] = await v2Get<StatisticsDetail<StatisticsClinicianItem>>(`/statistics/clinicians/${clinicianId}`, query)
   return [error, response ? { ...response, data: adaptClinician(response.data.item, response.data.time_range) } : undefined]
 }
 
 export const listAssessmentEntryStatistics = async (
   params?: IStatisticsQueryParams
 ): Promise<[any, QSResponse<IAssessmentEntryStatisticsListResponse> | undefined]> => {
-  const query = buildVersionedQueryParams(params)
-  if (!useStatisticsV2()) return get<IAssessmentEntryStatisticsListResponse>('/statistics/entries', query)
-  const [error, response] = await v2Get<V2Page<V2EntryItem>>('/statistics/entries', query)
-  return [error, response ? mapV2Page(response, adaptEntry) as QSResponse<IAssessmentEntryStatisticsListResponse> : undefined]
+  const query = buildStatisticsQueryParams(params)
+  const [error, response] = await v2Get<StatisticsPage<StatisticsEntryItem>>('/statistics/entries', query)
+  return [error, response ? (mapStatisticsPage(response, adaptEntry) as QSResponse<IAssessmentEntryStatisticsListResponse>) : undefined]
 }
 
 export const getAssessmentEntryStatistics = async (
   entryId: string,
   params?: IStatisticsQueryParams
 ): Promise<[any, QSResponse<IAssessmentEntryStatisticsResponse> | undefined]> => {
-  const query = buildVersionedQueryParams(params)
-  if (!useStatisticsV2()) return get<IAssessmentEntryStatisticsResponse>(`/statistics/entries/${entryId}`, query)
-  const [error, response] = await v2Get<V2Detail<V2EntryItem>>(
-    `/statistics/entries/${entryId}`,
-    query
-  )
+  const query = buildStatisticsQueryParams(params)
+  const [error, response] = await v2Get<StatisticsDetail<StatisticsEntryItem>>(`/statistics/entries/${entryId}`, query)
   return [error, response ? { ...response, data: adaptEntry(response.data.item, response.data.time_range) } : undefined]
 }
 
 export const getMyClinicianOverviewStatistics = async (
   params?: IStatisticsQueryParams
 ): Promise<[any, QSResponse<IClinicianStatisticsResponse> | undefined]> => {
-  const query = buildVersionedQueryParams(params)
-  if (!useStatisticsV2()) return get<IClinicianStatisticsResponse>('/statistics/clinicians/me/overview', query)
-  const [error, response] = await v2Get<V2Detail<V2ClinicianItem>>(
-    '/statistics/clinicians/me/overview',
-    query
-  )
+  const query = buildStatisticsQueryParams(params)
+  const [error, response] = await v2Get<StatisticsDetail<StatisticsClinicianItem>>('/statistics/clinicians/me/overview', query)
   return [error, response ? { ...response, data: adaptClinician(response.data.item, response.data.time_range) } : undefined]
 }
 
 export const listMyClinicianEntryStatistics = async (
   params?: IStatisticsQueryParams
 ): Promise<[any, QSResponse<IAssessmentEntryStatisticsListResponse> | undefined]> => {
-  const query = buildVersionedQueryParams(params)
-  if (!useStatisticsV2()) return get<IAssessmentEntryStatisticsListResponse>('/statistics/clinicians/me/entries', query)
-  const [error, response] = await v2Get<V2Page<V2EntryItem>>('/statistics/clinicians/me/entries', query)
-  return [error, response ? mapV2Page(response, adaptEntry) as QSResponse<IAssessmentEntryStatisticsListResponse> : undefined]
+  const query = buildStatisticsQueryParams(params)
+  const [error, response] = await v2Get<StatisticsPage<StatisticsEntryItem>>('/statistics/clinicians/me/entries', query)
+  return [error, response ? (mapStatisticsPage(response, adaptEntry) as QSResponse<IAssessmentEntryStatisticsListResponse>) : undefined]
 }
 
 export const getMyClinicianTesteeSummaryStatistics = async (
   params?: IStatisticsQueryParams
 ): Promise<[any, QSResponse<IClinicianTesteeSummaryStatistics> | undefined]> => {
-  const query = buildVersionedQueryParams(params)
-  return useStatisticsV2()
-    ? v2Get<IClinicianTesteeSummaryStatistics>('/statistics/clinicians/me/testees-summary', query)
-    : get<IClinicianTesteeSummaryStatistics>('/statistics/clinicians/me/testees-summary', query)
-}
-
-export const getTesteePeriodicStatistics = async (
-  testeeId: number | string,
-  params?: IStatisticsQueryParams
-): Promise<[any, QSResponse<ITesteePeriodicStatisticsResponse> | undefined]> => {
-  return get<ITesteePeriodicStatisticsResponse>(`/statistics/testees/${testeeId}/periodic`, buildQueryParams(params))
+  return v2Get<IClinicianTesteeSummaryStatistics>('/statistics/clinicians/me/testees-summary', buildStatisticsQueryParams(params))
 }
 
 export const batchContentStatistics = async (
   items: IContentStatisticsReference[]
 ): Promise<[any, QSResponse<IContentBatchStatisticsResponse> | undefined]> => {
-  if (!useStatisticsV2()) return post<IContentBatchStatisticsResponse>('/statistics/contents/batch', { items })
-  const [error, response] = await v2Post<V2ContentResponse>(
-    '/statistics/contents/batch',
-    { items: items.map((item) => ({ kind: item.type, code: item.code })) }
-  )
+  const [error, response] = await v2Post<StatisticsContentResponse>('/statistics/contents/batch', {
+    items: items.map((item) => ({ kind: item.type, code: item.code }))
+  })
   if (!response) return [error, undefined]
-  return [error, {
-    ...response,
-    data: {
-      items: response.data.items.map((item) => ({
-        type: item.kind,
-        code: item.code,
-        total_submissions: item.total_submissions,
-        total_completions: item.total_completions || 0,
-        completion_rate: item.completion_rate || 0
-      }))
+  return [
+    error,
+    {
+      ...response,
+      data: {
+        items: response.data.items.map((item) => ({
+          type: item.kind,
+          code: item.code,
+          total_submissions: item.total_submissions,
+          total_completions: item.total_completions || 0,
+          completion_rate: item.completion_rate || 0,
+          has_completion: item.has_completion
+        }))
+      }
     }
-  }]
+  ]
 }
 
 export const statisticsApi = {
@@ -579,6 +515,5 @@ export const statisticsApi = {
   getMyClinicianOverviewStatistics,
   listMyClinicianEntryStatistics,
   getMyClinicianTesteeSummaryStatistics,
-  getTesteePeriodicStatistics,
   batchContentStatistics
 }

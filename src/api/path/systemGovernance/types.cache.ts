@@ -1,11 +1,55 @@
-import type { ICacheGovernanceFamilyStatus, ICacheGovernanceStatusResponse } from '../cacheGovernance'
-import type {
-  GovernanceMetricsMeta,
-  MetricEvidence,
-  RawSystemGovernanceSignal,
-  Signal,
-  SignalSeverity
-} from './types.shared'
+import type { GovernanceMetricsMeta, MetricEvidence, RawSystemGovernanceSignal, Signal, SignalSeverity } from './types.shared'
+
+export interface CacheGovernanceSummary {
+  family_total: number
+  available_count: number
+  degraded_count: number
+  unavailable_count: number
+  ready: boolean
+}
+
+export interface ICacheGovernanceFamilyStatus {
+  component: string
+  family: string
+  profile: string
+  namespace: string
+  allow_warmup: boolean
+  configured: boolean
+  available: boolean
+  degraded: boolean
+  mode: string
+  last_error?: string
+  last_success_at?: string
+  last_failure_at?: string
+  consecutive_failures: number
+  updated_at?: string
+}
+
+export interface CacheGovernanceWarmupRun {
+  trigger: string
+  started_at?: string
+  finished_at?: string
+  result: string
+  target_count: number
+  ok_count: number
+  error_count: number
+  skipped_count: number
+}
+
+export interface CacheGovernanceWarmupConfig {
+  enabled: boolean
+  startup: { static: boolean; query: boolean }
+  hotset: { enable: boolean; top_n: number; max_items_per_kind: number }
+  latest_runs: CacheGovernanceWarmupRun[]
+}
+
+export interface ICacheGovernanceStatusResponse {
+  generated_at?: string
+  component?: string
+  summary: CacheGovernanceSummary
+  families: ICacheGovernanceFamilyStatus[]
+  warmup: CacheGovernanceWarmupConfig
+}
 
 export interface CacheRuntimeSnapshot {
   generated_at?: string
