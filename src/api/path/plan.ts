@@ -241,7 +241,7 @@ export const planApi = {
     return get<ITaskListResponse>(`/testees/${testeeId}/tasks`)
   },
 
-  // V2 周期真相以 Enrollment round 为边界；替代 Statistics V1 periodic 端点。
+  // 周期真相以 Enrollment round 为边界，由 Plan API 直接提供。
   getTesteeEnrollments: (
     testeeId: string,
     params: { plan_id?: string; status?: 'active' | 'closed' | 'terminated'; page?: number; page_size?: number } = {}
