@@ -14,10 +14,9 @@ import {
 } from '../models/question'
 import { IQuestionSheet } from '../models/questionSheet'
 import { api } from '../api'
-import { delShowController, postShowController } from '@/api/path/showController'
 import { IQuestionShowController } from '@/models/question'
 import type { IQuestionDTO } from '@/api/path/survey'
-import { convertQuestionFromDTO } from '@/api/path/questionConverter'
+import { convertQuestionFromDTO, convertShowControllerFromDTO } from '@/api/path/questionConverter'
 import { QuestionnaireType } from '@/constants/questionnaireType'
 
 // 问卷编辑步骤
@@ -570,6 +569,10 @@ export const surveyStore = makeObservable(
         console.warn('未知的问题数据格式:', q)
         return q as IQuestion
       })
+      const showControllers = questionDTOs.flatMap((q: IQuestionDTO) => {
+        const showController = convertShowControllerFromDTO(q.show_controller)
+        return q.code && showController ? [{ code: q.code, show_controller: showController }] : []
+      })
       
       console.log('转换后的问题列表:', questions.length, questions.slice(0, 2))
       
@@ -578,6 +581,7 @@ export const surveyStore = makeObservable(
         // 先清空数组，然后逐个添加，确保 MobX 能正确检测变化
         this.questions.length = 0
         this.questions.push(...questions)
+        this.showControllers = showControllers
         console.log('store.questions 设置后:', this.questions.length, toJS(this.questions).slice(0, 2))
         if (questions.length > 0) {
           this.currentCode = questions[0].code
@@ -659,23 +663,9 @@ export const surveyStore = makeObservable(
       if (!this.id) {
         throw new Error('问卷 ID 不能为空')
       }
-
-      // 删除已标记删除的显隐规则
-      for (const code of this.deletedShowControllerCodes) {
-        const [error] = await delShowController(this.id, code)
-        if (error) {
-          throw new Error(`删除显隐规则失败: ${code} - ${error}`)
-        }
-      }
+      const [error] = await api.saveSurveyQuestions(this.id, this.questions, this.showControllers)
+      if (error) throw error
       this.deletedShowControllerCodes = []
-
-      // 保存/更新显隐规则
-      for (const item of this.showControllers) {
-        const [error] = await postShowController(this.id, item)
-        if (error) {
-          throw new Error(`保存显隐规则失败: ${item.code} - ${error}`)
-        }
-      }
     },
 
     /**

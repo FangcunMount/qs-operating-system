@@ -14,13 +14,8 @@ import { QuestionEditorStore } from './types'
 
 const QuestionSetting: React.FC<{ store?: QuestionEditorStore }> = ({ store = questionSheetStore }) => {
   const delQuestion = async () => {
-    // if question has answer, cannot be deleted
-    const [e, r] = await api.getQueryAnsweredCnt(store.id as string, store.currentCode)
-    if (!e && Number(r?.data.answered_cnt) <= 0) {
-      store.deleteQuestion()
-    } else {
-      message.error(`该问题已有 ${r?.data.answered_cnt} 个答卷，不可删除！`)
-    }
+    // 服务端不再提供已答数量查询；批量保存时由服务端负责校验删除约束。
+    store.deleteQuestion()
   }
 
   const copyQuestion = async () => {

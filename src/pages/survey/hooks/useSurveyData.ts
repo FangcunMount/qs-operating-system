@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { message } from 'antd'
 import { surveyStore } from '@/store'
-import { getShowControllerList } from '@/api/path/showController'
 
 /**
  * 问卷数据加载 Hook
@@ -40,16 +39,7 @@ export const useSurveyData = (questionsheetid: string): {
    * 加载显隐规则
    */
   const loadShowControllers = async () => {
-    if (!questionsheetid) return
-
-    try {
-      const [error, response] = await getShowControllerList(questionsheetid)
-      if (!error && response) {
-        surveyStore.setShowControllers(response.data.list)
-      }
-    } catch (error) {
-      console.error('加载显隐规则失败:', error)
-    }
+    // show_controller 已随问卷 DTO 在 initEditor 中加载。
   }
 
   /**
@@ -67,4 +57,3 @@ export const useSurveyData = (questionsheetid: string): {
     loadFullData
   }
 }
-

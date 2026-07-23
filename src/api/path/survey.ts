@@ -378,20 +378,6 @@ export async function reorderQuestions(
   return post<IQuestionnaireResponse>(`/questionnaires/${questionsheetid}/questions/reorder`, requestData)
 }
 
-/**
- * 保存问卷路由配置（保留旧接口兼容性）
- */
-export async function saveSurveyRouting(
-  questionsheetid: string,
-  routingConfig: IQuestion[]
-): Promise<[any, QSResponse<any> | undefined]> {
-  // 此接口不在新 API 文档中，保留兼容性
-  return post<any>('/api/survey/routing/save', {
-    questionsheetid,
-    routing: routingConfig
-  })
-}
-
 // 小程序码响应
 export interface IQRCodeResponse {
   qrcode_url: string
@@ -422,7 +408,6 @@ export const surveyApi = {
   deleteSurvey,
   archiveSurvey,
   listQuestionnaires,
-  saveSurveyRouting,
   addQuestion,
   updateQuestion,
   deleteQuestion,

@@ -6,7 +6,6 @@ import { observer } from 'mobx-react-lite'
 import './index.scss'
 import '@/components/editorSteps/index.scss'
 import '@/styles/theme-scale.scss'
-import { getShowControllerList } from '@/api/path/showController'
 import { scaleStore } from '@/store'
 import { bindQuestionnaireEditingPort, QuestionRoutingWorkspace } from '@/features/assessment-editor'
 import BaseLayout from '@/components/layout/BaseLayout'
@@ -34,11 +33,6 @@ const QuestionRouting: React.FC = observer(() => {
     message.loading({ content: '加载中', duration: 0, key: 'fetch' })
     try {
       await scaleStore.initEditor(questionsheetid, scaleCode)
-
-      const [error, response] = await getShowControllerList(questionsheetid)
-      if (!error && response) {
-        scaleStore.setShowControllers(response.data.list)
-      }
 
       message.destroy()
     } catch (error) {

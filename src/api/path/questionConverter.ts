@@ -341,3 +341,18 @@ export function convertQuestionFromDTO(dto: IQuestionDTO): IQuestion {
   
   return ensureDefaultValidateRules(question as IQuestion)
 }
+
+/** 将问卷 DTO 内嵌的显隐规则转换为编辑器状态。 */
+export function convertShowControllerFromDTO(dto?: IShowControllerDTO): IQuestionShowController | undefined {
+  if (!dto) return undefined
+  return {
+    rule: dto.rule,
+    questions: dto.questions.map((question) => ({
+      code: question.code,
+      option_controller: {
+        rule: 'or',
+        select_option_codes: question.select_option_codes
+      }
+    }))
+  }
+}
