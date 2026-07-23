@@ -26,13 +26,11 @@ describe('assessmentModelApi', () => {
   })
 
   it('keeps assessment model backend routes stable', async () => {
-    await assessmentModelApi.listAssessmentModels({ kind: 'typology', status: 'draft', sub_kind: 'typology', product_channel: 'typology' })
+    await assessmentModelApi.listAssessmentModels({ kind: 'typology', status: 'draft' })
     await assessmentModelApi.createAssessmentModel({
       title: '人格',
       kind: 'typology',
-      sub_kind: 'typology',
-      algorithm: 'mbti',
-      product_channel: 'typology'
+      algorithm: 'personality_typology'
     })
     await assessmentModelApi.getAssessmentModel('m1')
     await assessmentModelApi.updateAssessmentModelBasicInfo('m1', { title: '人格 v2' })
@@ -45,7 +43,7 @@ describe('assessmentModelApi', () => {
       Outcomes: [],
       ReportMap: { Sections: [] }
     })
-    await assessmentModelApi.listPublishedAssessmentModels({ kind: 'typology', product_channel: 'typology' })
+    await assessmentModelApi.listPublishedAssessmentModels({ kind: 'typology' })
     await assessmentModelApi.getPublishedAssessmentModel('m1', '1.0.0')
     await assessmentModelApi.getAssessmentModelQRCode('m1')
     await assessmentModelApi.getAssessmentModelOptions('typology')
@@ -58,16 +56,12 @@ describe('assessmentModelApi', () => {
 
     expect(getMock).toHaveBeenNthCalledWith(1, '/assessment-models', {
       kind: 'typology',
-      status: 'draft',
-      sub_kind: 'typology',
-      product_channel: 'typology'
+      status: 'draft'
     })
     expect(postMock).toHaveBeenNthCalledWith(1, '/assessment-models', {
       title: '人格',
       kind: 'typology',
-      sub_kind: 'typology',
-      algorithm: 'mbti',
-      product_channel: 'typology'
+      algorithm: 'personality_typology'
     })
     expect(getMock).toHaveBeenNthCalledWith(2, '/assessment-models/m1')
     expect(putMock).toHaveBeenNthCalledWith(1, '/assessment-models/m1/basic-info', { title: '人格 v2' })
@@ -77,7 +71,7 @@ describe('assessmentModelApi', () => {
     })
     expect(getMock).toHaveBeenCalledWith('/assessment-models/m1/questionnaire')
     expect(getMock).toHaveBeenCalledWith('/assessment-models/m1/definition')
-    expect(getMock).toHaveBeenCalledWith('/assessment-models/published', { kind: 'typology', product_channel: 'typology' })
+    expect(getMock).toHaveBeenCalledWith('/assessment-models/published', { kind: 'typology' })
     expect(getMock).toHaveBeenCalledWith('/assessment-models/published/m1', { version: '1.0.0' })
     expect(getMock).toHaveBeenCalledWith('/assessment-models/m1/qrcode')
     expect(getMock).toHaveBeenCalledWith('/assessment-models/options', { kind: 'typology' })
@@ -116,48 +110,42 @@ describe('assessmentModelApi', () => {
     expect(res?.data.total_count).toBe(45)
   })
 
-  it('forwards the behavior-ability product channel and canonical BRIEF-2 identity', async () => {
-    await assessmentModelApi.listAssessmentModels({ product_channel: 'behavior_ability' })
-    await assessmentModelApi.listPublishedAssessmentModels({ product_channel: 'behavior_ability' })
+  it('forwards canonical behavior-ability kinds and algorithms', async () => {
+    await assessmentModelApi.listAssessmentModels({ kinds: 'behavioral_rating,cognitive' })
+    await assessmentModelApi.listPublishedAssessmentModels({ kinds: 'behavioral_rating,cognitive' })
     await assessmentModelApi.createAssessmentModel({
       code: 'BRIEF2_PARENT_CN',
       title: 'BRIEF-2 家长版',
       kind: 'behavioral_rating',
-      sub_kind: '',
-      algorithm: 'brief2',
-      product_channel: 'behavior_ability'
+      algorithm: 'brief2'
     })
     await assessmentModelApi.createAssessmentModel({
       code: 'SPM_STANDARD_CN',
       title: 'SPM 标准型',
       kind: 'cognitive',
-      sub_kind: '',
-      algorithm: 'spm',
-      product_channel: 'behavior_ability'
+      algorithm: 'spm'
     })
 
-    expect(getMock).toHaveBeenCalledWith('/assessment-models', { product_channel: 'behavior_ability' })
-    expect(getMock).toHaveBeenCalledWith('/assessment-models/published', { product_channel: 'behavior_ability' })
+    expect(getMock).toHaveBeenCalledWith('/assessment-models', { kinds: 'behavioral_rating,cognitive' })
+    expect(getMock).toHaveBeenCalledWith('/assessment-models/published', { kinds: 'behavioral_rating,cognitive' })
     expect(postMock).toHaveBeenCalledWith(
       '/assessment-models',
       expect.objectContaining({
         kind: 'behavioral_rating',
-        algorithm: 'brief2',
-        product_channel: 'behavior_ability'
+        algorithm: 'brief2'
       })
     )
     expect(postMock).toHaveBeenCalledWith(
       '/assessment-models',
       expect.objectContaining({
         kind: 'cognitive',
-        algorithm: 'spm',
-        product_channel: 'behavior_ability'
+        algorithm: 'spm'
       })
     )
   })
 
   it('normalizes canonical typology while reading a legacy personality response', async () => {
-    getMock.mockResolvedValueOnce([null, { data: { items: [{ code: 'm1', kind: 'personality', sub_kind: 'typology' }] } }])
+    getMock.mockResolvedValueOnce([null, { data: { items: [{ code: 'm1', kind: 'personality', algorithm: 'personality_typology' }] } }])
     const [, response] = await assessmentModelApi.listAssessmentModels()
     expect(response?.data.models[0].kind).toBe('typology')
   })

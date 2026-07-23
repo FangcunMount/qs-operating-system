@@ -1,8 +1,7 @@
-import type { AssessmentModelKind, AssessmentModelSubKind } from '@/models/assessmentModel'
+import type { AssessmentModelKind } from '@/models/assessmentModel'
 
 /** "人格" remains the business-facing label. ModelCatalog persists it as typology. */
 export const PERSONALITY_KIND: AssessmentModelKind = 'typology'
-export const PERSONALITY_SUB_KIND: AssessmentModelSubKind = 'typology'
 
 /** New drafts always use one configured factor-classification runtime. */
 export const PERSONALITY_RUNTIME_ALGORITHM = 'personality_typology' as const
@@ -70,12 +69,12 @@ export const getPersonalityDecisionOptions = (
 
 export const isPersonalityTypologyScopeModel = (model: {
   kind?: string
-  sub_kind?: string
-}): boolean => model.kind === PERSONALITY_KIND && model.sub_kind === PERSONALITY_SUB_KIND
+  algorithm?: string
+}): boolean => model.kind === PERSONALITY_KIND && model.algorithm === PERSONALITY_RUNTIME_ALGORITHM
 
 export const assertPersonalityTypologyScopeModel = (model: {
   kind?: string
-  sub_kind?: string
+  algorithm?: string
   code?: string
 }): void => {
   if (!isPersonalityTypologyScopeModel(model)) {

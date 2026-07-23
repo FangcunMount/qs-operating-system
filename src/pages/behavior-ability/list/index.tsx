@@ -6,7 +6,6 @@ import { assessmentModelApi } from '@/api/path/assessmentModel'
 import { assessmentReleaseApi } from '@/api/path/assessmentRelease'
 import { ModelCatalogListShell, ModelReleaseState, ReleaseHistoryButton } from '@/features/assessment-editor'
 import type { AssessmentModelSummary } from '@/models/assessmentModel'
-import { BEHAVIOR_ABILITY_PRODUCT_CHANNEL } from '@/constants/behaviorAbility'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 const statusOptions = [
@@ -28,7 +27,7 @@ const BehaviorAbilityList: React.FC = () => {
     setLoading(true)
     try {
       const [err, res] = await assessmentModelApi.listAssessmentModels({
-        product_channel: BEHAVIOR_ABILITY_PRODUCT_CHANNEL,
+		kinds: 'behavioral_rating,cognitive',
         page: current,
         page_size: pageSize,
         status: nextStatus

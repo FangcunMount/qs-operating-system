@@ -10,7 +10,7 @@ import {
   PersonalityQuestionMapping,
   PersonalityTypologyRuntimeSpec
 } from './assessmentModel'
-import { normalizeDecisionKindForAlgorithm, normalizeLegacyDecisionKind, PERSONALITY_KIND, PERSONALITY_SUB_KIND } from '@/constants/personalityScope'
+import { normalizeDecisionKindForAlgorithm, normalizeLegacyDecisionKind, PERSONALITY_KIND } from '@/constants/personalityScope'
 
 const normalizeOutcomes = (outcomes: unknown): PersonalityOutcome[] => {
   if (!Array.isArray(outcomes)) return []
@@ -320,11 +320,9 @@ export const normalizeRuntimeSpecForSave = (
 export const buildDefinitionForSave = (
   _definition: AssessmentModelDefinition,
   runtimeSpec: PersonalityTypologyRuntimeSpec,
-  _subKind: string,
   algorithm: string
 ): AssessmentModelDefinition<PersonalityTypologyRuntimeSpec> => ({
   kind: PERSONALITY_KIND,
-  sub_kind: PERSONALITY_SUB_KIND,
   algorithm,
   payload_format: PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT,
   payload: normalizeRuntimeSpecForSave(runtimeSpec, algorithm)

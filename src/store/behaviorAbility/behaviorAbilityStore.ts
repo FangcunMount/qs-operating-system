@@ -3,7 +3,7 @@ import { api } from '@/api'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
 import { surveyApi } from '@/api/path/survey'
 import { QuestionnaireType } from '@/constants/questionnaireType'
-import { BEHAVIOR_ABILITY_PRODUCT_CHANNEL, getBehaviorAbilityProfile } from '@/constants/behaviorAbility'
+import { getBehaviorAbilityProfile, isBehaviorAbilityModel } from '@/constants/behaviorAbility'
 import type { BehaviorAbilityAlgorithm, BehaviorAbilityModelProfile } from '@/constants/behaviorAbility'
 import { isBehaviorAbilityPublishingEnabled } from '@/constants/behaviorAbilityFeature'
 import type {
@@ -167,8 +167,8 @@ export class BehaviorAbilityStore {
 
   applyModel(model: AssessmentModelDetail): void {
     const profile = getBehaviorAbilityProfile(model.algorithm)
-    if (!profile || model.product_channel !== BEHAVIOR_ABILITY_PRODUCT_CHANNEL) {
-      throw new Error('该模型不属于行为能力频道')
+	if (!profile || !isBehaviorAbilityModel(model)) {
+		throw new Error('该模型不属于行为能力模型')
     }
     this.modelCode = model.code
     this.title = model.title
@@ -244,9 +244,7 @@ export class BehaviorAbilityStore {
         title: this.title,
         description: this.description,
         kind: this.profile.kind,
-        sub_kind: '',
-        algorithm: this.profile.algorithm,
-        product_channel: BEHAVIOR_ABILITY_PRODUCT_CHANNEL,
+		algorithm: this.profile.algorithm,
         questionnaire_code: binding.code,
         questionnaire_version: binding.version,
         category: this.category || undefined,
@@ -262,9 +260,7 @@ export class BehaviorAbilityStore {
       const [err, res] = await assessmentModelApi.updateAssessmentModelBasicInfo(this.modelCode, {
         title: this.title,
         description: this.description,
-        sub_kind: '',
-        algorithm: this.profile.algorithm,
-        product_channel: BEHAVIOR_ABILITY_PRODUCT_CHANNEL,
+		algorithm: this.profile.algorithm,
         category: this.category || undefined,
         tags: this.tags
       })

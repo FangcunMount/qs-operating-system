@@ -6,7 +6,6 @@ import {
   AssessmentModelOptions,
   AssessmentModelPreviewReportRequest,
   AssessmentModelPreviewReportResponse,
-  AssessmentModelSubKind,
   AssessmentModelSummary,
   AssessmentModelValidationResult,
   AssessmentQRCodeResponse
@@ -27,8 +26,7 @@ export interface AssessmentModelListParams {
   status?: string
   keyword?: string
   algorithm?: string
-  product_channel?: string
-  sub_kind?: AssessmentModelSubKind
+  kinds?: string
   category?: string
   questionnaire_code?: string
   questionnaire_version?: string
@@ -48,9 +46,7 @@ export interface CreateAssessmentModelRequest {
   title: string
   description?: string
   kind: AssessmentModelKind
-  sub_kind: AssessmentModelSubKind | string
   algorithm: string
-  product_channel?: string
   questionnaire_code?: string
   questionnaire_version?: string
   category?: string
@@ -63,11 +59,9 @@ export interface CreateAssessmentModelRequest {
 export interface UpdateAssessmentModelBasicInfoRequest {
   title?: string
   description?: string
-  sub_kind?: string
   algorithm?: string
   category?: string
   tags?: string[]
-  product_channel?: string
   stages?: string[]
   applicable_ages?: string[]
   reporters?: string[]
@@ -182,7 +176,7 @@ export function getAssessmentModelQuestionnaire(
 export async function listPublishedAssessmentModels(
   params: Pick<
     AssessmentModelListParams,
-    'kind' | 'sub_kind' | 'algorithm' | 'product_channel' | 'category' | 'keyword'
+    'kind' | 'kinds' | 'algorithm' | 'category' | 'keyword'
       | 'questionnaire_code' | 'questionnaire_version' | 'page' | 'page_size'
   > = {}
 ): Promise<[any, QSResponse<PublishedAssessmentModelListResponse> | undefined]> {

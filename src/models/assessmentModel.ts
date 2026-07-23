@@ -12,7 +12,6 @@ export interface ReleaseState {
   active_version?: string
   has_unpublished_changes: boolean
 }
-export type AssessmentModelSubKind = 'typology' | 'dimension_score'
 export type AssessmentModelAlgorithm =
   | 'personality_typology'
   | 'mbti'
@@ -28,16 +27,13 @@ export const LEGACY_PERSONALITY_PAYLOAD_FORMAT = 'personality_payload_v1'
 export interface AssessmentModelSummary {
   code: string
   kind: AssessmentModelKind
-  sub_kind: AssessmentModelSubKind | string
   algorithm: AssessmentModelAlgorithm
   title: string
   description: string
   status: AssessmentModelStatus
   category?: string
-  product_channel?: string
   /** Versioned norm tables referenced by this model, supplied by the catalog list projection. */
   norm_table_versions?: string[]
-  algorithm_family?: string
   tags: string[]
   stages?: string[]
   applicable_ages?: string[]
@@ -61,7 +57,6 @@ export interface AssessmentModelDetail extends AssessmentModelSummary {
 
 export interface AssessmentModelDefinition<TPayload = AssessmentModelPayload> {
   kind: AssessmentModelKind
-  sub_kind: AssessmentModelSubKind | string
   algorithm: AssessmentModelAlgorithm
   payload_format: typeof PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT | typeof LEGACY_PERSONALITY_PAYLOAD_FORMAT | string
   payload: TPayload
@@ -199,10 +194,7 @@ export interface PersonalityTypologyRuntimeSpec {
 export interface AssessmentModelOptions {
   kinds?: Array<{ value: string; label: string }>
   algorithms: Array<{ value: string; label: string }>
-  algorithm_families?: Array<{ value: string; label: string }>
   categories: Array<{ value: string; label: string }>
-  sub_kinds: Array<{ value: string; label: string }>
-  product_channels?: Array<{ value: string; label: string }>
   stages?: Array<{ value: string; label: string }>
   applicable_ages?: Array<{ value: string; label: string }>
   reporters?: Array<{ value: string; label: string }>
@@ -259,7 +251,6 @@ export interface PersonalityDraftSnapshot {
   category: string
   tags: string[]
   algorithm: string
-  subKind: string
   status: AssessmentModelStatus
   questionnaireCode: string
   questionnaireVersion?: string
@@ -306,7 +297,6 @@ export const createEmptyPersonalityDefinition = (
   questionnaireVersion?: string
 ): AssessmentModelDefinition<PersonalityTypologyRuntimeSpec> => ({
   kind: 'typology',
-  sub_kind: 'typology',
   algorithm: 'personality_typology',
   payload_format: PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT,
   payload: createEmptyRuntimeSpec(questionnaireCode, questionnaireVersion)

@@ -114,10 +114,8 @@ export class PersonalityDefinitionStore {
 
   async saveDraftDefinition(
     modelCode: string,
-    _subKind: string,
     _algorithm: string
   ): Promise<DefinitionV2 | undefined> {
-    void _subKind
     void _algorithm
     const issues = this.validateDraftDefinition()
     if (hasBlockingIssues(issues)) {
@@ -139,7 +137,6 @@ export class PersonalityDefinitionStore {
 
   async saveAndValidateDefinition(
     modelCode: string,
-    subKind: string,
     algorithm: string,
     questions: IQuestion[] = []
   ): Promise<DefinitionV2 | undefined> {
@@ -147,16 +144,15 @@ export class PersonalityDefinitionStore {
     if (hasBlockingIssues(issues)) {
       throw new Error(issues.find((issue) => issue.level !== 'warning')?.message || '模型定义校验失败')
     }
-    return this.saveDraftDefinition(modelCode, subKind, algorithm)
+    return this.saveDraftDefinition(modelCode, algorithm)
   }
 
   async saveDefinition(
     modelCode: string,
-    subKind: string,
     algorithm: string,
     questions: IQuestion[] = []
   ): Promise<DefinitionV2 | undefined> {
-    return this.saveAndValidateDefinition(modelCode, subKind, algorithm, questions)
+    return this.saveAndValidateDefinition(modelCode, algorithm, questions)
   }
 
   async validateDefinitionOnly(questions: IQuestion[] = [], algorithm?: string): Promise<AssessmentModelValidationIssue[]> {

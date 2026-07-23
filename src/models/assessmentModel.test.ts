@@ -170,7 +170,7 @@ describe('assessment model mappers', () => {
       outcome_mapping: { outcomes: [{ code: 'ENFP', name: '竞选者' }] }
     }
 
-    const def = buildDefinitionForSave(createEmptyRuntimeSpecDefinition(), spec, 'typology', 'mbti')
+    const def = buildDefinitionForSave(createEmptyRuntimeSpecDefinition(), spec, 'mbti')
     const savedSpec = def.payload as PersonalityTypologyRuntimeSpec
 
     expect(savedSpec.factor_graph.factors?.E.contributions).toEqual([
@@ -189,7 +189,6 @@ describe('assessment model mappers', () => {
     const sbtiDef = buildDefinitionForSave(
       createEmptyRuntimeSpecDefinition(),
       sbtiRuntimeSpec as PersonalityTypologyRuntimeSpec,
-      'typology',
       'sbti'
     )
 

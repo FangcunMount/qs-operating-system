@@ -24,7 +24,6 @@ class PersonalityModelStoreFacade {
       category: computed,
       tags: computed,
       algorithm: computed,
-      subKind: computed,
       status: computed,
       questions: computed,
       showControllers: computed,
@@ -48,7 +47,6 @@ class PersonalityModelStoreFacade {
   get category() { return personalityModelEditorStore.category }
   get tags() { return personalityModelEditorStore.tags }
   get algorithm() { return personalityModelEditorStore.algorithm }
-  get subKind() { return personalityModelEditorStore.subKind }
   get status() { return personalityModelEditorStore.status }
   get questions() { return personalityQuestionnaireStore.questions }
   get showControllers() { return personalityQuestionnaireStore.showControllers }

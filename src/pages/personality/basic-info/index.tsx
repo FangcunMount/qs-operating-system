@@ -20,8 +20,7 @@ import {
 import {
   filterPersonalityAlgorithmOptions,
   getPersonalityDecisionOptions,
-  normalizePersonalityAlgorithm,
-  PERSONALITY_SUB_KIND
+  normalizePersonalityAlgorithm
 } from '@/constants/personalityScope'
 import RepublishHint from '@/components/personality/RepublishHint'
 import '../index.scss'
@@ -59,7 +58,6 @@ const PersonalityBasicInfo: React.FC = observer(() => {
           desc: personalityModelStore.desc,
           algorithm: normalizePersonalityAlgorithm(personalityModelStore.algorithm),
           decisionKind: personalityDefinitionStore.runtimeSpec.decision.kind,
-          subKind: PERSONALITY_SUB_KIND,
           category: personalityModelStore.category || undefined,
           tags: personalityModelStore.tags,
           ...(isNewModel ? {
@@ -92,7 +90,6 @@ const PersonalityBasicInfo: React.FC = observer(() => {
       ...personalityDefinitionStore.runtimeSpec,
       decision: { ...personalityDefinitionStore.runtimeSpec.decision, kind: values.decisionKind }
     })
-    personalityModelEditorStore.subKind = PERSONALITY_SUB_KIND
     personalityModelEditorStore.category = values.category || ''
     personalityModelEditorStore.tags = values.tags || []
     if (!personalityModelStore.modelCode) {
@@ -167,9 +164,6 @@ const PersonalityBasicInfo: React.FC = observer(() => {
             </Form.Item>
             <Form.Item label="模型类型">
               <Input value="人格探索 / 类型模型（typology）" disabled />
-            </Form.Item>
-            <Form.Item name="subKind" hidden initialValue={PERSONALITY_SUB_KIND}>
-              <Input />
             </Form.Item>
             <Form.Item name="category" label="业务分类">
               <Select allowClear options={categoryOptions} placeholder="选择业务分类" />

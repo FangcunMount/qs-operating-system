@@ -8,7 +8,6 @@ import {
   normalizeLegacyDecisionKind,
   normalizePersonalityAlgorithm,
   PERSONALITY_KIND,
-  PERSONALITY_SUB_KIND,
   PERSONALITY_TYPOLOGY_ALGORITHMS
 } from '@/constants/personalityScope'
 
@@ -33,9 +32,9 @@ describe('personalityScope', () => {
   })
 
   it('identifies personality typology scope models', () => {
-    expect(isPersonalityTypologyScopeModel({ kind: PERSONALITY_KIND, sub_kind: PERSONALITY_SUB_KIND })).toBe(true)
-    expect(isPersonalityTypologyScopeModel({ kind: 'behavior_ability', sub_kind: 'typology' })).toBe(false)
-    expect(isPersonalityTypologyScopeModel({ kind: PERSONALITY_KIND, sub_kind: 'dimension_score' })).toBe(false)
+    expect(isPersonalityTypologyScopeModel({ kind: PERSONALITY_KIND, algorithm: 'personality_typology' })).toBe(true)
+    expect(isPersonalityTypologyScopeModel({ kind: 'behavioral_rating', algorithm: 'personality_typology' })).toBe(false)
+    expect(isPersonalityTypologyScopeModel({ kind: PERSONALITY_KIND, algorithm: 'brief2' })).toBe(false)
   })
 
   it('returns the finite decision mechanism set independent of named instruments', () => {

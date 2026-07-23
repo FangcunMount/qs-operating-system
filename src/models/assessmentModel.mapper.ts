@@ -6,7 +6,6 @@ import {
   AssessmentModelPreviewReportResponse,
   AssessmentModelPreviewReportSection,
   AssessmentModelStatus,
-  AssessmentModelSubKind,
   AssessmentModelSummary,
   AssessmentModelValidationIssue,
   AssessmentModelValidationResult,
@@ -52,27 +51,17 @@ const normalizeModelKind = (kind?: unknown): AssessmentModelKind => {
   return (kind || 'typology') as AssessmentModelKind
 }
 
-const defaultProductChannelForKind = (kind: AssessmentModelKind): string | undefined => {
-  if (kind === 'scale') return 'medical_scale'
-  if (kind === 'typology' || kind === 'personality') return 'typology'
-  if (kind === 'behavioral_rating' || kind === 'cognitive' || kind === 'behavior_ability') return 'behavior_ability'
-  return undefined
-}
-
 export const normalizeAssessmentModelSummary = (raw: Record<string, any>): AssessmentModelSummary => {
   const kind = normalizeModelKind(raw?.kind)
   return {
     code: String(raw?.code || ''),
     kind,
-    sub_kind: (raw?.sub_kind || 'typology') as AssessmentModelSubKind,
     algorithm: String(raw?.algorithm || 'mbti'),
     title: String(raw?.title || ''),
     description: String(raw?.description || raw?.desc || ''),
     status: (raw?.status || 'draft') as AssessmentModelStatus,
     category: raw?.category,
-    product_channel: raw?.product_channel || defaultProductChannelForKind(kind),
     norm_table_versions: normalizeStringList(raw?.norm_table_versions),
-    algorithm_family: raw?.algorithm_family,
     tags: normalizeTags(raw?.tags),
     stages: Array.isArray(raw?.stages) ? raw.stages : undefined,
     applicable_ages: Array.isArray(raw?.applicable_ages) ? raw.applicable_ages : undefined,
@@ -163,7 +152,6 @@ export const normalizeAssessmentModelDefinition = (
 
   return {
     kind: (raw?.kind || 'personality') as AssessmentModelKind,
-    sub_kind: (raw?.sub_kind || 'typology') as AssessmentModelSubKind,
     algorithm,
     payload_format: PERSONALITY_TYPOLOGY_PAYLOAD_FORMAT,
     payload
@@ -173,10 +161,7 @@ export const normalizeAssessmentModelDefinition = (
 export const normalizeAssessmentModelOptions = (raw: Record<string, any>): AssessmentModelOptions => ({
   kinds: Array.isArray(raw?.kinds) ? raw.kinds : [],
   algorithms: Array.isArray(raw?.algorithms) ? raw.algorithms : [],
-  algorithm_families: Array.isArray(raw?.algorithm_families) ? raw.algorithm_families : [],
   categories: Array.isArray(raw?.categories) ? raw.categories : [],
-  sub_kinds: Array.isArray(raw?.sub_kinds) ? raw.sub_kinds : [],
-  product_channels: Array.isArray(raw?.product_channels) ? raw.product_channels : [],
   stages: Array.isArray(raw?.stages) ? raw.stages : [],
   applicable_ages: Array.isArray(raw?.applicable_ages) ? raw.applicable_ages : [],
   reporters: Array.isArray(raw?.reporters) ? raw.reporters : []

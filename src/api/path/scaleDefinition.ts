@@ -178,9 +178,7 @@ export async function createScaleModel(data: {
 }): Promise<[any, QSResponse<IScaleDefinitionResponse> | undefined]> {
   const [err, response] = await createAssessmentModel({
     kind: 'scale',
-    sub_kind: '',
     algorithm: 'scale_default',
-    product_channel: 'medical_scale',
     title: data.title,
     description: data.description,
     questionnaire_code: data.questionnaire_code,

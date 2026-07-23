@@ -42,7 +42,7 @@ const BehaviorAbilityBasicInfo: React.FC = observer(() => {
         const supports = (data: any, kind: string, algorithm: string) =>
           data?.kinds?.some((item: any) => item.value === kind) &&
           data?.algorithms?.some((item: any) => item.value === algorithm) &&
-          data?.product_channels?.some((item: any) => item.value === 'behavior_ability')
+		  data?.kinds?.some((item: any) => item.value === 'behavioral_rating' || item.value === 'cognitive')
         if (!behavioral[0] && supports(behavioral[1]?.data, 'behavioral_rating', 'brief2')) next.add('brief2')
         if (!behavioral[0] && supports(behavioral[1]?.data, 'behavioral_rating', 'spm_sensory')) next.add('spm_sensory')
         setAvailable(next)

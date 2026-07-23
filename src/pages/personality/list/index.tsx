@@ -19,8 +19,7 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import {
   filterPersonalityAlgorithmOptions,
   normalizePersonalityAlgorithm,
-  PERSONALITY_KIND,
-  PERSONALITY_SUB_KIND
+  PERSONALITY_KIND
 } from '@/constants/personalityScope'
 import {
   canEditPersonalityModel,
@@ -71,7 +70,6 @@ const PersonalityList: React.FC = () => {
     try {
       const [err, res] = await assessmentModelApi.listAssessmentModels({
         kind: PERSONALITY_KIND,
-        sub_kind: PERSONALITY_SUB_KIND,
         page,
         page_size: pageSize,
         keyword: nextKeyword || undefined,
@@ -163,9 +161,7 @@ const PersonalityList: React.FC = () => {
         title: `${row.title}（副本）`,
         description: row.description,
         kind: PERSONALITY_KIND,
-        sub_kind: PERSONALITY_SUB_KIND,
         algorithm: normalizePersonalityAlgorithm(row.algorithm),
-        product_channel: 'typology',
         questionnaire_code: row.questionnaire_code,
         questionnaire_version: row.questionnaire_version,
         category: row.category,

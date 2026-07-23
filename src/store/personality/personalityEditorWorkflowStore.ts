@@ -9,9 +9,6 @@ import type {
 import type { DefinitionV2 } from '@/models/definitionV2'
 import type { IQuestion, IQuestionShowController } from '@/models/question'
 import type { EditorFlowContext } from '@/utils/editorFlow'
-import {
-  PERSONALITY_SUB_KIND
-} from '@/constants/personalityScope'
 import { personalityDraftStorage } from './personalityDraftStorage'
 import { personalityDefinitionStore } from './personalityDefinitionStore'
 import { personalityModelEditorStore } from './personalityModelEditorStore'
@@ -45,7 +42,6 @@ const snapshotEditor = () => ({
   category: personalityModelEditorStore.category,
   tags: personalityModelEditorStore.tags,
   algorithm: personalityModelEditorStore.algorithm,
-  subKind: personalityModelEditorStore.subKind,
   status: personalityModelEditorStore.status,
   questionnaireCode: personalityModelEditorStore.questionnaireCode,
   questionnaireVersion: personalityModelEditorStore.questionnaireVersion,
@@ -152,7 +148,6 @@ export class PersonalityEditorWorkflowStore {
           category: data.editor.category,
           tags: data.editor.tags,
           algorithm: data.editor.algorithm,
-          sub_kind: PERSONALITY_SUB_KIND,
           status: data.editor.status,
           questionnaire_code: data.editor.questionnaireCode,
           questionnaire_version: data.editor.questionnaireVersion
@@ -233,7 +228,6 @@ export class PersonalityEditorWorkflowStore {
     const modelCode = requireModelCode()
     await personalityDefinitionStore.saveDraftDefinition(
       modelCode,
-      personalityModelEditorStore.subKind,
       personalityModelEditorStore.algorithm
     )
   }
@@ -249,7 +243,6 @@ export class PersonalityEditorWorkflowStore {
     const modelCode = requireModelCode()
     await personalityDefinitionStore.saveAndValidateDefinition(
       modelCode,
-      personalityModelEditorStore.subKind,
       personalityModelEditorStore.algorithm,
       personalityQuestionnaireStore.questions
     )

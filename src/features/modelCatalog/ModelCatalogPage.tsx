@@ -11,10 +11,10 @@ import type { AssessmentModelKind } from '@/models/assessmentModel'
 
 export type CanonicalModelKind = 'typology' | 'behavioral_rating' | 'cognitive'
 
-const CONFIG: Record<CanonicalModelKind, { title: string; base: string; channel?: string }> = {
-  typology: { title: '类型学模型', base: '/typology', channel: 'typology' },
-  behavioral_rating: { title: '行为评分模型', base: '/behavioral-rating', channel: 'behavior_ability' },
-  cognitive: { title: '认知测评模型', base: '/cognitive', channel: 'behavior_ability' }
+const CONFIG: Record<CanonicalModelKind, { title: string; base: string }> = {
+  typology: { title: '类型学模型', base: '/typology' },
+  behavioral_rating: { title: '行为评分模型', base: '/behavioral-rating' },
+  cognitive: { title: '认知测评模型', base: '/cognitive' }
 }
 
 const kindFromPath = (pathname: string): CanonicalModelKind => {
@@ -35,7 +35,7 @@ const ModelCatalogPage: React.FC = () => {
   const isDefinition = location.pathname.includes('/definition/')
   const isPublish = location.pathname.includes('/publish/')
 
-  const listParams = useMemo<AssessmentModelListParams>(() => ({ kind, product_channel: config.channel }), [kind, config.channel])
+  const listParams = useMemo<AssessmentModelListParams>(() => ({ kind }), [kind])
 
   const load = async () => {
     setLoading(true)
@@ -61,9 +61,7 @@ const ModelCatalogPage: React.FC = () => {
     const request: CreateAssessmentModelRequest = {
       title: `新的${config.title}`,
       kind: kind as AssessmentModelKind,
-      sub_kind: kind === 'typology' ? 'typology' : 'dimension_score',
-      algorithm: kind === 'typology' ? 'personality_typology' : '',
-      product_channel: config.channel
+      algorithm: kind === 'typology' ? 'personality_typology' : ''
     }
     const [error, response] = await assessmentModelApi.createAssessmentModel(request)
     if (error || !response) return message.error('创建模型失败')

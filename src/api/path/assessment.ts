@@ -10,13 +10,10 @@ export interface IListAssessmentRequest {
 
 export interface ModelIdentity {
   kind: string
-  sub_kind?: string
   algorithm?: string
   code: string
   version?: string
   title?: string
-  product_channel?: string
-  algorithm_family?: string
 }
 
 export interface ScoreValue {
