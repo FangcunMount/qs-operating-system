@@ -56,22 +56,6 @@ const TaskDetail: React.FC = () => {
     }
   }
 
-  const handleExpire = async () => {
-    if (!id) return
-    try {
-      const [err] = await taskApi.expire(id)
-      if (err) {
-        message.error('标记过期失败')
-        return
-      }
-      message.success('标记过期成功')
-      fetchTaskDetail()
-    } catch (error) {
-      console.error('标记过期失败:', error)
-      message.error('标记过期失败')
-    }
-  }
-
   const handleOpen = async () => {
     if (!id) return
     try {
@@ -222,18 +206,6 @@ const TaskDetail: React.FC = () => {
                   icon={<CloseCircleOutlined />}
                 >
                   取消任务
-                </Button>
-              </Popconfirm>
-            )}
-            {task.status === 'opened' && (
-              <Popconfirm
-                title="确定要标记此任务为过期吗？"
-                onConfirm={handleExpire}
-              >
-                <Button
-                  icon={<ClockCircleOutlined />}
-                >
-                  标记过期
                 </Button>
               </Popconfirm>
             )}

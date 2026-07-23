@@ -20,7 +20,6 @@ const createIcon = (Icon: React.ComponentType) => React.createElement(Icon)
 const Home = lazy(() => import('../pages/home'))
 const SurveyList = lazy(() => import('../pages/survey/list/index'))
 const ScaleList = lazy(() => import('../pages/scale/list/index'))
-const QsEdit = lazy(() => import('../components/questionEdit'))
 const SurveyBasicInfo = lazy(() => import('../pages/survey/basic-info/index'))
 const SurveyQuestionEdit = lazy(() => import('../pages/survey/question-edit/index'))
 const SurveyQuestionRouting = lazy(() => import('../pages/survey/question-routing/index'))
@@ -32,19 +31,12 @@ const ScaleFactor = lazy(() => import('../pages/scale/Factor/Factor'))
 const ScaleDefinition = lazy(() => import('../pages/scale/definition/index'))
 const ScaleAnalysis = lazy(() => import('../pages/scale/Analysis/Analysis'))
 const ScalePublish = lazy(() => import('../pages/scale/publish/index'))
-const PersonalityList = lazy(() => import('../pages/personality/list/index'))
-const PersonalityBasicInfo = lazy(() => import('../pages/personality/basic-info/index'))
-const PersonalityQuestionEdit = lazy(() => import('../pages/personality/question-edit/index'))
-const PersonalityQuestionRouting = lazy(() => import('../pages/personality/question-routing/index'))
-const PersonalityDefinition = lazy(() => import('../pages/personality/definition/index'))
-const PersonalityPublish = lazy(() => import('../pages/personality/publish/index'))
-const BehaviorAbilityList = lazy(() => import('../pages/behavior-ability/list/index'))
-const BehaviorAbilityBasicInfo = lazy(() => import('../pages/behavior-ability/basic-info/index'))
-const BehaviorAbilityQuestionEdit = lazy(() => import('../pages/behavior-ability/question-edit/index'))
-const BehaviorAbilityQuestionRouting = lazy(() => import('../pages/behavior-ability/question-routing/index'))
-const BehaviorAbilityDefinition = lazy(() => import('../pages/behavior-ability/definition/index'))
-const BehaviorAbilityPublish = lazy(() => import('../pages/behavior-ability/publish/index'))
-const BehaviorAbilityNormTables = lazy(() => import('../pages/behavior-ability/norm-tables/index'))
+const ModelCatalogPage = lazy(() => import('../features/modelCatalog/ModelCatalogPage'))
+const LegacyModelPathRedirect = lazy(() =>
+  import('../features/modelCatalog/LegacyModelPathRedirect').then((module) => ({
+    default: module.LegacyModelPathRedirect
+  }))
+)
 const AsList = lazy(() => import('../pages/as/list'))
 const AsDetail = lazy(() => import('../pages/as/detail'))
 const Login = lazy(() => import('../pages/user/login'))
@@ -248,39 +240,55 @@ export const routes: Array<IRoute> = [
         requiredCapabilities: ['manage_content']
       },
       {
-        title: '人格测评',
-        name: 'personality-list',
-        path: '/personality/list',
-        component: PersonalityList,
+        title: '类型学模型',
+        name: 'typology-list',
+        path: '/typology',
+        component: ModelCatalogPage,
         menuScope: 'org_admin',
         requiredCapabilities: ['manage_content']
       },
       {
-        title: '行为能力',
-        name: 'behavior-ability-list',
-        path: '/behavior-ability/list',
-        component: BehaviorAbilityList,
+        title: '行为评分模型',
+        name: 'behavioral-rating-list',
+        path: '/behavioral-rating',
+        component: ModelCatalogPage,
         menuScope: 'org_admin',
+        requiredCapabilities: ['manage_content']
+      },
+      {
+        title: '认知测评模型',
+        name: 'cognitive-list',
+        path: '/cognitive',
+        component: ModelCatalogPage,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['manage_content']
+      },
+      {
+        title: '旧人格模型入口',
+        name: 'legacy-personality-list',
+        path: '/personality/list',
+        component: LegacyModelPathRedirect,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content']
+      },
+      {
+        title: '旧行为能力模型入口',
+        name: 'legacy-behavior-ability-list',
+        path: '/behavior-ability/list',
+        component: LegacyModelPathRedirect,
+        hideInMenu: true,
+        menuScope: 'hidden',
         requiredCapabilities: ['manage_content']
       },
       {
         title: '行为能力常模表',
         name: 'behavior-ability-norm-tables',
         path: '/behavior-ability/norm-tables',
-        component: BehaviorAbilityNormTables,
+        component: LegacyModelPathRedirect,
         hideInMenu: !isBehaviorAbilityPublishingEnabled(),
         menuScope: 'org_admin',
         requiredCapabilities: ['manage_norm_tables']
-      },
-      {
-        title: '问卷编辑',
-        name: 'survey-edit',
-        path: '/qs/edit/:questionsheetid/:answercnt',
-        component: QsEdit,
-        hideInMenu: true,
-        menuScope: 'hidden',
-        requiredCapabilities: ['manage_content'],
-        activeMenuName: 'survey-list'
       },
       {
         title: '问卷基本信息',
@@ -416,7 +424,7 @@ export const routes: Array<IRoute> = [
         title: '人格测评基本信息',
         name: 'personality-info',
         path: '/personality/info/:modelCode',
-        component: PersonalityBasicInfo,
+        component: LegacyModelPathRedirect,
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
@@ -426,7 +434,7 @@ export const routes: Array<IRoute> = [
         title: '人格测评题目',
         name: 'personality-create',
         path: '/personality/create/:modelCode/:answercnt',
-        component: PersonalityQuestionEdit,
+        component: LegacyModelPathRedirect,
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
@@ -436,7 +444,7 @@ export const routes: Array<IRoute> = [
         title: '人格测评路由',
         name: 'personality-routing',
         path: '/personality/routing/:modelCode',
-        component: PersonalityQuestionRouting,
+        component: LegacyModelPathRedirect,
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
@@ -446,7 +454,7 @@ export const routes: Array<IRoute> = [
         title: '人格测评定义',
         name: 'personality-definition',
         path: '/personality/definition/:modelCode',
-        component: PersonalityDefinition,
+        component: LegacyModelPathRedirect,
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
@@ -456,7 +464,7 @@ export const routes: Array<IRoute> = [
         title: '发布人格测评',
         name: 'personality-publish',
         path: '/personality/publish/:modelCode',
-        component: PersonalityPublish,
+        component: LegacyModelPathRedirect,
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
@@ -466,7 +474,7 @@ export const routes: Array<IRoute> = [
         title: '行为能力测评基本信息',
         name: 'behavior-ability-info',
         path: '/behavior-ability/info/:modelCode',
-        component: BehaviorAbilityBasicInfo,
+        component: LegacyModelPathRedirect,
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
@@ -476,7 +484,7 @@ export const routes: Array<IRoute> = [
         title: '行为能力测评题目',
         name: 'behavior-ability-create',
         path: '/behavior-ability/create/:modelCode/:answercnt',
-        component: BehaviorAbilityQuestionEdit,
+        component: LegacyModelPathRedirect,
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
@@ -486,7 +494,7 @@ export const routes: Array<IRoute> = [
         title: '行为能力测评路由',
         name: 'behavior-ability-routing',
         path: '/behavior-ability/routing/:modelCode',
-        component: BehaviorAbilityQuestionRouting,
+        component: LegacyModelPathRedirect,
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
@@ -496,7 +504,7 @@ export const routes: Array<IRoute> = [
         title: '行为能力测评定义',
         name: 'behavior-ability-definition',
         path: '/behavior-ability/definition/:modelCode',
-        component: BehaviorAbilityDefinition,
+        component: LegacyModelPathRedirect,
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
@@ -506,7 +514,7 @@ export const routes: Array<IRoute> = [
         title: '发布行为能力测评',
         name: 'behavior-ability-publish',
         path: '/behavior-ability/publish/:modelCode',
-        component: BehaviorAbilityPublish,
+        component: LegacyModelPathRedirect,
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],

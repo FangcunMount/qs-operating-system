@@ -64,7 +64,7 @@ const List: React.FC = observer(() => {
         desc: q.description || '',
         img_url: q.img_url || '',
         question_cnt: String(q.questions?.length || 0),
-        answersheet_cnt: '0', // 先设为0，异步加载
+        answersheet_cnt: undefined,
         status: q.status || 'draft',
         create_user: q.created_by || q.create_user || '系统',
         createtime: q.created_at || q.createtime || '',
@@ -78,14 +78,14 @@ const List: React.FC = observer(() => {
       const codes = questionnaires.map((q: any) => q.code).filter(Boolean)
       if (codes.length > 0) {
         const [statErr, statRes] = await statisticsApi.batchContentStatistics(
-          codes.map((code: string) => ({ type: 'questionnaire' as const, code }))
+          codes.map((code: string) => ({ kind: 'questionnaire' as const, code }))
         )
         if (!statErr && statRes?.data) {
           const countMap = new Map(statRes.data.items.map((item) => [item.code, item.total_submissions]))
           setSurveyList((prev: IQuestionSheetInfo[]) =>
             prev.map((item) => ({
               ...item,
-              answersheet_cnt: String(countMap.get(item.id || '') || 0)
+              answersheet_cnt: countMap.has(item.id || '') ? String(countMap.get(item.id || '')) : undefined
             }))
           )
         }

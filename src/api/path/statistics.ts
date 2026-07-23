@@ -243,7 +243,7 @@ export interface IClinicianTesteeSummaryStatistics {
 export type ContentStatisticsType = 'questionnaire' | 'scale' | 'typology' | 'behavioral_rating' | 'cognitive'
 
 export interface IContentStatisticsReference {
-  type: ContentStatisticsType
+  kind: ContentStatisticsType
   code: string
 }
 
@@ -485,7 +485,7 @@ export const batchContentStatistics = async (
   items: IContentStatisticsReference[]
 ): Promise<[any, QSResponse<IContentBatchStatisticsResponse> | undefined]> => {
   const [error, response] = await v2Post<StatisticsContentResponse>('/statistics/contents/batch', {
-    items: items.map((item) => ({ kind: item.type, code: item.code }))
+    items
   })
   if (!response) return [error, undefined]
   return [
@@ -494,7 +494,7 @@ export const batchContentStatistics = async (
       ...response,
       data: {
         items: response.data.items.map((item) => ({
-          type: item.kind,
+          kind: item.kind,
           code: item.code,
           total_submissions: item.total_submissions,
           total_completions: item.total_completions || 0,

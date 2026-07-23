@@ -7,7 +7,6 @@ import './index.scss'
 import '@/components/editorSteps/index.scss'
 import '@/styles/theme-scale.scss'
 import { scaleStore } from '@/store'
-import { api } from '@/api'
 import BaseLayout from '@/components/layout/BaseLayout'
 import { BasicInfoFormCard, useBasicInfoForm } from '@/components/questionnaire'
 import { getScaleEditorPath, SCALE_STEPS, getScaleStepIndex, getScaleStepFromPath } from '@/utils/steps'
@@ -28,7 +27,6 @@ const BasicInfo: React.FC = observer(() => {
   const { handleSave } = useBasicInfoForm({
     questionsheetid,
     store: scaleStore,
-    api,
     form,
     type: 'scale'
   })

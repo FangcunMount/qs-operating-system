@@ -27,13 +27,13 @@ describe('Statistics V2-only API', () => {
       }
     ])
 
-    const [, response] = await batchContentStatistics([{ type: 'questionnaire', code: 'Q-1' }])
+    const [, response] = await batchContentStatistics([{ kind: 'questionnaire', code: 'Q-1' }])
 
     expect(v2PostMock).toHaveBeenCalledWith('/statistics/contents/batch', {
       items: [{ kind: 'questionnaire', code: 'Q-1' }]
     })
     expect(response?.data.items[0]).toEqual({
-      type: 'questionnaire',
+      kind: 'questionnaire',
       code: 'Q-1',
       total_submissions: 3,
       total_completions: 0,

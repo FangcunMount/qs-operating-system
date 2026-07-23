@@ -10,7 +10,6 @@ const { TextArea } = Input
 export interface QuestionnaireBasicInfoProps {
   questionsheetid: string
   store: any
-  api: any
   form: FormInstance
   onSaveSuccess: () => void
   type: 'survey' | 'scale'
@@ -19,7 +18,6 @@ export interface QuestionnaireBasicInfoProps {
 export interface UseBasicInfoFormParams {
   questionsheetid: string
   store: any
-  api: any
   form: FormInstance
   type: 'survey' | 'scale'
 }
@@ -31,7 +29,6 @@ export interface UseBasicInfoFormParams {
 export const useBasicInfoForm = ({
   questionsheetid,
   store,
-  api,
   form,
   type
 }: UseBasicInfoFormParams): {
@@ -71,15 +68,7 @@ export const useBasicInfoForm = ({
       return
     }
     
-    // 降级方案：使用原来的逻辑（兼容旧代码）
-    const [e, r] = await api.getQuestionSheet(id)
-    if (e) return
-    if (type === 'survey') {
-      store.setSurvey(r?.data.questionsheet)
-    } else {
-      store.setScale(r?.data.questionsheet)
-    }
-    syncFormFromStore()
+    throw new Error('编辑器必须提供 initEditor，旧问卷详情接口已下线')
   }
 
   // 初始化编辑模式

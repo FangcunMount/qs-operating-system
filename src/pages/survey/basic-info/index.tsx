@@ -7,7 +7,6 @@ import './index.scss'
 import '@/components/editorSteps/index.scss'
 import '@/styles/theme-survey.scss'
 import { surveyStore } from '@/store'
-import { api } from '@/api'
 import BaseLayout from '@/components/layout/BaseLayout'
 import { BasicInfoFormCard, useBasicInfoForm } from '@/components/questionnaire'
 import { SURVEY_STEPS, getSurveyStepIndex, getSurveyStepFromPath } from '@/utils/steps'
@@ -28,7 +27,6 @@ const BasicInfo: React.FC = observer(() => {
   const { handleSave } = useBasicInfoForm({
     questionsheetid,
     store: surveyStore,
-    api,
     form,
     type: 'survey'
   })
@@ -74,4 +72,3 @@ const BasicInfo: React.FC = observer(() => {
 })
 
 export default BasicInfo
-

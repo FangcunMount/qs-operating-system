@@ -268,23 +268,15 @@ export const taskApi = {
     return post<void>(`/plans/tasks/${id}/cancel`, {})
   },
 
-  // POST /plans/tasks/{id}/complete - 完成任务
-  complete: (id: string, assessmentId: string): Promise<[any, QSResponse<ITask> | undefined]> => {
-    return post<ITask>(`/plans/tasks/${id}/complete`, {}, { assessment_id: assessmentId })
-  },
-
-  // POST /plans/tasks/{id}/expire - 过期任务
-  expire: (id: string): Promise<[any, QSResponse<ITask> | undefined]> => {
-    return post<ITask>(`/plans/tasks/${id}/expire`, {})
-  },
-
   // POST /plans/tasks/{id}/open - 开放任务（服务端自动生成入口）
   open: (id: string): Promise<[any, QSResponse<ITask> | undefined]> => {
     return post<ITask>(`/plans/tasks/${id}/open`, {})
   },
 
-  // POST /plans/tasks/schedule - 调度待推送任务
-  schedule: (data?: IScheduleTaskRequest): Promise<[any, QSResponse<ITaskListResponse> | undefined]> => {
-    return internalPost<ITaskListResponse>('/plans/tasks/schedule', data || {})
-  }
+}
+
+/** Internal operations are intentionally not part of the public task UI API. */
+export const internalPlanApi = {
+  schedule: (data?: IScheduleTaskRequest): Promise<[any, QSResponse<ITaskListResponse> | undefined]> =>
+    internalPost<ITaskListResponse>('/plans/tasks/schedule', data || {})
 }

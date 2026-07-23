@@ -11,7 +11,7 @@ import {
   UserOutlined,
   ClockCircleOutlined
 } from '@ant-design/icons'
-import { getScaleList } from '@/api/path/template'
+import { getScaleListCompat as getScaleList } from '@/api/path/scaleDefinition'
 import { IQuestionSheetInfo } from '@/models/questionSheet'
 import { statisticsApi } from '@/api/path/statistics'
 import { scaleStore } from '@/store'
@@ -70,14 +70,14 @@ const List: React.FC = observer(() => {
         const codes = list.map((item: IQuestionSheetInfo) => item.id).filter(Boolean) as string[]
         if (codes.length > 0) {
           const [statErr, statRes] = await statisticsApi.batchContentStatistics(
-            codes.map((code) => ({ type: 'scale' as const, code }))
+            codes.map((code) => ({ kind: 'scale' as const, code }))
           )
           if (!statErr && statRes?.data) {
             const countMap = new Map(statRes.data.items.map((item) => [item.code, item.total_submissions]))
             setScaleList((prev: IQuestionSheetInfo[]) =>
               prev.map((item) => ({
                 ...item,
-                answersheet_cnt: String(countMap.get(item.id || '') || 0)
+                answersheet_cnt: countMap.has(item.id || '') ? String(countMap.get(item.id || '')) : undefined
               }))
             )
           }

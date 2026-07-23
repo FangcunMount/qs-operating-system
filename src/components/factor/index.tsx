@@ -8,6 +8,8 @@ import AddFactorCard from './widget/addFactorCard'
 import { IFactor } from '@/models/factor'
 import { useParams } from 'react-router'
 import { api } from '@/api'
+import { getSurvey } from '@/api/path/survey'
+import { convertQuestionFromDTO } from '@/api/path/questionConverter'
 import { IQuestion } from '@/models/question'
 import BaseLayout from '@/components/layout/BaseLayout'
 
@@ -29,9 +31,9 @@ const QsFactor: React.FC = () => {
       if (!e && r) {
         setFactors(r.data.factors)
       }
-      const [qe, qr] = await api.getQuestionList(questionsheetid)
+      const [qe, qr] = await getSurvey(questionsheetid)
       if (!qe && qr) {
-        setQuestions(qr.data.list)
+        setQuestions((qr.data.questions || []).map(convertQuestionFromDTO))
       }
     })()
   }, [])

@@ -11,7 +11,7 @@ import {
   StopOutlined,
   SyncOutlined
 } from '@ant-design/icons'
-import { planApi, taskApi, IPlan } from '@/api/path/plan'
+import { internalPlanApi, planApi, IPlan } from '@/api/path/plan'
 import './index.scss'
 
 const { Search } = Input
@@ -110,7 +110,7 @@ const PlanList: React.FC = () => {
   const handleScheduleAll = async () => {
     setScheduleLoading(true)
     try {
-      const [err, response] = await taskApi.schedule({})
+      const [err, response] = await internalPlanApi.schedule({})
       if (err || !response?.data) {
         message.error('执行周期任务调度失败')
         return

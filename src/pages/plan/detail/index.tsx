@@ -9,7 +9,7 @@ import {
   StopOutlined,
   SyncOutlined
 } from '@ant-design/icons'
-import { planApi, taskApi, IPlan, ITask } from '@/api/path/plan'
+import { internalPlanApi, planApi, IPlan, ITask } from '@/api/path/plan'
 import './index.scss'
 
 const PlanDetail: React.FC = () => {
@@ -116,7 +116,7 @@ const PlanDetail: React.FC = () => {
     if (!id) return
     setScheduleLoading(true)
     try {
-      const [err, response] = await taskApi.schedule({ plan_id: id })
+      const [err, response] = await internalPlanApi.schedule({ plan_id: id })
       if (err || !response?.data) {
         message.error('执行计划任务调度失败')
         return

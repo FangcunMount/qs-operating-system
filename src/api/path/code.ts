@@ -23,8 +23,9 @@ export function applyCodes(
  */
 export async function getCodeByType(
   kind: CodeKind,
-  _questionnaireCode: string
+  questionnaireCode: string
 ): Promise<[any, QSResponse<{ code: string }> | undefined]> {
+  void questionnaireCode
   const [error, response] = await applyCodes(kind)
   const code = response?.data?.codes[0]
   if (error || !response || !code) {
