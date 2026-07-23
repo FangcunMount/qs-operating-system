@@ -167,8 +167,8 @@ export class BehaviorAbilityStore {
 
   applyModel(model: AssessmentModelDetail): void {
     const profile = getBehaviorAbilityProfile(model.algorithm)
-	if (!profile || !isBehaviorAbilityModel(model)) {
-		throw new Error('该模型不属于行为能力模型')
+    if (!profile || !isBehaviorAbilityModel(model)) {
+      throw new Error('该模型不属于行为能力模型')
     }
     this.modelCode = model.code
     this.title = model.title
@@ -244,7 +244,7 @@ export class BehaviorAbilityStore {
         title: this.title,
         description: this.description,
         kind: this.profile.kind,
-		algorithm: this.profile.algorithm,
+        algorithm: this.profile.algorithm,
         questionnaire_code: binding.code,
         questionnaire_version: binding.version,
         category: this.category || undefined,
@@ -260,7 +260,7 @@ export class BehaviorAbilityStore {
       const [err, res] = await assessmentModelApi.updateAssessmentModelBasicInfo(this.modelCode, {
         title: this.title,
         description: this.description,
-		algorithm: this.profile.algorithm,
+        algorithm: this.profile.algorithm,
         category: this.category || undefined,
         tags: this.tags
       })

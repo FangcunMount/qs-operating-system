@@ -27,7 +27,7 @@ const BehaviorAbilityList: React.FC = () => {
     setLoading(true)
     try {
       const [err, res] = await assessmentModelApi.listAssessmentModels({
-		kinds: 'behavioral_rating,cognitive',
+        kinds: 'behavioral_rating,cognitive',
         page: current,
         page_size: pageSize,
         status: nextStatus
