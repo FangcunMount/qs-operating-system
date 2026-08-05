@@ -17,11 +17,13 @@ import {
   useSystemGovernanceQuery
 } from './useSystemGovernanceQuery'
 import { useSystemGovernanceLoader } from './useSystemGovernanceLoader'
+import type { SystemGovernanceView } from '../navigation'
 
 export type { SystemGovernanceTab }
 export { parseSystemGovernanceTab, parseSystemGovernanceWindow }
 
 interface UseSystemGovernanceResult {
+  activeView: SystemGovernanceView
   activeTab: SystemGovernanceTab
   window: GovernanceWindow
   overview: GovernanceOverviewResponse | null
@@ -32,12 +34,12 @@ interface UseSystemGovernanceResult {
   signals: Signal[]
   loading: boolean
   error: string
-  setQuery: (patch: { tab?: SystemGovernanceTab; window?: GovernanceWindow }) => void
+  setQuery: (patch: { view?: SystemGovernanceView; window?: GovernanceWindow }) => void
   reload: () => void
 }
 
 export const useSystemGovernance = (): UseSystemGovernanceResult => {
-  const { activeTab, window, setQuery } = useSystemGovernanceQuery()
+  const { activeView, activeTab, window, setQuery } = useSystemGovernanceQuery()
   const {
     overview,
     actions,
@@ -47,7 +49,7 @@ export const useSystemGovernance = (): UseSystemGovernanceResult => {
     loading,
     error,
     reload
-  } = useSystemGovernanceLoader(activeTab, window)
+  } = useSystemGovernanceLoader(activeView, window)
 
   const signals = useMemo(
     () => sortSignalsBySeverity(normalizeSignals(overview?.signals || [])),
@@ -55,6 +57,7 @@ export const useSystemGovernance = (): UseSystemGovernanceResult => {
   )
 
   return {
+    activeView,
     activeTab,
     window,
     overview,

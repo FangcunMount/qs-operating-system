@@ -56,6 +56,29 @@ export interface GovernanceEventsResponse extends IEventStatusResponse {
   event_type_rows: EventTypeRow[]
 }
 
+export interface RetryCandidate {
+  kind: string
+  store: string
+  resource_id: string
+  attempt: number
+  retry_disposition: string
+  next_attempt_at?: string
+  retry_event_id?: string
+  action_request_id?: string
+  last_error_kind?: string
+  updated_at: string
+}
+
+export interface RetryCandidatePage {
+  items: RetryCandidate[]
+  next_cursor?: string
+}
+
+export interface RetryCandidateQuery {
+  cursor?: string
+  limit?: number
+}
+
 export interface RawSystemGovernanceEventTypeBucket {
   event_type?: string
   EventType?: string

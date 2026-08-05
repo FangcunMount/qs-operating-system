@@ -18,15 +18,27 @@ const manualWarmupAction: ActionDescriptor = {
 }
 
 describe('CacheTab', () => {
+  it('keeps component and cache-family diagnosis in the runtime view', () => {
+    const data = normalizeSystemGovernanceCache(cacheHotsetFixture)
+
+    render(<CacheTab data={data} section="runtime" />)
+
+    expect(screen.getByText('组件连接状态')).toBeInTheDocument()
+    expect(screen.getByText('collection-server: connection refused')).toBeInTheDocument()
+    expect(screen.getByText('缓存族状态')).toBeInTheDocument()
+    expect(screen.queryByText('推荐预热目标')).not.toBeInTheDocument()
+    expect(screen.queryByText('生效策略与近窗口表现')).not.toBeInTheDocument()
+  })
+
   it('renders cache family rows, hotset recommendations, and prefills manual warmup input', () => {
     const data = normalizeSystemGovernanceCache(cacheHotsetFixture)
 
-    render(<CacheTab data={data} manualWarmupAction={manualWarmupAction} />)
+    render(<CacheTab data={data} section="warmup" manualWarmupAction={manualWarmupAction} />)
 
-    expect(screen.getByText('collection-server: connection refused')).toBeInTheDocument()
     expect(screen.getAllByText('query_result').length).toBeGreaterThan(0)
     expect(screen.getAllByText('query.stats_system').length).toBeGreaterThan(0)
     expect(screen.getAllByText('org:7').length).toBeGreaterThan(0)
+    expect(screen.queryByText('缓存族状态')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '预热' }))
 
@@ -50,14 +62,14 @@ describe('CacheTab', () => {
       }
     }
 
-    render(<CacheTab data={data} reloadPolicyAction={reloadPolicyAction} />)
+    render(<CacheTab data={data} section="policies" reloadPolicyAction={reloadPolicyAction} />)
 
     expect(screen.getByText('statistics.query')).toBeInTheDocument()
     expect(screen.getByText('TTL 10m0s')).toBeInTheDocument()
     expect(screen.getByText('Hit 87.5%')).toBeInTheDocument()
     expect(screen.getByText('Errors 2')).toBeInTheDocument()
     expect(screen.getByText('Get p95 32.0ms')).toBeInTheDocument()
-    expect(screen.getByText('最近预热运行')).toBeInTheDocument()
+    expect(screen.queryByText('最近预热运行')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '重载策略' }))
 

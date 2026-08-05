@@ -18,7 +18,9 @@ import type {
   RawSystemGovernanceCacheResponse,
   RawSystemGovernanceEventsResponse,
   RawSystemGovernanceOverviewResponse,
-  RawSystemGovernanceResilienceResponse
+  RawSystemGovernanceResilienceResponse,
+  RetryCandidatePage,
+  RetryCandidateQuery
 } from './types'
 
 export * from './types'
@@ -79,6 +81,14 @@ export const getSystemGovernanceResilience = (
     internalGet<RawSystemGovernanceResilienceResponse>('/system-governance/resilience', withWindow(window)),
     normalizeSystemGovernanceResilience
   )
+
+export const getSystemGovernanceRetryCandidates = (
+  query: RetryCandidateQuery = {}
+): Promise<[any, QSResponse<RetryCandidatePage> | undefined]> => {
+  const params: RetryCandidateQuery = { limit: query.limit || 50 }
+  if (query.cursor) params.cursor = query.cursor
+  return internalGet<RetryCandidatePage>('/system-governance/events/retry-candidates', params)
+}
 
 export const getSystemGovernanceActions = (): Promise<[any, QSResponse<GovernanceActionsResponse> | undefined]> =>
   internalGet<GovernanceActionsResponse>('/system-governance/actions')

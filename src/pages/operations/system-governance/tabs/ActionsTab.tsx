@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
-import { Alert, Button, Space, Table, Tag, Typography } from 'antd'
+import { Alert, Button, Card, Col, Row, Space, Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import type { ActionDescriptor } from '@/api/path/systemGovernance'
+import type { ActionDescriptor, Signal } from '@/api/path/systemGovernance'
 import { renderActionStatusTags } from '../../shared/utils/formatters'
 import { ActionRunDrawer } from '../components/ActionRunDrawer'
 import { actionPresentation, domainPresentation } from '../presentation'
@@ -10,6 +10,7 @@ const { Text } = Typography
 
 interface ActionsTabProps {
   actions: ActionDescriptor[]
+  signals?: Signal[]
 }
 
 function renderActionRunButton(
@@ -45,7 +46,7 @@ function renderRiskLevel(value: string) {
   )
 }
 
-export const ActionsTab: React.FC<ActionsTabProps> = ({ actions }) => {
+export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] }) => {
   const [selectedAction, setSelectedAction] = useState<ActionDescriptor | null>(null)
   const [drawerVisible, setDrawerVisible] = useState(false)
 
@@ -94,6 +95,9 @@ export const ActionsTab: React.FC<ActionsTabProps> = ({ actions }) => {
     }
   ]
 
+  const recommendedIDs = new Set(signals.flatMap((signal) => signal.action_ids || []))
+  const recommendedActions = actions.filter((action) => recommendedIDs.has(action.id))
+
   return (
     <>
       <Alert
@@ -103,6 +107,28 @@ export const ActionsTab: React.FC<ActionsTabProps> = ({ actions }) => {
         message="治理动作不是日常操作入口"
         description="请先从运行总览定位问题并核对证据。所有动作都要求明确输入，并由服务端执行确认、并发保护和审计记录。"
       />
+      {recommendedActions.length ? (
+        <section className="system-governance-recommended-actions">
+          <Typography.Title level={5}>根据当前问题建议</Typography.Title>
+          <Row gutter={[12, 12]}>
+            {recommendedActions.map((action) => (
+              <Col xs={24} md={12} key={action.id}>
+                <Card size="small">
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space wrap>
+                      <Text strong>{actionPresentation(action).label}</Text>
+                      {renderRiskLevel(action.risk_level)}
+                    </Space>
+                    <Text type="secondary">{actionPresentation(action).description}</Text>
+                    <Button type="primary" disabled={!action.enabled} onClick={() => openDrawer(action)}>核对并执行</Button>
+                  </Space>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </section>
+      ) : null}
+      <Typography.Title level={5}>全部治理动作</Typography.Title>
       <Table
         rowKey={(record) => record.id}
         columns={columns}

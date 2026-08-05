@@ -22,6 +22,7 @@ const { Text } = Typography
 interface CacheTabProps {
   data: GovernanceCacheResponse | null
   loading?: boolean
+  section?: 'runtime' | 'policies' | 'warmup'
   manualWarmupAction?: ActionDescriptor
   reloadPolicyAction?: ActionDescriptor
   onGovernanceActionFinished?: () => void
@@ -130,6 +131,7 @@ const renderCapabilityExpandedRow = (
 export const CacheTab: React.FC<CacheTabProps> = ({
   data,
   loading,
+  section = 'runtime',
   manualWarmupAction,
   reloadPolicyAction,
   onGovernanceActionFinished
@@ -277,138 +279,145 @@ export const CacheTab: React.FC<CacheTabProps> = ({
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="先判断缓存问题是否影响业务"
-        description="先看组件连接状态和缓存族异常；命中率、延迟与预热建议用于解释性能，不应把指标缺失直接判断为缓存故障。"
+        message={section === 'runtime' ? '先判断缓存问题是否影响业务' : section === 'policies' ? '这里解释当前真正生效的缓存策略' : '只对明确目标执行预热'}
+        description={section === 'runtime'
+          ? '先看组件连接状态和缓存族异常；指标缺失本身不等于缓存故障。'
+          : section === 'policies'
+            ? '按 capability 查看合并后的生效策略和近窗口表现；重载操作使用当前版本进行并发保护。'
+            : '热点推荐用于选择预热目标，预热结果用于核对执行质量；不要把预热当作组件故障修复。'}
       />
-      <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }}>
-        <Descriptions.Item label="整体可用">{data?.summary?.ready ? '是' : '否'}</Descriptions.Item>
-        <Descriptions.Item label="缓存族">{data?.summary?.family_total ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="降级">{data?.summary?.degraded_count ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="不可用">{data?.summary?.unavailable_count ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="自动预热">{data?.warmup?.enabled ? '启用' : '关闭'}</Descriptions.Item>
-        <Descriptions.Item label="热点推荐">{data?.warmup?.hotset?.enable ? '启用' : '关闭'}</Descriptions.Item>
-        <Descriptions.Item label="组件数">{componentEntries.length}</Descriptions.Item>
-        <Descriptions.Item label="最近运行">{data?.warmup?.latest_runs?.[0]?.result || '-'}</Descriptions.Item>
-        <Descriptions.Item label="策略版本">{registry?.snapshot_version ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="目录版本">{registry?.catalog_version || '-'}</Descriptions.Item>
-      </Descriptions>
-
-      <Text strong>组件连接状态</Text>
-      <Space wrap style={{ display: 'flex', marginTop: 8, marginBottom: 16 }}>
-        {componentEntries.length ? componentEntries.map(([name, component]) => (
-          <Tag key={name} color={component.available ? 'green' : 'orange'}>
-            {name}: {component.available ? '可用' : component.reason || '不可用'}
-          </Tag>
-        )) : <Text type="secondary">暂无组件快照</Text>}
-      </Space>
-
-      <Text strong>缓存族状态</Text>
-      <Table
-        style={{ marginTop: 16 }}
-        rowKey={(record) => `${record.component}:${record.family}:${record.namespace}`}
-        columns={familyColumns}
-        dataSource={data?.family_rows || []}
-        loading={loading}
-        pagination={false}
-        size="small"
-        scroll={{ x: 1500 }}
-        locale={{ emptyText: <Empty description="暂无缓存族状态" /> }}
-      />
-
-      <Text strong style={{ display: 'block', marginTop: 16 }}>生效策略与近窗口表现</Text>
-      {registry ? (
+      {section === 'runtime' ? (
         <>
-          {reloadStatus?.last_error ? (
-            <Alert
-              style={{ marginTop: 12 }}
-              type="warning"
-              showIcon
-              message="最近一次策略重载失败"
-              description={`${formatDateTime(reloadStatus.last_failure_at)}：${reloadStatus.last_error}`}
-            />
-          ) : null}
-          <Descriptions size="small" style={{ marginTop: 12 }} column={{ xs: 1, sm: 2, md: 4 }}>
-            <Descriptions.Item label="Snapshot">v{registry.snapshot_version}</Descriptions.Item>
-            <Descriptions.Item label="Generated">{formatDateTime(registry.generated_at)}</Descriptions.Item>
-            <Descriptions.Item label="Last success">{formatDateTime(reloadStatus?.last_success_at)}</Descriptions.Item>
-            <Descriptions.Item label="Last attempt">{formatDateTime(reloadStatus?.last_attempt_at)}</Descriptions.Item>
+          <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }}>
+            <Descriptions.Item label="整体可用">{data?.summary?.ready ? '是' : '否'}</Descriptions.Item>
+            <Descriptions.Item label="缓存族">{data?.summary?.family_total ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="降级">{data?.summary?.degraded_count ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="不可用">{data?.summary?.unavailable_count ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="组件数">{componentEntries.length}</Descriptions.Item>
           </Descriptions>
-          <Space style={{ marginTop: 12 }}>
-            <Button
-              type="primary"
-              disabled={!reloadPolicyAction?.enabled}
-              onClick={openReloadPolicyDrawer}
-            >
-              重载策略
-            </Button>
-            <Text type="secondary">重载仅影响后续操作与新写入；当前版本会作为并发保护参数提交。</Text>
+          <Text strong>组件连接状态</Text>
+          <Space wrap style={{ display: 'flex', marginTop: 8, marginBottom: 16 }}>
+            {componentEntries.length ? componentEntries.map(([name, component]) => (
+              <Tag key={name} color={component.available ? 'green' : 'orange'}>
+                {name}: {component.available ? '可用' : component.reason || '不可用'}
+              </Tag>
+            )) : <Text type="secondary">暂无组件快照</Text>}
           </Space>
+          <Text strong>缓存族状态</Text>
           <Table
             style={{ marginTop: 16 }}
-            rowKey={(record) => record.capability}
-            columns={capabilityColumns}
-            dataSource={registry.capabilities}
+            rowKey={(record) => `${record.component}:${record.family}:${record.namespace}`}
+            columns={familyColumns}
+            dataSource={data?.family_rows || []}
+            loading={loading}
+            pagination={false}
+            size="small"
+            scroll={{ x: 1500 }}
+            locale={{ emptyText: <Empty description="暂无缓存族状态" /> }}
+          />
+        </>
+      ) : null}
+
+      {section === 'policies' ? (
+        <>
+          <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }}>
+            <Descriptions.Item label="策略版本">{registry?.snapshot_version ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="目录版本">{registry?.catalog_version || '-'}</Descriptions.Item>
+            <Descriptions.Item label="最近成功">{formatDateTime(reloadStatus?.last_success_at)}</Descriptions.Item>
+            <Descriptions.Item label="最近尝试">{formatDateTime(reloadStatus?.last_attempt_at)}</Descriptions.Item>
+          </Descriptions>
+          <Text strong style={{ display: 'block', marginTop: 16 }}>生效策略与近窗口表现</Text>
+          {registry ? (
+            <>
+              {reloadStatus?.last_error ? (
+                <Alert
+                  style={{ marginTop: 12 }}
+                  type="warning"
+                  showIcon
+                  message="最近一次策略重载失败"
+                  description={`${formatDateTime(reloadStatus.last_failure_at)}：${reloadStatus.last_error}`}
+                />
+              ) : null}
+              <Space style={{ marginTop: 12 }}>
+                <Button type="primary" disabled={!reloadPolicyAction?.enabled} onClick={openReloadPolicyDrawer}>重载策略</Button>
+                <Text type="secondary">重载仅影响后续操作与新写入；当前版本会作为并发保护参数提交。</Text>
+              </Space>
+              <Table
+                style={{ marginTop: 16 }}
+                rowKey={(record) => record.capability}
+                columns={capabilityColumns}
+                dataSource={registry.capabilities}
+                loading={loading}
+                pagination={{ pageSize: 8, hideOnSinglePage: true }}
+                size="small"
+                scroll={{ x: 1750 }}
+                expandable={{
+                  expandedRowRender: (record) => renderCapabilityExpandedRow(
+                    record,
+                    workloadByCapability.get(record.capability)
+                  )
+                }}
+                locale={{ emptyText: <Empty description="暂无 capability policy" /> }}
+              />
+            </>
+          ) : (
+            <Alert
+              style={{ marginTop: 12 }}
+              type="info"
+              showIcon
+              message="当前快照未提供 Effective Registry"
+              description="策略版本和 reload 状态需要 apiserver 提供 effective_registry。"
+            />
+          )}
+        </>
+      ) : null}
+
+      {section === 'warmup' ? (
+        <>
+          <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }}>
+            <Descriptions.Item label="自动预热">{data?.warmup?.enabled ? '启用' : '关闭'}</Descriptions.Item>
+            <Descriptions.Item label="热点推荐">{data?.warmup?.hotset?.enable ? '启用' : '关闭'}</Descriptions.Item>
+            <Descriptions.Item label="最近运行">{data?.warmup?.latest_runs?.[0]?.result || '-'}</Descriptions.Item>
+            <Descriptions.Item label="最近错误数">{data?.warmup?.latest_runs?.[0]?.error_count ?? '-'}</Descriptions.Item>
+          </Descriptions>
+          <Text strong style={{ display: 'block', marginTop: 16 }}>可治理预热类型</Text>
+          <Table
+            style={{ marginTop: 16 }}
+            rowKey={(record) => record.kind}
+            columns={warmupKindColumns}
+            dataSource={data?.warmup_kinds || []}
+            loading={loading}
+            pagination={false}
+            size="small"
+            scroll={{ x: 900 }}
+            locale={{ emptyText: <Empty description="暂无预热类型" /> }}
+          />
+          <Text strong style={{ display: 'block', marginTop: 16 }}>推荐预热目标</Text>
+          <Table
+            style={{ marginTop: 16 }}
+            rowKey={(record) => record.row_key}
+            columns={hotsetColumns}
+            dataSource={hotsetRows}
             loading={loading}
             pagination={{ pageSize: 8, hideOnSinglePage: true }}
             size="small"
-            scroll={{ x: 1750 }}
-            expandable={{
-              expandedRowRender: (record) => renderCapabilityExpandedRow(
-                record,
-                workloadByCapability.get(record.capability)
-              )
-            }}
-            locale={{ emptyText: <Empty description="暂无 capability policy" /> }}
+            scroll={{ x: 1500 }}
+            locale={{ emptyText: <Empty description="暂无 hotset 推荐目标" /> }}
+          />
+          <Text strong style={{ display: 'block', marginTop: 16 }}>最近预热运行</Text>
+          <Table
+            style={{ marginTop: 16 }}
+            rowKey={(record) => `${record.trigger}:${record.started_at || record.finished_at || record.result}`}
+            columns={warmupRunColumns}
+            dataSource={data?.warmup?.latest_runs || []}
+            loading={loading}
+            pagination={false}
+            size="small"
+            scroll={{ x: 900 }}
+            locale={{ emptyText: <Empty description="暂无预热运行记录" /> }}
           />
         </>
-      ) : (
-        <Alert
-          style={{ marginTop: 12 }}
-          type="info"
-          showIcon
-          message="当前快照未提供 Effective Registry"
-          description="Redis family 健康与预热信息仍可用；策略版本和 reload 状态需要 apiserver 提供 effective_registry。"
-        />
-      )}
-
-      <Text strong style={{ display: 'block', marginTop: 16 }}>可治理预热类型</Text>
-      <Table
-        style={{ marginTop: 16 }}
-        rowKey={(record) => record.kind}
-        columns={warmupKindColumns}
-        dataSource={data?.warmup_kinds || []}
-        loading={loading}
-        pagination={false}
-        size="small"
-        scroll={{ x: 900 }}
-        locale={{ emptyText: <Empty description="暂无预热类型" /> }}
-      />
-
-      <Text strong style={{ display: 'block', marginTop: 16 }}>推荐预热目标</Text>
-      <Table
-        style={{ marginTop: 16 }}
-        rowKey={(record) => record.row_key}
-        columns={hotsetColumns}
-        dataSource={hotsetRows}
-        loading={loading}
-        pagination={{ pageSize: 8, hideOnSinglePage: true }}
-        size="small"
-        scroll={{ x: 1500 }}
-        locale={{ emptyText: <Empty description="暂无 hotset 推荐目标" /> }}
-      />
-
-      <Text strong style={{ display: 'block', marginTop: 16 }}>最近预热运行</Text>
-      <Table
-        style={{ marginTop: 16 }}
-        rowKey={(record) => `${record.trigger}:${record.started_at || record.finished_at || record.result}`}
-        columns={warmupRunColumns}
-        dataSource={data?.warmup?.latest_runs || []}
-        loading={loading}
-        pagination={false}
-        size="small"
-        scroll={{ x: 900 }}
-        locale={{ emptyText: <Empty description="暂无预热运行记录" /> }}
-      />
+      ) : null}
 
       <ActionRunDrawer
         action={selectedAction}

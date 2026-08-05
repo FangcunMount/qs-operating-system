@@ -3,6 +3,7 @@ import {
   getSystemGovernanceCache,
   getSystemGovernanceEvents,
   getSystemGovernanceOverview,
+  getSystemGovernanceRetryCandidates,
   getSystemGovernanceResilience,
   postSystemGovernanceActionRun
 } from './systemGovernance'
@@ -31,6 +32,7 @@ describe('systemGovernance API', () => {
     await getSystemGovernanceEvents('15m')
     await getSystemGovernanceCache('5m')
     await getSystemGovernanceResilience('1h')
+    await getSystemGovernanceRetryCandidates({ cursor: 'next', limit: 25 })
     await getSystemGovernanceActions()
     await postSystemGovernanceActionRun('cache.manual_warmup', { input: { targets: [] }, confirm: true })
 
@@ -38,7 +40,8 @@ describe('systemGovernance API', () => {
     expect(internalGetMock).toHaveBeenNthCalledWith(2, '/system-governance/events', { window: '15m' })
     expect(internalGetMock).toHaveBeenNthCalledWith(3, '/system-governance/cache', { window: '5m' })
     expect(internalGetMock).toHaveBeenNthCalledWith(4, '/system-governance/resilience', { window: '1h' })
-    expect(internalGetMock).toHaveBeenNthCalledWith(5, '/system-governance/actions')
+    expect(internalGetMock).toHaveBeenNthCalledWith(5, '/system-governance/events/retry-candidates', { cursor: 'next', limit: 25 })
+    expect(internalGetMock).toHaveBeenNthCalledWith(6, '/system-governance/actions')
     expect(internalPostMock).toHaveBeenCalledWith('/system-governance/actions/cache.manual_warmup/runs', {
       input: { targets: [] },
       confirm: true

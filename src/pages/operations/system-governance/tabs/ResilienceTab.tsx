@@ -22,6 +22,7 @@ const { Text } = Typography
 interface ResilienceTabProps {
   data: GovernanceResilienceResponse | null
   loading?: boolean
+  section?: 'queues' | 'dependencies' | 'capabilities'
 }
 
 const formatPercent = (value?: number) => typeof value === 'number' ? `${(value * 100).toFixed(1)}%` : '-'
@@ -34,7 +35,7 @@ const renderStatusCounts = (counts?: Record<string, number>) => {
     .join(' / ')
 }
 
-export const ResilienceTab: React.FC<ResilienceTabProps> = ({ data, loading }) => {
+export const ResilienceTab: React.FC<ResilienceTabProps> = ({ data, loading, section = 'queues' }) => {
   const queueColumns = useMemo<ColumnsType<ResilienceQueueRow>>(
     () => [
       { title: 'Component', dataIndex: 'component', key: 'component', width: 150, render: renderTooltipText },
@@ -111,8 +112,12 @@ export const ResilienceTab: React.FC<ResilienceTabProps> = ({ data, loading }) =
       <Alert
         type="info"
         showIcon
-        message="先判断是否正在接近容量边界"
-        description="优先看严重队列、最高利用率和不可用组件。利用率升高代表需要定位流量或下游瓶颈，不等于应立即扩大限流预算。"
+        message={section === 'queues' ? '先判断队列是否正在接近容量边界' : section === 'dependencies' ? '检查下游依赖是否正在限制吞吐' : '核对保护能力是否配置并正常工作'}
+        description={section === 'queues'
+          ? '利用率升高代表需要定位流量或下游瓶颈，不等于应立即扩大限流预算。'
+          : section === 'dependencies'
+            ? 'In Flight 接近上限表示并发预算正在生效；应结合超时和降级状态判断是否异常。'
+            : '保护能力和组件快照用于确认限流、租约等运行时保护是否可用。'}
       />
       <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }}>
         <Descriptions.Item label="组件">{data?.summary.component_count ?? '-'}</Descriptions.Item>
@@ -127,53 +132,64 @@ export const ResilienceTab: React.FC<ResilienceTabProps> = ({ data, loading }) =
         <Descriptions.Item label="更新时间">{formatDateTime(data?.generated_at)}</Descriptions.Item>
       </Descriptions>
 
-      <Text strong>队列承压</Text>
-      <Table
-        rowKey={(record) => `${record.component}:${record.name}`}
-        columns={queueColumns}
-        dataSource={data?.queue_rows || []}
-        loading={loading}
-        pagination={false}
-        size="small"
-        scroll={{ x: 1700 }}
-        locale={{ emptyText: <Empty description="暂无队列承压数据" /> }}
-      />
+      {section === 'queues' ? (
+        <>
+          <Text strong>队列承压</Text>
+          <Table
+            rowKey={(record) => `${record.component}:${record.name}`}
+            columns={queueColumns}
+            dataSource={data?.queue_rows || []}
+            loading={loading}
+            pagination={false}
+            size="small"
+            scroll={{ x: 1700 }}
+            locale={{ emptyText: <Empty description="暂无队列承压数据" /> }}
+          />
+        </>
+      ) : null}
 
-      <Text strong>依赖并发保护</Text>
-      <Table
-        rowKey={(record) => `${record.component}:${record.name}:${record.dependency}`}
-        columns={backpressureColumns}
-        dataSource={data?.backpressure_rows || []}
-        loading={loading}
-        pagination={false}
-        size="small"
-        scroll={{ x: 1800 }}
-        locale={{ emptyText: <Empty description="暂无 backpressure 数据" /> }}
-      />
+      {section === 'dependencies' ? (
+        <>
+          <Text strong>依赖并发保护</Text>
+          <Table
+            rowKey={(record) => `${record.component}:${record.name}:${record.dependency}`}
+            columns={backpressureColumns}
+            dataSource={data?.backpressure_rows || []}
+            loading={loading}
+            pagination={false}
+            size="small"
+            scroll={{ x: 1800 }}
+            locale={{ emptyText: <Empty description="暂无 backpressure 数据" /> }}
+          />
+        </>
+      ) : null}
 
-      <Text strong>保护能力</Text>
-      <Table
-        rowKey={(record) => `${record.component}:${record.kind}:${record.name}`}
-        columns={capabilityColumns}
-        dataSource={data?.capability_rows || []}
-        loading={loading}
-        pagination={{ pageSize: 8, hideOnSinglePage: true }}
-        size="small"
-        scroll={{ x: 1200 }}
-        locale={{ emptyText: <Empty description="暂无保护能力数据" /> }}
-      />
-
-      <Text strong>组件状态</Text>
-      <Table
-        rowKey={(record) => record.component}
-        columns={componentColumns}
-        dataSource={data?.components || []}
-        loading={loading}
-        pagination={false}
-        size="small"
-        scroll={{ x: 1000 }}
-        locale={{ emptyText: <Empty description="暂无承压保护快照" /> }}
-      />
+      {section === 'capabilities' ? (
+        <>
+          <Text strong>保护能力</Text>
+          <Table
+            rowKey={(record) => `${record.component}:${record.kind}:${record.name}`}
+            columns={capabilityColumns}
+            dataSource={data?.capability_rows || []}
+            loading={loading}
+            pagination={{ pageSize: 8, hideOnSinglePage: true }}
+            size="small"
+            scroll={{ x: 1200 }}
+            locale={{ emptyText: <Empty description="暂无保护能力数据" /> }}
+          />
+          <Text strong>组件状态</Text>
+          <Table
+            rowKey={(record) => record.component}
+            columns={componentColumns}
+            dataSource={data?.components || []}
+            loading={loading}
+            pagination={false}
+            size="small"
+            scroll={{ x: 1000 }}
+            locale={{ emptyText: <Empty description="暂无承压保护快照" /> }}
+          />
+        </>
+      ) : null}
     </Space>
   )
 }

@@ -1,7 +1,5 @@
-import React, { useState } from 'react'
-import { Alert, Button, Card, Select, Space, Tabs, Tag, Typography } from 'antd'
-
-const { TabPane } = Tabs
+import React, { useCallback, useState } from 'react'
+import { Alert, Button, Card, Select, Space, Tag, Typography } from 'antd'
 import {
   AuditOutlined,
   BugOutlined,
@@ -14,9 +12,17 @@ import {
 import { SimplePollingControl } from '../shared/components/GovernanceHeader'
 import { useSimplePolling } from '../shared/hooks/useSimplePolling'
 import { useSystemGovernance } from './hooks/useSystemGovernance'
+import {
+  defaultViewForDomain,
+  PRIMARY_GOVERNANCE_NAVIGATION,
+  SECONDARY_GOVERNANCE_NAVIGATION,
+  sectionForGovernanceView
+} from './navigation'
 import { ActionsTab } from './tabs/ActionsTab'
 import { CacheTab } from './tabs/CacheTab'
+import { EventRetryTab } from './tabs/EventRetryTab'
 import { EventsTab } from './tabs/EventsTab'
+import { IssuesTab } from './tabs/IssuesTab'
 import { OverviewTab } from './tabs/OverviewTab'
 import { RawTab } from './tabs/RawTab'
 import { RecoveryTab } from './tabs/RecoveryTab'
@@ -45,7 +51,7 @@ const healthPresentation = (health?: string) => {
       icon: <ExclamationCircleOutlined />,
       eyebrow: '存在高优先级故障',
       title: '系统需要立即处理',
-      description: '先查看运行总览中的严重问题，确认影响范围后再执行治理动作。'
+      description: '先查看问题中心中的严重问题，确认影响范围后再执行治理动作。'
     }
   }
   if (health === 'degraded') {
@@ -66,7 +72,7 @@ const healthPresentation = (health?: string) => {
 
 const SystemGovernancePage: React.FC = () => {
   const {
-    activeTab,
+    activeView,
     window,
     overview,
     actions,
@@ -81,17 +87,72 @@ const SystemGovernancePage: React.FC = () => {
   } = useSystemGovernance()
 
   const [pollingEnabled, setPollingEnabled] = useState(false)
+  const [retryRefreshKey, setRetryRefreshKey] = useState(0)
   const health = overview?.health || 'unknown'
   const healthCopy = healthPresentation(health)
-  const metricsLabel = !overview
-    ? '获取中'
-    : overview.metrics?.available === false ? '降级' : '完整'
+  const metricsLabel = !overview ? '获取中' : overview.metrics?.available === false ? '降级' : '完整'
+  const activeSection = sectionForGovernanceView(activeView)
+  const secondaryNavigation = SECONDARY_GOVERNANCE_NAVIGATION[activeSection] || []
+  const openDomain = (domain: string) => setQuery({ view: defaultViewForDomain(domain) })
+  const refresh = useCallback(() => {
+    setRetryRefreshKey((current) => current + 1)
+    reload()
+  }, [reload])
 
-  useSimplePolling({
-    enabled: pollingEnabled,
-    intervalMs: 30000,
-    onTick: reload
-  })
+  useSimplePolling({ enabled: pollingEnabled, intervalMs: 30000, onTick: refresh })
+
+  const renderWorkspace = () => {
+    switch (activeView) {
+    case 'overview':
+      return <OverviewTab overview={overview} actions={actions} signals={signals} onOpenDomain={openDomain} />
+    case 'issues':
+      return <IssuesTab signals={signals} onOpenDomain={openDomain} />
+    case 'events-drain':
+      return <EventsTab data={events} loading={loading} section="drain" />
+    case 'events-retry':
+      return (
+        <EventRetryTab
+          refreshKey={retryRefreshKey}
+          onOpenActions={() => setQuery({ view: 'actions' })}
+        />
+      )
+    case 'events-runtime':
+      return <EventsTab data={events} loading={loading} section="runtime" />
+    case 'cache-runtime':
+    case 'cache-policies':
+    case 'cache-warmup':
+      return (
+        <CacheTab
+          data={cache}
+          loading={loading}
+          section={activeView === 'cache-runtime' ? 'runtime' : activeView === 'cache-policies' ? 'policies' : 'warmup'}
+          manualWarmupAction={actions.find((item) => item.id === 'cache.manual_warmup')}
+          reloadPolicyAction={actions.find((item) => item.id === 'cache.reload_policy')}
+          onGovernanceActionFinished={refresh}
+        />
+      )
+    case 'resilience-queues':
+    case 'resilience-dependencies':
+    case 'resilience-capabilities':
+      return (
+        <ResilienceTab
+          data={resilience}
+          loading={loading}
+          section={activeView === 'resilience-queues'
+            ? 'queues'
+            : activeView === 'resilience-dependencies' ? 'dependencies' : 'capabilities'}
+        />
+      )
+    case 'recovery':
+      return <RecoveryTab checkpoints={overview?.checkpoints} signals={signals} />
+    case 'actions':
+      return <ActionsTab actions={actions} signals={signals} />
+    case 'diagnostics':
+      return <RawTab overview={overview} events={events} cache={cache} resilience={resilience} actions={actions} />
+    default:
+      return null
+    }
+  }
 
   return (
     <div className={`system-governance-page governance-page system-governance-page--${health}`}>
@@ -110,12 +171,24 @@ const SystemGovernancePage: React.FC = () => {
         </div>
         <Space wrap className="system-governance-page__hero-meta">
           <Tag>观测窗口：{window}</Tag>
-          <Tag color={overview?.metrics?.available === false ? 'orange' : 'blue'}>
-            指标证据：{metricsLabel}
-          </Tag>
+          <Tag color={overview?.metrics?.available === false ? 'orange' : 'blue'}>指标证据：{metricsLabel}</Tag>
           <Tag>快照时间：{overview?.generated_at ? new Date(overview.generated_at).toLocaleString() : '获取中'}</Tag>
         </Space>
       </div>
+
+      <nav className="system-governance-primary-nav" aria-label="系统治理功能">
+        {PRIMARY_GOVERNANCE_NAVIGATION.map((item) => (
+          <button
+            type="button"
+            key={item.view}
+            className={sectionForGovernanceView(item.view) === activeSection ? 'is-active' : ''}
+            onClick={() => setQuery({ view: item.view })}
+          >
+            {item.label}
+            {item.view === 'issues' && signals.length ? <span className="system-governance-primary-nav__badge">{signals.length}</span> : null}
+          </button>
+        ))}
+      </nav>
 
       <Space className="system-governance-page__toolbar" align="center">
         <Space wrap>
@@ -129,21 +202,13 @@ const SystemGovernancePage: React.FC = () => {
               { value: '1h', label: '近 1 小时' }
             ]}
           />
-          <SimplePollingControl
-            enabled={pollingEnabled}
-            onChange={setPollingEnabled}
-            intervalLabel="每 30 秒刷新"
-          />
+          <SimplePollingControl enabled={pollingEnabled} onChange={setPollingEnabled} intervalLabel="每 30 秒刷新" />
+          <Button type="link" icon={<BugOutlined />} onClick={() => setQuery({ view: 'diagnostics' })}>工程诊断</Button>
         </Space>
-        <Button icon={<ReloadOutlined />} loading={loading} onClick={reload}>
-          刷新状态
-        </Button>
+        <Button icon={<ReloadOutlined />} loading={loading} onClick={refresh}>刷新状态</Button>
       </Space>
 
-      {error ? (
-        <Alert className="governance-page__alert" type="error" showIcon message="系统治理数据获取失败" description={error} />
-      ) : null}
-
+      {error ? <Alert className="governance-page__alert" type="error" showIcon message="系统治理数据获取失败" description={error} /> : null}
       {overview?.metrics?.available === false ? (
         <Alert
           className="governance-page__alert"
@@ -155,51 +220,21 @@ const SystemGovernancePage: React.FC = () => {
       ) : null}
 
       <Card className="system-governance-page__workspace" loading={loading && !overview}>
-        <Tabs
-          activeKey={activeTab}
-          onChange={(key) => setQuery({ tab: key as typeof activeTab })}
-        >
-          <TabPane tab="运行总览" key="overview">
-            <OverviewTab
-              overview={overview}
-              actions={actions}
-              signals={signals}
-              onOpenDomain={(domain) => setQuery({
-                tab: domain === 'checkpoint' ? 'recovery' : domain as typeof activeTab
-              })}
-            />
-          </TabPane>
-          <TabPane tab="事件链路" key="events">
-            <EventsTab data={events} loading={loading} />
-          </TabPane>
-          <TabPane tab="缓存与预热" key="cache">
-            <CacheTab
-              data={cache}
-              loading={loading}
-              manualWarmupAction={actions.find((item) => item.id === 'cache.manual_warmup')}
-              reloadPolicyAction={actions.find((item) => item.id === 'cache.reload_policy')}
-              onGovernanceActionFinished={reload}
-            />
-          </TabPane>
-          <TabPane tab="容量与保护" key="resilience">
-            <ResilienceTab data={resilience} loading={loading} />
-          </TabPane>
-          <TabPane tab="任务恢复" key="recovery">
-            <RecoveryTab checkpoints={overview?.checkpoints} signals={signals} />
-          </TabPane>
-          <TabPane tab="治理动作" key="actions">
-            <ActionsTab actions={actions} />
-          </TabPane>
-          <TabPane tab={<span><BugOutlined /> 诊断数据</span>} key="raw">
-            <RawTab
-              overview={overview}
-              events={events}
-              cache={cache}
-              resilience={resilience}
-              actions={actions}
-            />
-          </TabPane>
-        </Tabs>
+        {secondaryNavigation.length ? (
+          <nav className="system-governance-secondary-nav" aria-label="当前治理领域功能">
+            {secondaryNavigation.map((item) => (
+              <button
+                type="button"
+                key={item.view}
+                className={item.view === activeView ? 'is-active' : ''}
+                onClick={() => setQuery({ view: item.view })}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        ) : null}
+        <div className="system-governance-page__content">{renderWorkspace()}</div>
       </Card>
     </div>
   )

@@ -1,13 +1,19 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useHistory, useLocation } from 'react-router-dom'
 import { GovernanceWindow } from '@/api/path/systemGovernance'
+import {
+  dataTabForView,
+  legacyTabForLocation,
+  pathForGovernanceView,
+  SystemGovernanceDataTab,
+  SystemGovernanceView,
+  viewFromGovernanceLocation
+} from '../navigation'
 
-export type SystemGovernanceTab = 'overview' | 'events' | 'cache' | 'resilience' | 'recovery' | 'actions' | 'raw'
-
-const TAB_VALUES: SystemGovernanceTab[] = ['overview', 'events', 'cache', 'resilience', 'recovery', 'actions', 'raw']
+export type SystemGovernanceTab = SystemGovernanceDataTab
 
 export const parseSystemGovernanceTab = (value?: string | null): SystemGovernanceTab =>
-  TAB_VALUES.includes(value as SystemGovernanceTab) ? value as SystemGovernanceTab : 'overview'
+  dataTabForView(viewFromGovernanceLocation('/operations/system-governance', value ? `?tab=${value}` : ''))
 
 export const parseSystemGovernanceWindow = (value?: string | null): GovernanceWindow => {
   if (value === '15m' || value === '1h') {
@@ -17,30 +23,39 @@ export const parseSystemGovernanceWindow = (value?: string | null): GovernanceWi
 }
 
 interface UseSystemGovernanceQueryResult {
+  activeView: SystemGovernanceView
   activeTab: SystemGovernanceTab
   window: GovernanceWindow
-  setQuery: (patch: { tab?: SystemGovernanceTab; window?: GovernanceWindow }) => void
+  setQuery: (patch: { view?: SystemGovernanceView; window?: GovernanceWindow }) => void
 }
 
 export const useSystemGovernanceQuery = (): UseSystemGovernanceQueryResult => {
   const location = useLocation()
   const history = useHistory()
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
-  const activeTab = parseSystemGovernanceTab(searchParams.get('tab'))
+  const activeView = viewFromGovernanceLocation(location.pathname, location.search)
+  const activeTab = dataTabForView(activeView)
   const window = parseSystemGovernanceWindow(searchParams.get('window'))
 
-  const setQuery = useCallback((patch: { tab?: SystemGovernanceTab; window?: GovernanceWindow }) => {
+  useEffect(() => {
+    const legacyView = legacyTabForLocation(location.pathname, location.search)
+    if (!legacyView) return
     const next = new URLSearchParams(location.search)
-    if (patch.tab) {
-      next.set('tab', patch.tab)
-    }
+    next.delete('tab')
+    history.replace({ pathname: pathForGovernanceView(legacyView), search: next.toString() })
+  }, [history, location.pathname, location.search])
+
+  const setQuery = useCallback((patch: { view?: SystemGovernanceView; window?: GovernanceWindow }) => {
+    const next = new URLSearchParams(location.search)
+    next.delete('tab')
     if (patch.window) {
       next.set('window', patch.window)
     }
-    history.replace({ pathname: location.pathname, search: next.toString() })
-  }, [history, location.pathname, location.search])
+    history.push({ pathname: pathForGovernanceView(patch.view || activeView), search: next.toString() })
+  }, [activeView, history, location.search])
 
   return {
+    activeView,
     activeTab,
     window,
     setQuery

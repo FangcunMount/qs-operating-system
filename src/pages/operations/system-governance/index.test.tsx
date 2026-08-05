@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import healthyFixture from '@/api/path/__fixtures__/systemGovernance.healthy.json'
 import { normalizeSystemGovernanceOverview } from '@/api/path/systemGovernance'
 import { useSystemGovernance } from './hooks/useSystemGovernance'
@@ -12,6 +12,7 @@ jest.mock('./hooks/useSystemGovernance', () => ({
 const useSystemGovernanceMock = useSystemGovernance as jest.Mock
 
 const governanceState = (overview: unknown) => ({
+  activeView: 'overview',
   activeTab: 'overview',
   window: '5m',
   overview,
@@ -37,12 +38,17 @@ describe('SystemGovernancePage', () => {
   })
 
   it('presents the normalized health conclusion after the snapshot is loaded', () => {
-    useSystemGovernanceMock.mockReturnValue(governanceState(normalizeSystemGovernanceOverview(healthyFixture)))
+    const state = governanceState(normalizeSystemGovernanceOverview(healthyFixture))
+    useSystemGovernanceMock.mockReturnValue(state)
 
     render(<SystemGovernancePage />)
 
     expect(screen.getAllByText('系统运行正常').length).toBeGreaterThan(0)
-    expect(screen.getByRole('tab', { name: '运行总览' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: '任务恢复' })).toBeInTheDocument()
+    expect(screen.getByText('治理总览')).toBeInTheDocument()
+    expect(screen.getByText('问题中心')).toBeInTheDocument()
+    expect(screen.getByText('任务与恢复')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('缓存运行'))
+    expect(state.setQuery).toHaveBeenCalledWith({ view: 'cache-runtime' })
   })
 })

@@ -13,7 +13,7 @@ import {
   getSystemGovernanceResilience
 } from '@/api/path/systemGovernance'
 import { extractErrorMessage } from '@/utils/apiError'
-import { SystemGovernanceTab } from './useSystemGovernanceQuery'
+import { SystemGovernanceView } from '../navigation'
 
 interface UseSystemGovernanceLoaderResult {
   overview: GovernanceOverviewResponse | null
@@ -27,7 +27,7 @@ interface UseSystemGovernanceLoaderResult {
 }
 
 export const useSystemGovernanceLoader = (
-  activeTab: SystemGovernanceTab,
+  activeView: SystemGovernanceView,
   window: GovernanceWindow
 ): UseSystemGovernanceLoaderResult => {
   const [overview, setOverview] = useState<GovernanceOverviewResponse | null>(null)
@@ -64,21 +64,32 @@ export const useSystemGovernanceLoader = (
   }, [window])
 
   const loadTabData = useCallback(async () => {
-    if (activeTab === 'events') {
+    if (activeView === 'events-drain' || activeView === 'events-runtime') {
       const [, response] = await getSystemGovernanceEvents(window)
       setEvents(response?.data || null)
       return
     }
-    if (activeTab === 'cache') {
+    if (activeView.startsWith('cache-')) {
       const [, response] = await getSystemGovernanceCache(window)
       setCache(response?.data || null)
       return
     }
-    if (activeTab === 'resilience') {
+    if (activeView.startsWith('resilience-')) {
       const [, response] = await getSystemGovernanceResilience(window)
       setResilience(response?.data || null)
+      return
     }
-  }, [activeTab, window])
+    if (activeView === 'diagnostics') {
+      const [eventsResult, cacheResult, resilienceResult] = await Promise.all([
+        getSystemGovernanceEvents(window),
+        getSystemGovernanceCache(window),
+        getSystemGovernanceResilience(window)
+      ])
+      setEvents(eventsResult[1]?.data || null)
+      setCache(cacheResult[1]?.data || null)
+      setResilience(resilienceResult[1]?.data || null)
+    }
+  }, [activeView, window])
 
   useEffect(() => {
     void loadCore()

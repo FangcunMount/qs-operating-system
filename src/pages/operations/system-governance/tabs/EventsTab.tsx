@@ -18,9 +18,10 @@ const { Text } = Typography
 interface EventsTabProps {
   data: GovernanceEventsResponse | null
   loading?: boolean
+  section?: 'drain' | 'runtime'
 }
 
-export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
+export const EventsTab: React.FC<EventsTabProps> = ({ data, loading, section = 'drain' }) => {
   const snapshot = data?.snapshot || data
   const links = useMemo(() => getEventGovernanceLinks(), [])
   const profileRows = snapshot?.profiles || []
@@ -126,23 +127,41 @@ export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size={16}>
-      <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }}>
-        <Descriptions.Item label="事件主题">{data?.catalog?.topic_count ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="事件数">{data?.catalog?.event_count ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="待处理">{data?.summary?.pending_count ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="失败">{data?.summary?.failed_count ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="最老等待">{formatDurationSeconds(data?.summary?.oldest_pending_age_seconds)}</Descriptions.Item>
-        <Descriptions.Item label="异常事件类型">{data?.summary?.stale_event_type_count ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="读取器异常">{data?.summary?.reader_error_count ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="更新时间">{formatDateTime(data?.generated_at)}</Descriptions.Item>
-      </Descriptions>
-
-      <Alert
-        type="info"
-        showIcon
-        message="先判断是否真的发生事件阻塞"
-        description="优先看待处理数、失败数和最老等待时间。三项均为零表示当前没有排水压力；只有出现积压时，再下钻到事件类型和消费任务定位责任链。"
-      />
+      {section === 'drain' ? (
+        <>
+          <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }}>
+            <Descriptions.Item label="事件主题">{data?.catalog?.topic_count ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="事件数">{data?.catalog?.event_count ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="待处理">{data?.summary?.pending_count ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="失败">{data?.summary?.failed_count ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="最老等待">{formatDurationSeconds(data?.summary?.oldest_pending_age_seconds)}</Descriptions.Item>
+            <Descriptions.Item label="异常事件类型">{data?.summary?.stale_event_type_count ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="读取器异常">{data?.summary?.reader_error_count ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="更新时间">{formatDateTime(data?.generated_at)}</Descriptions.Item>
+          </Descriptions>
+          <Alert
+            type="info"
+            showIcon
+            message="先判断是否真的发生事件阻塞"
+            description="优先看待处理数、失败数和最老等待时间。三项均为零表示当前没有排水压力；只有出现积压时，再按事件类型定位责任链。"
+          />
+        </>
+      ) : (
+        <>
+          <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }}>
+            <Descriptions.Item label="事件主题">{data?.catalog?.topic_count ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="事件契约">{data?.catalog?.event_count ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label="运行配置">{profileRows.length}</Descriptions.Item>
+            <Descriptions.Item label="独立消费任务">{consumerRows.length}</Descriptions.Item>
+          </Descriptions>
+          <Alert
+            type="info"
+            showIcon
+            message="这里解释事件由谁处理、在哪里运行"
+            description="运行拓扑和事件契约用于定位责任边界，不用于判断当前是否存在积压。"
+          />
+        </>
+      )}
 
       {Object.keys(links).length > 0 ? (
         <Space wrap>
@@ -152,64 +171,68 @@ export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
         </Space>
       ) : null}
 
-      <Text strong>事件排队与失败（先看这里）</Text>
-      <Table
-        rowKey={(record) => `${record.store}:${record.name}`}
-        columns={outboxColumns}
-        dataSource={data?.outbox_rows || []}
-        loading={loading}
-        pagination={false}
-        size="small"
-        scroll={{ x: 1400 }}
-        locale={{ emptyText: <Empty description="暂无 outbox 数据" /> }}
-      />
-      <Text strong>按事件类型定位堵点</Text>
-      <Table
-        rowKey={(record) => `${record.store}:${record.event_type}`}
-        columns={eventTypeColumns}
-        dataSource={data?.event_type_rows || []}
-        loading={loading}
-        pagination={{ pageSize: 10, hideOnSinglePage: true }}
-        size="small"
-        scroll={{ x: 1500 }}
-        locale={{ emptyText: <Empty description="暂无 event_type 维度数据" /> }}
-      />
-
-      <Text strong>运行配置</Text>
-      <Table
-        rowKey="name"
-        columns={profileColumns}
-        dataSource={profileRows}
-        loading={loading}
-        pagination={false}
-        size="small"
-        scroll={{ x: 1200 }}
-        locale={{ emptyText: <Empty description="当前快照未提供 profile 运行时数据" /> }}
-      />
-
-      <Text strong>独立消费任务</Text>
-      <Table
-        rowKey="id"
-        columns={consumerColumns}
-        dataSource={consumerRows}
-        loading={loading}
-        pagination={false}
-        size="small"
-        scroll={{ x: 1800 }}
-        locale={{ emptyText: <Empty description="暂无独立 consumer" /> }}
-      />
-
-      <Text strong>事件契约</Text>
-      <Table
-        rowKey="type"
-        columns={eventColumns}
-        dataSource={eventRows}
-        loading={loading}
-        pagination={{ pageSize: 12, hideOnSinglePage: true }}
-        size="small"
-        scroll={{ x: 1800 }}
-        locale={{ emptyText: <Empty description="当前快照未提供事件契约" /> }}
-      />
+      {section === 'drain' ? (
+        <>
+          <Text strong>事件排队与失败（先看这里）</Text>
+          <Table
+            rowKey={(record) => `${record.store}:${record.name}`}
+            columns={outboxColumns}
+            dataSource={data?.outbox_rows || []}
+            loading={loading}
+            pagination={false}
+            size="small"
+            scroll={{ x: 1400 }}
+            locale={{ emptyText: <Empty description="暂无 outbox 数据" /> }}
+          />
+          <Text strong>按事件类型定位堵点</Text>
+          <Table
+            rowKey={(record) => `${record.store}:${record.event_type}`}
+            columns={eventTypeColumns}
+            dataSource={data?.event_type_rows || []}
+            loading={loading}
+            pagination={{ pageSize: 10, hideOnSinglePage: true }}
+            size="small"
+            scroll={{ x: 1500 }}
+            locale={{ emptyText: <Empty description="暂无 event_type 维度数据" /> }}
+          />
+        </>
+      ) : (
+        <>
+          <Text strong>运行配置</Text>
+          <Table
+            rowKey="name"
+            columns={profileColumns}
+            dataSource={profileRows}
+            loading={loading}
+            pagination={false}
+            size="small"
+            scroll={{ x: 1200 }}
+            locale={{ emptyText: <Empty description="当前快照未提供 profile 运行时数据" /> }}
+          />
+          <Text strong>独立消费任务</Text>
+          <Table
+            rowKey="id"
+            columns={consumerColumns}
+            dataSource={consumerRows}
+            loading={loading}
+            pagination={false}
+            size="small"
+            scroll={{ x: 1800 }}
+            locale={{ emptyText: <Empty description="暂无独立 consumer" /> }}
+          />
+          <Text strong>事件契约</Text>
+          <Table
+            rowKey="type"
+            columns={eventColumns}
+            dataSource={eventRows}
+            loading={loading}
+            pagination={{ pageSize: 12, hideOnSinglePage: true }}
+            size="small"
+            scroll={{ x: 1800 }}
+            locale={{ emptyText: <Empty description="当前快照未提供事件契约" /> }}
+          />
+        </>
+      )}
     </Space>
   )
 }

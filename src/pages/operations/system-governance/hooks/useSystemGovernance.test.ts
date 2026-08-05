@@ -1,6 +1,6 @@
 import React from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import healthyFixture from '@/api/path/__fixtures__/systemGovernance.healthy.json'
 import eventBacklogFixture from '@/api/path/__fixtures__/systemGovernance.event-backlog.json'
 import cacheDegradedFixture from '@/api/path/__fixtures__/systemGovernance.cache-degraded.json'
@@ -50,10 +50,13 @@ const manualWarmupAction = {
 
 const HookHarness: React.FC = () => {
   const state = useSystemGovernance()
+  const location = useLocation()
   return React.createElement(
     'div',
     null,
     React.createElement('div', { 'data-testid': 'tab' }, state.activeTab),
+    React.createElement('div', { 'data-testid': 'view' }, state.activeView),
+    React.createElement('div', { 'data-testid': 'path' }, `${location.pathname}${location.search}`),
     React.createElement('div', { 'data-testid': 'window' }, state.window),
     React.createElement('div', { 'data-testid': 'error' }, state.error),
     React.createElement('div', { 'data-testid': 'signals' }, state.signals.length),
@@ -61,7 +64,7 @@ const HookHarness: React.FC = () => {
     React.createElement('div', { 'data-testid': 'events-pending' }, state.events?.summary.pending_count ?? 'none'),
     React.createElement('div', { 'data-testid': 'cache-ready' }, state.cache ? String(state.cache.summary.ready) : 'none'),
     React.createElement('div', { 'data-testid': 'resilience-queues' }, state.resilience?.summary.queue_count ?? 'none'),
-    React.createElement('button', { type: 'button', onClick: () => state.setQuery({ tab: 'cache' }) }, 'cache tab'),
+    React.createElement('button', { type: 'button', onClick: () => state.setQuery({ view: 'cache-runtime' }) }, 'cache tab'),
     React.createElement('button', { type: 'button', onClick: () => state.setQuery({ window: '15m' }) }, '15m window'),
     React.createElement('button', { type: 'button', onClick: state.reload }, 'reload')
   )
@@ -101,16 +104,28 @@ describe('useSystemGovernance', () => {
   })
 
   it('parses tab and window query parameters before loading tab data', async () => {
-    renderHookHarness('/operations/system-governance?tab=resilience&window=1h')
+    renderHookHarness('/operations/system-governance/resilience/queues?window=1h')
 
     await waitFor(() => {
       expect(screen.getByTestId('resilience-queues')).toHaveTextContent('1')
     })
 
     expect(screen.getByTestId('tab')).toHaveTextContent('resilience')
+    expect(screen.getByTestId('view')).toHaveTextContent('resilience-queues')
     expect(screen.getByTestId('window')).toHaveTextContent('1h')
     expect(overviewMock).toHaveBeenCalledWith('1h')
     expect(resilienceMock).toHaveBeenCalledWith('1h')
+  })
+
+  it('canonicalizes legacy tab query links without dropping the observation window', async () => {
+    renderHookHarness('/operations/system-governance?tab=cache&window=15m')
+
+    await waitFor(() => {
+      expect(screen.getByTestId('path')).toHaveTextContent('/operations/system-governance/cache/runtime?window=15m')
+    })
+
+    expect(screen.getByTestId('view')).toHaveTextContent('cache-runtime')
+    expect(cacheMock).toHaveBeenCalledWith('15m')
   })
 
   it('updates query state and loads the selected cache tab', async () => {
@@ -139,7 +154,7 @@ describe('useSystemGovernance', () => {
   it('degrades a failed tab request to null without setting global error', async () => {
     cacheMock.mockResolvedValueOnce([new Error('cache down'), undefined])
 
-    renderHookHarness('/operations/system-governance?tab=cache')
+    renderHookHarness('/operations/system-governance/cache/runtime')
 
     await waitFor(() => {
       expect(screen.getByTestId('actions')).toHaveTextContent('1')
@@ -150,7 +165,7 @@ describe('useSystemGovernance', () => {
   })
 
   it('reloads core data and the active tab data', async () => {
-    renderHookHarness('/operations/system-governance?tab=resilience')
+    renderHookHarness('/operations/system-governance/resilience/queues')
 
     await waitFor(() => {
       expect(screen.getByTestId('resilience-queues')).toHaveTextContent('1')
