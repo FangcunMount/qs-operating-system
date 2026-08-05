@@ -14,7 +14,7 @@ describe('ResilienceTab', () => {
     expect(screen.getByText('answersheet_submit')).toBeInTheDocument()
     expect(screen.getAllByText('95.0%').length).toBeGreaterThan(0)
     expect(screen.getByText('pending:95')).toBeInTheDocument()
-    expect(screen.getAllByText('Backpressure').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('依赖并发保护').length).toBeGreaterThan(0)
     expect(screen.getAllByText('mysql').length).toBeGreaterThan(0)
     expect(screen.getByText('保护能力')).toBeInTheDocument()
     expect(screen.getByText('api_global')).toBeInTheDocument()

@@ -29,11 +29,11 @@ export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
 
   const outboxColumns = useMemo<ColumnsType<EventOutboxRow>>(
     () => [
-      { title: 'Outbox', dataIndex: 'name', key: 'name', width: 180, render: renderTooltipText },
-      { title: 'Store', dataIndex: 'store', key: 'store', width: 180, render: renderTooltipText },
-      { title: 'Pending', dataIndex: 'pending_count', key: 'pending_count', width: 100 },
-      { title: 'Failed', dataIndex: 'failed_count', key: 'failed_count', width: 100 },
-      { title: 'Publishing', dataIndex: 'publishing_count', key: 'publishing_count', width: 110 },
+      { title: '事件队列', dataIndex: 'name', key: 'name', width: 180, render: renderTooltipText },
+      { title: '存储', dataIndex: 'store', key: 'store', width: 180, render: renderTooltipText },
+      { title: '待处理', dataIndex: 'pending_count', key: 'pending_count', width: 100 },
+      { title: '失败', dataIndex: 'failed_count', key: 'failed_count', width: 100 },
+      { title: '发布中', dataIndex: 'publishing_count', key: 'publishing_count', width: 110 },
       {
         title: '最老 Pending',
         dataIndex: 'oldest_pending_age_seconds',
@@ -42,7 +42,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
         render: (value: number) => formatDurationSeconds(value)
       },
       { title: '严重度', dataIndex: 'severity', key: 'severity', width: 110, render: renderSeverityTag },
-      { title: 'Reader', dataIndex: 'degraded', key: 'degraded', width: 100, render: (value: boolean) => renderHealthTag(value) },
+      { title: '读取器', dataIndex: 'degraded', key: 'degraded', width: 100, render: (value: boolean) => renderHealthTag(value) },
       { title: '原因', dataIndex: 'reason', key: 'reason', ellipsis: true, render: renderTooltipText },
       { title: '指标证据', dataIndex: 'metric_evidence', key: 'metric_evidence', width: 260, render: renderMetricEvidence }
     ],
@@ -51,10 +51,10 @@ export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
 
   const eventTypeColumns = useMemo<ColumnsType<EventTypeRow>>(
     () => [
-      { title: 'Store', dataIndex: 'store', key: 'store', width: 120, render: renderTooltipText },
-      { title: 'Event Type', dataIndex: 'event_type', key: 'event_type', width: 240, render: renderTooltipText },
-      { title: 'Pending', dataIndex: 'pending_count', key: 'pending_count', width: 100 },
-      { title: 'Failed', dataIndex: 'failed_count', key: 'failed_count', width: 100 },
+      { title: '存储', dataIndex: 'store', key: 'store', width: 120, render: renderTooltipText },
+      { title: '事件类型', dataIndex: 'event_type', key: 'event_type', width: 240, render: renderTooltipText },
+      { title: '待处理', dataIndex: 'pending_count', key: 'pending_count', width: 100 },
+      { title: '失败', dataIndex: 'failed_count', key: 'failed_count', width: 100 },
       {
         title: '最老年龄',
         dataIndex: 'oldest_age_seconds',
@@ -72,10 +72,10 @@ export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
 
   const profileColumns = useMemo<ColumnsType<IEventRuntimeProfile>>(
     () => [
-      { title: 'Profile', dataIndex: 'name', key: 'name', width: 220, render: renderTooltipText },
+      { title: '运行配置', dataIndex: 'name', key: 'name', width: 220, render: renderTooltipText },
       { title: '事件数', dataIndex: 'event_count', key: 'event_count', width: 90 },
       {
-        title: 'Immediate events',
+        title: '即时处理事件',
         dataIndex: 'immediate_event_types',
         key: 'immediate_event_types',
         width: 320,
@@ -91,11 +91,11 @@ export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
 
   const consumerColumns = useMemo<ColumnsType<IEventRuntimeConsumer>>(
     () => [
-      { title: 'Consumer', dataIndex: 'id', key: 'id', width: 260, render: renderTooltipText },
-      { title: 'Event Type', dataIndex: 'event_type', key: 'event_type', width: 220, render: renderTooltipText },
-      { title: 'Runtime', dataIndex: 'runtime', key: 'runtime', width: 130 },
-      { title: 'Topic', dataIndex: 'topic', key: 'topic', width: 180, render: renderTooltipText },
-      { title: 'Channel', dataIndex: 'channel', key: 'channel', width: 280, render: renderTooltipText },
+      { title: '消费任务', dataIndex: 'id', key: 'id', width: 260, render: renderTooltipText },
+      { title: '事件类型', dataIndex: 'event_type', key: 'event_type', width: 220, render: renderTooltipText },
+      { title: '运行位置', dataIndex: 'runtime', key: 'runtime', width: 130 },
+      { title: '主题', dataIndex: 'topic', key: 'topic', width: 180, render: renderTooltipText },
+      { title: '消费通道', dataIndex: 'channel', key: 'channel', width: 280, render: renderTooltipText },
       { title: '启用', dataIndex: 'enabled', key: 'enabled', width: 90, render: renderBooleanAvailabilityTag },
       {
         title: '健康',
@@ -111,15 +111,15 @@ export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
 
   const eventColumns = useMemo<ColumnsType<IEventRuntimeEvent>>(
     () => [
-      { title: 'Event Type', dataIndex: 'type', key: 'type', width: 240, render: renderTooltipText },
-      { title: 'Owner', dataIndex: 'owner', key: 'owner', width: 180, render: renderTooltipText },
-      { title: 'Delivery', dataIndex: 'delivery', key: 'delivery', width: 150 },
-      { title: 'Profile', dataIndex: 'profile', key: 'profile', width: 200, render: renderTooltipText },
-      { title: 'Immediate', dataIndex: 'immediate', key: 'immediate', width: 100, render: renderBooleanAvailabilityTag },
-      { title: 'Priority', dataIndex: 'priority', key: 'priority', width: 100, render: renderTooltipText },
-      { title: 'Primary handler', dataIndex: 'handler', key: 'handler', width: 220, render: renderTooltipText },
-      { title: 'Idempotency', dataIndex: 'idempotency', key: 'idempotency', width: 300, render: renderTooltipText },
-      { title: 'Settlement', dataIndex: 'settlement', key: 'settlement', width: 180, render: renderTooltipText }
+      { title: '事件类型', dataIndex: 'type', key: 'type', width: 240, render: renderTooltipText },
+      { title: '负责模块', dataIndex: 'owner', key: 'owner', width: 180, render: renderTooltipText },
+      { title: '投递方式', dataIndex: 'delivery', key: 'delivery', width: 150 },
+      { title: '运行配置', dataIndex: 'profile', key: 'profile', width: 200, render: renderTooltipText },
+      { title: '即时处理', dataIndex: 'immediate', key: 'immediate', width: 100, render: renderBooleanAvailabilityTag },
+      { title: '优先级', dataIndex: 'priority', key: 'priority', width: 100, render: renderTooltipText },
+      { title: '主处理器', dataIndex: 'handler', key: 'handler', width: 220, render: renderTooltipText },
+      { title: '幂等保护', dataIndex: 'idempotency', key: 'idempotency', width: 300, render: renderTooltipText },
+      { title: '失败结算', dataIndex: 'settlement', key: 'settlement', width: 180, render: renderTooltipText }
     ],
     []
   )
@@ -127,21 +127,21 @@ export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
   return (
     <Space direction="vertical" style={{ width: '100%' }} size={16}>
       <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }}>
-        <Descriptions.Item label="Topic 数">{data?.catalog?.topic_count ?? '-'}</Descriptions.Item>
+        <Descriptions.Item label="事件主题">{data?.catalog?.topic_count ?? '-'}</Descriptions.Item>
         <Descriptions.Item label="事件数">{data?.catalog?.event_count ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="Pending">{data?.summary?.pending_count ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="Failed">{data?.summary?.failed_count ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="最老 Pending">{formatDurationSeconds(data?.summary?.oldest_pending_age_seconds)}</Descriptions.Item>
-        <Descriptions.Item label="Event Type 堵点">{data?.summary?.stale_event_type_count ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="Reader 异常">{data?.summary?.reader_error_count ?? '-'}</Descriptions.Item>
+        <Descriptions.Item label="待处理">{data?.summary?.pending_count ?? '-'}</Descriptions.Item>
+        <Descriptions.Item label="失败">{data?.summary?.failed_count ?? '-'}</Descriptions.Item>
+        <Descriptions.Item label="最老等待">{formatDurationSeconds(data?.summary?.oldest_pending_age_seconds)}</Descriptions.Item>
+        <Descriptions.Item label="异常事件类型">{data?.summary?.stale_event_type_count ?? '-'}</Descriptions.Item>
+        <Descriptions.Item label="读取器异常">{data?.summary?.reader_error_count ?? '-'}</Descriptions.Item>
         <Descriptions.Item label="更新时间">{formatDateTime(data?.generated_at)}</Descriptions.Item>
       </Descriptions>
 
       <Alert
         type="info"
         showIcon
-        message="观测分层"
-        description="Outbox 排水展示已持久化事件的积压事实；运行时拓扑展示 EventSubsystem 是否已启动相应 profile 和独立 consumer。发布、ACK/NACK 与处理耗时属于时间序列，请在 Grafana 中按窗口观察。"
+        message="先判断是否真的发生事件阻塞"
+        description="优先看待处理数、失败数和最老等待时间。三项均为零表示当前没有排水压力；只有出现积压时，再下钻到事件类型和消费任务定位责任链。"
       />
 
       {Object.keys(links).length > 0 ? (
@@ -152,7 +152,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
         </Space>
       ) : null}
 
-      <Text strong>Outbox 排水</Text>
+      <Text strong>事件排队与失败（先看这里）</Text>
       <Table
         rowKey={(record) => `${record.store}:${record.name}`}
         columns={outboxColumns}
@@ -163,7 +163,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
         scroll={{ x: 1400 }}
         locale={{ emptyText: <Empty description="暂无 outbox 数据" /> }}
       />
-      <Text strong>Event Type 堵点</Text>
+      <Text strong>按事件类型定位堵点</Text>
       <Table
         rowKey={(record) => `${record.store}:${record.event_type}`}
         columns={eventTypeColumns}
@@ -175,7 +175,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
         locale={{ emptyText: <Empty description="暂无 event_type 维度数据" /> }}
       />
 
-      <Text strong>Profile 运行时</Text>
+      <Text strong>运行配置</Text>
       <Table
         rowKey="name"
         columns={profileColumns}
@@ -187,7 +187,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({ data, loading }) => {
         locale={{ emptyText: <Empty description="当前快照未提供 profile 运行时数据" /> }}
       />
 
-      <Text strong>独立 Consumer</Text>
+      <Text strong>独立消费任务</Text>
       <Table
         rowKey="id"
         columns={consumerColumns}

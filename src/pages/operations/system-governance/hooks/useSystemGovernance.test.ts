@@ -84,19 +84,20 @@ describe('useSystemGovernance', () => {
     resilienceMock.mockResolvedValue([null, response(normalizeSystemGovernanceResilience(queueFullFixture))])
   })
 
-  it('loads overview, actions, and the active events tab on first render', async () => {
+  it('loads overview and actions without eagerly loading a detail tab on first render', async () => {
     renderHookHarness()
 
     await waitFor(() => {
       expect(screen.getByTestId('actions')).toHaveTextContent('1')
-      expect(screen.getByTestId('events-pending')).toHaveTextContent('120')
     })
 
-    expect(screen.getByTestId('tab')).toHaveTextContent('events')
+    expect(screen.getByTestId('tab')).toHaveTextContent('overview')
     expect(screen.getByTestId('window')).toHaveTextContent('5m')
     expect(overviewMock).toHaveBeenCalledWith('5m')
     expect(actionsMock).toHaveBeenCalled()
-    expect(eventsMock).toHaveBeenCalledWith('5m')
+    expect(eventsMock).not.toHaveBeenCalled()
+    expect(cacheMock).not.toHaveBeenCalled()
+    expect(resilienceMock).not.toHaveBeenCalled()
   })
 
   it('parses tab and window query parameters before loading tab data', async () => {

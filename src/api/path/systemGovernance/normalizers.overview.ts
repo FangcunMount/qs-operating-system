@@ -19,6 +19,7 @@ export const normalizeSystemGovernanceOverview = (
     health: severityToHealth(overallSeverity),
     signals: sortSignalsBySeverity(normalizeSignals(raw.signals || [])),
     metrics: raw.metrics || { available: false, reason: 'metrics metadata unavailable' },
-    domains: raw.domains
+    domains: raw.domains,
+    checkpoints: raw.checkpoints
   }
 }

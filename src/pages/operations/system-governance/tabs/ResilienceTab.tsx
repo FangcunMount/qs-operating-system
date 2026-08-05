@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Descriptions, Empty, Space, Table, Typography } from 'antd'
+import { Alert, Descriptions, Empty, Space, Table, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type {
   GovernanceResilienceResponse,
@@ -108,6 +108,12 @@ export const ResilienceTab: React.FC<ResilienceTabProps> = ({ data, loading }) =
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size={16}>
+      <Alert
+        type="info"
+        showIcon
+        message="先判断是否正在接近容量边界"
+        description="优先看严重队列、最高利用率和不可用组件。利用率升高代表需要定位流量或下游瓶颈，不等于应立即扩大限流预算。"
+      />
       <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }}>
         <Descriptions.Item label="组件">{data?.summary.component_count ?? '-'}</Descriptions.Item>
         <Descriptions.Item label="不可用组件">{data?.summary.unavailable_component_count ?? '-'}</Descriptions.Item>
@@ -115,8 +121,8 @@ export const ResilienceTab: React.FC<ResilienceTabProps> = ({ data, loading }) =
         <Descriptions.Item label="队列">{data?.summary.queue_count ?? '-'}</Descriptions.Item>
         <Descriptions.Item label="队列告警">{data ? `${data.summary.critical_queue_count}/${data.summary.warning_queue_count}` : '-'}</Descriptions.Item>
         <Descriptions.Item label="最高队列利用率">{formatPercent(data?.summary.max_queue_utilization)}</Descriptions.Item>
-        <Descriptions.Item label="Backpressure">{data?.summary.backpressure_count ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="最高 Backpressure">{formatPercent(data?.summary.max_backpressure_utilization)}</Descriptions.Item>
+        <Descriptions.Item label="依赖并发保护">{data?.summary.backpressure_count ?? '-'}</Descriptions.Item>
+        <Descriptions.Item label="最高并发利用率">{formatPercent(data?.summary.max_backpressure_utilization)}</Descriptions.Item>
         <Descriptions.Item label="能力降级">{data?.summary.degraded_capability_count ?? '-'}</Descriptions.Item>
         <Descriptions.Item label="更新时间">{formatDateTime(data?.generated_at)}</Descriptions.Item>
       </Descriptions>
@@ -133,7 +139,7 @@ export const ResilienceTab: React.FC<ResilienceTabProps> = ({ data, loading }) =
         locale={{ emptyText: <Empty description="暂无队列承压数据" /> }}
       />
 
-      <Text strong>Backpressure</Text>
+      <Text strong>依赖并发保护</Text>
       <Table
         rowKey={(record) => `${record.component}:${record.name}:${record.dependency}`}
         columns={backpressureColumns}

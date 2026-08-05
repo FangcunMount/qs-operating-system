@@ -9,10 +9,10 @@ describe('EventsTab', () => {
 
     render(<EventsTab data={data} />)
 
-    expect(screen.getByText('Outbox 排水')).toBeInTheDocument()
-    expect(screen.getAllByText('Event Type 堵点').length).toBeGreaterThan(0)
-    expect(screen.getByText('Profile 运行时')).toBeInTheDocument()
-    expect(screen.getByText('独立 Consumer')).toBeInTheDocument()
+    expect(screen.getByText('事件排队与失败（先看这里）')).toBeInTheDocument()
+    expect(screen.getByText('按事件类型定位堵点')).toBeInTheDocument()
+    expect(screen.getAllByText('运行配置').length).toBeGreaterThan(0)
+    expect(screen.getByText('独立消费任务')).toBeInTheDocument()
     expect(screen.getByText('事件契约')).toBeInTheDocument()
     expect(screen.getAllByText('evaluation.requested').length).toBeGreaterThan(0)
     expect(screen.getAllByText('mongo_domain_events').length).toBeGreaterThan(0)

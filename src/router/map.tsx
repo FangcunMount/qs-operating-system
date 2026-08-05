@@ -681,24 +681,30 @@ export const routes: Array<IRoute> = [
         name: 'cache-governance',
         path: '/operations/cache-governance',
         component: CacheGovernance,
-        menuScope: 'org_admin',
-        requiredCapabilities: ['org_admin']
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['org_admin'],
+        activeMenuName: 'system-governance-workbench'
       },
       {
         title: '事件观测',
         name: 'event-governance',
         path: '/operations/event-governance',
         component: EventGovernance,
-        menuScope: 'org_admin',
-        requiredCapabilities: ['org_admin']
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['org_admin'],
+        activeMenuName: 'system-governance-workbench'
       },
       {
         title: '高并发治理',
         name: 'resilience-governance',
         path: '/operations/resilience-governance',
         component: ResilienceGovernance,
-        menuScope: 'org_admin',
-        requiredCapabilities: ['org_admin']
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['org_admin'],
+        activeMenuName: 'system-governance-workbench'
       }
     ]
   },

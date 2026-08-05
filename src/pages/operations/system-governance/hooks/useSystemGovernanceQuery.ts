@@ -2,12 +2,12 @@ import { useCallback, useMemo } from 'react'
 import { useHistory, useLocation } from 'react-router-dom'
 import { GovernanceWindow } from '@/api/path/systemGovernance'
 
-export type SystemGovernanceTab = 'events' | 'cache' | 'resilience' | 'actions' | 'raw'
+export type SystemGovernanceTab = 'overview' | 'events' | 'cache' | 'resilience' | 'recovery' | 'actions' | 'raw'
 
-const TAB_VALUES: SystemGovernanceTab[] = ['events', 'cache', 'resilience', 'actions', 'raw']
+const TAB_VALUES: SystemGovernanceTab[] = ['overview', 'events', 'cache', 'resilience', 'recovery', 'actions', 'raw']
 
 export const parseSystemGovernanceTab = (value?: string | null): SystemGovernanceTab =>
-  TAB_VALUES.includes(value as SystemGovernanceTab) ? value as SystemGovernanceTab : 'events'
+  TAB_VALUES.includes(value as SystemGovernanceTab) ? value as SystemGovernanceTab : 'overview'
 
 export const parseSystemGovernanceWindow = (value?: string | null): GovernanceWindow => {
   if (value === '15m' || value === '1h') {

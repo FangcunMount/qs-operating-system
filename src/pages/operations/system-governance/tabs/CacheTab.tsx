@@ -273,20 +273,27 @@ export const CacheTab: React.FC<CacheTabProps> = ({
 
   return (
     <>
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="先判断缓存问题是否影响业务"
+        description="先看组件连接状态和缓存族异常；命中率、延迟与预热建议用于解释性能，不应把指标缺失直接判断为缓存故障。"
+      />
       <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }}>
-        <Descriptions.Item label="Ready">{data?.summary?.ready ? '是' : '否'}</Descriptions.Item>
-        <Descriptions.Item label="Family">{data?.summary?.family_total ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="Degraded">{data?.summary?.degraded_count ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="Unavailable">{data?.summary?.unavailable_count ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="Warmup">{data?.warmup?.enabled ? '启用' : '关闭'}</Descriptions.Item>
-        <Descriptions.Item label="Hotset">{data?.warmup?.hotset?.enable ? '启用' : '关闭'}</Descriptions.Item>
+        <Descriptions.Item label="整体可用">{data?.summary?.ready ? '是' : '否'}</Descriptions.Item>
+        <Descriptions.Item label="缓存族">{data?.summary?.family_total ?? '-'}</Descriptions.Item>
+        <Descriptions.Item label="降级">{data?.summary?.degraded_count ?? '-'}</Descriptions.Item>
+        <Descriptions.Item label="不可用">{data?.summary?.unavailable_count ?? '-'}</Descriptions.Item>
+        <Descriptions.Item label="自动预热">{data?.warmup?.enabled ? '启用' : '关闭'}</Descriptions.Item>
+        <Descriptions.Item label="热点推荐">{data?.warmup?.hotset?.enable ? '启用' : '关闭'}</Descriptions.Item>
         <Descriptions.Item label="组件数">{componentEntries.length}</Descriptions.Item>
         <Descriptions.Item label="最近运行">{data?.warmup?.latest_runs?.[0]?.result || '-'}</Descriptions.Item>
-        <Descriptions.Item label="Policy version">{registry?.snapshot_version ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="Catalog version">{registry?.catalog_version || '-'}</Descriptions.Item>
+        <Descriptions.Item label="策略版本">{registry?.snapshot_version ?? '-'}</Descriptions.Item>
+        <Descriptions.Item label="目录版本">{registry?.catalog_version || '-'}</Descriptions.Item>
       </Descriptions>
 
-      <Text strong>组件状态</Text>
+      <Text strong>组件连接状态</Text>
       <Space wrap style={{ display: 'flex', marginTop: 8, marginBottom: 16 }}>
         {componentEntries.length ? componentEntries.map(([name, component]) => (
           <Tag key={name} color={component.available ? 'green' : 'orange'}>
@@ -295,7 +302,7 @@ export const CacheTab: React.FC<CacheTabProps> = ({
         )) : <Text type="secondary">暂无组件快照</Text>}
       </Space>
 
-      <Text strong>缓存族健康</Text>
+      <Text strong>缓存族状态</Text>
       <Table
         style={{ marginTop: 16 }}
         rowKey={(record) => `${record.component}:${record.family}:${record.namespace}`}
@@ -308,7 +315,7 @@ export const CacheTab: React.FC<CacheTabProps> = ({
         locale={{ emptyText: <Empty description="暂无缓存族状态" /> }}
       />
 
-      <Text strong style={{ display: 'block', marginTop: 16 }}>Effective Policy Registry</Text>
+      <Text strong style={{ display: 'block', marginTop: 16 }}>生效策略与近窗口表现</Text>
       {registry ? (
         <>
           {reloadStatus?.last_error ? (
