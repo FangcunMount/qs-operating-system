@@ -4,6 +4,7 @@ import { FormInstance } from 'antd/lib/form'
 import type { CheckboxValueType } from 'antd/es/checkbox/Group'
 import { observer } from 'mobx-react'
 import { scaleStore } from '@/store'
+import { isMedicalScaleCategory } from '@/constants/scaleCategories'
 
 const { TextArea } = Input
 
@@ -308,6 +309,15 @@ export const BasicInfoFormCard: React.FC<{
               label="主类"
               name='category'
               tooltip="选择量表的主要类别"
+              rules={[
+                { required: true, message: '请选择量表主类' },
+                {
+                  validator: async (_, value) => {
+                    if (!value || isMedicalScaleCategory(value)) return
+                    throw new Error('请选择有效的医学量表主类')
+                  }
+                }
+              ]}
             >
               <RadioButtonSelect
                 options={scaleStore.categoryOptions}

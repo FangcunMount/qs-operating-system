@@ -23,6 +23,7 @@ import { getScaleCategories } from '@/api/path/scaleDefinition'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
 import { assessmentReleaseApi } from '@/api/path/assessmentRelease'
 import { QuestionnaireType } from '@/constants/questionnaireType'
+import { filterMedicalScaleCategoryOptions, isMedicalScaleCategory } from '@/constants/scaleCategories'
 
 // 量表编辑步骤
 export type ScaleStep = 'create' | 'edit-questions' | 'set-routing' | 'edit-factors' | 'set-interpretation' | 'publish'
@@ -77,7 +78,7 @@ export const scaleStore = makeObservable(
     title: scaleInit.title,
     desc: scaleInit.desc,
     img_url: scaleInit.img_url,
-    category: '', // 主类：ADHD、抽动障碍、感统、执行功能、心理健康、神经发育筛查、慢性病管理、生活质量
+    category: '', // 主类：ADHD、抽动、孤独症、压力、感觉统合、执行功能、情绪、睡眠
     stages: [] as string[], // 阶段列表（数组）：deep_assessment(深评)、follow_up(随访)、outcome(结局)
     applicable_ages: [] as string[], // 使用年龄列表（数组）：infant(婴幼儿)、preschool(学龄前)、school_child(学龄儿童)、adolescent(青少年)、adult(成人)
     reporters: [] as string[], // 填报人列表（数组）：parent(家长评)、teacher(教师评)、self(自评)、clinical(临床评定)
@@ -128,7 +129,7 @@ export const scaleStore = makeObservable(
     
     get isStepCompleted() {
       return {
-        create: !!this.id && !!this.title,
+        create: !!this.id && !!this.title && isMedicalScaleCategory(this.category),
         'edit-questions': this.questions.length > 0,
         'set-routing': true, // 路由设置是可选的
         'edit-factors': this.factors.length > 0,
@@ -177,7 +178,7 @@ export const scaleStore = makeObservable(
         const [err, res] = await getScaleCategories()
         runInAction(() => {
           if (err || !res?.data) return
-          this.categoryOptions = res.data.categories || []
+          this.categoryOptions = filterMedicalScaleCategoryOptions(res.data.categories || [])
           this.stageOptions = res.data.stages || []
           this.applicableAgeOptions = res.data.applicable_ages || []
           this.reporterOptions = res.data.reporters || []
@@ -710,6 +711,9 @@ export const scaleStore = makeObservable(
      * 发布量表到线上
      */
     async publish() {
+      if (!isMedicalScaleCategory(this.category)) {
+        throw new Error('请选择有效的量表主类后再发布')
+      }
       if (!this.id) {
         // 如果还没有创建量表，先创建以获取 ID
         const [e, r] = await api.createSurvey({
