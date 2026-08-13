@@ -35,5 +35,5 @@
     { "Code": "drive", "Title": "驱动型", "Summary": "擅长推进" },
     { "Code": "care", "Title": "关怀型", "Summary": "擅长共情" }
   ],
-  "ReportMap": { "Sections": [{ "Code": "personality_report", "Kind": "personality_type", "AdapterKey": "personality_type" }] }
+  "ReportMap": { "Sections": [{ "Code": "personality_report", "Kind": "personality_type", "AdapterKey": "personality_type", "TemplateID": "mbti", "TemplateVersion": "2026-08-v1" }] }
 }

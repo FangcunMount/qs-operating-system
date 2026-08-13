@@ -178,6 +178,7 @@ export interface PersonalityReportSpec {
   kind: 'personality_type' | 'trait_profile' | 'template'
   adapter_key?: string
   template_id?: string
+  template_version?: string
   category_label?: string
   [key: string]: unknown
 }

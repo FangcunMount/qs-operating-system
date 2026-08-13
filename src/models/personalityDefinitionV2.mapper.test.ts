@@ -109,7 +109,7 @@ describe('personality DefinitionV2 projection', () => {
           },
         ]
       },
-      report: { kind: 'personality_type', adapter_key: 'personality_type' }
+      report: { kind: 'personality_type', adapter_key: 'personality_type', template_id: 'mbti', template_version: '2026-08-v1' }
     })
     expect(JSON.parse(JSON.stringify(definition))).toEqual(contractDefinition)
   })
@@ -124,6 +124,7 @@ describe('personality DefinitionV2 projection', () => {
       code: 'drive', traits: ['行动'], strengths: ['推进'], suggestions: ['兼顾他人']
     })
     expect(projected.decision).toMatchObject({ kind: 'dominant_factor', top_k: 2 })
+    expect(projected.report).toMatchObject({ template_id: 'mbti', template_version: '2026-08-v1' })
     expect(JSON.parse(JSON.stringify(applyPersonalityRuntimeSpec(contractDefinition, projected)))).toEqual(contractDefinition)
   })
 

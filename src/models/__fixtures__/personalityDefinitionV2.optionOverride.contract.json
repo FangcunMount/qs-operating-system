@@ -25,5 +25,5 @@
     "SpecialRules": []
   }],
   "Outcomes": [{ "Code": "override", "Title": "覆盖结果" }],
-  "ReportMap": { "Sections": [{ "Code": "personality_report", "Kind": "personality_type", "AdapterKey": "personality_type" }] }
+  "ReportMap": { "Sections": [{ "Code": "personality_report", "Kind": "personality_type", "AdapterKey": "personality_type", "TemplateID": "mbti", "TemplateVersion": "2026-08-v1" }] }
 }

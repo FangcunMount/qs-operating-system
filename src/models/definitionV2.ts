@@ -102,6 +102,7 @@ export interface DefinitionReportSection extends DefinitionV2Record {
   SourceRefs?: string[]
   AdapterKey?: string
   TemplateID?: string
+  TemplateVersion?: string
   CategoryLabel?: string
 }
 

@@ -188,6 +188,7 @@ export const projectPersonalityRuntimeSpec = (
       kind: asReportKind(report.Kind, decisionKind),
       adapter_key: detailKindForDecision(asString(report.AdapterKey) || decisionKind),
       template_id: asString(report.TemplateID) || undefined,
+      template_version: asString(report.TemplateVersion) || undefined,
       category_label: asString(report.CategoryLabel) || undefined
     }
   }
@@ -327,6 +328,7 @@ export const applyPersonalityRuntimeSpec = (
     Kind: spec.report.kind,
     AdapterKey: spec.report.adapter_key,
     TemplateID: spec.report.template_id,
+    TemplateVersion: spec.report.template_version,
     CategoryLabel: spec.report.category_label
   }
   definition.ReportMap = { ...reportMap, Sections: [reportSection, ...sections.slice(1)] }
