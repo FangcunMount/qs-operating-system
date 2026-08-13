@@ -10,6 +10,7 @@ export interface CacheGovernanceSummary {
 
 export interface ICacheGovernanceFamilyStatus {
   component: string
+  instance_id?: string
   family: string
   profile: string
   namespace: string
@@ -54,6 +55,8 @@ export interface ICacheGovernanceStatusResponse {
 export interface CacheRuntimeSnapshot {
   generated_at?: string
   component?: string
+  instance_id?: string
+  generation?: string
   summary: ICacheGovernanceStatusResponse['summary']
   families: ICacheGovernanceFamilyStatus[]
   warmup?: ICacheGovernanceStatusResponse['warmup']
@@ -83,10 +86,14 @@ export interface CacheCapabilityPolicyView {
   effective: CachePolicyView
   source: string
   metric_label: string
+  topology_group?: string
+  topology_order?: number
+  read_model?: string
 }
 
 export interface CacheCapabilityWorkload {
   hit_rate?: MetricEvidence
+  samples?: MetricEvidence
   error_count?: MetricEvidence
   get_latency_p95?: MetricEvidence
 }
@@ -105,12 +112,20 @@ export interface CachePolicyReloadStatus {
   last_error?: string
 }
 
+export interface CachePolicySource {
+  component: string
+  schema_version: string
+  path: string
+  policy_sha256: string
+}
+
 export interface CacheEffectiveRegistrySnapshot {
   snapshot_version: number
   catalog_version: string
   generated_at?: string
   capabilities: CacheCapabilityPolicyView[]
   reload: CachePolicyReloadStatus
+  policy_source?: CachePolicySource
 }
 
 export interface CacheStatusSnapshot extends ICacheGovernanceStatusResponse {
@@ -121,12 +136,174 @@ export interface CacheComponent {
   available: boolean
   reason?: string
   snapshot?: CacheRuntimeSnapshot
+  instances?: Record<string, CacheRuntimeSnapshot>
+  discovered_instance_count?: number
+  available_instance_count?: number
+  partial?: boolean
+  target_errors?: Record<string, string>
 }
 
 export interface CacheFamilyRow extends ICacheGovernanceFamilyStatus {
+  generation?: string
   severity: SignalSeverity | string
   reason?: string
   metric_evidence?: MetricEvidence[]
+}
+
+export interface CacheComponentRegistryRow {
+  component: string
+  instance_id?: string
+  generation?: string
+  available: boolean
+  reason?: string
+  snapshot_version?: number
+  catalog_version?: string
+  policy_source?: CachePolicySource
+  capabilities?: CacheCapabilityPolicyView[]
+}
+
+export interface CacheRegistryCapabilityVariant {
+  policy_sha256?: string
+  instance_ids: string[]
+  owner: string
+  kind: string
+  layer: string
+  family: string
+  enabled: boolean
+  metric_label: string
+  effective_policy: CachePolicyView
+  topology_group?: string
+  topology_order?: number
+  read_model?: string
+}
+
+export interface CacheRegistryCapabilityRow {
+  component: string
+  capability: string
+  layer: string
+  consistent: boolean
+  instance_ids: string[]
+  policy_sha256?: string
+  owner?: string
+  kind?: string
+  family?: string
+  enabled?: boolean
+  metric_label?: string
+  effective_policy?: CachePolicyView
+  variants?: CacheRegistryCapabilityVariant[]
+  topology_group?: string
+  topology_order?: number
+  read_model?: string
+}
+
+export interface CacheRegistryDrift {
+  component: string
+  kind: string
+  message: string
+  instance_ids?: string[]
+  values?: Record<string, string[]>
+}
+
+export interface CacheRegistryView {
+  component_registries: CacheComponentRegistryRow[]
+  capability_rows: CacheRegistryCapabilityRow[]
+  registry_drift: CacheRegistryDrift[]
+}
+
+export interface CacheRuntimeFormalSummary {
+  ready: boolean
+  component_total: number
+  healthy_component_count: number
+  discovered_instance_count: number
+  healthy_instance_count: number
+  family_group_count: number
+  abnormal_family_group_count: number
+  abnormal_l1_capability_count: number
+}
+
+export interface CacheRuntimeFamilyGroup {
+  component: string
+  family: string
+  profile: string
+  namespace: string
+  healthy_instance_count: number
+  discovered_instance_count: number
+  degraded_instance_count: number
+  unavailable_instance_count: number
+  severity: SignalSeverity | string
+  last_error?: string
+  operation_p95?: MetricEvidence
+  operation_errors?: MetricEvidence
+  metric_evidence?: MetricEvidence[]
+}
+
+export interface CacheRuntimeView {
+  summary: CacheRuntimeFormalSummary
+  l1_capability_runtime: CacheL1CapabilityRuntimeRow[]
+  family_groups: CacheRuntimeFamilyGroup[]
+  instance_rows: CacheFamilyRow[]
+}
+
+export interface CacheL1BucketRuntime {
+  bucket: string
+  entries: number
+  max_entries: number
+  hits: number
+  misses: number
+  fifo_evictions: number
+  ttl_expirations: number
+  explicit_deletions: number
+  signal_deletions: number
+}
+
+export interface CacheSignalWatcherStatus {
+  configured: boolean
+  status: string
+  last_signal_at?: string
+  last_eviction_at?: string
+  last_error_at?: string
+  last_error?: string
+  reconnect_count: number
+}
+
+export interface CacheL1CapabilityRuntimeRow {
+  component: string
+  instance_id: string
+  generation?: string
+  capability: string
+  enabled: boolean
+  buckets: CacheL1BucketRuntime[]
+  signal_watcher: CacheSignalWatcherStatus
+  hit_rate?: MetricEvidence
+  samples?: MetricEvidence
+}
+
+export interface CacheTopologyNode {
+  id: string
+  component: string
+  capability: string
+  layer: string
+  enabled?: boolean
+  registry_consistent: boolean
+  runtime_health: string
+  policy_source?: string
+  hit_rate?: MetricEvidence
+  samples?: MetricEvidence
+  order: number
+}
+
+export interface CacheTopology {
+  topology_group: string
+  read_model: string
+  status: string
+  nodes: CacheTopologyNode[]
+  edges: Array<{ from: string; to: string; kind: string }>
+  source: { id: string; read_model: string; source_kind: string }
+  window_evidence: Record<string, MetricEvidence | undefined>
+}
+
+export interface CacheTopologyView {
+  topologies: CacheTopology[]
 }
 
 export interface CacheWarmupKind {
@@ -164,6 +341,9 @@ export interface GovernanceCacheResponse extends CacheStatusSnapshot {
   capability_rows: CacheCapabilityRow[]
   warmup_kinds: CacheWarmupKind[]
   hotsets: CacheHotsetView[]
+  registry_view?: CacheRegistryView
+  runtime_view?: CacheRuntimeView
+  topology_view?: CacheTopologyView
 }
 
 export interface RawSystemGovernanceCacheResponse {
@@ -181,4 +361,7 @@ export interface RawSystemGovernanceCacheResponse {
   capability_rows?: CacheCapabilityRow[]
   warmup_kinds?: CacheWarmupKind[]
   hotsets?: CacheHotsetView[]
+  registry_view?: CacheRegistryView | Record<string, unknown>
+  runtime_view?: CacheRuntimeView | Record<string, unknown>
+  topology_view?: CacheTopologyView | Record<string, unknown>
 }
