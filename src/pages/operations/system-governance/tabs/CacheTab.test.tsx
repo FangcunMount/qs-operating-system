@@ -127,7 +127,12 @@ describe('CacheTab', () => {
       snapshot: {
         summary: { family_total: 0, available_count: 0, degraded_count: 0, unavailable_count: 0, ready: true },
         families: [],
-        warmup: { enabled: false, startup: { static: false, query: false }, hotset: { enable: false, top_n: 0, max_items_per_kind: 0 }, latest_runs: [] },
+        warmup: {
+          enabled: false,
+          startup: { static: false, query: false },
+          hotset: { enable: false, top_n: 0, max_items_per_kind: 0 },
+          latest_runs: [],
+        },
         effective_registry: {
           snapshot_version: 1,
           catalog_version: 'v2',
