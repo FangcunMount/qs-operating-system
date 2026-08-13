@@ -120,12 +120,15 @@ const SystemGovernancePage: React.FC = () => {
       return <EventsTab data={events} loading={loading} section="runtime" />
     case 'cache-runtime':
     case 'cache-policies':
+    case 'cache-topology':
     case 'cache-warmup':
       return (
         <CacheTab
           data={cache}
           loading={loading}
-          section={activeView === 'cache-runtime' ? 'runtime' : activeView === 'cache-policies' ? 'policies' : 'warmup'}
+          section={activeView === 'cache-runtime'
+            ? 'runtime'
+            : activeView === 'cache-policies' ? 'policies' : activeView === 'cache-topology' ? 'topology' : 'warmup'}
           manualWarmupAction={actions.find((item) => item.id === 'cache.manual_warmup')}
           reloadPolicyAction={actions.find((item) => item.id === 'cache.reload_policy')}
           onGovernanceActionFinished={refresh}

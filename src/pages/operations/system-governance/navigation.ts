@@ -10,6 +10,7 @@ export type SystemGovernanceView =
   | 'events-runtime'
   | 'cache-runtime'
   | 'cache-policies'
+  | 'cache-topology'
   | 'cache-warmup'
   | 'resilience-queues'
   | 'resilience-dependencies'
@@ -28,6 +29,7 @@ const VIEW_PATHS: Record<SystemGovernanceView, string> = {
   'events-runtime': `${SYSTEM_GOVERNANCE_BASE_PATH}/events/runtime`,
   'cache-runtime': `${SYSTEM_GOVERNANCE_BASE_PATH}/cache/runtime`,
   'cache-policies': `${SYSTEM_GOVERNANCE_BASE_PATH}/cache/policies`,
+  'cache-topology': `${SYSTEM_GOVERNANCE_BASE_PATH}/cache/topology`,
   'cache-warmup': `${SYSTEM_GOVERNANCE_BASE_PATH}/cache/warmup`,
   'resilience-queues': `${SYSTEM_GOVERNANCE_BASE_PATH}/resilience/queues`,
   'resilience-dependencies': `${SYSTEM_GOVERNANCE_BASE_PATH}/resilience/dependencies`,
@@ -120,7 +122,8 @@ export const SECONDARY_GOVERNANCE_NAVIGATION: Partial<Record<SystemGovernanceSec
   ],
   cache: [
     { view: 'cache-runtime', label: '运行状态' },
-    { view: 'cache-policies', label: '策略中心' },
+    { view: 'cache-policies', label: '缓存生效策略' },
+    { view: 'cache-topology', label: '缓存拓扑' },
     { view: 'cache-warmup', label: '预热中心' }
   ],
   resilience: [

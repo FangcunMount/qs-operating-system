@@ -8,6 +8,11 @@ export const formatDateTime = (value?: string): string => {
   return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm:ss') : value
 }
 
+export const formatExecutionDateTime = (value?: string): string => {
+  if (!value || /^0001-01-01(?:T|\s)/.test(value)) return '从未执行'
+  return formatDateTime(value)
+}
+
 export const formatDurationSeconds = (seconds?: number): string => {
   if (!seconds || seconds <= 0) return '0s'
   if (seconds < 60) return `${Math.round(seconds)}s`
