@@ -63,4 +63,40 @@ describe('behavior ability DefinitionV2 projection', () => {
     expect(form.execution.SPM).toBeUndefined()
     expect(next.Execution?.SPM).toBeUndefined()
   })
+
+  it('projects cognitive SPM execution, ability conclusions and report configuration', () => {
+    const cognitiveSource: DefinitionV2 = {
+      ...source,
+      Execution: {
+        SPM: {
+          TimeLimitSeconds: 1200,
+          TotalFactorCode: 'TOTAL',
+          ItemSets: [{ Code: 'A', Items: [{ QuestionCode: 'Q1', CorrectOptionCode: 'A' }] }]
+        },
+        FutureExecution: true
+      },
+      Conclusions: [
+        ...source.Conclusions || [],
+        { Kind: 'ability', FactorCode: 'TOTAL', ScoreBasis: 'raw_score', Primary: true, Rules: [] }
+      ]
+    }
+
+    const form = projectBehaviorAbilityDefinition(cognitiveSource, 'spm')
+    expect(form.execution.SPM).toMatchObject({ TimeLimitSeconds: 1200, TotalFactorCode: 'TOTAL' })
+    expect(form.execution.Brief2).toBeUndefined()
+    expect(form.conclusions).toEqual([expect.objectContaining({ Kind: 'ability', FactorCode: 'TOTAL' })])
+    expect(form.reportMap).toEqual(cognitiveSource.ReportMap)
+
+    form.execution.SPM!.TimeLimitSeconds = 900
+    form.reportMap.Sections = [{ Code: 'scores', Kind: 'factor_scores', SourceRefs: ['TOTAL'] }]
+    const next = applyBehaviorAbilityDefinition(cognitiveSource, 'spm', form)
+
+    expect(next.Execution).toMatchObject({ FutureExecution: true, SPM: { TimeLimitSeconds: 900 } })
+    expect(next.Execution?.Brief2).toBeUndefined()
+    expect(next.Conclusions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ Kind: 'norm' }),
+      expect.objectContaining({ Kind: 'ability', FactorCode: 'TOTAL' })
+    ]))
+    expect(next.ReportMap?.Sections).toEqual([expect.objectContaining({ Code: 'scores', SourceRefs: ['TOTAL'] })])
+  })
 })

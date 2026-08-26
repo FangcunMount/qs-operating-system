@@ -84,11 +84,11 @@ const PersonalityPublish: React.FC = observer(() => {
 
   const handleIssueClick = (issue: AssessmentModelValidationIssue, targetTab?: DefinitionIssueTabKey) => {
     if (isQuestionnaireBindingIssue(issue)) {
-      history.push(`/personality/create/${personalityModelStore.modelCode || modelCode}/0`)
+      history.push(`/typology/create/${personalityModelStore.modelCode || modelCode}/0`)
       return
     }
     const query = targetTab ? `?tab=${targetTab}` : ''
-    history.push(`/personality/definition/${personalityModelStore.modelCode || modelCode}${query}`)
+    history.push(`/typology/definition/${personalityModelStore.modelCode || modelCode}${query}`)
   }
 
   const handlePreviewReport = async (answers: Parameters<typeof personalityEditorWorkflowStore.previewReport>[0]['answers']) => {
@@ -107,7 +107,7 @@ const PersonalityPublish: React.FC = observer(() => {
       }
       await personalityEditorWorkflowStore.publish()
       await personalityEditorWorkflowStore.loadQRCode()
-      message.success('人格测评发布成功')
+      message.success('类型学模型发布成功')
     } catch (error: any) {
       message.error(getApiErrorMessage(error, '发布失败'))
     } finally {
@@ -134,6 +134,7 @@ const PersonalityPublish: React.FC = observer(() => {
 
   return (
     <BaseLayout
+      listUrl={personalityEditorFlowConfig.listPath}
       footerButtons={['backToList', 'break']}
       steps={PERSONALITY_STEPS}
       currentStep={editorFlow.currentStepIndex}

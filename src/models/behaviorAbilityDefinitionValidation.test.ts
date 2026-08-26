@@ -14,7 +14,7 @@ describe('behavior ability DefinitionV2 local validation', () => {
       FactorCode: 'TOTAL',
       ScoreBasis: 't_score',
       Primary: true,
-      Rules: [{ MinScore: 40, MaxScore: 60, OutcomeCode: 'typical' }]
+      Rules: [{ MinScore: 40, MaxScore: 60, MaxInclusive: true, OutcomeCode: 'typical' }]
     }],
     Outcomes: [{ Code: 'typical', Title: '典型范围' }]
   }
@@ -66,6 +66,82 @@ describe('behavior ability DefinitionV2 local validation', () => {
 
     expect(validateBehaviorAbilityDefinition(withoutPrimary, 'spm_sensory', questions)).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: 'behavioral.norm.primary.required' })
+    ]))
+  })
+
+  it('checks score-range coverage endpoints before server validation', () => {
+    const invalidRanges: DefinitionV2 = {
+      ...completeDefinition,
+      Conclusions: [{
+        Kind: 'norm',
+        FactorCode: 'TOTAL',
+        ScoreBasis: 't_score',
+        Primary: true,
+        Rules: [
+          { MinScore: 0, MaxScore: 40, OutcomeCode: 'typical', MaxInclusive: true },
+          { MinScore: 45, MaxScore: 60, OutcomeCode: 'typical' }
+        ]
+      }]
+    }
+
+    expect(validateBehaviorAbilityDefinition(invalidRanges, 'brief2', questions)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'conclusion.range.endpoint.non_last' }),
+      expect.objectContaining({ code: 'conclusion.range.endpoint.required' }),
+      expect.objectContaining({ code: 'conclusion.range.gap' })
+    ]))
+  })
+
+  it('accepts a complete cognitive SPM definition', () => {
+    const cognitive: DefinitionV2 = {
+      Measure: {
+        Factors: [{ Code: 'TOTAL', Title: '总分', Role: 'total' }],
+        Scoring: [{ FactorCode: 'TOTAL', Sources: [{ Kind: 'question', Code: 'Q1' }], Strategy: 'sum' }]
+      },
+      Execution: {
+        SPM: {
+          TimeLimitSeconds: 900,
+          TotalFactorCode: 'TOTAL',
+          ItemSets: [{ Code: 'A', Items: [{ QuestionCode: 'Q1', CorrectOptionCode: 'A' }] }]
+        }
+      },
+      Conclusions: [{
+        Kind: 'ability',
+        FactorCode: 'TOTAL',
+        ScoreBasis: 'raw_score',
+        Primary: true,
+        Rules: [{ MinScore: 0, MaxScore: 10, MaxInclusive: true, OutcomeCode: 'average' }]
+      }],
+      Outcomes: [{ Code: 'average', Title: '一般水平' }],
+      ReportMap: { Sections: [{ Code: 'scores', Kind: 'factor_scores', SourceRefs: ['TOTAL'] }] }
+    }
+    const cognitiveQuestions = [{ code: 'Q1', options: [{ code: 'A' }, { code: 'B' }] }]
+
+    expect(validateBehaviorAbilityDefinition(cognitive, 'spm', cognitiveQuestions)).toEqual([])
+  })
+
+  it('reports invalid cognitive SPM question and option references', () => {
+    const invalid: DefinitionV2 = {
+      Measure: { Factors: [{ Code: 'TOTAL' }] },
+      Execution: {
+        SPM: {
+          TimeLimitSeconds: 0,
+          TotalFactorCode: 'MISSING',
+          ItemSets: [{ Code: 'A', Items: [
+            { QuestionCode: 'Q1', CorrectOptionCode: 'MISSING' },
+            { QuestionCode: 'Q1', CorrectOptionCode: 'A' }
+          ] }]
+        }
+      },
+      Conclusions: [{ Kind: 'ability', FactorCode: 'TOTAL', ScoreBasis: 'raw_score', Rules: [] }]
+    }
+    const cognitiveQuestions = [{ code: 'Q1', options: [{ code: 'A' }] }]
+
+    expect(validateBehaviorAbilityDefinition(invalid, 'spm', cognitiveQuestions)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'spm.time_limit.required' }),
+      expect.objectContaining({ code: 'spm.total_factor.not_found' }),
+      expect.objectContaining({ code: 'question.option.not_found' }),
+      expect.objectContaining({ code: 'spm.question.duplicate' }),
+      expect.objectContaining({ code: 'cognitive.ability.primary.required' })
     ]))
   })
 })

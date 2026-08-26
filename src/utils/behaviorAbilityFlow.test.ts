@@ -1,9 +1,22 @@
-import { behaviorAbilityEditorFlowConfig, getBehaviorAbilityBlockedReason, getBehaviorAbilityStepFromPath } from './behaviorAbilityFlow'
+import {
+  behaviorAbilityEditorFlowConfig,
+  cognitiveEditorFlowConfig,
+  getBehaviorAbilityBlockedReason,
+  getBehaviorAbilityStepFromPath
+} from './behaviorAbilityFlow'
 
 describe('behavior ability editor flow', () => {
-  it('uses stable behavior-ability routes', () => {
+  it('uses canonical behavior-rating routes and still recognizes legacy paths', () => {
     expect(getBehaviorAbilityStepFromPath('/behavior-ability/definition/m1')).toBe('edit-definition')
-    expect(behaviorAbilityEditorFlowConfig.getPathForStep('publish', 'm1')).toBe('/behavior-ability/publish/m1')
+    expect(getBehaviorAbilityStepFromPath('/behavioral-rating/definition/m1')).toBe('edit-definition')
+    expect(behaviorAbilityEditorFlowConfig.getPathForStep('publish', 'm1')).toBe('/behavioral-rating/publish/m1')
+    expect(behaviorAbilityEditorFlowConfig.listPath).toBe('/behavioral-rating')
+  })
+
+  it('provides an independent cognitive route family', () => {
+    expect(getBehaviorAbilityStepFromPath('/cognitive/routing/m1')).toBe('set-routing')
+    expect(cognitiveEditorFlowConfig.getPathForStep('publish', 'm1')).toBe('/cognitive/publish/m1')
+    expect(cognitiveEditorFlowConfig.listPath).toBe('/cognitive')
   })
 
   it('blocks unfinished models from later editing steps', () => {

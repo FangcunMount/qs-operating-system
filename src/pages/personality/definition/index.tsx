@@ -104,6 +104,7 @@ const PersonalityDefinition: React.FC = observer(() => {
 
   return (
     <BaseLayout
+      listUrl={personalityEditorFlowConfig.listPath}
       submitFn={handleSave}
       saveDraftFn={handleSaveDraft}
       afterSubmit={handleAfterSubmit}

@@ -19,7 +19,7 @@ const PersonalityQuestionRouting: React.FC = observer(() => {
 
   useEffect(() => {
     personalityEditorWorkflowStore.setCurrentStep('set-routing')
-    personalityEditorWorkflowStore.initEditor(modelCode).catch(() => message.error('加载人格测评路由失败'))
+    personalityEditorWorkflowStore.initEditor(modelCode).catch(() => message.error('加载类型学模型路由失败'))
   }, [modelCode])
 
   const handleSave = async () => {
@@ -38,6 +38,7 @@ const PersonalityQuestionRouting: React.FC = observer(() => {
 
   return (
     <BaseLayout
+      listUrl={personalityEditorFlowConfig.listPath}
       submitFn={handleSave}
       afterSubmit={handleAfterSubmit}
       footerButtons={personalityModelStore.canEdit ? ['backToList', 'break', 'saveToNext'] : ['backToList']}

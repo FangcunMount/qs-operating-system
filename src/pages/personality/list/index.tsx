@@ -85,7 +85,7 @@ const PersonalityList: React.FC = () => {
         total: res?.data?.total_count || 0
       })
     } catch (error) {
-      message.error(getApiErrorMessage(error, '获取人格测评列表失败'))
+      message.error(getApiErrorMessage(error, '获取类型学模型列表失败'))
     } finally {
       setLoading(false)
     }
@@ -158,6 +158,7 @@ const PersonalityList: React.FC = () => {
       const [defErr, defRes] = await assessmentModelApi.getAssessmentModelDefinition(row.code)
       if (defErr) throw defErr
       const [createErr, createRes] = await assessmentModelApi.createAssessmentModel({
+        code: `${row.code}_copy_${Date.now().toString(36)}`,
         title: `${row.title}（副本）`,
         description: row.description,
         kind: PERSONALITY_KIND,
@@ -173,7 +174,7 @@ const PersonalityList: React.FC = () => {
         await assessmentModelApi.saveAssessmentModelDefinition(newCode, defRes.data)
       }
       message.success('已创建副本')
-      if (newCode) history.push(`/personality/info/${newCode}`)
+      if (newCode) history.push(`/typology/info/${newCode}`)
       else loadList()
     } catch (error) {
       message.error(getApiErrorMessage(error, '复制失败'))
@@ -189,12 +190,12 @@ const PersonalityList: React.FC = () => {
     if (readonly) {
       return (
         <Space>
-          <Link to={`/personality/info/${row.code}`}>
+          <Link to={`/typology/info/${row.code}`}>
             <Button size="small" icon={<EyeOutlined />}>
               查看
             </Button>
           </Link>
-          <Link to={`/personality/publish/${row.code}`}>
+          <Link to={`/typology/publish/${row.code}`}>
             <Button size="small">发布信息</Button>
           </Link>
           <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(row)}>
@@ -207,12 +208,12 @@ const PersonalityList: React.FC = () => {
     if (row.status === 'published') {
       return (
         <Space wrap>
-          <Link to={`/personality/info/${row.code}`}>
+          <Link to={`/typology/info/${row.code}`}>
             <Button size="small" icon={<EyeOutlined />}>
               查看
             </Button>
           </Link>
-          <Link to={`/personality/create/${row.code}/0`}>
+          <Link to={`/typology/create/${row.code}/0`}>
             <Button size="small" icon={<EditOutlined />}>
               编辑
             </Button>
@@ -221,13 +222,13 @@ const PersonalityList: React.FC = () => {
             副本
           </Button>
           {canPublish ? (
-            <Link to={`/personality/publish/${row.code}`}>
+            <Link to={`/typology/publish/${row.code}`}>
               <Button size="small" type="primary">
                 重新发布
               </Button>
             </Link>
           ) : null}
-          <Link to={`/personality/publish/${row.code}`}>
+          <Link to={`/typology/publish/${row.code}`}>
             <Button size="small" icon={<QrcodeOutlined />}>
               二维码
             </Button>
@@ -249,16 +250,16 @@ const PersonalityList: React.FC = () => {
       <Space wrap>
         {canEdit ? (
           <>
-            <Link to={`/personality/info/${row.code}`}>
+            <Link to={`/typology/info/${row.code}`}>
               <Button size="small" icon={<EditOutlined />}>
                 编辑
               </Button>
             </Link>
-            <Link to={`/personality/definition/${row.code}`}>
+            <Link to={`/typology/definition/${row.code}`}>
               <Button size="small">定义</Button>
             </Link>
             {canPublish ? (
-              <Link to={`/personality/publish/${row.code}`}>
+              <Link to={`/typology/publish/${row.code}`}>
                 <Button size="small" type="primary">
                   发布
                 </Button>
@@ -288,10 +289,10 @@ const PersonalityList: React.FC = () => {
       title={
         <>
           <ProfileOutlined style={{ marginRight: 8 }} />
-          人格测评管理
+          类型学模型管理
         </>
       }
-      description="编辑人格测评内容、模型定义与发布状态"
+      description="管理类型学模型的基本信息、题目、路由、模型定义和发布状态"
       toolbar={
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
           <Space wrap>
@@ -345,9 +346,9 @@ const PersonalityList: React.FC = () => {
             />
           </Space>
           <Space wrap>
-            <Link to="/personality/info/new">
+            <Link to="/typology/info/new">
               <Button type="primary" size="large" icon={<PlusOutlined />}>
-                新建人格测评
+                新建类型学模型
               </Button>
             </Link>
           </Space>
@@ -383,7 +384,7 @@ const PersonalityList: React.FC = () => {
           width={260}
           render={(title, row: AssessmentModelSummary) => (
             <div>
-              <Link to={`/personality/info/${row.code}`} style={{ fontWeight: 500 }}>
+              <Link to={`/typology/info/${row.code}`} style={{ fontWeight: 500 }}>
                 {title}
               </Link>
               {row.description ? <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 4 }}>{row.description}</div> : null}

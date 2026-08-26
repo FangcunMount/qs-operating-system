@@ -46,11 +46,11 @@ export const PERSONALITY_STEPS: EditorStep[] = [
 export const getPersonalityStepIndex = (stepKey: string): number => PERSONALITY_STEPS.findIndex((step) => step.key === stepKey)
 
 export const getPersonalityStepFromPath = (pathname: string): string | undefined => {
-  if (pathname.includes('/personality/info/')) return 'create'
-  if (pathname.includes('/personality/create/')) return 'edit-questions'
-  if (pathname.includes('/personality/routing/')) return 'set-routing'
-  if (pathname.includes('/personality/definition/')) return 'edit-definition'
-  if (pathname.includes('/personality/publish/')) return 'publish'
+  if (pathname.includes('/typology/info/') || pathname.includes('/personality/info/')) return 'create'
+  if (pathname.includes('/typology/create/') || pathname.includes('/personality/create/')) return 'edit-questions'
+  if (pathname.includes('/typology/routing/') || pathname.includes('/personality/routing/')) return 'set-routing'
+  if (pathname.includes('/typology/definition/') || pathname.includes('/personality/definition/')) return 'edit-definition'
+  if (pathname.includes('/typology/publish/') || pathname.includes('/personality/publish/')) return 'publish'
   return undefined
 }
 
@@ -82,23 +82,23 @@ export const getBlockedReasonForStep = (stepKey: string, ctx: EditorFlowContext)
 }
 
 export const personalityEditorFlowConfig: EditorFlowConfig = {
-  listPath: '/personality/list',
+  listPath: '/typology',
   themeClass: 'personality-page-theme',
   steps: PERSONALITY_STEPS,
   getPathForStep: (stepKey: string, modelCode: string) => {
     switch (stepKey) {
     case 'create':
-      return `/personality/info/${modelCode}`
+      return `/typology/info/${modelCode}`
     case 'edit-questions':
-      return `/personality/create/${modelCode}/0`
+      return `/typology/create/${modelCode}/0`
     case 'set-routing':
-      return `/personality/routing/${modelCode}`
+      return `/typology/routing/${modelCode}`
     case 'edit-definition':
-      return `/personality/definition/${modelCode}`
+      return `/typology/definition/${modelCode}`
     case 'publish':
-      return `/personality/publish/${modelCode}`
+      return `/typology/publish/${modelCode}`
     default:
-      return '/personality/list'
+      return '/typology'
     }
   },
   getStepFromPath: getPersonalityStepFromPath,

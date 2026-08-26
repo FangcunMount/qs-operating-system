@@ -31,7 +31,19 @@ const ScaleFactor = lazy(() => import('../pages/scale/Factor/Factor'))
 const ScaleDefinition = lazy(() => import('../pages/scale/definition/index'))
 const ScaleAnalysis = lazy(() => import('../pages/scale/Analysis/Analysis'))
 const ScalePublish = lazy(() => import('../pages/scale/publish/index'))
-const ModelCatalogPage = lazy(() => import('../features/modelCatalog/ModelCatalogPage'))
+const PersonalityList = lazy(() => import('../pages/personality/list/index'))
+const PersonalityBasicInfo = lazy(() => import('../pages/personality/basic-info/index'))
+const PersonalityQuestionEdit = lazy(() => import('../pages/personality/question-edit/index'))
+const PersonalityQuestionRouting = lazy(() => import('../pages/personality/question-routing/index'))
+const PersonalityDefinition = lazy(() => import('../pages/personality/definition/index'))
+const PersonalityPublish = lazy(() => import('../pages/personality/publish/index'))
+const BehaviorAbilityList = lazy(() => import('../pages/behavior-ability/list/index'))
+const BehaviorAbilityBasicInfo = lazy(() => import('../pages/behavior-ability/basic-info/index'))
+const BehaviorAbilityQuestionEdit = lazy(() => import('../pages/behavior-ability/question-edit/index'))
+const BehaviorAbilityQuestionRouting = lazy(() => import('../pages/behavior-ability/question-routing/index'))
+const BehaviorAbilityDefinition = lazy(() => import('../pages/behavior-ability/definition/index'))
+const BehaviorAbilityPublish = lazy(() => import('../pages/behavior-ability/publish/index'))
+const BehaviorAbilityNormTables = lazy(() => import('../pages/behavior-ability/norm-tables/index'))
 const LegacyModelPathRedirect = lazy(() =>
   import('../features/modelCatalog/LegacyModelPathRedirect').then((module) => ({
     default: module.LegacyModelPathRedirect
@@ -243,7 +255,8 @@ export const routes: Array<IRoute> = [
         title: '类型学模型',
         name: 'typology-list',
         path: '/typology',
-        component: ModelCatalogPage,
+        exact: true,
+        component: PersonalityList,
         menuScope: 'org_admin',
         requiredCapabilities: ['manage_content']
       },
@@ -251,7 +264,8 @@ export const routes: Array<IRoute> = [
         title: '行为评分模型',
         name: 'behavioral-rating-list',
         path: '/behavioral-rating',
-        component: ModelCatalogPage,
+        exact: true,
+        component: BehaviorAbilityList,
         menuScope: 'org_admin',
         requiredCapabilities: ['manage_content']
       },
@@ -259,7 +273,8 @@ export const routes: Array<IRoute> = [
         title: '认知测评模型',
         name: 'cognitive-list',
         path: '/cognitive',
-        component: ModelCatalogPage,
+        exact: true,
+        component: BehaviorAbilityList,
         menuScope: 'org_admin',
         requiredCapabilities: ['manage_content']
       },
@@ -282,13 +297,23 @@ export const routes: Array<IRoute> = [
         requiredCapabilities: ['manage_content']
       },
       {
-        title: '行为能力常模表',
+        title: '能力测评常模表',
         name: 'behavior-ability-norm-tables',
-        path: '/behavior-ability/norm-tables',
-        component: LegacyModelPathRedirect,
+        path: '/behavioral-rating/norm-tables',
+        component: BehaviorAbilityNormTables,
         hideInMenu: !isBehaviorAbilityPublishingEnabled(),
         menuScope: 'org_admin',
         requiredCapabilities: ['manage_norm_tables']
+      },
+      {
+        title: '旧行为能力常模表入口',
+        name: 'legacy-behavior-ability-norm-tables',
+        path: '/behavior-ability/norm-tables',
+        component: LegacyModelPathRedirect,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_norm_tables'],
+        activeMenuName: 'behavior-ability-norm-tables'
       },
       {
         title: '问卷基本信息',
@@ -421,6 +446,156 @@ export const routes: Array<IRoute> = [
         activeMenuName: 'scale-list'
       },
       {
+        title: '类型学模型基本信息',
+        name: 'typology-info',
+        path: '/typology/info/:modelCode',
+        component: PersonalityBasicInfo,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'typology-list'
+      },
+      {
+        title: '类型学模型题目',
+        name: 'typology-create',
+        path: '/typology/create/:modelCode/:answercnt',
+        component: PersonalityQuestionEdit,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'typology-list'
+      },
+      {
+        title: '类型学模型路由',
+        name: 'typology-routing',
+        path: '/typology/routing/:modelCode',
+        component: PersonalityQuestionRouting,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'typology-list'
+      },
+      {
+        title: '类型学模型定义',
+        name: 'typology-definition',
+        path: '/typology/definition/:modelCode',
+        component: PersonalityDefinition,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'typology-list'
+      },
+      {
+        title: '发布类型学模型',
+        name: 'typology-publish',
+        path: '/typology/publish/:modelCode',
+        component: PersonalityPublish,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'typology-list'
+      },
+      {
+        title: '行为评分模型基本信息',
+        name: 'behavioral-rating-info',
+        path: '/behavioral-rating/info/:modelCode',
+        component: BehaviorAbilityBasicInfo,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'behavioral-rating-list'
+      },
+      {
+        title: '行为评分模型题目',
+        name: 'behavioral-rating-create',
+        path: '/behavioral-rating/create/:modelCode/:answercnt',
+        component: BehaviorAbilityQuestionEdit,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'behavioral-rating-list'
+      },
+      {
+        title: '行为评分模型路由',
+        name: 'behavioral-rating-routing',
+        path: '/behavioral-rating/routing/:modelCode',
+        component: BehaviorAbilityQuestionRouting,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'behavioral-rating-list'
+      },
+      {
+        title: '行为评分模型定义',
+        name: 'behavioral-rating-definition',
+        path: '/behavioral-rating/definition/:modelCode',
+        component: BehaviorAbilityDefinition,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'behavioral-rating-list'
+      },
+      {
+        title: '发布行为评分模型',
+        name: 'behavioral-rating-publish',
+        path: '/behavioral-rating/publish/:modelCode',
+        component: BehaviorAbilityPublish,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'behavioral-rating-list'
+      },
+      {
+        title: '认知测评模型基本信息',
+        name: 'cognitive-info',
+        path: '/cognitive/info/:modelCode',
+        component: BehaviorAbilityBasicInfo,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'cognitive-list'
+      },
+      {
+        title: '认知测评模型题目',
+        name: 'cognitive-create',
+        path: '/cognitive/create/:modelCode/:answercnt',
+        component: BehaviorAbilityQuestionEdit,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'cognitive-list'
+      },
+      {
+        title: '认知测评模型路由',
+        name: 'cognitive-routing',
+        path: '/cognitive/routing/:modelCode',
+        component: BehaviorAbilityQuestionRouting,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'cognitive-list'
+      },
+      {
+        title: '认知测评模型定义',
+        name: 'cognitive-definition',
+        path: '/cognitive/definition/:modelCode',
+        component: BehaviorAbilityDefinition,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'cognitive-list'
+      },
+      {
+        title: '发布认知测评模型',
+        name: 'cognitive-publish',
+        path: '/cognitive/publish/:modelCode',
+        component: BehaviorAbilityPublish,
+        hideInMenu: true,
+        menuScope: 'hidden',
+        requiredCapabilities: ['manage_content'],
+        activeMenuName: 'cognitive-list'
+      },
+      {
         title: '人格测评基本信息',
         name: 'personality-info',
         path: '/personality/info/:modelCode',
@@ -428,7 +603,7 @@ export const routes: Array<IRoute> = [
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
-        activeMenuName: 'personality-list'
+        activeMenuName: 'typology-list'
       },
       {
         title: '人格测评题目',
@@ -438,7 +613,7 @@ export const routes: Array<IRoute> = [
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
-        activeMenuName: 'personality-list'
+        activeMenuName: 'typology-list'
       },
       {
         title: '人格测评路由',
@@ -448,7 +623,7 @@ export const routes: Array<IRoute> = [
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
-        activeMenuName: 'personality-list'
+        activeMenuName: 'typology-list'
       },
       {
         title: '人格测评定义',
@@ -458,7 +633,7 @@ export const routes: Array<IRoute> = [
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
-        activeMenuName: 'personality-list'
+        activeMenuName: 'typology-list'
       },
       {
         title: '发布人格测评',
@@ -468,7 +643,7 @@ export const routes: Array<IRoute> = [
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
-        activeMenuName: 'personality-list'
+        activeMenuName: 'typology-list'
       },
       {
         title: '行为能力测评基本信息',
@@ -478,7 +653,7 @@ export const routes: Array<IRoute> = [
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
-        activeMenuName: 'behavior-ability-list'
+        activeMenuName: 'behavioral-rating-list'
       },
       {
         title: '行为能力测评题目',
@@ -488,7 +663,7 @@ export const routes: Array<IRoute> = [
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
-        activeMenuName: 'behavior-ability-list'
+        activeMenuName: 'behavioral-rating-list'
       },
       {
         title: '行为能力测评路由',
@@ -498,7 +673,7 @@ export const routes: Array<IRoute> = [
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
-        activeMenuName: 'behavior-ability-list'
+        activeMenuName: 'behavioral-rating-list'
       },
       {
         title: '行为能力测评定义',
@@ -508,7 +683,7 @@ export const routes: Array<IRoute> = [
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
-        activeMenuName: 'behavior-ability-list'
+        activeMenuName: 'behavioral-rating-list'
       },
       {
         title: '发布行为能力测评',
@@ -518,7 +693,7 @@ export const routes: Array<IRoute> = [
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['manage_content'],
-        activeMenuName: 'behavior-ability-list'
+        activeMenuName: 'behavioral-rating-list'
       }
     ]
   },

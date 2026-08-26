@@ -7,26 +7,27 @@ import { ValidationIssuesPanel } from '@/features/assessment-editor'
 import BehaviorAbilityDefinitionEditor from '@/components/behaviorAbility/BehaviorAbilityDefinitionEditor'
 import type { BehaviorAbilityDefinitionTabKey } from '@/components/behaviorAbility/BehaviorAbilityDefinitionEditor'
 import { normalizeBehaviorAbilityDefinitionTab } from '@/components/behaviorAbility/BehaviorAbilityDefinitionEditor'
-import { behaviorAbilityStore } from '@/store/behaviorAbility'
-import { behaviorAbilityEditorFlowConfig, buildBehaviorAbilityFlowContext } from '@/utils/behaviorAbilityFlow'
+import { buildBehaviorAbilityFlowContext } from '@/utils/behaviorAbilityFlow'
 import { useEditorFlow } from '@/utils/editorFlow'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { resolveBehaviorAbilityIssueTab } from '@/utils/behaviorAbilityIssueRouter'
+import { getAbilityEditorProduct } from '../product'
 
 const BehaviorAbilityDefinition: React.FC = observer(() => {
   const { modelCode } = useParams<{ modelCode: string }>()
   const location = useLocation()
+  const { store, flow, title } = getAbilityEditorProduct(location.pathname)
   const [activeTab, setActiveTab] = useState<BehaviorAbilityDefinitionTabKey | undefined>()
   const editorFlow = useEditorFlow(
-    behaviorAbilityEditorFlowConfig,
-    behaviorAbilityStore.modelCode || modelCode,
-    buildBehaviorAbilityFlowContext(behaviorAbilityStore)
+    flow,
+    store.modelCode || modelCode,
+    buildBehaviorAbilityFlowContext(store)
   )
 
   useEffect(() => {
-    behaviorAbilityStore.setCurrentStep('edit-definition')
-    behaviorAbilityStore.init(modelCode).catch((error) => message.error(getApiErrorMessage(error, '加载模型定义失败')))
-  }, [modelCode])
+    store.setCurrentStep('edit-definition')
+    store.init(modelCode).catch((error) => message.error(getApiErrorMessage(error, `加载${title}定义失败`)))
+  }, [modelCode, store, title])
 
   useEffect(() => {
     const tab = new URLSearchParams(location.search).get('tab')
@@ -35,25 +36,26 @@ const BehaviorAbilityDefinition: React.FC = observer(() => {
 
   return (
     <BaseLayout
-      submitFn={() => behaviorAbilityStore.saveDefinition()}
+      listUrl={flow.listPath}
+      submitFn={() => store.saveDefinition()}
       afterSubmit={(status, error) => {
         if (status === 'success') {
           message.success('模型定义已保存')
           editorFlow.goStep('publish')
         } else message.error(getApiErrorMessage(error, '保存失败'))
       }}
-      footerButtons={behaviorAbilityStore.canEdit ? ['backToList', 'break', 'saveToNext'] : ['backToList']}
-      steps={behaviorAbilityEditorFlowConfig.steps}
+      footerButtons={store.canEdit ? ['backToList', 'break', 'saveToNext'] : ['backToList']}
+      steps={flow.steps}
       currentStep={editorFlow.currentStepIndex}
       onStepChange={editorFlow.handleStepChange}
       themeClass="behavior-ability-page-theme"
     >
       <div style={{ maxWidth: 1120, margin: '0 auto', padding: 16 }}>
         <Space style={{ marginBottom: 12 }}>
-          {behaviorAbilityStore.canEdit ? (
+          {store.canEdit ? (
             <Button
               onClick={() => {
-                const issues = behaviorAbilityStore.validateDefinition()
+                const issues = store.validateDefinition()
                 if (issues.length) message.warning(`本地校验发现 ${issues.length} 项问题`)
                 else message.success('本地校验通过')
               }}
@@ -62,7 +64,7 @@ const BehaviorAbilityDefinition: React.FC = observer(() => {
             </Button>
           ) : null}
         </Space>
-        {behaviorAbilityStore.validationIssues.length ? (
+        {store.validationIssues.length ? (
           <Alert
             type="error"
             showIcon
@@ -70,17 +72,17 @@ const BehaviorAbilityDefinition: React.FC = observer(() => {
             message="定义校验未通过"
             description={
               <ValidationIssuesPanel
-                issues={behaviorAbilityStore.validationIssues}
+                issues={store.validationIssues}
                 onIssueClick={(issue) => setActiveTab(resolveBehaviorAbilityIssueTab(issue))}
               />
             }
           />
         ) : null}
         <BehaviorAbilityDefinitionEditor
-          definition={behaviorAbilityStore.definition}
-          algorithm={behaviorAbilityStore.algorithm}
-          questions={behaviorAbilityStore.questions}
-          onChange={(definition) => behaviorAbilityStore.setDefinition(definition)}
+          definition={store.definition}
+          algorithm={store.algorithm}
+          questions={store.questions}
+          onChange={(definition) => store.setDefinition(definition)}
           activeTab={activeTab}
           onTabChange={setActiveTab}
         />

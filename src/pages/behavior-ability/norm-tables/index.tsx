@@ -59,7 +59,7 @@ const BehaviorAbilityNormTables: React.FC = observer(() => {
 
   return (
     <div style={{ padding: 24 }}>
-      <h2>行为能力常模表</h2>
+      <h2>能力测评常模表</h2>
       <Card style={{ marginBottom: 16 }} title="导入版本化 JSON">
         <Input.TextArea rows={8} value={source} onChange={(event) => setSource(event.target.value)} placeholder="粘贴服务端约定的版本化常模 JSON" />
         <Button style={{ marginTop: 8 }} type="primary" onClick={importTable}>
@@ -74,7 +74,8 @@ const BehaviorAbilityNormTables: React.FC = observer(() => {
             style={{ width: 150 }}
             value={kind}
             options={[
-              { value: 'behavioral_rating', label: '行为评分' }
+              { value: 'behavioral_rating', label: '行为评分' },
+              { value: 'cognitive', label: '认知测评' }
             ]}
             onChange={setKind}
           />
@@ -85,7 +86,8 @@ const BehaviorAbilityNormTables: React.FC = observer(() => {
             value={algorithm}
             options={[
               { value: 'brief2', label: 'BRIEF-2' },
-              { value: 'spm_sensory', label: '感觉统合 SPM' }
+              { value: 'spm_sensory', label: '感觉统合 SPM' },
+              { value: 'spm', label: 'SPM 认知推理' }
             ]}
             onChange={setAlgorithm}
           />

@@ -23,7 +23,8 @@ const BaseLayout: React.FC<BaseLayoutProps> = ({
   steps,
   currentStep,
   onStepChange,
-  themeClass
+  themeClass,
+  listUrl
 }) => {
   const history = useHistory()
 
@@ -83,14 +84,14 @@ const BaseLayout: React.FC<BaseLayoutProps> = ({
               {footerButtons?.includes('backToList') ? (
                 <Button onClick={() => {
                   // 根据主题判断跳转到哪个列表页面
-                  const listUrl = themeClass === 'survey-page-theme'
+                  const targetListUrl = listUrl || (themeClass === 'survey-page-theme'
                     ? '/survey/list'
                     : themeClass === 'personality-page-theme'
-                      ? '/personality/list'
+                      ? '/typology'
                       : themeClass === 'behavior-ability-page-theme'
-                        ? '/behavior-ability/list'
-                        : '/scale/list'
-                  history.push(listUrl)
+                        ? '/behavioral-rating'
+                        : '/scale/list')
+                  history.push(targetListUrl)
                 }}>
                   <UnorderedListOutlined />
                   返回列表
@@ -173,6 +174,8 @@ interface BaseLayoutProps {
   onStepChange?: (stepIndex: number) => void
   // 主题相关
   themeClass?: string
+  /** Canonical list route for product-specific editors sharing the same theme. */
+  listUrl?: string
 }
 
 BaseLayout.propTypes = {
@@ -189,7 +192,8 @@ BaseLayout.propTypes = {
   steps: PropType.any,
   currentStep: PropType.any,
   onStepChange: PropType.any,
-  themeClass: PropType.any
+  themeClass: PropType.any,
+  listUrl: PropType.any
 }
 
 export default BaseLayout

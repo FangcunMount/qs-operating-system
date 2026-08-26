@@ -3,7 +3,7 @@ import { api } from '@/api'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
 import { surveyApi } from '@/api/path/survey'
 import { QuestionnaireType } from '@/constants/questionnaireType'
-import { getBehaviorAbilityProfile, isBehaviorAbilityModel } from '@/constants/behaviorAbility'
+import { BEHAVIOR_ABILITY_MODEL_PROFILES, COGNITIVE_MODEL_PROFILES } from '@/constants/behaviorAbility'
 import type { BehaviorAbilityAlgorithm, BehaviorAbilityModelProfile } from '@/constants/behaviorAbility'
 import { isBehaviorAbilityPublishingEnabled } from '@/constants/behaviorAbilityFeature'
 import type {
@@ -32,7 +32,7 @@ export type BehaviorAbilityStep = 'create' | 'edit-questions' | 'set-routing' | 
 export type QuestionnaireStrategy = 'create' | 'bind'
 
 const requireModelCode = (code: string): string => {
-  if (!code) throw new Error('行为能力测评编码不能为空')
+  if (!code) throw new Error('测评模型编码不能为空')
   return code
 }
 
@@ -41,6 +41,8 @@ const isPublishedQuestionnaire = (status?: string): boolean => status === 'publi
 /** Owns a behavior-ability editing session. It deliberately uses its own
  * questionnaire and publication instances rather than personality singletons. */
 export class BehaviorAbilityStore {
+  readonly profiles: BehaviorAbilityModelProfile[]
+  readonly productLabel: string
   modelCode = ''
   title = ''
   description = ''
@@ -60,7 +62,13 @@ export class BehaviorAbilityStore {
   readonly questionnaire = new ModelQuestionnaireStore()
   readonly publishState = new ModelCatalogPublishStore()
 
-  constructor() {
+  constructor(
+    profiles: BehaviorAbilityModelProfile[] = BEHAVIOR_ABILITY_MODEL_PROFILES,
+    productLabel = '行为评分测评'
+  ) {
+    this.profiles = profiles
+    this.productLabel = productLabel
+    this.definitionForm = projectBehaviorAbilityDefinition(this.definition, this.algorithm)
     makeObservable(this, {
       modelCode: observable,
       title: observable,
@@ -100,10 +108,10 @@ export class BehaviorAbilityStore {
   }
 
   get algorithm(): BehaviorAbilityAlgorithm {
-    return this.profile?.algorithm || 'brief2'
+    return this.profile?.algorithm || this.profiles[0]?.algorithm || 'brief2'
   }
   get kind(): string {
-    return this.profile?.kind || 'behavioral_rating'
+    return this.profile?.kind || this.profiles[0]?.kind || 'behavioral_rating'
   }
   get isArchived(): boolean {
     return this.status === 'archived'
@@ -156,8 +164,8 @@ export class BehaviorAbilityStore {
   }
 
   setProfile(algorithm: BehaviorAbilityAlgorithm): void {
-    const profile = getBehaviorAbilityProfile(algorithm)
-    if (!profile) throw new Error(`不支持的行为能力算法：${algorithm}`)
+    const profile = this.profiles.find((item) => item.algorithm === algorithm)
+    if (!profile) throw new Error(`不支持的${this.productLabel}算法：${algorithm}`)
     if (this.modelCode && this.profile && this.profile.algorithm !== profile.algorithm) {
       throw new Error('已创建模型不可切换算法')
     }
@@ -166,9 +174,9 @@ export class BehaviorAbilityStore {
   }
 
   applyModel(model: AssessmentModelDetail): void {
-    const profile = getBehaviorAbilityProfile(model.algorithm)
-    if (!profile || !isBehaviorAbilityModel(model)) {
-      throw new Error('该模型不属于行为能力模型')
+    const profile = this.profiles.find((item) => item.kind === model.kind && item.algorithm === model.algorithm)
+    if (!profile) {
+      throw new Error(`该模型不属于${this.productLabel}`)
     }
     this.modelCode = model.code
     this.title = model.title
@@ -201,7 +209,7 @@ export class BehaviorAbilityStore {
       return
     }
     const [err, res] = await assessmentModelApi.getAssessmentModel(modelCode)
-    if (err || !res?.data) throw err || new Error('行为能力测评不存在')
+    if (err || !res?.data) throw err || new Error(`${this.productLabel}不存在`)
     runInAction(() => this.applyModel(res.data))
     if (this.questionnaireCode) await this.questionnaire.loadFromApi(this.questionnaireCode)
     await this.loadDefinition()
@@ -235,12 +243,13 @@ export class BehaviorAbilityStore {
   }
 
   async saveBasicInfo(): Promise<string> {
-    if (!this.profile) throw new Error('请选择 BRIEF-2 或 SPM')
+    if (!this.profile) throw new Error(`请选择${this.productLabel}类型`)
+    if (!this.modelCode && !this.customModelCode.trim()) throw new Error('请输入模型编码')
     const previousQuestionnaireCode = this.questionnaireCode
     const binding = await this.resolveQuestionnaire()
     if (!this.modelCode) {
       const [err, res] = await assessmentModelApi.createAssessmentModel({
-        code: this.customModelCode || undefined,
+        code: this.customModelCode.trim(),
         title: this.title,
         description: this.description,
         kind: this.profile.kind,
@@ -251,7 +260,7 @@ export class BehaviorAbilityStore {
         tags: this.tags
       })
       const createdModel = res?.data
-      if (err || !createdModel?.code) throw err || new Error('创建行为能力测评失败')
+      if (err || !createdModel?.code) throw err || new Error(`创建${this.productLabel}失败`)
       runInAction(() => {
         this.modelCode = createdModel.code
         this.status = createdModel.status
@@ -298,7 +307,7 @@ export class BehaviorAbilityStore {
 
   validateDefinition(): AssessmentModelValidationIssue[] {
     const issues = validateBehaviorAbilityDefinition(this.definition, this.algorithm, this.questions)
-    if (isBehaviorAbilityPublishingEnabled() && isNormReferenceMissing(this.definitionForm)) {
+    if (this.kind === 'behavioral_rating' && isBehaviorAbilityPublishingEnabled() && isNormReferenceMissing(this.definitionForm)) {
       issues.push({ field: 'Calibration.NormRefs', code: 'norm_ref.required', message: '正式发布前必须选择常模表' })
     }
     this.validationIssues = issues
@@ -343,7 +352,7 @@ export class BehaviorAbilityStore {
 
   async publish(): Promise<void> {
     if (!isBehaviorAbilityPublishingEnabled()) {
-      throw new Error('常模表服务尚未部署，行为能力测评暂不可正式发布')
+      throw new Error(`常模表服务尚未部署，${this.productLabel}暂不可正式发布`)
     }
     const code = requireModelCode(this.modelCode)
     await this.questionnaire.saveQuestions(this.questionnaireCode, true)
@@ -388,3 +397,4 @@ export class BehaviorAbilityStore {
 }
 
 export const behaviorAbilityStore = new BehaviorAbilityStore()
+export const cognitiveAbilityStore = new BehaviorAbilityStore(COGNITIVE_MODEL_PROFILES, '认知测评')

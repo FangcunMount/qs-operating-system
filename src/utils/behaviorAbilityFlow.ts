@@ -10,33 +10,36 @@ export const BEHAVIOR_ABILITY_STEPS: EditorStep[] = [
   { title: '发布测评', key: 'publish' }
 ]
 
-export const behaviorAbilityPathForStep = (step: BehaviorAbilityStep, modelCode: string): string => {
+const abilityPathForStep = (basePath: string, step: BehaviorAbilityStep, modelCode: string): string => {
   switch (step) {
   case 'create':
-    return `/behavior-ability/info/${modelCode}`
+    return `${basePath}/info/${modelCode}`
   case 'edit-questions':
-    return `/behavior-ability/create/${modelCode}/0`
+    return `${basePath}/create/${modelCode}/0`
   case 'set-routing':
-    return `/behavior-ability/routing/${modelCode}`
+    return `${basePath}/routing/${modelCode}`
   case 'edit-definition':
-    return `/behavior-ability/definition/${modelCode}`
+    return `${basePath}/definition/${modelCode}`
   case 'publish':
-    return `/behavior-ability/publish/${modelCode}`
+    return `${basePath}/publish/${modelCode}`
   default:
-    return '/behavior-ability/list'
+    return basePath
   }
 }
+
+export const behaviorAbilityPathForStep = (step: BehaviorAbilityStep, modelCode: string): string =>
+  abilityPathForStep('/behavioral-rating', step, modelCode)
 
 export const behaviorAbilityStepIndex = (step: BehaviorAbilityStep): number => BEHAVIOR_ABILITY_STEPS.findIndex((item) => item.key === step)
 
 const getBehaviorAbilityPathForFlow = (step: string, modelCode: string): string => behaviorAbilityPathForStep(step as BehaviorAbilityStep, modelCode)
 
 export const getBehaviorAbilityStepFromPath = (pathname: string): BehaviorAbilityStep | undefined => {
-  if (pathname.includes('/behavior-ability/info/')) return 'create'
-  if (pathname.includes('/behavior-ability/create/')) return 'edit-questions'
-  if (pathname.includes('/behavior-ability/routing/')) return 'set-routing'
-  if (pathname.includes('/behavior-ability/definition/')) return 'edit-definition'
-  if (pathname.includes('/behavior-ability/publish/')) return 'publish'
+  if (/\/(?:behavior-ability|behavioral-rating|cognitive)\/info\//.test(pathname)) return 'create'
+  if (/\/(?:behavior-ability|behavioral-rating|cognitive)\/create\//.test(pathname)) return 'edit-questions'
+  if (/\/(?:behavior-ability|behavioral-rating|cognitive)\/routing\//.test(pathname)) return 'set-routing'
+  if (/\/(?:behavior-ability|behavioral-rating|cognitive)\/definition\//.test(pathname)) return 'edit-definition'
+  if (/\/(?:behavior-ability|behavioral-rating|cognitive)\/publish\//.test(pathname)) return 'publish'
   return undefined
 }
 
@@ -56,10 +59,19 @@ export const getBehaviorAbilityBlockedReason = (step: string, context: EditorFlo
 }
 
 export const behaviorAbilityEditorFlowConfig: EditorFlowConfig = {
-  listPath: '/behavior-ability/list',
+  listPath: '/behavioral-rating',
   themeClass: 'behavior-ability-page-theme',
   steps: BEHAVIOR_ABILITY_STEPS,
   getPathForStep: getBehaviorAbilityPathForFlow,
+  getStepFromPath: getBehaviorAbilityStepFromPath,
+  getBlockedReason: getBehaviorAbilityBlockedReason
+}
+
+export const cognitiveEditorFlowConfig: EditorFlowConfig = {
+  listPath: '/cognitive',
+  themeClass: 'behavior-ability-page-theme',
+  steps: BEHAVIOR_ABILITY_STEPS,
+  getPathForStep: (step, modelCode) => abilityPathForStep('/cognitive', step as BehaviorAbilityStep, modelCode),
   getStepFromPath: getBehaviorAbilityStepFromPath,
   getBlockedReason: getBehaviorAbilityBlockedReason
 }

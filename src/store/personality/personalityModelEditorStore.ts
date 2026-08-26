@@ -152,7 +152,7 @@ export class PersonalityModelEditorStore {
     const [modelErr, modelRes] = await assessmentModelApi.getAssessmentModel(modelCode)
     if (modelErr) throw modelErr
     const model = modelRes?.data
-    if (!model) throw new Error('人格测评不存在')
+    if (!model) throw new Error('类型学模型不存在')
     assertPersonalityTypologyScopeModel(model)
     runInAction(() => this.applyModel(model))
   }
@@ -209,12 +209,13 @@ export class PersonalityModelEditorStore {
   }
 
   async saveBasicInfo(): Promise<string> {
+    if (!this.modelCode && !this.customModelCode.trim()) throw new Error('请输入模型编码')
     const previousQuestionnaireCode = this.questionnaireCode
     const { code: questionnaireCode, version: questionnaireVersion } = await this.resolveQuestionnaireCode()
 
     if (!this.modelCode) {
       const [modelErr, modelRes] = await assessmentModelApi.createAssessmentModel({
-        code: this.customModelCode || undefined,
+        code: this.customModelCode.trim(),
         title: this.title,
         description: this.desc,
         kind: PERSONALITY_KIND,
@@ -225,7 +226,7 @@ export class PersonalityModelEditorStore {
         tags: this.tags
       })
       if (modelErr) throw modelErr
-      if (!modelRes?.data?.code) throw new Error('创建人格测评失败')
+      if (!modelRes?.data?.code) throw new Error('创建类型学模型失败')
       runInAction(() => {
         this.modelCode = modelRes.data.code
         this.status = modelRes.data.status

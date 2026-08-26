@@ -1,98 +1,106 @@
 import React, { useEffect, useState } from 'react'
 import { Alert, Button, Card, Form, Input, message, Radio, Select, Space } from 'antd'
 import { observer } from 'mobx-react-lite'
-import { useHistory, useParams } from 'react-router-dom'
+import { useHistory, useLocation, useParams } from 'react-router-dom'
 import BaseLayout from '@/components/layout/BaseLayout'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
-import { BEHAVIOR_ABILITY_MODEL_PROFILES } from '@/constants/behaviorAbility'
 import type { BehaviorAbilityAlgorithm } from '@/constants/behaviorAbility'
-import { behaviorAbilityStore } from '@/store/behaviorAbility'
-import { behaviorAbilityEditorFlowConfig, buildBehaviorAbilityFlowContext } from '@/utils/behaviorAbilityFlow'
+import { buildBehaviorAbilityFlowContext } from '@/utils/behaviorAbilityFlow'
 import { useEditorFlow } from '@/utils/editorFlow'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { getAbilityEditorProduct } from '../product'
 
 const BehaviorAbilityBasicInfo: React.FC = observer(() => {
   const { modelCode } = useParams<{ modelCode: string }>()
   const history = useHistory()
+  const location = useLocation()
+  const product = getAbilityEditorProduct(location.pathname)
+  const { store, flow, profiles } = product
   const [form] = Form.useForm()
   const [available, setAvailable] = useState<Set<string>>(new Set())
   const [optionsLoaded, setOptionsLoaded] = useState(false)
   const editorFlow = useEditorFlow(
-    behaviorAbilityEditorFlowConfig,
-    behaviorAbilityStore.modelCode || modelCode,
-    buildBehaviorAbilityFlowContext(behaviorAbilityStore)
+    flow,
+    store.modelCode || modelCode,
+    buildBehaviorAbilityFlowContext(store)
   )
 
   useEffect(() => {
     const load = async () => {
       try {
-        await behaviorAbilityStore.init(modelCode)
+        await store.init(modelCode)
         form.setFieldsValue({
-          code: behaviorAbilityStore.customModelCode,
-          title: behaviorAbilityStore.title,
-          description: behaviorAbilityStore.description,
-          profile: behaviorAbilityStore.profile?.algorithm,
-          category: behaviorAbilityStore.category || undefined,
-          tags: behaviorAbilityStore.tags,
-          questionnaireStrategy: behaviorAbilityStore.questionnaireStrategy,
-          bindQuestionnaireCode: behaviorAbilityStore.bindQuestionnaireCode
+          code: store.customModelCode,
+          title: store.title,
+          description: store.description,
+          profile: store.profile?.algorithm || (profiles.length === 1 ? profiles[0].algorithm : undefined),
+          category: store.category || undefined,
+          tags: store.tags,
+          questionnaireStrategy: store.questionnaireStrategy,
+          bindQuestionnaireCode: store.bindQuestionnaireCode
         })
-        const behavioral = await assessmentModelApi.getAssessmentModelOptions('behavioral_rating')
+        const optionResponse = await assessmentModelApi.getAssessmentModelOptions(product.kind)
         const next = new Set<string>()
-        const supports = (data: any, kind: string, algorithm: string) =>
-          data?.kinds?.some((item: any) => item.value === kind) &&
-          data?.algorithms?.some((item: any) => item.value === algorithm) &&
-          data?.kinds?.some((item: any) => item.value === 'behavioral_rating' || item.value === 'cognitive')
-        if (!behavioral[0] && supports(behavioral[1]?.data, 'behavioral_rating', 'brief2')) next.add('brief2')
-        if (!behavioral[0] && supports(behavioral[1]?.data, 'behavioral_rating', 'spm_sensory')) next.add('spm_sensory')
+        if (!optionResponse[0]) {
+          const algorithms = new Set(optionResponse[1]?.data?.algorithms?.map((item) => item.value) || [])
+          profiles.forEach((profile) => {
+            if (algorithms.has(profile.algorithm)) next.add(profile.algorithm)
+          })
+        }
         setAvailable(next)
         setOptionsLoaded(true)
       } catch (error) {
-        message.error(getApiErrorMessage(error, '加载行为能力测评失败'))
+        message.error(getApiErrorMessage(error, `加载${product.title}失败`))
       }
     }
     load()
-  }, [modelCode, form])
+  }, [modelCode, form, product, profiles, store])
 
   const save = async () => {
     const values = await form.validateFields()
-    behaviorAbilityStore.customModelCode = values.code || ''
-    behaviorAbilityStore.title = values.title
-    behaviorAbilityStore.description = values.description || ''
-    behaviorAbilityStore.category = values.category || ''
-    behaviorAbilityStore.tags = values.tags || []
-    behaviorAbilityStore.questionnaireStrategy = values.questionnaireStrategy || 'create'
-    behaviorAbilityStore.bindQuestionnaireCode = values.bindQuestionnaireCode || ''
-    if (!behaviorAbilityStore.modelCode) behaviorAbilityStore.setProfile(values.profile as BehaviorAbilityAlgorithm)
-    return behaviorAbilityStore.saveBasicInfo()
+    store.customModelCode = values.code || ''
+    store.title = values.title
+    store.description = values.description || ''
+    store.category = values.category || ''
+    store.tags = values.tags || []
+    store.questionnaireStrategy = values.questionnaireStrategy || 'create'
+    store.bindQuestionnaireCode = values.bindQuestionnaireCode || ''
+    if (!store.modelCode) store.setProfile(values.profile as BehaviorAbilityAlgorithm)
+    return store.saveBasicInfo()
   }
 
   return (
     <BaseLayout
+      listUrl={flow.listPath}
       submitFn={save}
       afterSubmit={(status, error) => {
         if (status === 'success') {
           message.success('基本信息已保存')
-          history.push(behaviorAbilityEditorFlowConfig.getPathForStep('edit-questions', behaviorAbilityStore.modelCode))
+          history.push(flow.getPathForStep('edit-questions', store.modelCode))
         } else message.error(getApiErrorMessage(error, '保存失败'))
       }}
-      footerButtons={behaviorAbilityStore.canEdit ? ['backToList', 'break', 'saveToNext'] : ['backToList']}
-      steps={behaviorAbilityEditorFlowConfig.steps}
+      footerButtons={store.canEdit ? ['backToList', 'break', 'saveToNext'] : ['backToList']}
+      steps={flow.steps}
       currentStep={editorFlow.currentStepIndex}
       onStepChange={editorFlow.handleStepChange}
       themeClass="behavior-ability-page-theme"
     >
       <div style={{ maxWidth: 860, margin: '0 auto' }}>
-        {behaviorAbilityStore.isArchived ? <Alert type="warning" showIcon message="归档模型仅可查看" style={{ marginBottom: 16 }} /> : null}
-        <Card title="行为能力测评基本信息">
+        {store.isArchived ? <Alert type="warning" showIcon message="归档模型仅可查看" style={{ marginBottom: 16 }} /> : null}
+        <Card title={`${product.title}基本信息`}>
           <Form form={form} layout="vertical">
-            {!behaviorAbilityStore.modelCode ? (
-              <Form.Item name="code" label="模型编码（可选）">
-                <Input placeholder="例如 BRIEF2_PARENT_CN" />
+            {!store.modelCode ? (
+              <Form.Item
+                name="code"
+                label="模型编码"
+                extra="创建后不可修改，建议使用稳定、可读的英文编码"
+                rules={[{ required: true, whitespace: true, message: '请输入模型编码' }]}
+              >
+                <Input placeholder={product.kind === 'cognitive' ? '例如 SPM_REASONING_CN' : '例如 BRIEF2_PARENT_CN'} />
               </Form.Item>
             ) : (
               <Form.Item label="模型编码">
-                <Input disabled value={behaviorAbilityStore.modelCode} />
+                <Input disabled value={store.modelCode} />
               </Form.Item>
             )}
             <Form.Item name="title" label="测评名称" rules={[{ required: true, message: '请输入测评名称' }]}>
@@ -101,11 +109,11 @@ const BehaviorAbilityBasicInfo: React.FC = observer(() => {
             <Form.Item name="description" label="测评说明">
               <Input.TextArea rows={3} />
             </Form.Item>
-            {!behaviorAbilityStore.modelCode ? (
-              <Form.Item name="profile" label="测评类型" rules={[{ required: true, message: '请选择 BRIEF-2 或 SPM' }]}>
+            {!store.modelCode ? (
+              <Form.Item name="profile" label="测评类型" rules={[{ required: true, message: '请选择测评类型' }]}>
                 <Radio.Group style={{ width: '100%' }}>
                   <Space direction="vertical" style={{ width: '100%' }}>
-                    {BEHAVIOR_ABILITY_MODEL_PROFILES.map((profile) => (
+                    {profiles.map((profile) => (
                       <Card
                         key={profile.algorithm}
                         size="small"
@@ -124,7 +132,7 @@ const BehaviorAbilityBasicInfo: React.FC = observer(() => {
               <Form.Item label="测评类型">
                 <Input
                   disabled
-                  value={`${behaviorAbilityStore.profile?.label || ''}（${behaviorAbilityStore.kind} / ${behaviorAbilityStore.algorithm}）`}
+                  value={`${store.profile?.label || ''}（${store.kind} / ${store.algorithm}）`}
                 />
               </Form.Item>
             )}
@@ -134,7 +142,7 @@ const BehaviorAbilityBasicInfo: React.FC = observer(() => {
             <Form.Item name="tags" label="标签">
               <Select mode="tags" />
             </Form.Item>
-            {!behaviorAbilityStore.modelCode ? (
+            {!store.modelCode ? (
               <>
                 <Form.Item name="questionnaireStrategy" label="题目问卷" initialValue="create">
                   <Radio.Group>
@@ -154,15 +162,15 @@ const BehaviorAbilityBasicInfo: React.FC = observer(() => {
               </>
             ) : (
               <Form.Item label="绑定问卷">
-                <Input disabled value={behaviorAbilityStore.questionnaireCode || '—'} />
+                <Input disabled value={store.questionnaireCode || '—'} />
               </Form.Item>
             )}
-            {behaviorAbilityStore.canEdit ? (
+            {store.canEdit ? (
               <Button
                 type="primary"
                 onClick={() =>
                   save()
-                    .then(() => history.push(behaviorAbilityEditorFlowConfig.getPathForStep('edit-questions', behaviorAbilityStore.modelCode)))
+                    .then(() => history.push(flow.getPathForStep('edit-questions', store.modelCode)))
                     .catch((error) => message.error(getApiErrorMessage(error, '保存失败')))
                 }
               >

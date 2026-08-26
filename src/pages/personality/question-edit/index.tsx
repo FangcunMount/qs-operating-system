@@ -21,7 +21,7 @@ const PersonalityQuestionEdit: React.FC = observer(() => {
 
   useEffect(() => {
     personalityEditorWorkflowStore.setCurrentStep('edit-questions')
-    personalityEditorWorkflowStore.initEditor(modelCode).catch(() => message.error('加载人格测评题目失败'))
+    personalityEditorWorkflowStore.initEditor(modelCode).catch(() => message.error('加载类型学模型题目失败'))
   }, [modelCode])
 
   const verifyQuestionSheet = () =>
@@ -52,6 +52,7 @@ const PersonalityQuestionEdit: React.FC = observer(() => {
 
   return (
     <BaseLayout
+      listUrl={personalityEditorFlowConfig.listPath}
       beforeSubmit={verifyQuestionSheet}
       submitFn={handleSave}
       afterSubmit={handleAfterSubmit}

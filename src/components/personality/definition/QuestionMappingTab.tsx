@@ -10,11 +10,12 @@ import {
 
 interface Props {
   spec: PersonalityTypologyRuntimeSpec
+  modelCode?: string
   questions: IQuestion[]
   onChange: (spec: PersonalityTypologyRuntimeSpec) => void
 }
 
-const QuestionMappingTab: React.FC<Props> = ({ spec, questions, onChange }) => {
+const QuestionMappingTab: React.FC<Props> = ({ spec, modelCode, questions, onChange }) => {
   const contributions = getQuestionContributions(spec)
   const factors = spec.factor_graph?.factors || {}
   const factorOptions = Object.values(factors)
@@ -90,8 +91,6 @@ const QuestionMappingTab: React.FC<Props> = ({ spec, questions, onChange }) => {
     apply()
   }
 
-  const questionnaireCode = spec.questionnaire_binding?.questionnaire_code
-
   return (
     <Space direction="vertical" size={12} style={{ width: '100%' }}>
       <Table
@@ -147,8 +146,8 @@ const QuestionMappingTab: React.FC<Props> = ({ spec, questions, onChange }) => {
                     </Typography.Text>
                   ))
                   : <Typography.Text type="secondary">运行时直接使用 Answer.Score</Typography.Text>}
-                {questionnaireCode && (
-                  <Typography.Link href={`/personality/create/${encodeURIComponent(questionnaireCode)}/0`}>
+                {modelCode && (
+                  <Typography.Link href={`/typology/create/${encodeURIComponent(modelCode)}/0`}>
                     前往题目编辑
                   </Typography.Link>
                 )}

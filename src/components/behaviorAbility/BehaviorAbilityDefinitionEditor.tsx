@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Card, Form, Input, InputNumber, Radio, Select, Space, Tabs, Typography } from 'antd'
+import { Alert, Button, Card, Checkbox, Form, Input, InputNumber, Radio, Select, Space, Tabs, Typography } from 'antd'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import type { IQuestion } from '@/models/question'
 import { isBehaviorAbilityPublishingEnabled } from '@/constants/behaviorAbilityFeature'
@@ -10,6 +10,7 @@ import type {
   DefinitionConclusion,
   DefinitionFactor,
   DefinitionOutcome,
+  DefinitionReportSection,
   DefinitionScoring,
   DefinitionScoringSource,
   DefinitionV2
@@ -20,7 +21,7 @@ import './BehaviorAbilityDefinitionEditor.scss'
 
 const { TabPane } = Tabs
 
-export type BehaviorAbilityDefinitionTabKey = 'factor_graph' | 'question_mapping' | 'execution' | 'interpretation' | 'json'
+export type BehaviorAbilityDefinitionTabKey = 'factor_graph' | 'question_mapping' | 'execution' | 'interpretation' | 'report' | 'json'
 type BehaviorAbilityDefinitionFormTabKey = Exclude<BehaviorAbilityDefinitionTabKey, 'json'>
 
 /** Keeps publish-page links created by the first editor version usable. */
@@ -30,6 +31,7 @@ export const normalizeBehaviorAbilityDefinitionTab = (tab?: string): BehaviorAbi
   case 'question_mapping':
   case 'execution':
   case 'interpretation':
+  case 'report':
   case 'json':
     return tab
   case 'measure':
@@ -66,6 +68,8 @@ type ConclusionRule = {
   OutcomeCode?: string
   Summary?: string
   Description?: string
+  MaxInclusive?: boolean
+  UnboundedMax?: boolean
   [key: string]: unknown
 }
 
@@ -114,7 +118,7 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
     const formVariant = algorithm === 'brief2' ? form.execution.Brief2?.FormVariant : undefined
     normTableApi
       .listNormTables({
-        kind: 'behavioral_rating',
+        kind: algorithm === 'spm' ? 'cognitive' : 'behavioral_rating',
         algorithm,
         form_variant: formVariant || undefined
       })
@@ -156,6 +160,11 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
 
   const updateOutcomes = (outcomes: DefinitionOutcome[]) => updateForm({ ...form, outcomes })
 
+  const updateReportSections = (sections: DefinitionReportSection[]) => updateForm({
+    ...form,
+    reportMap: { ...form.reportMap, Sections: sections }
+  })
+
   const renameFactorCode = (index: number, nextCode: string) => {
     const factors = clone(form.measure.Factors || [])
     const previousCode = factors[index]?.Code || ''
@@ -181,6 +190,7 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
       }))
     }
     const brief2 = form.execution.Brief2
+    const spm = form.execution.SPM
     const execution = {
       ...form.execution,
       Brief2: brief2 ? {
@@ -188,7 +198,8 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
         PrimaryFactorCode: replace(brief2.PrimaryFactorCode) || '',
         IndexFactorCodes: (brief2.IndexFactorCodes || []).map((code) => replace(code) || ''),
         ValidityFactorCodes: (brief2.ValidityFactorCodes || []).map((code) => replace(code) || '')
-      } : brief2
+      } : brief2,
+      SPM: spm ? { ...spm, TotalFactorCode: replace(spm.TotalFactorCode) || '' } : spm
     }
     updateForm({
       ...form,
@@ -204,7 +215,14 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
       conclusions: form.conclusions.map((conclusion) => ({
         ...conclusion,
         FactorCode: replace((conclusion as NormConclusion).FactorCode)
-      }))
+      })),
+      reportMap: {
+        ...form.reportMap,
+        Sections: (form.reportMap.Sections || []).map((section) => ({
+          ...section,
+          SourceRefs: (section.SourceRefs || []).map((code) => replace(code) || '')
+        }))
+      }
     })
   }
 
@@ -489,8 +507,143 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
     />
   )
 
+  const renderCognitiveSPMExecution = () => {
+    const spm = form.execution.SPM || { TimeLimitSeconds: 900, TotalFactorCode: '', ItemSets: [] }
+    const questionOptions = questions
+      .filter((question) => question.code)
+      .map((question) => ({ value: question.code, label: question.title ? `${question.code} · ${question.title}` : question.code }))
+    const optionsForQuestion = (questionCode: string) => {
+      const question = questions.find((item) => item.code === questionCode) as any
+      return (Array.isArray(question?.options) ? question.options : [])
+        .filter((option: any) => option.code)
+        .map((option: any) => ({ value: option.code, label: `${option.code}${option.content ? ` · ${option.content}` : ''}` }))
+    }
+    const updateSPM = (next: typeof spm) => updateExecution({ SPM: next })
+
+    return (
+      <Space direction="vertical" style={{ width: '100%' }} size={16}>
+        <Alert
+          type="info"
+          showIcon
+          message="SPM 认知推理执行规则"
+          description="配置答题时限、总分因子和题组正确答案。每道题只能出现在一个题组中，正确选项必须来自绑定问卷。"
+        />
+        <Card size="small" title="测评参数">
+          <Form layout="vertical" className="behavior-ability-execution-form">
+            <Form.Item label="答题时限（秒）" required>
+              <InputNumber
+                min={1}
+                precision={0}
+                style={{ width: '100%' }}
+                value={spm.TimeLimitSeconds}
+                onChange={(value) => updateSPM({ ...spm, TimeLimitSeconds: typeof value === 'number' ? value : 0 })}
+              />
+            </Form.Item>
+            <Form.Item label="总分因子" required>
+              <Select
+                showSearch
+                optionFilterProp="label"
+                placeholder="选择认知测评总分因子"
+                value={spm.TotalFactorCode || undefined}
+                options={factorOptions}
+                onChange={(value) => updateSPM({ ...spm, TotalFactorCode: value })}
+              />
+            </Form.Item>
+          </Form>
+        </Card>
+        {(spm.ItemSets || []).map((itemSet, setIndex) => (
+          <Card
+            key={`${itemSet.Code || 'set'}-${setIndex}`}
+            size="small"
+            title={`题组 ${setIndex + 1}`}
+            extra={(
+              <Button
+                danger
+                size="small"
+                onClick={() => updateSPM({ ...spm, ItemSets: spm.ItemSets.filter((_, index) => index !== setIndex) })}
+              >
+                删除题组
+              </Button>
+            )}
+          >
+            <Form layout="vertical">
+              <Form.Item label="题组编码" required>
+                <Input
+                  placeholder="例如 A"
+                  value={itemSet.Code}
+                  onChange={(event) => {
+                    const itemSets = clone(spm.ItemSets)
+                    itemSets[setIndex] = { ...itemSets[setIndex], Code: event.target.value }
+                    updateSPM({ ...spm, ItemSets: itemSets })
+                  }}
+                />
+              </Form.Item>
+            </Form>
+            <Space direction="vertical" style={{ width: '100%' }} size={10}>
+              {(itemSet.Items || []).map((item, itemIndex) => (
+                <Space key={`${item.QuestionCode || 'item'}-${itemIndex}`} wrap className="behavior-ability-definition-row">
+                  <Select
+                    showSearch
+                    optionFilterProp="label"
+                    placeholder="选择题目"
+                    style={{ width: 300 }}
+                    value={item.QuestionCode || undefined}
+                    options={questionOptions}
+                    onChange={(value) => {
+                      const itemSets = clone(spm.ItemSets)
+                      itemSets[setIndex].Items[itemIndex] = { QuestionCode: value, CorrectOptionCode: '' }
+                      updateSPM({ ...spm, ItemSets: itemSets })
+                    }}
+                  />
+                  <Select
+                    showSearch
+                    optionFilterProp="label"
+                    placeholder="正确选项"
+                    style={{ width: 260 }}
+                    value={item.CorrectOptionCode || undefined}
+                    options={optionsForQuestion(item.QuestionCode)}
+                    disabled={!item.QuestionCode}
+                    onChange={(value) => {
+                      const itemSets = clone(spm.ItemSets)
+                      itemSets[setIndex].Items[itemIndex] = { ...itemSets[setIndex].Items[itemIndex], CorrectOptionCode: value }
+                      updateSPM({ ...spm, ItemSets: itemSets })
+                    }}
+                  />
+                  <Button
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={() => {
+                      const itemSets = clone(spm.ItemSets)
+                      itemSets[setIndex].Items = itemSets[setIndex].Items.filter((_, index) => index !== itemIndex)
+                      updateSPM({ ...spm, ItemSets: itemSets })
+                    }}
+                  />
+                </Space>
+              ))}
+              <Button
+                onClick={() => {
+                  const itemSets = clone(spm.ItemSets)
+                  itemSets[setIndex].Items = [...(itemSets[setIndex].Items || []), { QuestionCode: '', CorrectOptionCode: '' }]
+                  updateSPM({ ...spm, ItemSets: itemSets })
+                }}
+              >
+                添加题目
+              </Button>
+            </Space>
+          </Card>
+        ))}
+        <Button
+          icon={<PlusOutlined />}
+          onClick={() => updateSPM({ ...spm, ItemSets: [...(spm.ItemSets || []), { Code: '', Items: [] }] })}
+        >
+          添加题组
+        </Button>
+      </Space>
+    )
+  }
+
   const renderInterpretation = () => {
-    const kind = 'norm'
+    const kind = algorithm === 'spm' ? 'ability' : 'norm'
     const normServiceAvailable = isBehaviorAbilityPublishingEnabled()
     return (
       <Space direction="vertical" style={{ width: '100%' }} size={16}>
@@ -542,7 +695,11 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
           </Space>
         </Card>
         <Typography.Text strong>常模引用</Typography.Text>
-        <Typography.Text type="secondary">同一行为能力定义只能引用同一个常模版本，可为多个因子分别建立引用。</Typography.Text>
+        <Typography.Text type="secondary">
+          {kind === 'ability'
+            ? '原始分解释可以不依赖常模；使用 T 分、百分位或标准分时，请为对应因子选择常模版本。'
+            : '同一行为评分定义只能引用同一个常模版本，可为多个因子分别建立引用。'}
+        </Typography.Text>
         {(form.calibration.NormRefs || []).map((ref, index) => (
           <Space key={`${ref.FactorCode || 'norm'}-${index}`} wrap className="behavior-ability-definition-row">
             <Select
@@ -620,6 +777,20 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
                   <Radio.Button value={true}>主解释因子</Radio.Button>
                   <Radio.Button value={false}>普通解释因子</Radio.Button>
                 </Radio.Group>
+                <Select
+                  value={normConclusion.ScoreBasis || (kind === 'ability' ? 'raw_score' : 't_score')}
+                  options={[
+                    { value: 'raw_score', label: '原始分' },
+                    { value: 't_score', label: 'T 分' },
+                    { value: 'percentile', label: '百分位' },
+                    { value: 'standard_score', label: '标准分' }
+                  ]}
+                  onChange={(value) => {
+                    const conclusions = clone(form.conclusions)
+                    conclusions[index] = { ...conclusions[index], ScoreBasis: value }
+                    updateConclusions(conclusions)
+                  }}
+                />
                 <div className="behavior-ability-rule-list">
                   {rules.map((rule, ruleIndex) => (
                     <Card size="small" key={ruleIndex} className="behavior-ability-interpretation-rule" title={`分数区间 ${ruleIndex + 1}`}
@@ -643,6 +814,35 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
                           conclusions[index] = { ...conclusions[index], Rules: nextRules }
                           updateConclusions(conclusions)
                         }} />
+                        <Checkbox
+                          checked={Boolean(rule.MaxInclusive)}
+                          disabled={Boolean(rule.UnboundedMax)}
+                          onChange={(event) => {
+                            const conclusions = clone(form.conclusions)
+                            const nextRules = rulesFor(conclusions[index])
+                            nextRules[ruleIndex] = { ...nextRules[ruleIndex], MaxInclusive: event.target.checked }
+                            conclusions[index] = { ...conclusions[index], Rules: nextRules }
+                            updateConclusions(conclusions)
+                          }}
+                        >
+                          包含最大值
+                        </Checkbox>
+                        <Checkbox
+                          checked={Boolean(rule.UnboundedMax)}
+                          onChange={(event) => {
+                            const conclusions = clone(form.conclusions)
+                            const nextRules = rulesFor(conclusions[index])
+                            nextRules[ruleIndex] = {
+                              ...nextRules[ruleIndex],
+                              UnboundedMax: event.target.checked,
+                              MaxInclusive: event.target.checked ? false : nextRules[ruleIndex].MaxInclusive
+                            }
+                            conclusions[index] = { ...conclusions[index], Rules: nextRules }
+                            updateConclusions(conclusions)
+                          }}
+                        >
+                          无上限
+                        </Checkbox>
                         <Input placeholder="等级，例如 typical" value={rule.Level} onChange={(event) => {
                           const conclusions = clone(form.conclusions)
                           const nextRules = rulesFor(conclusions[index])
@@ -706,11 +906,105 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
           onClick={() =>
             updateConclusions([
               ...(form.conclusions || []),
-              { Kind: kind, FactorCode: '', ScoreBasis: 't_score', Rules: [], Outcomes: [] }
+              { Kind: kind, FactorCode: '', ScoreBasis: kind === 'ability' ? 'raw_score' : 't_score', Rules: [], Outcomes: [] }
             ])
           }
         >
           添加解释规则
+        </Button>
+      </Space>
+    )
+  }
+
+  const renderReport = () => {
+    const sections = form.reportMap.Sections || []
+    const updateSection = (index: number, patch: Partial<DefinitionReportSection>) => {
+      const next = clone(sections)
+      next[index] = { ...next[index], ...patch }
+      updateReportSections(next)
+    }
+    return (
+      <Space direction="vertical" style={{ width: '100%' }} size={16}>
+        <Alert
+          type="info"
+          showIcon
+          message="报告映射"
+          description="定义报告展示区块、展示因子和模板版本。因子得分区块的来源必须引用已定义因子。"
+        />
+        {sections.map((section, index) => (
+          <Card
+            key={`${section.Code || 'report'}-${index}`}
+            size="small"
+            title={`报告区块 ${index + 1}`}
+            extra={(
+              <Button danger size="small" onClick={() => updateReportSections(sections.filter((_, itemIndex) => itemIndex !== index))}>
+                删除
+              </Button>
+            )}
+          >
+            <Form layout="vertical">
+              <div className="behavior-ability-scoring-rule-fields">
+                <Form.Item label="区块编码" required>
+                  <Input value={section.Code} placeholder="例如 scores" onChange={(event) => updateSection(index, { Code: event.target.value })} />
+                </Form.Item>
+                <Form.Item label="区块标题">
+                  <Input value={section.Title} placeholder="例如 能力得分" onChange={(event) => updateSection(index, { Title: event.target.value })} />
+                </Form.Item>
+                <Form.Item label="区块类型">
+                  <Select
+                    value={section.Kind || undefined}
+                    placeholder="选择区块类型"
+                    options={[
+                      { value: 'factor_scores', label: '因子得分' },
+                      { value: 'conclusion', label: '测评结论' },
+                      { value: 'summary', label: '摘要' }
+                    ]}
+                    onChange={(value) => updateSection(index, { Kind: value })}
+                  />
+                </Form.Item>
+                <Form.Item label="展示因子">
+                  <Select
+                    mode="multiple"
+                    showSearch
+                    optionFilterProp="label"
+                    value={section.SourceRefs || []}
+                    options={factorOptions}
+                    onChange={(value) => updateSection(index, { SourceRefs: value })}
+                  />
+                </Form.Item>
+                <Form.Item label="报告适配器">
+                  <Input value={section.AdapterKey} placeholder="可选" onChange={(event) => updateSection(index, { AdapterKey: event.target.value })} />
+                </Form.Item>
+                <Form.Item label="业务分类标签">
+                  <Input
+                    value={section.CategoryLabel}
+                    placeholder="可选"
+                    onChange={(event) => updateSection(index, { CategoryLabel: event.target.value })}
+                  />
+                </Form.Item>
+                <Form.Item label="模板 ID">
+                  <Input
+                    value={section.TemplateID}
+                    placeholder="例如 standard"
+                    onChange={(event) => updateSection(index, { TemplateID: event.target.value })}
+                  />
+                </Form.Item>
+                <Form.Item label="模板版本">
+                  <Input
+                    value={section.TemplateVersion}
+                    placeholder="例如 2026-08-v1"
+                    onChange={(event) => updateSection(index, { TemplateVersion: event.target.value })}
+                  />
+                </Form.Item>
+              </div>
+            </Form>
+          </Card>
+        ))}
+        <Button
+          icon={<PlusOutlined />}
+          onClick={() => updateReportSections([...sections, { Code: '', Title: '', Kind: 'factor_scores', SourceRefs: [] }])}
+        >
+          添加报告区块
         </Button>
       </Space>
     )
@@ -759,10 +1053,17 @@ const BehaviorAbilityDefinitionEditor: React.FC<Props> = ({ definition, algorith
             {renderQuestionMapping()}
           </TabPane>
           <TabPane tab="测评规则" key="execution">
-            {algorithm === 'brief2' ? renderBrief2Execution() : renderSensorySPMExecution()}
+            {algorithm === 'brief2'
+              ? renderBrief2Execution()
+              : algorithm === 'spm'
+                ? renderCognitiveSPMExecution()
+                : renderSensorySPMExecution()}
           </TabPane>
           <TabPane tab="测评解读" key="interpretation">
             {renderInterpretation()}
+          </TabPane>
+          <TabPane tab="报告配置" key="report">
+            {renderReport()}
           </TabPane>
         </Tabs>
       )}

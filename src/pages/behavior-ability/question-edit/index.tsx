@@ -1,34 +1,36 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { message } from 'antd'
 import { observer } from 'mobx-react-lite'
-import { useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import BaseLayout from '@/components/layout/BaseLayout'
-import { behaviorAbilityStore } from '@/store/behaviorAbility'
 import { createBehaviorAbilityQuestionnairePort, QuestionEditorWorkspace, validateQuestionList } from '@/features/assessment-editor'
-import { behaviorAbilityEditorFlowConfig, buildBehaviorAbilityFlowContext } from '@/utils/behaviorAbilityFlow'
+import { buildBehaviorAbilityFlowContext } from '@/utils/behaviorAbilityFlow'
 import { useEditorFlow } from '@/utils/editorFlow'
 import { getApiErrorMessage } from '@/utils/apiError'
-
-const behaviorAbilityQuestionEditor = createBehaviorAbilityQuestionnairePort(behaviorAbilityStore)
+import { getAbilityEditorProduct } from '../product'
 
 const BehaviorAbilityQuestionEdit: React.FC = observer(() => {
   const { modelCode } = useParams<{ modelCode: string }>()
+  const location = useLocation()
+  const { store, flow, title } = getAbilityEditorProduct(location.pathname)
+  const questionnaireEditor = useMemo(() => createBehaviorAbilityQuestionnairePort(store), [store])
   const editorFlow = useEditorFlow(
-    behaviorAbilityEditorFlowConfig,
-    behaviorAbilityStore.modelCode || modelCode,
-    buildBehaviorAbilityFlowContext(behaviorAbilityStore)
+    flow,
+    store.modelCode || modelCode,
+    buildBehaviorAbilityFlowContext(store)
   )
 
   useEffect(() => {
-    behaviorAbilityStore.setCurrentStep('edit-questions')
-    behaviorAbilityStore.init(modelCode).catch((error) => message.error(getApiErrorMessage(error, '加载题目失败')))
-  }, [modelCode])
+    store.setCurrentStep('edit-questions')
+    store.init(modelCode).catch((error) => message.error(getApiErrorMessage(error, `加载${title}题目失败`)))
+  }, [modelCode, store, title])
 
-  const save = async () => behaviorAbilityStore.saveQuestions()
+  const save = async () => store.saveQuestions()
 
   return (
     <BaseLayout
-      beforeSubmit={() => validateQuestionList(behaviorAbilityStore.questions)}
+      listUrl={flow.listPath}
+      beforeSubmit={() => validateQuestionList(store.questions)}
       submitFn={save}
       afterSubmit={(status, error) => {
         if (status === 'success') {
@@ -36,13 +38,13 @@ const BehaviorAbilityQuestionEdit: React.FC = observer(() => {
           editorFlow.goStep('set-routing')
         } else message.error(getApiErrorMessage(error, '保存失败'))
       }}
-      footerButtons={behaviorAbilityStore.canEdit ? ['backToList', 'break', 'saveToNext'] : ['backToList']}
-      steps={behaviorAbilityEditorFlowConfig.steps}
+      footerButtons={store.canEdit ? ['backToList', 'break', 'saveToNext'] : ['backToList']}
+      steps={flow.steps}
       currentStep={editorFlow.currentStepIndex}
       onStepChange={editorFlow.handleStepChange}
       themeClass="behavior-ability-page-theme"
     >
-      <QuestionEditorWorkspace editor={behaviorAbilityQuestionEditor} />
+      <QuestionEditorWorkspace editor={questionnaireEditor} />
     </BaseLayout>
   )
 })

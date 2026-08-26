@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react'
-import { Button, message, Modal, Select, Space, Table, Tag } from 'antd'
+import { Button, Input, message, Modal, Select, Space, Table, Tag } from 'antd'
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
-import { Link, useHistory } from 'react-router-dom'
+import { Link, useHistory, useLocation } from 'react-router-dom'
 import { assessmentModelApi } from '@/api/path/assessmentModel'
 import { assessmentReleaseApi } from '@/api/path/assessmentRelease'
 import { ModelCatalogListShell, ModelReleaseState, ReleaseHistoryButton } from '@/features/assessment-editor'
 import type { AssessmentModelSummary } from '@/models/assessmentModel'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { getAbilityEditorProduct } from '../product'
 
 const statusOptions = [
   { label: '草稿', value: 'draft' },
@@ -18,25 +19,37 @@ const kindLabel = (kind: string) => (kind === 'behavioral_rating' ? '行为评�
 
 const BehaviorAbilityList: React.FC = () => {
   const history = useHistory()
+  const location = useLocation()
+  const product = getAbilityEditorProduct(location.pathname)
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<AssessmentModelSummary[]>([])
+  const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState<string | undefined>()
+  const [algorithm, setAlgorithm] = useState<string | undefined>()
   const [page, setPage] = useState({ current: 1, pageSize: 10, total: 0 })
 
-  const load = async (current = page.current, pageSize = page.pageSize, nextStatus = status) => {
+  const load = async (
+    current = page.current,
+    pageSize = page.pageSize,
+    nextStatus = status,
+    nextKeyword = keyword,
+    nextAlgorithm = algorithm
+  ) => {
     setLoading(true)
     try {
       const [err, res] = await assessmentModelApi.listAssessmentModels({
-        kinds: 'behavioral_rating,cognitive',
+        kind: product.kind,
         page: current,
         page_size: pageSize,
-        status: nextStatus
+        status: nextStatus,
+        keyword: nextKeyword || undefined,
+        algorithm: nextAlgorithm
       })
       if (err) throw err
       setItems(res?.data?.models || [])
       setPage({ current: res?.data?.page || current, pageSize: res?.data?.page_size || pageSize, total: res?.data?.total_count || 0 })
     } catch (error) {
-      message.error(getApiErrorMessage(error, '获取行为能力测评列表失败'))
+      message.error(getApiErrorMessage(error, `获取${product.title}列表失败`))
     } finally {
       setLoading(false)
     }
@@ -44,7 +57,7 @@ const BehaviorAbilityList: React.FC = () => {
 
   useEffect(() => {
     load(1, 10)
-  }, [])
+  }, [product.kind])
 
   const archive = (model: AssessmentModelSummary) =>
     Modal.confirm({
@@ -93,13 +106,22 @@ const BehaviorAbilityList: React.FC = () => {
       title={
         <>
           <SafetyCertificateOutlined style={{ marginRight: 8 }} />
-          行为能力测评管理
+          {product.title}管理
         </>
       }
-      description="管理 BRIEF-2 与感觉统合 SPM 的模型、问卷绑定和发布状态"
+      description={product.description}
       toolbar={
         <Space wrap style={{ display: 'flex', justifyContent: 'space-between' }}>
           <Space wrap>
+            <Input.Search
+              allowClear
+              placeholder="搜索名称、编码或说明"
+              style={{ width: 260 }}
+              onSearch={(value) => {
+                setKeyword(value)
+                load(1, page.pageSize, status, value, algorithm)
+              }}
+            />
             <Select
               allowClear
               placeholder="状态"
@@ -108,12 +130,23 @@ const BehaviorAbilityList: React.FC = () => {
               style={{ width: 130 }}
               onChange={(value) => {
                 setStatus(value)
-                load(1, page.pageSize, value)
+                load(1, page.pageSize, value, keyword, algorithm)
+              }}
+            />
+            <Select
+              allowClear
+              placeholder="算法"
+              value={algorithm}
+              options={product.profiles.map((profile) => ({ value: profile.algorithm, label: profile.label }))}
+              style={{ width: 190 }}
+              onChange={(value) => {
+                setAlgorithm(value)
+                load(1, page.pageSize, status, keyword, value)
               }}
             />
           </Space>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => history.push('/behavior-ability/info/new')}>
-            新建行为能力测评
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => history.push(`${product.basePath}/info/new`)}>
+            {product.newLabel}
           </Button>
         </Space>
       }
@@ -123,7 +156,7 @@ const BehaviorAbilityList: React.FC = () => {
         loading={loading}
         dataSource={items}
         pagination={{ current: page.current, pageSize: page.pageSize, total: page.total, showSizeChanger: true }}
-        onChange={(next) => load(next.current || 1, next.pageSize || 10)}
+        onChange={(next) => load(next.current || 1, next.pageSize || 10, status, keyword, algorithm)}
         scroll={{ x: 1080 }}
       >
         <Table.Column
@@ -132,7 +165,7 @@ const BehaviorAbilityList: React.FC = () => {
           width={260}
           render={(title, row: AssessmentModelSummary) => (
             <div>
-              <Link to={`/behavior-ability/info/${row.code}`}>{title}</Link>
+              <Link to={`${product.basePath}/info/${row.code}`}>{title}</Link>
               {row.description ? <div style={{ color: '#8c8c8c', fontSize: 12 }}>{row.description}</div> : null}
             </div>
           )}
@@ -155,7 +188,7 @@ const BehaviorAbilityList: React.FC = () => {
             row.status === 'archived' ? (
               <Space wrap>
                 <ReleaseHistoryButton modelCode={row.code} />
-                <Link to={`/behavior-ability/info/${row.code}`}>
+                <Link to={`${product.basePath}/info/${row.code}`}>
                   <Button size="small" icon={<EyeOutlined />}>
                     查看
                   </Button>
@@ -167,15 +200,15 @@ const BehaviorAbilityList: React.FC = () => {
             ) : (
               <Space wrap>
                 <ReleaseHistoryButton modelCode={row.code} />
-                <Link to={`/behavior-ability/info/${row.code}`}>
+                <Link to={`${product.basePath}/info/${row.code}`}>
                   <Button size="small" icon={<EditOutlined />}>
                     编辑
                   </Button>
                 </Link>
-                <Link to={`/behavior-ability/definition/${row.code}`}>
+                <Link to={`${product.basePath}/definition/${row.code}`}>
                   <Button size="small">定义</Button>
                 </Link>
-                <Link to={`/behavior-ability/publish/${row.code}`}>
+                <Link to={`${product.basePath}/publish/${row.code}`}>
                   <Button size="small" type="primary">
                     发布
                   </Button>

@@ -66,7 +66,7 @@ const PersonalityBasicInfo: React.FC = observer(() => {
           } : {})
         })
       } catch {
-        message.error('加载人格测评失败')
+        message.error('加载类型学模型失败')
       }
     }
     const loadOptions = async () => {
@@ -101,7 +101,7 @@ const PersonalityBasicInfo: React.FC = observer(() => {
 
   const handleAfterSubmit = (status: 'success' | 'fail', error: any) => {
     if (status === 'success') {
-      message.success('人格测评基本信息保存成功')
+      message.success('类型学模型基本信息保存成功')
       editorFlow.goStep('edit-questions')
     } else {
       message.error(getApiErrorMessage(error, '保存失败'))
@@ -118,6 +118,7 @@ const PersonalityBasicInfo: React.FC = observer(() => {
 
   return (
     <BaseLayout
+      listUrl={personalityEditorFlowConfig.listPath}
       submitFn={handleSave}
       afterSubmit={handleAfterSubmit}
       footerButtons={personalityModelStore.canEdit ? ['backToList', 'break', 'saveToNext'] : ['backToList']}
@@ -140,8 +141,12 @@ const PersonalityBasicInfo: React.FC = observer(() => {
           extra={<Tag color={st.color}>{st.label}</Tag>}>
           <Form form={form} layout="vertical">
             {!personalityModelStore.modelCode ? (
-              <Form.Item name="customModelCode" label="模型编码（可选）"
-                extra="留空则由系统自动生成">
+              <Form.Item
+                name="customModelCode"
+                label="模型编码"
+                extra="创建后不可修改，建议使用稳定、可读的英文编码"
+                rules={[{ required: true, whitespace: true, message: '请输入模型编码' }]}
+              >
                 <Input placeholder="例如：personality_mbti_v1" />
               </Form.Item>
             ) : (

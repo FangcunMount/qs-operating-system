@@ -7,12 +7,14 @@ import type {
   DefinitionMeasure,
   DefinitionNormRef,
   DefinitionOutcome,
+  DefinitionReportMap,
+  DefinitionSPMExecution,
   DefinitionV2,
   DefinitionV2Record
 } from './definitionV2'
 
-export type BehaviorAbilityDefinitionAlgorithm = 'brief2' | 'spm_sensory'
-export type BehaviorAbilityConclusionKind = 'norm'
+export type BehaviorAbilityDefinitionAlgorithm = 'brief2' | 'spm_sensory' | 'spm'
+export type BehaviorAbilityConclusionKind = 'norm' | 'ability'
 
 export interface BehaviorAbilityDefinitionForm {
   measure: DefinitionMeasure
@@ -20,6 +22,7 @@ export interface BehaviorAbilityDefinitionForm {
   execution: DefinitionExecution
   conclusions: DefinitionConclusion[]
   outcomes: DefinitionOutcome[]
+  reportMap: DefinitionReportMap
 }
 
 const asRecord = (value: unknown): DefinitionV2Record =>
@@ -27,7 +30,8 @@ const asRecord = (value: unknown): DefinitionV2Record =>
 
 const asArray = <T = unknown>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : [])
 
-const conclusionKindFor = (): BehaviorAbilityConclusionKind => 'norm'
+const conclusionKindFor = (algorithm: BehaviorAbilityDefinitionAlgorithm): BehaviorAbilityConclusionKind =>
+  algorithm === 'spm' ? 'ability' : 'norm'
 
 const cloneValue = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
@@ -38,12 +42,26 @@ const defaultBrief2 = (): DefinitionBrief2Execution => ({
   ValidityFactorCodes: []
 })
 
+const defaultSPM = (): DefinitionSPMExecution => ({
+  TimeLimitSeconds: 900,
+  TotalFactorCode: '',
+  ItemSets: []
+})
+
 const relevantExecution = (execution: DefinitionExecution, algorithm: BehaviorAbilityDefinitionAlgorithm): DefinitionExecution => {
   if (algorithm === 'brief2') {
-    return { ...execution, Brief2: cloneValue(execution.Brief2 || defaultBrief2()) }
+    const next = { ...execution, Brief2: cloneValue(execution.Brief2 || defaultBrief2()) }
+    delete next.SPM
+    return next
+  }
+  if (algorithm === 'spm') {
+    const next = { ...execution, SPM: cloneValue(execution.SPM || defaultSPM()) }
+    delete next.Brief2
+    return next
   }
   const sensoryExecution = cloneValue(execution)
   delete sensoryExecution.SPM
+  delete sensoryExecution.Brief2
   return sensoryExecution
 }
 
@@ -55,7 +73,7 @@ export const projectBehaviorAbilityDefinition = (
 ): BehaviorAbilityDefinitionForm => {
   const definition = source || createEmptyDefinitionV2()
   const calibration = asRecord(definition.Calibration) as DefinitionCalibration
-  const kind = conclusionKindFor()
+  const kind = conclusionKindFor(algorithm)
   return {
     measure: cloneValue((asRecord(definition.Measure) as DefinitionMeasure) || {}),
     calibration: {
@@ -64,7 +82,8 @@ export const projectBehaviorAbilityDefinition = (
     },
     execution: relevantExecution(asRecord(definition.Execution) as DefinitionExecution, algorithm),
     conclusions: cloneValue(asArray<DefinitionConclusion>(definition.Conclusions).filter((item) => item?.Kind === kind)),
-    outcomes: cloneValue(asArray<DefinitionOutcome>(definition.Outcomes))
+    outcomes: cloneValue(asArray<DefinitionOutcome>(definition.Outcomes)),
+    reportMap: cloneValue(definition.ReportMap || { Sections: [] })
   }
 }
 
@@ -106,6 +125,10 @@ export const applyBehaviorAbilityDefinition = (
   definition.Execution = { ...execution, ...form.execution }
   if (algorithm === 'brief2') {
     definition.Execution.Brief2 = cloneValue(form.execution.Brief2 || defaultBrief2())
+    delete definition.Execution.SPM
+  } else if (algorithm === 'spm') {
+    definition.Execution.SPM = cloneValue(form.execution.SPM || defaultSPM())
+    delete definition.Execution.Brief2
   } else {
     delete definition.Execution.SPM
     delete definition.Execution.Brief2
@@ -113,9 +136,10 @@ export const applyBehaviorAbilityDefinition = (
   definition.Conclusions = mergeConclusions(
     asArray<DefinitionConclusion>(definition.Conclusions),
     asArray<DefinitionConclusion>(form.conclusions),
-    conclusionKindFor()
+    conclusionKindFor(algorithm)
   )
   definition.Outcomes = cloneValue(asArray<DefinitionOutcome>(form.outcomes))
+  definition.ReportMap = cloneValue(form.reportMap)
   return definition
 }
 
