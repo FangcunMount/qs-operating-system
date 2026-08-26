@@ -29,7 +29,7 @@ describe('AuthZ v3 admin architecture', () => {
 
   it('keeps AuthZ on v3 while the remaining IAM proxy stays on v2', () => {
     const proxy = fs.readFileSync(path.join(sourceRoot, 'src/setupProxy.js'), 'utf8')
-    expect(proxy).toContain("pathRewrite: (path) => `/api/v3${path}`")
-    expect(proxy).toContain("['/.well-known', '/authn', '/identity', '/suggest', '/idp']")
+    expect(proxy).toContain('pathRewrite: (path) => `/api/v3${path}`')
+    expect(proxy).toContain('[\'/.well-known\', \'/authn\', \'/identity\', \'/suggest\', \'/idp\']')
   })
 })
