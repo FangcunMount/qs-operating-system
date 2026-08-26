@@ -93,9 +93,29 @@ module.exports = function (app) {
       changeOrigin: true
     })
   )
-  // IAM 相关接口（登录、身份、授权、联想搜索等）在开发时代理到 IAM 服务，避免浏览器 CORS
+  // AuthZ 管理面已升级到 v3；必须先于其他 IAM v2 路由注册。
   app.use(
-    ['/.well-known', '/authn', '/identity', '/authz', '/suggest', '/idp'],
+    '/authz',
+    createProxyMiddleware({
+      target: iamProxy.target,
+      changeOrigin: true,
+      pathRewrite: (path) => `/api/v3${path}`,
+      logLevel: 'debug',
+      onProxyReq: (proxyReq, req) => {
+        console.log('[Proxy] IAM AuthZ v3 Request:', req.method, req.url, '-> ', proxyReq.path)
+        const authHeader = req.headers.authorization
+        if (authHeader) {
+          proxyReq.setHeader('Authorization', authHeader)
+        }
+      },
+      onProxyRes: (proxyRes, req) => {
+        console.log('[Proxy] IAM AuthZ v3 Response:', proxyRes.statusCode, req.url)
+      }
+    })
+  )
+  // 其他 IAM 模块继续使用 v2，避免 AuthZ 升级影响登录、Identity、IDP。
+  app.use(
+    ['/.well-known', '/authn', '/identity', '/suggest', '/idp'],
     createProxyMiddleware({
       target: iamProxy.target,
       changeOrigin: true,

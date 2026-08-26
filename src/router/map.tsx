@@ -643,7 +643,7 @@ export const routes: Array<IRoute> = [
         activeMenuName: 'admin-clinicians'
       },
       {
-        title: '权限配置',
+        title: '角色与授权',
         name: 'admin-authz',
         path: '/admin/authz',
         component: AdminAuthz,
@@ -651,7 +651,7 @@ export const routes: Array<IRoute> = [
         requiredCapabilities: ['org_admin']
       },
       {
-        title: '资源管理',
+        title: '授权资源',
         name: 'admin-resource',
         path: '/admin/resource',
         component: AdminResource,

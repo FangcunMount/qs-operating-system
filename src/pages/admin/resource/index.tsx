@@ -1,10 +1,25 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { Card, Table, Button, Modal, Form, Input, Select, Space, Tag, Popconfirm, Typography } from 'antd'
+import {
+  Alert,
+  Button,
+  Card,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+  message
+} from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, DatabaseOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { observer } from 'mobx-react-lite'
 import { rootStore } from '@/store'
-import type { IResource } from '@/api/path/authz'
+import type { IAttributeDefinition, IResource } from '@/api/path/authz'
+import AttributeSchemaEditor from './AttributeSchemaEditor'
 import './index.scss'
 
 const { Paragraph, Text } = Typography
@@ -56,7 +71,7 @@ const ResourceManagement: React.FC = observer(() => {
   const handleAdd = () => {
     setEditingResource(null)
     form.resetFields()
-    form.setFieldsValue({ actions: [], scope_kinds: ['all'] })
+    form.setFieldsValue({ actions: [], attributes: [] })
     setModalVisible(true)
   }
 
@@ -65,7 +80,7 @@ const ResourceManagement: React.FC = observer(() => {
     form.setFieldsValue({
       ...record,
       actions: record.actions || [],
-      scope_kinds: record.scope_kinds?.length ? record.scope_kinds : ['all']
+      attributes: record.attribute_schema?.attributes || []
     })
     setModalVisible(true)
   }
@@ -84,12 +99,30 @@ const ResourceManagement: React.FC = observer(() => {
     try {
       const values = await form.validateFields()
       const actions = (values.actions || []).map((item: string) => item.trim()).filter(Boolean)
-      const scopeKinds = (values.scope_kinds || []).map((item: string) => item.trim()).filter(Boolean)
+      const attributes: IAttributeDefinition[] = (values.attributes || []).map((item: IAttributeDefinition) => ({
+        key: item.key.trim(),
+        type: item.type,
+        ...(item.type === 'string' && item.allowed_string_values?.length
+          ? {
+            allowed_string_values: item.allowed_string_values
+              .map(value => value.trim())
+              .filter(Boolean)
+          }
+          : {})
+      }))
+      if (attributes.length > 32) {
+        message.error('单个资源最多注册 32 个对象属性')
+        return
+      }
+      if (new Set(attributes.map(item => item.key)).size !== attributes.length) {
+        message.error('对象属性键不能重复')
+        return
+      }
       const payload = {
         display_name: values.display_name,
         description: values.description,
         actions,
-        scope_kinds: scopeKinds.length > 0 ? scopeKinds : ['all'],
+        attribute_schema: { version: 1 as const, attributes },
         key: values.key,
         domain: values.domain,
         app_name: values.app_name,
@@ -102,7 +135,7 @@ const ResourceManagement: React.FC = observer(() => {
           display_name: payload.display_name,
           description: payload.description,
           actions: payload.actions,
-          scope_kinds: payload.scope_kinds
+          attribute_schema: payload.attribute_schema
         })
       } else {
         success = await authStore.createResource(payload)
@@ -133,13 +166,18 @@ const ResourceManagement: React.FC = observer(() => {
     </Space>
   )
 
-  const renderScopeKinds = (scopeKinds: string[]) => (
-    <Space wrap size={[4, 4]}>
-      {(scopeKinds || []).length > 0 ? scopeKinds.map(scopeKind => (
-        <Tag color="green" key={scopeKind}>{scopeKind}</Tag>
-      )) : <Text type="secondary">-</Text>}
-    </Space>
-  )
+  const renderAttributeSchema = (schema: IResource['attribute_schema']) => {
+    const attributes = schema?.attributes || []
+    return attributes.length > 0 ? (
+      <Space wrap size={[4, 4]}>
+        {attributes.map(attribute => (
+          <Tag color="purple" key={attribute.key}>
+            {attribute.key}:{attribute.type}
+          </Tag>
+        ))}
+      </Space>
+    ) : <Tag>仅无条件授权</Tag>
+  }
 
   const renderDescription = (text: string) => (
     text
@@ -199,23 +237,17 @@ const ResourceManagement: React.FC = observer(() => {
       render: renderActions
     },
     {
-      title: '范围类型',
-      dataIndex: 'scope_kinds',
-      key: 'scope_kinds',
-      width: 180,
-      render: renderScopeKinds
+      title: '对象属性 Schema',
+      dataIndex: 'attribute_schema',
+      key: 'attribute_schema',
+      width: 300,
+      render: renderAttributeSchema
     },
     {
       title: '描述',
       dataIndex: 'description',
       key: 'description',
       render: renderDescription
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 180
     },
     {
       title: '操作',
@@ -228,6 +260,13 @@ const ResourceManagement: React.FC = observer(() => {
 
   return (
     <div className="resource-management-page">
+      <Alert
+        type="info"
+        showIcon
+        message="资源目录同时定义可用于授权求值的对象属性"
+        description="属性 Schema 只描述 IAM 可校验的可信对象事实，不承载组织、Testee、医生等业务关系。"
+        style={{ marginBottom: 16 }}
+      />
       <Card className="resource-header" bordered={false}>
         <div className="header-left">
           <div className="title">
@@ -268,8 +307,8 @@ const ResourceManagement: React.FC = observer(() => {
           columns={columns}
           dataSource={authStore.resourceList}
           rowKey="id"
-          loading={authStore.loading}
-          scroll={{ x: 1200 }}
+          loading={authStore.resourcesLoading || authStore.mutating}
+          scroll={{ x: 1400 }}
           pagination={{
             current: pageInfo.current,
             pageSize: pageInfo.pageSize,
@@ -338,7 +377,18 @@ const ResourceManagement: React.FC = observer(() => {
           <Form.Item
             label="允许动作"
             name="actions"
-            rules={[{ required: true, message: '请至少添加一个动作' }]}
+            rules={[
+              { required: true, message: '请至少添加一个动作' },
+              {
+                validator: (_, value: string[]) => {
+                  const actions = value || []
+                  const invalid = actions.find(action => !/^[a-z][a-z0-9_.:-]*$/.test(action) || action.includes('*'))
+                  return invalid
+                    ? Promise.reject(new Error(`动作 ${invalid} 不是具体动作，管理界面不支持通配`))
+                    : Promise.resolve()
+                }
+              }
+            ]}
           >
             <Select
               mode="tags"
@@ -350,19 +400,8 @@ const ResourceManagement: React.FC = observer(() => {
             </Select>
           </Form.Item>
 
-          <Form.Item
-            label="范围类型"
-            name="scope_kinds"
-            rules={[{ required: true, message: '请至少添加一个范围类型' }]}
-          >
-            <Select
-              mode="tags"
-              tokenSeparators={[',']}
-              placeholder="输入范围类型并回车，例如 all、tenant、profile"
-              open={false}
-            >
-              {/* 使用 tags 模式手动输入范围类型 */}
-            </Select>
+          <Form.Item label="对象属性 Schema">
+            <AttributeSchemaEditor />
           </Form.Item>
 
           <Form.Item label="描述" name="description">

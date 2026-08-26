@@ -1,159 +1,231 @@
-import React, { useState, useEffect } from 'react'
-import { Card, Button, Modal, Form, Input, Row, Col, Tag, Descriptions, Table, Space, message, Select } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, SafetyOutlined } from '@ant-design/icons'
+import React, { useEffect, useState } from 'react'
+import {
+  Alert,
+  Button,
+  Card,
+  Col,
+  Descriptions,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Row,
+  Table,
+  Tabs,
+  Tag,
+  Typography
+} from 'antd'
+import {
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
+  SafetyCertificateOutlined,
+  SafetyOutlined,
+  TeamOutlined
+} from '@ant-design/icons'
 import { observer } from 'mobx-react-lite'
 import { rootStore } from '@/store'
-import type { IRole, IPolicyRule } from '@/api/path/authz'
+import type { IAssignment, IPermissionGrant, IRole } from '@/api/path/authz'
+import GrantEditor from './GrantEditor'
+import { describeConstraintSet, getAuthorizationMode } from './constraintModel'
 import './index.scss'
 
-const { Option } = Select
+const { TabPane } = Tabs
+const { Text } = Typography
 
 const AuthzConfig: React.FC = observer(() => {
   const { authStore } = rootStore
-  const [modalVisible, setModalVisible] = useState(false)
+  const [roleModalVisible, setRoleModalVisible] = useState(false)
   const [editingRole, setEditingRole] = useState<IRole | null>(null)
-  const [form] = Form.useForm()
-  const [policyForm] = Form.useForm()
-  const [policyModalVisible, setPolicyModalVisible] = useState(false)
-  const [actionOptions, setActionOptions] = useState<string[]>([])
-  const [scopeKindOptions, setScopeKindOptions] = useState<string[]>(['all'])
+  const [grantModalVisible, setGrantModalVisible] = useState(false)
+  const [revokeGrant, setRevokeGrant] = useState<IPermissionGrant | null>(null)
+  const [assignmentModalVisible, setAssignmentModalVisible] = useState(false)
+  const [roleForm] = Form.useForm()
+  const [revokeForm] = Form.useForm()
+  const [assignmentForm] = Form.useForm()
 
   useEffect(() => {
     authStore.fetchRoleList({ limit: 100, offset: 0 })
     authStore.fetchResourceList({ limit: 200, offset: 0 })
-  }, [])
+  }, [authStore])
 
   useEffect(() => {
     if (authStore.selectedRole?.id) {
-      authStore.fetchRolePolicies(authStore.selectedRole.id)
+      authStore.fetchRoleDetails(authStore.selectedRole.id)
     }
-  }, [authStore.selectedRole?.id])
+  }, [authStore, authStore.selectedRole?.id])
 
-  const handleRoleSelect = (role: IRole) => {
-    authStore.setSelectedRole(role)
-    // 获取角色的策略列表
-    authStore.fetchRolePolicies(role.id)
-  }
-
-  const handleAddRole = () => {
+  const openCreateRole = () => {
     setEditingRole(null)
-    form.resetFields()
-    setModalVisible(true)
+    roleForm.resetFields()
+    setRoleModalVisible(true)
   }
 
-  const handleEditRole = (role: IRole) => {
+  const openEditRole = (role: IRole) => {
     setEditingRole(role)
-    form.setFieldsValue({
-      display_name: role.display_name,
-      description: role.description
-    })
-    setModalVisible(true)
+    roleForm.setFieldsValue(role)
+    setRoleModalVisible(true)
   }
 
-  const handleDeleteRole = async (id: string) => {
-    await authStore.deleteRole(id)
+  const submitRole = async () => {
+    const values = await roleForm.validateFields()
+    const success = editingRole
+      ? await authStore.updateRole(editingRole.id, {
+        display_name: values.display_name,
+        description: values.description
+      })
+      : await authStore.createRole(values)
+    if (success) setRoleModalVisible(false)
   }
 
-  const handleSubmit = async () => {
-    try {
-      const values = await form.validateFields()
-
-      if (editingRole) {
-        await authStore.updateRole(editingRole.id, values)
-      } else {
-        await authStore.createRole(values)
-      }
-
-      setModalVisible(false)
-    } catch (error) {
-      // 错误已在 store 中处理
+  const submitRevokeGrant = async () => {
+    if (!revokeGrant) return
+    const values = await revokeForm.validateFields()
+    const success = await authStore.revokePermissionGrant(revokeGrant, values.reason)
+    if (success) {
+      setRevokeGrant(null)
+      revokeForm.resetFields()
     }
   }
 
-  const handleRemovePolicy = async (rule: IPolicyRule) => {
-    if (!authStore.selectedRole?.id) return
-    const resourceId = rule.resource_id || authStore.resourceList.find(
-      item => item.key === rule.object || String(item.id) === String(rule.object)
-    )?.id
-    if (!resourceId) {
-      message.warning('缺少资源标识，无法删除')
-      return
+  const submitAssignment = async () => {
+    if (!authStore.selectedRole) return
+    const values = await assignmentForm.validateFields()
+    const success = await authStore.grantRoleAssignment(authStore.selectedRole.id, values.subject_id)
+    if (success) {
+      setAssignmentModalVisible(false)
+      assignmentForm.resetFields()
     }
-    await authStore.removePolicyRule({
-      role_id: authStore.selectedRole.id,
-      resource_id: resourceId,
-      action: rule.action,
-      scope_type: rule.scope_type || 'all',
-      scope_value: rule.scope_value || '*',
-      changed_by: 'system'
-    })
-    authStore.fetchRolePolicies(authStore.selectedRole.id)
   }
 
-  const renderPolicyActions = (_: unknown, record: IPolicyRule) => (
-    <Space>
-      <Button
-        type="link"
-        danger
-        size="small"
-        onClick={() => handleRemovePolicy(record)}
-      >
-        删除
-      </Button>
-    </Space>
-  )
-
-  const renderPolicyScope = (_: unknown, record: IPolicyRule) => (
-    <Tag>{record.scope_type || 'all'}:{record.scope_value || '*'}</Tag>
-  )
-
-  const getPolicyRowKey = (record: IPolicyRule, index?: number) => [
-    record.resource_id || record.object || 'policy',
-    record.action,
-    record.scope_type || 'all',
-    record.scope_value || '*',
-    index
-  ].join('-')
-
-  const getResourceLabel = (resourceId?: string) => {
-    const res = authStore.resourceList.find(item => String(item.id) === String(resourceId) || item.key === resourceId)
-    if (!res) return resourceId || '-'
-    return `${res.display_name}（${res.key}）`
+  const resourceLabel = (resourceId: string) => {
+    const resource = authStore.resourceList.find(item => String(item.id) === String(resourceId))
+    return resource ? `${resource.display_name}（${resource.key}）` : resourceId
   }
+
+  const renderGrantMode = (_: unknown, grant: IPermissionGrant) => {
+    const mode = getAuthorizationMode(grant.constraint_set)
+    return mode === 'UNCONDITIONAL'
+      ? <Tag color="green">无条件能力</Tag>
+      : <Tag color="orange">需要对象校验</Tag>
+  }
+
+  const renderGrantConditions = (_: unknown, grant: IPermissionGrant) => (
+    <Text code={grant.constraint_set.all_of.length > 0}>
+      {describeConstraintSet(grant.constraint_set)}
+    </Text>
+  )
+
+  const renderGrantOperation = (_: unknown, grant: IPermissionGrant) => (
+    <Button
+      type="link"
+      danger
+      size="small"
+      onClick={() => {
+        setRevokeGrant(grant)
+        revokeForm.resetFields()
+      }}
+    >
+      撤销
+    </Button>
+  )
+
+  const renderAssignmentOperation = (_: unknown, assignment: IAssignment) => (
+    <Popconfirm
+      title="确定从当前角色移除该用户吗？"
+      okText="移除"
+      cancelText="取消"
+      onConfirm={() => authStore.revokeRoleAssignment(assignment)}
+    >
+      <Button type="link" danger size="small">移除</Button>
+    </Popconfirm>
+  )
+
+  const grantColumns = [
+    {
+      title: '资源',
+      dataIndex: 'resource_id',
+      key: 'resource_id',
+      render: (resourceId: string) => resourceLabel(resourceId)
+    },
+    { title: '动作', dataIndex: 'action', key: 'action', width: 130 },
+    {
+      title: '授权方式',
+      key: 'mode',
+      width: 160,
+      render: renderGrantMode
+    },
+    {
+      title: '对象条件（全部满足）',
+      key: 'conditions',
+      render: renderGrantConditions
+    },
+    { title: '授权人', dataIndex: 'granted_by', key: 'granted_by', width: 120 },
+    {
+      title: '操作',
+      key: 'operation',
+      width: 90,
+      render: renderGrantOperation
+    }
+  ]
+
+  const assignmentColumns = [
+    { title: '用户 ID', dataIndex: 'subject_id', key: 'subject_id' },
+    { title: '主体类型', dataIndex: 'subject_type', key: 'subject_type', width: 120 },
+    { title: '授予人', dataIndex: 'granted_by', key: 'granted_by', width: 140 },
+    {
+      title: '操作',
+      key: 'operation',
+      width: 100,
+      render: renderAssignmentOperation
+    }
+  ]
 
   return (
     <div className="authz-config-page">
+      <Alert
+        className="authz-model-alert"
+        type="info"
+        showIcon
+        message="RBAC + 对象属性约束"
+        description="角色表达稳定能力；PermissionGrant 表达资源、单一动作和可选对象属性条件。业务关系和列表数据范围仍由业务模块负责。"
+      />
       <Row gutter={24}>
-        {/* 角色列表 */}
-        <Col xs={24} lg={8}>
+        <Col xs={24} xl={7}>
           <Card
-            title={<><SafetyOutlined /> 角色列表</>}
-            extra={
-              <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleAddRole}>
+            title={<><SafetyOutlined /> 角色</>}
+            extra={(
+              <Button type="primary" size="small" icon={<PlusOutlined />} onClick={openCreateRole}>
                 添加角色
               </Button>
-            }
+            )}
+            loading={authStore.rolesLoading}
           >
             <div className="role-list">
               {authStore.roleList.map(role => (
                 <div
                   key={role.id}
+                  role="button"
+                  tabIndex={0}
                   className={`role-item ${authStore.selectedRole?.id === role.id ? 'active' : ''}`}
-                  onClick={() => handleRoleSelect(role)}
+                  onClick={() => authStore.setSelectedRole(role)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') authStore.setSelectedRole(role)
+                  }}
                 >
                   <div className="role-header">
                     <h4>{role.display_name}</h4>
                     <Tag color="blue">{role.name}</Tag>
                   </div>
-                  <p className="role-desc">{role.description}</p>
+                  <p className="role-desc">{role.description || '暂无描述'}</p>
                   <div className="role-actions">
                     <Button
                       type="link"
                       size="small"
                       icon={<EditOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleEditRole(role)
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        openEditRole(role)
                       }}
                     >
                       编辑
@@ -163,12 +235,14 @@ const AuthzConfig: React.FC = observer(() => {
                       size="small"
                       danger
                       icon={<DeleteOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation()
+                      onClick={(event) => {
+                        event.stopPropagation()
                         Modal.confirm({
-                          title: '确定要删除该角色吗？',
-                          content: '删除后将无法恢复',
-                          onOk: () => handleDeleteRole(role.id)
+                          title: '确定删除该角色吗？',
+                          content: '仍有关联成员或 Grant 时，IAM 会拒绝删除。',
+                          okText: '删除',
+                          okButtonProps: { danger: true },
+                          onOk: () => authStore.deleteRole(role.id)
                         })
                       }}
                     >
@@ -181,88 +255,83 @@ const AuthzConfig: React.FC = observer(() => {
           </Card>
         </Col>
 
-        {/* 角色详情和权限配置 */}
-        <Col xs={24} lg={16}>
+        <Col xs={24} xl={17}>
           {authStore.selectedRole ? (
             <>
-              <Card title="角色信息" style={{ marginBottom: 24 }}>
+              <Card title="角色信息" className="role-summary-card">
                 <Descriptions column={2}>
-                  <Descriptions.Item label="角色名称">{authStore.selectedRole.display_name}</Descriptions.Item>
-                  <Descriptions.Item label="角色标识">{authStore.selectedRole.name}</Descriptions.Item>
+                  <Descriptions.Item label="角色名称">
+                    {authStore.selectedRole.display_name}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="角色标识">
+                    {authStore.selectedRole.name}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="权限授权">
+                    {authStore.currentRoleGrants.length} 条
+                  </Descriptions.Item>
+                  <Descriptions.Item label="角色成员">
+                    {authStore.currentRoleAssignments.length} 人
+                  </Descriptions.Item>
                   <Descriptions.Item label="角色描述" span={2}>
                     {authStore.selectedRole.description || '-'}
                   </Descriptions.Item>
                 </Descriptions>
               </Card>
 
-              <Card
-                title="策略配置"
-                extra={
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => {
-                      policyForm.resetFields()
-                      policyForm.setFieldsValue({ scope_type: 'all', scope_value: '*' })
-                      setActionOptions([])
-                      setScopeKindOptions(['all'])
-                      setPolicyModalVisible(true)
-                    }}
-                    disabled={!authStore.selectedRole}
+              <Card>
+                <Tabs defaultActiveKey="grants">
+                  <TabPane
+                    key="grants"
+                    tab={<span><SafetyCertificateOutlined /> 权限授权</span>}
                   >
-                    添加策略
-                  </Button>
-                }
-              >
-                <Table
-                  dataSource={authStore.currentRolePolicies}
-                  rowKey={getPolicyRowKey}
-                  pagination={false}
-                  loading={authStore.loading}
-                  columns={[
-                    {
-                      title: '主体',
-                      dataIndex: 'subject',
-                      key: 'subject',
-                      render: (text) => text || authStore.selectedRole?.name || '-'
-                    },
-                    {
-                      title: '域',
-                      dataIndex: 'domain',
-                      key: 'domain',
-                      render: (text) => text || '-'
-                    },
-                    {
-                      title: '对象/资源',
-                      dataIndex: 'object',
-                      key: 'object',
-                      render: (text, record) => getResourceLabel(record.resource_id || text)
-                    },
-                    {
-                      title: '动作',
-                      dataIndex: 'action',
-                      key: 'action',
-                    },
-                    {
-                      title: '范围',
-                      key: 'scope',
-                      render: renderPolicyScope
-                    },
-                    {
-                      title: '管理',
-                      key: 'actions',
-                      render: renderPolicyActions,
-                    },
-                  ]}
-                />
+                    <div className="tab-toolbar">
+                      <div>
+                        <Text strong>PermissionGrant</Text>
+                        <Text type="secondary"> 多条 Grant 之间为 OR，单条内的条件为 AND。</Text>
+                      </div>
+                      <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => setGrantModalVisible(true)}
+                      >
+                        创建授权
+                      </Button>
+                    </div>
+                    <Table
+                      dataSource={authStore.currentRoleGrants}
+                      columns={grantColumns}
+                      rowKey="id"
+                      pagination={false}
+                      loading={authStore.roleDetailsLoading}
+                      scroll={{ x: 980 }}
+                    />
+                  </TabPane>
+                  <TabPane key="assignments" tab={<span><TeamOutlined /> 角色成员</span>}>
+                    <div className="tab-toolbar">
+                      <Text type="secondary">主体绑定角色；业务资源条件不配置在成员关系中。</Text>
+                      <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => setAssignmentModalVisible(true)}
+                      >
+                        添加成员
+                      </Button>
+                    </div>
+                    <Table
+                      dataSource={authStore.currentRoleAssignments}
+                      columns={assignmentColumns}
+                      rowKey="id"
+                      pagination={false}
+                      loading={authStore.roleDetailsLoading}
+                    />
+                  </TabPane>
+                </Tabs>
               </Card>
             </>
           ) : (
-            <Card>
-              <div style={{ textAlign: 'center', padding: '60px 0' }}>
-                <SafetyOutlined style={{ fontSize: 64, color: '#ccc' }} />
-                <p style={{ marginTop: 16, color: '#999' }}>请选择一个角色查看详情</p>
-              </div>
+            <Card className="empty-role-card">
+              <SafetyOutlined />
+              <p>请选择一个角色查看授权与成员</p>
             </Card>
           )}
         </Col>
@@ -270,140 +339,92 @@ const AuthzConfig: React.FC = observer(() => {
 
       <Modal
         title={editingRole ? '编辑角色' : '添加角色'}
-        visible={modalVisible}
-        onOk={handleSubmit}
-        onCancel={() => setModalVisible(false)}
+        visible={roleModalVisible}
+        confirmLoading={authStore.mutating}
+        onOk={submitRole}
+        onCancel={() => setRoleModalVisible(false)}
         width={600}
+        destroyOnClose
       >
-        <Form form={form} layout="vertical">
+        <Form form={roleForm} layout="vertical">
           <Form.Item
             label="角色标识"
             name="name"
             rules={[
               { required: true, message: '请输入角色标识' },
-              { pattern: /^[a-z_]+$/, message: '角色标识只能包含小写字母和下划线' }
+              { pattern: /^[a-z][a-z0-9:_-]*$/, message: '仅支持小写字母、数字、冒号、下划线和中划线' }
             ]}
           >
-            <Input placeholder="请输入角色标识，如: admin" disabled={!!editingRole} />
+            <Input placeholder="例如 qs:evaluator" disabled={Boolean(editingRole)} />
           </Form.Item>
-
-          <Form.Item
-            label="角色名称"
-            name="display_name"
-            rules={[{ required: true, message: '请输入角色名称' }]}
-          >
-            <Input placeholder="请输入角色名称" />
+          <Form.Item label="角色名称" name="display_name" rules={[{ required: true, message: '请输入角色名称' }]}>
+            <Input placeholder="角色展示名称" />
           </Form.Item>
+          <Form.Item label="角色描述" name="description">
+            <Input.TextArea placeholder="说明该角色的稳定岗位或能力" rows={4} />
+          </Form.Item>
+        </Form>
+      </Modal>
 
+      {authStore.selectedRole && (
+        <GrantEditor
+          visible={grantModalVisible}
+          roleId={authStore.selectedRole.id}
+          resources={authStore.resourceList}
+          loading={authStore.mutating}
+          onCancel={() => setGrantModalVisible(false)}
+          onSubmit={request => authStore.createPermissionGrant(request)}
+        />
+      )}
+
+      <Modal
+        title="撤销权限授权"
+        visible={Boolean(revokeGrant)}
+        confirmLoading={authStore.mutating}
+        onOk={submitRevokeGrant}
+        onCancel={() => setRevokeGrant(null)}
+        okText="撤销"
+        okButtonProps={{ danger: true }}
+        destroyOnClose
+      >
+        {revokeGrant && (
+          <Alert
+            type="warning"
+            showIcon
+            message={`${resourceLabel(revokeGrant.resource_id)} / ${revokeGrant.action}`}
+            description="Grant 不可编辑；撤销后如需调整，请重新创建。"
+            style={{ marginBottom: 16 }}
+          />
+        )}
+        <Form form={revokeForm} layout="vertical">
           <Form.Item
-            label="角色描述"
-            name="description"
+            label="撤销原因"
+            name="reason"
+            rules={[{ required: true, message: '请填写撤销原因' }]}
           >
-            <Input.TextArea placeholder="请输入角色描述" rows={4} />
+            <Input.TextArea rows={3} placeholder="记录本次权限调整原因" />
           </Form.Item>
         </Form>
       </Modal>
 
       <Modal
-        title="添加策略"
-        visible={policyModalVisible}
-        onOk={async () => {
-          try {
-            const values = await policyForm.validateFields()
-            if (!authStore.selectedRole?.id) {
-              message.error('请先选择角色')
-              return
-            }
-            const ok = await authStore.addPolicyRule({
-              role_id: authStore.selectedRole.id,
-              resource_id: values.resource_id,
-              action: values.action,
-              scope_type: values.scope_type || 'all',
-              scope_value: values.scope_value || '*',
-              changed_by: 'system',
-              reason: values.reason
-            })
-            if (ok) {
-              setPolicyModalVisible(false)
-              policyForm.resetFields()
-              setActionOptions([])
-              setScopeKindOptions(['all'])
-              authStore.fetchRolePolicies(authStore.selectedRole.id)
-            }
-          } catch (error) {
-            // 错误已在 store 中处理
-          }
-        }}
-        onCancel={() => {
-          setPolicyModalVisible(false)
-          policyForm.resetFields()
-          setActionOptions([])
-          setScopeKindOptions(['all'])
-        }}
+        title={`添加${authStore.selectedRole?.display_name || ''}成员`}
+        visible={assignmentModalVisible}
+        confirmLoading={authStore.mutating}
+        onOk={submitAssignment}
+        onCancel={() => setAssignmentModalVisible(false)}
         destroyOnClose
       >
-        <Form form={policyForm} layout="vertical">
+        <Form form={assignmentForm} layout="vertical">
           <Form.Item
-            label="资源"
-            name="resource_id"
-            rules={[{ required: true, message: '请选择资源' }]}
+            label="用户 ID"
+            name="subject_id"
+            rules={[
+              { required: true, message: '请输入用户 ID' },
+              { pattern: /^\d+$/, message: '用户 ID 必须是数字' }
+            ]}
           >
-            <Select
-              placeholder="请选择资源"
-              showSearch
-              optionFilterProp="children"
-              onChange={(value: string) => {
-                const resource = authStore.resourceList.find(r => String(r.id) === String(value))
-                const scopeKinds = resource?.scope_kinds?.length ? resource.scope_kinds : ['all']
-                setActionOptions(resource?.actions || [])
-                setScopeKindOptions(scopeKinds)
-                policyForm.setFieldsValue({ action: undefined, scope_type: scopeKinds[0], scope_value: '*' })
-              }}
-            >
-              {authStore.resourceList.map(res => (
-                <Option key={res.id} value={res.id}>
-                  {res.display_name}（{res.key}）
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="动作"
-            name="action"
-            rules={[{ required: true, message: '请选择动作' }]}
-          >
-            <Select placeholder="请选择动作">
-              {actionOptions.map(action => (
-                <Option key={action} value={action}>{action}</Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="范围类型"
-            name="scope_type"
-            initialValue="all"
-            rules={[{ required: true, message: '请选择范围类型' }]}
-          >
-            <Select placeholder="请选择范围类型">
-              {scopeKindOptions.map(scopeKind => (
-                <Option key={scopeKind} value={scopeKind}>{scopeKind}</Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="范围值"
-            name="scope_value"
-            initialValue="*"
-            rules={[{ required: true, message: '请输入范围值' }]}
-          >
-            <Input placeholder="默认 * 表示全部范围" />
-          </Form.Item>
-
-          <Form.Item label="原因" name="reason">
-            <Input.TextArea rows={3} placeholder="变更原因（可选）" />
+            <Input placeholder="IAM 用户 ID" />
           </Form.Item>
         </Form>
       </Modal>

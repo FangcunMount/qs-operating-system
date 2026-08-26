@@ -1,4 +1,38 @@
 .authz-config-page {
+  .authz-model-alert {
+    margin-bottom: 20px;
+  }
+
+  .role-summary-card {
+    margin-bottom: 20px;
+  }
+
+  .tab-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .constraint-fields {
+    padding: 16px 16px 1px;
+    background: #fafafa;
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+  }
+
+  .empty-role-card {
+    text-align: center;
+    padding: 60px 0;
+    color: #999;
+
+    .anticon {
+      font-size: 64px;
+      color: #d9d9d9;
+    }
+  }
+
   .role-list {
     max-height: 800px;
     overflow-y: auto;
@@ -59,5 +93,15 @@
     background: #fafafa;
     padding: 16px;
     border-radius: 2px;
+  }
+
+  @media (max-width: 1199px) {
+    .role-list {
+      max-height: 360px;
+    }
+
+    .role-summary-card {
+      margin-top: 20px;
+    }
   }
 }

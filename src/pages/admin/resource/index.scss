@@ -40,4 +40,38 @@
   .resource-desc {
     margin: 0;
   }
+
+  .attribute-schema-row {
+    display: grid;
+    grid-template-columns: minmax(210px, 1.4fr) 130px minmax(210px, 1fr) auto;
+    align-items: start;
+    gap: 12px;
+    padding: 14px;
+    background: #fafafa;
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+
+    .ant-form-item {
+      margin-bottom: 0;
+    }
+  }
+
+  .attribute-schema-placeholder {
+    min-height: 64px;
+  }
+
+  .attribute-schema-delete {
+    margin-top: 30px;
+  }
+
+  @media (max-width: 767px) {
+    .attribute-schema-row {
+      grid-template-columns: 1fr;
+
+      .attribute-schema-delete {
+        margin-top: 0;
+        justify-self: end;
+      }
+    }
+  }
 }
