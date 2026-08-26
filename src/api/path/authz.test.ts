@@ -1,9 +1,12 @@
 import {
   createPermissionGrant,
   createResource,
+  createRoleInheritance,
+  listRoleInheritances,
   listPermissionGrants,
   listResources,
   revokePermissionGrant,
+  revokeRoleInheritance,
   updateResource
 } from './authz'
 import { iamV3Del, iamV3Get, iamV3Post, iamV3Put } from '../iamV3Server'
@@ -129,5 +132,18 @@ describe('AuthZ v3 API contract', () => {
       attribute_schema: resource.attribute_schema
     })
     expect(JSON.stringify([...postMock.mock.calls, ...putMock.mock.calls])).not.toContain('scope_kinds')
+  })
+
+  it('uses first-class RoleInheritance endpoints', async () => {
+    await listRoleInheritances()
+    await createRoleInheritance('role-admin', 'role-evaluator')
+    await revokeRoleInheritance('inheritance-1', '角色图调整')
+
+    expect(getMock).toHaveBeenCalledWith('/authz/role-inheritances', undefined)
+    expect(postMock).toHaveBeenCalledWith('/authz/role-inheritances', {
+      role_id: 'role-admin',
+      inherited_role_id: 'role-evaluator'
+    })
+    expect(delMock).toHaveBeenCalledWith('/authz/role-inheritances/inheritance-1', { reason: '角色图调整' })
   })
 })

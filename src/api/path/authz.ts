@@ -41,6 +41,16 @@ export interface IAssignment {
   tenant_id?: string
 }
 
+export interface IRoleInheritance {
+  id: string
+  tenant_id: string
+  role_id: string
+  inherited_role_id: string
+  granted_by: string
+  granted_at: string
+  active: boolean
+}
+
 export interface IGrantRequest {
   subject_type: 'user'
   subject_id: string
@@ -232,6 +242,28 @@ export const revokeAssignmentById = (id: string): IamV3Result<IMessage> => (
   iamV3Del<IMessage>(`/authz/assignments/${id}`)
 )
 
+export const listRoleInheritances = async (
+  roleId?: string
+): Promise<[unknown, IRoleInheritance[] | undefined]> => {
+  const [error, response] = await iamV3Get<IRoleInheritance[]>(
+    '/authz/role-inheritances', roleId ? { role_id: roleId } : undefined
+  )
+  if (error || !response) return [error, undefined]
+  return [null, response.data || []]
+}
+
+export const createRoleInheritance = (
+  roleId: string,
+  inheritedRoleId: string
+): IamV3Result<IRoleInheritance> => iamV3Post<IRoleInheritance>('/authz/role-inheritances', {
+  role_id: roleId,
+  inherited_role_id: inheritedRoleId
+})
+
+export const revokeRoleInheritance = (id: string, reason?: string): IamV3Result<IMessage> => (
+  iamV3Del<IMessage>(`/authz/role-inheritances/${id}`, reason ? { reason } : {})
+)
+
 export const listAssignmentsBySubject = async (
   params: { subject_type: 'user'; subject_id: string }
 ): Promise<[unknown, IListResponse<IAssignment> | undefined]> => {
@@ -289,6 +321,9 @@ export const authzApi = {
   revokeRole,
   revokeAssignmentById,
   listAssignmentsBySubject,
+  listRoleInheritances,
+  createRoleInheritance,
+  revokeRoleInheritance,
   listResources,
   createResource,
   getResource,

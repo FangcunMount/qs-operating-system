@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Alert, Button, Card, Form, Input, Modal, Popconfirm, Radio, Select, Space, Table, Tag, Typography } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, SyncOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { observer } from 'mobx-react-lite'
 import { rootStore } from '@/store'
@@ -9,21 +9,25 @@ import type { IClinician } from '@/api/path/clinician'
 import { clinicianApi } from '@/api/path/clinician'
 import { OPERATOR_ROLE_COLOR_MAP, OPERATOR_ROLE_OPTIONS } from '@/constants/operatorRoles'
 import { extractErrorMessage } from '@/utils/apiError'
+import { resolveEffectiveRoleNames } from '../authz/roleInheritanceModel'
 import './index.scss'
 
 type AccountMode = 'create' | 'existing'
 
 const StaffManagement: React.FC = observer(() => {
-  const { staffStore } = rootStore
+  const { staffStore, authStore } = rootStore
   const [modalVisible, setModalVisible] = useState(false)
   const [editingStaff, setEditingStaff] = useState<IStaff | null>(null)
   const [clinicians, setClinicians] = useState<IClinician[]>([])
   const [accountMode, setAccountMode] = useState<AccountMode>('create')
+  const [previewDirectRoles, setPreviewDirectRoles] = useState<string[]>(['qs:staff'])
   const [form] = Form.useForm()
 
   useEffect(() => {
     fetchStaffList()
     fetchClinicians()
+    authStore.fetchRoleList({ limit: 100, offset: 0 })
+    authStore.fetchRoleInheritances()
   }, [])
 
   const fetchStaffList = (page = 1, pageSize = 20) => {
@@ -52,6 +56,7 @@ const StaffManagement: React.FC = observer(() => {
       roles: ['qs:staff'],
       is_active: true
     })
+    setPreviewDirectRoles(['qs:staff'])
     setModalVisible(true)
   }
 
@@ -68,6 +73,7 @@ const StaffManagement: React.FC = observer(() => {
       roles: record.roles || [],
       is_active: record.is_active
     })
+    setPreviewDirectRoles(record.roles || [])
     setModalVisible(true)
   }
 
@@ -149,7 +155,7 @@ const StaffManagement: React.FC = observer(() => {
       width: 180
     },
     {
-      title: '角色',
+      title: '直接角色',
       dataIndex: 'roles',
       key: 'roles',
       width: 280,
@@ -166,6 +172,30 @@ const StaffManagement: React.FC = observer(() => {
             })}
           </Space>
         )
+      }
+    },
+    {
+      title: '继承角色',
+      dataIndex: 'inherited_roles',
+      key: 'inherited_roles',
+      width: 260,
+      render(roles: string[]) {
+        return (
+          <Space size={4} wrap>
+            {(roles || []).map(role => <Tag key={role}>{role}</Tag>)}
+            {(!roles || roles.length === 0) && <Typography.Text type="secondary">-</Typography.Text>}
+          </Space>
+        )
+      }
+    },
+    {
+      title: '授权投影',
+      key: 'authz_projection',
+      width: 150,
+      render(_, record) {
+        return record.authz_projection_pending
+          ? <Tag icon={<SyncOutlined spin />} color="processing">同步中</Tag>
+          : <Tag color="success">v{record.authz_policy_version}</Tag>
       }
     },
     {
@@ -219,6 +249,12 @@ const StaffManagement: React.FC = observer(() => {
   const modalTitle = editingStaff ? '编辑员工' : '添加员工'
   const showCreateFields = !editingStaff && accountMode === 'create'
   const showExistingFields = !editingStaff && accountMode === 'existing'
+  const previewEffectiveRoles = resolveEffectiveRoleNames(
+    previewDirectRoles,
+    authStore.roleList,
+    authStore.roleInheritances
+  )
+  const previewInheritedRoles = previewEffectiveRoles.filter(role => !previewDirectRoles.includes(role))
 
   return (
     <div className="staff-management-page">
@@ -235,7 +271,7 @@ const StaffManagement: React.FC = observer(() => {
           dataSource={staffStore.staffList}
           rowKey="id"
           loading={staffStore.loading}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1600 }}
           pagination={{
             current: staffStore.pageInfo.current,
             pageSize: staffStore.pageInfo.pageSize,
@@ -339,16 +375,40 @@ const StaffManagement: React.FC = observer(() => {
             </Form.Item>
           )}
 
-          <Form.Item label="角色" name="roles" rules={[{ required: true, message: '请选择至少一个角色' }]}>
+          <Form.Item
+            label="直接角色"
+            name="roles"
+            extra="这里只提交 IAM 直接 Assignment；继承角色不能在员工表单中撤销。"
+            rules={[{ required: true, message: '请选择至少一个角色' }]}
+          >
             <Select
               mode="multiple"
               placeholder="请选择角色"
+              onChange={(roles: string[]) => setPreviewDirectRoles(roles)}
               options={OPERATOR_ROLE_OPTIONS.map((item) => ({
                 value: item.value,
                 label: item.label
               }))}
             />
           </Form.Item>
+
+          <Form.Item label="继承角色（只读预览）">
+            <Space size={4} wrap>
+              {previewInheritedRoles.map(role => (
+                <Tag key={role}>{OPERATOR_ROLE_OPTIONS.find(item => item.value === role)?.label || role}</Tag>
+              ))}
+              {previewInheritedRoles.length === 0 && <Typography.Text type="secondary">无</Typography.Text>}
+            </Space>
+          </Form.Item>
+
+          {editingStaff?.authz_projection_pending && (
+            <Alert
+              type="info"
+              showIcon
+              message="授权已提交，展示投影同步中"
+              style={{ marginBottom: 16 }}
+            />
+          )}
 
           <Form.Item label="状态" name="is_active">
             <Radio.Group>

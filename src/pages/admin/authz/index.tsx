@@ -10,6 +10,7 @@ import {
   Modal,
   Popconfirm,
   Row,
+  Select,
   Table,
   Tabs,
   Tag,
@@ -21,13 +22,15 @@ import {
   PlusOutlined,
   SafetyCertificateOutlined,
   SafetyOutlined,
+  SwapOutlined,
   TeamOutlined
 } from '@ant-design/icons'
 import { observer } from 'mobx-react-lite'
 import { rootStore } from '@/store'
-import type { IAssignment, IPermissionGrant, IRole } from '@/api/path/authz'
+import type { IAssignment, IPermissionGrant, IRole, IRoleInheritance } from '@/api/path/authz'
 import GrantEditor from './GrantEditor'
 import { describeConstraintSet, getAuthorizationMode } from './constraintModel'
+import { wouldCreateRoleInheritanceCycle } from './roleInheritanceModel'
 import './index.scss'
 
 const { TabPane } = Tabs
@@ -40,13 +43,16 @@ const AuthzConfig: React.FC = observer(() => {
   const [grantModalVisible, setGrantModalVisible] = useState(false)
   const [revokeGrant, setRevokeGrant] = useState<IPermissionGrant | null>(null)
   const [assignmentModalVisible, setAssignmentModalVisible] = useState(false)
+  const [inheritanceModalVisible, setInheritanceModalVisible] = useState(false)
   const [roleForm] = Form.useForm()
   const [revokeForm] = Form.useForm()
   const [assignmentForm] = Form.useForm()
+  const [inheritanceForm] = Form.useForm()
 
   useEffect(() => {
     authStore.fetchRoleList({ limit: 100, offset: 0 })
     authStore.fetchResourceList({ limit: 200, offset: 0 })
+    authStore.fetchRoleInheritances()
   }, [authStore])
 
   useEffect(() => {
@@ -102,6 +108,50 @@ const AuthzConfig: React.FC = observer(() => {
     const resource = authStore.resourceList.find(item => String(item.id) === String(resourceId))
     return resource ? `${resource.display_name}（${resource.key}）` : resourceId
   }
+
+  const roleLabel = (roleId: string) => {
+    const role = authStore.roleList.find(item => String(item.id) === String(roleId))
+    return role ? `${role.display_name}（${role.name}）` : roleId
+  }
+
+  const selectedRoleId = String(authStore.selectedRole?.id || '')
+  const directParents = authStore.roleInheritances.filter(edge => String(edge.role_id) === selectedRoleId)
+  const directChildren = authStore.roleInheritances.filter(edge => String(edge.inherited_role_id) === selectedRoleId)
+  const inheritanceCandidates = authStore.roleList.filter(role => (
+    !wouldCreateRoleInheritanceCycle(selectedRoleId, String(role.id), authStore.roleInheritances)
+    && !directParents.some(edge => String(edge.inherited_role_id) === String(role.id))
+  ))
+
+  const submitInheritance = async () => {
+    if (!authStore.selectedRole) return
+    const values = await inheritanceForm.validateFields()
+    const success = await authStore.createRoleInheritance(authStore.selectedRole.id, values.inherited_role_id)
+    if (success) {
+      setInheritanceModalVisible(false)
+      inheritanceForm.resetFields()
+    }
+  }
+
+  const renderInheritanceOperation = (_: unknown, edge: IRoleInheritance) => (
+    <Popconfirm title="确定撤销这条角色继承吗？" onConfirm={() => authStore.revokeRoleInheritance(edge.id)}>
+      <Button type="link" danger size="small">撤销</Button>
+    </Popconfirm>
+  )
+
+  const inheritanceColumns = (direction: 'parent' | 'child') => [
+    {
+      title: direction === 'parent' ? '直接继承角色' : '继承当前角色的角色',
+      key: 'role',
+      render: (_: unknown, edge: IRoleInheritance) => roleLabel(
+        direction === 'parent' ? edge.inherited_role_id : edge.role_id
+      )
+    },
+    { title: '授予人', dataIndex: 'granted_by', key: 'granted_by', width: 160 },
+    {
+      title: '操作', key: 'operation', width: 90,
+      render: renderInheritanceOperation
+    }
+  ]
 
   const renderGrantMode = (_: unknown, grant: IPermissionGrant) => {
     const mode = getAuthorizationMode(grant.constraint_set)
@@ -325,6 +375,30 @@ const AuthzConfig: React.FC = observer(() => {
                       loading={authStore.roleDetailsLoading}
                     />
                   </TabPane>
+                  <TabPane key="inheritances" tab={<span><SwapOutlined /> 角色继承</span>}>
+                    <div className="tab-toolbar">
+                      <Text type="secondary">这里只维护直接继承关系；有效权限由 IAM 按完整继承闭包计算。</Text>
+                      <Button type="primary" icon={<PlusOutlined />} onClick={() => setInheritanceModalVisible(true)}>
+                        添加继承
+                      </Button>
+                    </div>
+                    <Text strong>当前角色直接继承</Text>
+                    <Table
+                      dataSource={directParents}
+                      columns={inheritanceColumns('parent')}
+                      rowKey="id"
+                      pagination={false}
+                      size="small"
+                    />
+                    <div style={{ marginTop: 24 }}><Text strong>继承当前角色</Text></div>
+                    <Table
+                      dataSource={directChildren}
+                      columns={inheritanceColumns('child')}
+                      rowKey="id"
+                      pagination={false}
+                      size="small"
+                    />
+                  </TabPane>
                 </Tabs>
               </Card>
             </>
@@ -336,6 +410,35 @@ const AuthzConfig: React.FC = observer(() => {
           )}
         </Col>
       </Row>
+
+      <Modal
+        title="添加角色继承"
+        visible={inheritanceModalVisible}
+        confirmLoading={authStore.mutating}
+        onOk={submitInheritance}
+        onCancel={() => setInheritanceModalVisible(false)}
+        destroyOnClose
+      >
+        <Alert
+          type="warning"
+          showIcon
+          message="当前角色将获得所选角色及其父角色的全部能力"
+          style={{ marginBottom: 16 }}
+        />
+        <Form form={inheritanceForm} layout="vertical">
+          <Form.Item label="继承角色" name="inherited_role_id" rules={[{ required: true, message: '请选择角色' }]}>
+            <Select
+              showSearch
+              optionFilterProp="children"
+              placeholder="请选择可继承角色"
+            >
+              {inheritanceCandidates.map(role => (
+                <Select.Option key={role.id} value={role.id}>{role.display_name}（{role.name}）</Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
 
       <Modal
         title={editingRole ? '编辑角色' : '添加角色'}
