@@ -82,12 +82,17 @@ describe('behavior ability DefinitionV2 projection', () => {
     }
 
     const form = projectBehaviorAbilityDefinition(cognitiveSource, 'spm')
-    expect(form.execution.SPM).toMatchObject({ TimeLimitSeconds: 1200, TotalFactorCode: 'TOTAL' })
+    const spm = form.execution.SPM
+    expect(spm).toBeDefined()
+    if (!spm) {
+      throw new Error('expected SPM execution')
+    }
+    expect(spm).toMatchObject({ TimeLimitSeconds: 1200, TotalFactorCode: 'TOTAL' })
     expect(form.execution.Brief2).toBeUndefined()
     expect(form.conclusions).toEqual([expect.objectContaining({ Kind: 'ability', FactorCode: 'TOTAL' })])
     expect(form.reportMap).toEqual(cognitiveSource.ReportMap)
 
-    form.execution.SPM!.TimeLimitSeconds = 900
+    spm.TimeLimitSeconds = 900
     form.reportMap.Sections = [{ Code: 'scores', Kind: 'factor_scores', SourceRefs: ['TOTAL'] }]
     const next = applyBehaviorAbilityDefinition(cognitiveSource, 'spm', form)
 
