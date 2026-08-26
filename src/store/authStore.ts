@@ -8,10 +8,11 @@ import type {
   IPermissionGrant,
   IResource,
   IRole,
+  IRoleInheritance,
   IUpdateResourceRequest
 } from '../api/path/authz'
 
-export type { IAssignment, IPermissionGrant, IResource, IRole }
+export type { IAssignment, IPermissionGrant, IResource, IRole, IRoleInheritance }
 
 class AuthStore {
   roleList: IRole[] = []
@@ -23,6 +24,7 @@ class AuthStore {
   selectedRole: IRole | null = null
   currentRoleGrants: IPermissionGrant[] = []
   currentRoleAssignments: IAssignment[] = []
+  roleInheritances: IRoleInheritance[] = []
 
   rolesLoading = false
   resourcesLoading = false
@@ -138,6 +140,34 @@ class AuthStore {
     }
   }
 
+  async fetchRoleInheritances() {
+    try {
+      const [error, inheritances] = await api.listRoleInheritances()
+      if (error || !inheritances) throw error || new Error('获取角色继承失败')
+      runInAction(() => { this.roleInheritances = inheritances })
+    } catch (error) {
+      message.error('获取角色继承失败')
+    }
+  }
+
+  async createRoleInheritance(roleId: string, inheritedRoleId: string) {
+    return this.runMutation(
+      () => api.createRoleInheritance(roleId, inheritedRoleId),
+      '创建角色继承成功',
+      '创建角色继承失败',
+      async () => this.fetchRoleInheritances()
+    )
+  }
+
+  async revokeRoleInheritance(id: string) {
+    return this.runMutation(
+      () => api.revokeRoleInheritance(id, '权限配置调整'),
+      '撤销角色继承成功',
+      '撤销角色继承失败',
+      async () => this.fetchRoleInheritances()
+    )
+  }
+
   async fetchRoleGrants(roleId: string) {
     const requestId = ++this.roleDetailsRequestId
     this.roleDetailsLoading = true
@@ -247,6 +277,7 @@ class AuthStore {
     this.selectedRole = null
     this.currentRoleGrants = []
     this.currentRoleAssignments = []
+    this.roleInheritances = []
     this.rolesLoading = false
     this.resourcesLoading = false
     this.roleDetailsLoading = false

@@ -39,6 +39,10 @@ export interface IStaff {
   org_id: string
   user_id: string
   roles: string[]
+  effective_roles: string[]
+  inherited_roles: string[]
+  authz_policy_version: number
+  authz_projection_pending: boolean
   email?: string
   phone?: string
   is_active: boolean
