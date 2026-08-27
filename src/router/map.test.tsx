@@ -32,7 +32,7 @@ describe('content management model routes', () => {
 })
 
 describe('AI governance route', () => {
-  it('mounts the four-workspace console under system governance permissions', () => {
+  it('mounts the governance overview and workspaces under system governance permissions', () => {
     const governanceRoutes = routes.find((route) => route.name === 'system-governance')?.children || []
     const aiGovernance = governanceRoutes.find((route) => route.name === 'ai-governance')
 

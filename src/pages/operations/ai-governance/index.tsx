@@ -1,8 +1,9 @@
 import React from 'react'
 import { Alert, Card, Space, Tag, Typography } from 'antd'
-import { AuditOutlined, RobotOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
+import { AuditOutlined, DashboardOutlined, RobotOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import { useHistory, useLocation } from 'react-router-dom'
 import { EvaluationReleaseWorkspace } from './workspaces/EvaluationReleaseWorkspace'
+import { GovernanceOverviewWorkspace } from './workspaces/GovernanceOverviewWorkspace'
 import { HumanReviewWorkspace } from './workspaces/HumanReviewWorkspace'
 import { ProfileGovernanceWorkspace } from './workspaces/ProfileGovernanceWorkspace'
 import { RuntimeGovernanceWorkspace } from './workspaces/RuntimeGovernanceWorkspace'
@@ -22,6 +23,8 @@ const AIGovernancePage: React.FC = () => {
 
   const renderWorkspace = () => {
     switch (activeView) {
+    case 'overview':
+      return <GovernanceOverviewWorkspace />
     case 'reviews':
       return <HumanReviewWorkspace />
     case 'profiles':
@@ -68,7 +71,7 @@ const AIGovernancePage: React.FC = () => {
             className={item.view === activeView ? 'is-active' : ''}
             onClick={() => history.push(pathForAIGovernanceView(item.view))}
           >
-            <span>{item.label}</span>
+            <span>{item.view === 'overview' ? <DashboardOutlined /> : null}{item.label}</span>
             <small>{item.description}</small>
           </button>
         ))}
