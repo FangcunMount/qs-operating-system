@@ -79,6 +79,7 @@ const StatisticsCenter = lazy(() => import('../pages/statistics/center'))
 const CacheGovernance = lazy(() => import('../pages/operations/cache-governance'))
 const EventGovernance = lazy(() => import('../pages/operations/event-governance'))
 const ResilienceGovernance = lazy(() => import('../pages/operations/resilience-governance'))
+const AIGovernance = lazy(() => import('../pages/operations/ai-governance'))
 
 export const routes: Array<IRoute> = [
   {
@@ -848,6 +849,14 @@ export const routes: Array<IRoute> = [
         name: 'system-governance-workbench',
         path: '/operations/system-governance',
         component: lazy(() => import('../pages/operations/system-governance')),
+        menuScope: 'org_admin',
+        requiredCapabilities: ['org_admin']
+      },
+      {
+        title: 'AI 治理',
+        name: 'ai-governance',
+        path: '/operations/ai-governance',
+        component: AIGovernance,
         menuScope: 'org_admin',
         requiredCapabilities: ['org_admin']
       },
