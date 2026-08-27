@@ -30,3 +30,17 @@ describe('content management model routes', () => {
     expect(byName('legacy-behavior-ability-norm-tables')?.path).toBe('/behavior-ability/norm-tables')
   })
 })
+
+describe('AI governance route', () => {
+  it('mounts the four-workspace console under system governance permissions', () => {
+    const governanceRoutes = routes.find((route) => route.name === 'system-governance')?.children || []
+    const aiGovernance = governanceRoutes.find((route) => route.name === 'ai-governance')
+
+    expect(aiGovernance).toMatchObject({
+      path: '/operations/ai-governance',
+      menuScope: 'org_admin',
+      requiredCapabilities: ['org_admin']
+    })
+    expect(aiGovernance?.component).toBeDefined()
+  })
+})
