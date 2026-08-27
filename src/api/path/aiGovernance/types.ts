@@ -1,4 +1,4 @@
-export type AIEvaluationStatus = 'requested' | 'collecting' | 'awaiting_review' | 'approved' | 'rejected' | 'canceled'
+export type AIEvaluationStatus = 'collecting' | 'awaiting_review' | 'approved' | 'rejected' | 'canceled'
 export type AIReviewRole = 'assessment_semantics' | 'safety_product'
 export type AIReviewDecision = 'approve' | 'reject'
 export type AIProfileStatus = 'draft' | 'published' | 'disabled'
@@ -166,14 +166,23 @@ export interface AIGateResult {
   }
 }
 
-export interface AIEvaluationRun {
+export interface AIEvaluationRunSummary {
   run_id: string
   version: number
   status: AIEvaluationStatus
-  requested_org_id?: number
-  requested_by?: string
-  request_reason?: string
+  requested_org_id: number
+  requested_by: string
+  request_reason: string
   created_at: string
+  release: AIEvaluationRelease
+  progress: AIReviewProgress
+  gate?: AIGateResult
+  can_review: boolean
+  can_finalize: boolean
+  recovery_max_provider_invocations: number
+}
+
+export interface AIEvaluationRun extends AIEvaluationRunSummary {
   execution?: {
     case_id: string
     attempt: number
@@ -190,20 +199,14 @@ export interface AIEvaluationRun {
     reason: string
     requested_at: string
   }>
-  release: AIEvaluationRelease
-  progress: AIReviewProgress
   attempts: AIReviewAttemptSummary[]
   finalized?: { at: string; actor: string; reason: string }
   canceled?: { at: string; actor: string; reason: string }
-  gate?: AIGateResult
-  can_review: boolean
-  can_finalize: boolean
-  recovery_max_provider_invocations: number
 }
 
 export interface AIEvaluationRunPage {
-  items: AIEvaluationRun[]
-  next_cursor: string
+  items: AIEvaluationRunSummary[]
+  next_cursor?: string
 }
 
 export interface AIEvaluationListQuery {
@@ -271,17 +274,56 @@ export interface AIProfileDefinition {
   profile_id: string
   version: string
   selector: {
-    audience: string
-    model_kind: string
-    decision_kind: string
-    model_code?: string | null
-    model_version?: string | null
+    audience: 'participant'
+    model_kind: 'scale'
+    decision_kind: 'score_range'
+    model_code: string | null
+    model_version: string | null
   }
-  eligibility: Record<string, unknown>
-  input_policy: Record<string, unknown>
-  insight_policy: Record<string, unknown>
-  suggestion_policy: Record<string, unknown>
-  safety_policy: Record<string, unknown>
+  eligibility: {
+    min_eligible_dimensions: number
+    eligible_dimension_codes: string[]
+    excluded_dimension_codes: string[]
+    max_input_dimensions: number
+    on_dimension_overflow: 'reject'
+  }
+  input_policy: {
+    context_scope: 'current_assessment_only'
+    include_norm_context: boolean
+    include_model_result: boolean
+    allowed_focus_areas: string[]
+    hierarchy_policy: {
+      allow_parent_child_in_same_insight: boolean
+    }
+  }
+  insight_policy: {
+    allowed_kinds: Array<
+      | 'reinforcing_pattern'
+      | 'contrasting_pattern'
+      | 'combined_strength'
+      | 'combined_attention'
+      | 'context_dependent_pattern'
+    >
+    min_items: number
+    max_items: number
+    min_dimension_refs_per_item: number
+    max_dimension_refs_per_item: number
+    allow_causal_claims: false
+  }
+  suggestion_policy: {
+    allowed_origins: Array<'standard_derived' | 'generated_low_risk'>
+    allowed_categories: string[]
+    min_items: number
+    max_items: number
+    max_actions_per_item: number
+    require_evidence_refs: true
+    require_standard_refs_for_standard_derived: true
+  }
+  safety_policy: {
+    policy_version: string
+    forbidden_claims: string[]
+    disclaimer_version: string
+  }
   generation_policy: {
     prompt_template_id: string
     prompt_version: string
@@ -312,7 +354,7 @@ export interface AIProfile {
 
 export interface AIProfilePage {
   items: AIProfile[]
-  next_cursor: string
+  next_cursor?: string
 }
 
 export interface AIProfileListQuery {

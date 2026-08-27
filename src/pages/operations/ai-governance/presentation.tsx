@@ -7,7 +7,6 @@ import type {
 } from '@/api/path/aiGovernance'
 
 const EVALUATION_LABELS: Record<AIEvaluationStatus, string> = {
-  requested: '已请求',
   collecting: '评测执行中',
   awaiting_review: '待人工审核',
   approved: '已批准',
@@ -16,7 +15,6 @@ const EVALUATION_LABELS: Record<AIEvaluationStatus, string> = {
 }
 
 const EVALUATION_COLORS: Record<AIEvaluationStatus, string> = {
-  requested: 'blue',
   collecting: 'processing',
   awaiting_review: 'orange',
   approved: 'green',

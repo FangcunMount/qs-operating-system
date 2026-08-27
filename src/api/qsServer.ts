@@ -122,8 +122,10 @@ const attachCommonHeaders = (cfg: AxiosRequestConfig) => {
   return cfg
 }
 
+export const isSuccessfulQSHttpStatus = (status: number): boolean => status >= 200 && status < 300
+
 const handleQSResponse = (response: any) => {
-  if (response.status !== 200) {
+  if (!isSuccessfulQSHttpStatus(response.status)) {
     return Promise.reject(response.data)
   }
 

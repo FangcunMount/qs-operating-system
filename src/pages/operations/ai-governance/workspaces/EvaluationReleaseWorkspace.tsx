@@ -18,12 +18,17 @@ import { CaretRightOutlined, ReloadOutlined, SearchOutlined, StopOutlined } from
 import {
   cancelAIEvaluation,
   finalizeAIEvaluation,
+  getAIEvaluationCapacity,
   getAIEvaluationRun,
   listAIEvaluationRuns,
   recoverAIEvaluation,
   startAIEvaluation
 } from '@/api/path/aiGovernance'
-import type { AIEvaluationRun, AIEvaluationStatus } from '@/api/path/aiGovernance'
+import type {
+  AIEvaluationRun,
+  AIEvaluationRunSummary,
+  AIEvaluationStatus
+} from '@/api/path/aiGovernance'
 import { ReleaseIdentityCard } from '../components/ReleaseIdentityCard'
 import { ReasonCommandModal } from '../components/ReasonCommandModal'
 import { errorMessage, evaluationStatusTag, formatTime } from '../presentation'
@@ -38,7 +43,6 @@ type CommandKind = 'start' | 'cancel' | 'recover' | 'finalize'
 
 const statusOptions: Array<{ value: AIEvaluationStatus | ''; label: string }> = [
   { value: '', label: '全部状态' },
-  { value: 'requested', label: '已请求' },
   { value: 'collecting', label: '执行中' },
   { value: 'awaiting_review', label: '待人工审核' },
   { value: 'approved', label: '已批准' },
@@ -48,13 +52,14 @@ const statusOptions: Array<{ value: AIEvaluationStatus | ''; label: string }> = 
 
 const commandCopy = (
   command: CommandKind,
-  run?: AIEvaluationRun | null
+  run?: AIEvaluationRun | null,
+  expectedStartProviderInvocations = 0
 ): { title: string; confirmText: string; description: React.ReactNode; danger?: boolean } => {
   if (command === 'start') {
     return {
       title: '启动冻结发布组合评测',
       confirmText: '确认预留并启动',
-      description: '本次启动会预留 70 次 Provider 调用。取消、失败或 result_unknown 均不退还预算。'
+      description: `本次启动会预留 ${expectedStartProviderInvocations} 次 Provider 调用。取消、失败或 result_unknown 均不退还预算。`
     }
   }
   if (command === 'recover') {
@@ -81,12 +86,14 @@ const commandCopy = (
 
 export const EvaluationReleaseWorkspace: React.FC = () => {
   const [status, setStatus] = useState<AIEvaluationStatus | ''>('')
-  const [runs, setRuns] = useState<AIEvaluationRun[]>([])
+  const [runs, setRuns] = useState<AIEvaluationRunSummary[]>([])
   const [nextCursor, setNextCursor] = useState('')
   const [selected, setSelected] = useState<AIEvaluationRun | null>(null)
   const [loading, setLoading] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [commandLoading, setCommandLoading] = useState(false)
+  const [startPreparing, setStartPreparing] = useState(false)
+  const [expectedStartProviderInvocations, setExpectedStartProviderInvocations] = useState(0)
   const [command, setCommand] = useState<CommandKind | null>(null)
   const [error, setError] = useState('')
   const [manualRunID, setManualRunID] = useState('')
@@ -113,8 +120,7 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
     load()
   }, [load])
 
-  const openRun = async (run: AIEvaluationRun) => {
-    setSelected(run)
+  const openRun = async (run: AIEvaluationRunSummary) => {
     setDetailLoading(true)
     const [requestError, response] = await getAIEvaluationRun(run.run_id)
     setDetailLoading(false)
@@ -139,12 +145,37 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
     setSelected(run)
   }
 
+  const prepareStart = async () => {
+    setStartPreparing(true)
+    const [requestError, response] = await getAIEvaluationCapacity()
+    setStartPreparing(false)
+    if (requestError || !response) {
+      message.error(errorMessage(requestError, '启动成本与容量获取失败，不能提交过期成本确认'))
+      return
+    }
+    const capacity = response.data
+    if (capacity.over_limit || capacity.available_full_run_starts < 1) {
+      message.warning('当前机构没有可用的完整评测容量')
+      return
+    }
+    setExpectedStartProviderInvocations(capacity.provider_invocations_per_start)
+    setCommand('start')
+  }
+
   const executeCommand = async (reason: string) => {
     if (!command) return
     setCommandLoading(true)
     let result: [any, { data: AIEvaluationRun } | undefined]
     if (command === 'start') {
-      result = await startAIEvaluation(reason) as [any, { data: AIEvaluationRun } | undefined]
+      if (expectedStartProviderInvocations < 1) {
+        setCommandLoading(false)
+        message.error('启动成本确认已失效，请重新发起')
+        return
+      }
+      result = await startAIEvaluation(
+        expectedStartProviderInvocations,
+        reason
+      ) as [any, { data: AIEvaluationRun } | undefined]
     } else if (!selected) {
       setCommandLoading(false)
       return
@@ -194,12 +225,12 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
     },
     {
       title: '生成 / 35',
-      render: (_: unknown, value: AIEvaluationRun) =>
+      render: (_: unknown, value: AIEvaluationRunSummary) =>
         `${value.progress.generation_attempts}/${value.progress.planned_generation_attempts || 35}`
     },
     {
       title: '人工审核 / 70',
-      render: (_: unknown, value: AIEvaluationRun) =>
+      render: (_: unknown, value: AIEvaluationRunSummary) =>
         `${value.progress.recorded_reviews}/${value.progress.required_reviews || 70}`
     },
     {
@@ -208,7 +239,7 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
       render: formatTime
     }
   ]
-  const copy = command ? commandCopy(command, selected) : null
+  const copy = command ? commandCopy(command, selected, expectedStartProviderInvocations) : null
 
   return (
     <div className="ai-governance-workspace">
@@ -228,7 +259,14 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
           />
           <Select value={status} options={statusOptions} onChange={setStatus} style={{ width: 160 }} />
           <Button icon={<ReloadOutlined />} loading={loading} onClick={() => load()}>刷新</Button>
-          <Button type="primary" icon={<CaretRightOutlined />} onClick={() => setCommand('start')}>启动评测</Button>
+          <Button
+            type="primary"
+            icon={<CaretRightOutlined />}
+            loading={startPreparing}
+            onClick={prepareStart}
+          >
+            启动评测
+          </Button>
         </Space>
       </div>
 
@@ -265,7 +303,7 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
               {selected.status === 'collecting' && selected.recovery_max_provider_invocations > 0 ? (
                 <Button onClick={() => setCommand('recover')}>恢复</Button>
               ) : null}
-              {['requested', 'collecting'].includes(selected.status) ? (
+              {selected.status === 'collecting' && !selected.execution?.dispatch_started_at ? (
                 <Button danger icon={<StopOutlined />} onClick={() => setCommand('cancel')}>取消</Button>
               ) : null}
               {selected.can_finalize ? (

@@ -57,11 +57,12 @@ export const getAIParticipantCapacity = (): Promise<[any, QSResponse<AIParticipa
   internalGet<AIParticipantCapacity>(`${BASE_PATH}/participant-capacity`)
 
 export const startAIEvaluation = (
+  expectedProviderInvocations: number,
   reason: string
 ): Promise<[any, QSResponse<AIEvaluationRun> | undefined]> =>
   internalPost<AIEvaluationRun>(`${BASE_PATH}/prompt-evaluations`, {
     confirm: true,
-    expected_provider_invocations: 70,
+    expected_provider_invocations: expectedProviderInvocations,
     reason
   })
 

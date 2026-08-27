@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Button,
@@ -27,6 +27,7 @@ import {
 } from '@/api/path/aiGovernance'
 import type {
   AIEvaluationRun,
+  AIEvaluationRunSummary,
   AIReviewAttempt,
   AIReviewAttemptSummary,
   AIReviewDecision,
@@ -62,7 +63,7 @@ const standardFacts = (input: unknown): unknown => {
 }
 
 export const HumanReviewWorkspace: React.FC = () => {
-  const [runs, setRuns] = useState<AIEvaluationRun[]>([])
+  const [runCatalog, setRunCatalog] = useState<AIEvaluationRunSummary[]>([])
   const [selectedRun, setSelectedRun] = useState<AIEvaluationRun | null>(null)
   const [selectedQueueItem, setSelectedQueueItem] = useState<QueueItem | null>(null)
   const [attemptDetail, setAttemptDetail] = useState<AIReviewAttempt | null>(null)
@@ -74,6 +75,29 @@ export const HumanReviewWorkspace: React.FC = () => {
   const [detailLoading, setDetailLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const selectedRunIDRef = useRef('')
+
+  const loadRunDetails = useCallback(async (
+    runID: string,
+    fallbackMessage = '评测 Run 详情获取失败'
+  ): Promise<AIEvaluationRun | null> => {
+    setDetailLoading(true)
+    const [requestError, response] = await getAIEvaluationRun(runID)
+    setDetailLoading(false)
+    if (requestError || !response) {
+      message.error(errorMessage(requestError, fallbackMessage))
+      return null
+    }
+    const run = response.data
+    selectedRunIDRef.current = run.run_id
+    setSelectedRun(run)
+    setRunCatalog((current) => [run, ...current.filter((item) => item.run_id !== run.run_id)])
+    setSelectedQueueItem(null)
+    setAttemptDetail(null)
+    setRole(undefined)
+    setReason('')
+    return run
+  }, [])
 
   const loadQueue = useCallback(async () => {
     setLoading(true)
@@ -81,31 +105,38 @@ export const HumanReviewWorkspace: React.FC = () => {
     const [requestError, response] = await listAIEvaluationRuns({ status: 'awaiting_review', limit: 100 })
     setLoading(false)
     if (requestError || !response) {
-      setRuns([])
+      setRunCatalog([])
       setError(errorMessage(requestError, '待审核 Run 列表获取失败'))
       return
     }
-    setRuns(response.data?.items || [])
-  }, [])
+    const items = response.data?.items || []
+    setRunCatalog(items)
+    if (!items.length) {
+      selectedRunIDRef.current = ''
+      setSelectedRun(null)
+      setSelectedQueueItem(null)
+      setAttemptDetail(null)
+      return
+    }
+    const selectedID = items.some((item) => item.run_id === selectedRunIDRef.current)
+      ? selectedRunIDRef.current
+      : items[0].run_id
+    await loadRunDetails(selectedID, '待审核 Run 详情获取失败')
+  }, [loadRunDetails])
 
   useEffect(() => {
     loadQueue()
   }, [loadQueue])
 
-  const queue = useMemo<QueueItem[]>(() => buildReviewQueue(runs), [runs])
+  const queue = useMemo<QueueItem[]>(
+    () => buildReviewQueue(selectedRun ? [selectedRun] : []),
+    [selectedRun]
+  )
 
   const loadRunByID = async (runID: string) => {
     if (!runID.trim()) return
-    setLoading(true)
-    const [requestError, response] = await getAIEvaluationRun(runID.trim())
-    setLoading(false)
-    if (requestError || !response) {
-      message.error(errorMessage(requestError, '指定评测 Run 获取失败'))
-      return
-    }
-    const run = response.data
-    setSelectedRun(run)
-    setRuns((current) => [run, ...current.filter((item) => item.run_id !== run.run_id)])
+    const run = await loadRunDetails(runID.trim(), '指定评测 Run 获取失败')
+    if (!run) return
     const first = run.attempts.find((item) => item.missing_roles.length > 0)
     if (first) await openAttempt({ ...first, runID: run.run_id }, run)
   }
@@ -115,7 +146,7 @@ export const HumanReviewWorkspace: React.FC = () => {
     setAttemptDetail(null)
     setReason('')
     setRole(item.missing_roles[0])
-    const run = knownRun || runs.find((value) => value.run_id === item.runID) || null
+    const run = knownRun || (selectedRun?.run_id === item.runID ? selectedRun : null)
     setSelectedRun(run)
     setDetailLoading(true)
     const [requestError, response] = await getAIEvaluationAttempt(item.runID, item.case_id, item.attempt)
@@ -125,16 +156,6 @@ export const HumanReviewWorkspace: React.FC = () => {
       return
     }
     setAttemptDetail(response.data)
-  }
-
-  const reloadSelectedRun = async (): Promise<AIEvaluationRun | null> => {
-    if (!selectedQueueItem) return null
-    const [requestError, response] = await getAIEvaluationRun(selectedQueueItem.runID)
-    if (requestError || !response) return null
-    const current = response.data
-    setSelectedRun(current)
-    setRuns((values) => [current, ...values.filter((item) => item.run_id !== current.run_id)])
-    return current
   }
 
   const submitReview = async () => {
@@ -153,8 +174,10 @@ export const HumanReviewWorkspace: React.FC = () => {
       return
     }
     message.success('审核意见已记录，审核人身份由服务端可信令牌确认')
-    const current = await reloadSelectedRun()
-    if (!current) return
+    const current = response.data
+    selectedRunIDRef.current = current.run_id
+    setSelectedRun(current)
+    setRunCatalog((values) => [current, ...values.filter((item) => item.run_id !== current.run_id)])
     const next = current.attempts.find((attempt) => attempt.missing_roles.length > 0)
     if (next) {
       await openAttempt({ ...next, runID: current.run_id }, current)
@@ -185,6 +208,17 @@ export const HumanReviewWorkspace: React.FC = () => {
           </Paragraph>
         </div>
         <Space>
+          <Select
+            value={selectedRun?.run_id}
+            placeholder="选择待审核 Run"
+            loading={loading}
+            options={runCatalog.map((run) => ({
+              value: run.run_id,
+              label: `Run ${run.run_id}`
+            }))}
+            onChange={loadRunByID}
+            style={{ width: 220 }}
+          />
           <Input.Search
             value={manualRunID}
             onChange={(event) => setManualRunID(event.target.value)}
@@ -209,7 +243,7 @@ export const HumanReviewWorkspace: React.FC = () => {
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={7}>
           <Card
-            title={`待审核队列（${queue.length}）`}
+            title={`当前 Run 待审核证据（${queue.length}）`}
             className="ai-governance-review-queue"
             loading={loading}
           >

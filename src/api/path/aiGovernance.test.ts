@@ -38,7 +38,7 @@ describe('AI governance API', () => {
     await getAIEvaluationAttempt('run/1', 'case/1', 2)
     await getAIEvaluationCapacity()
     await getAIParticipantCapacity()
-    await startAIEvaluation('freeze release')
+    await startAIEvaluation(70, 'freeze release')
     await recoverAIEvaluation('run/1', 68, 'recover expired lease')
     await cancelAIEvaluation('run/1', 'cancel release')
     await recordAIHumanReview('run/1', {
@@ -57,6 +57,14 @@ describe('AI governance API', () => {
     expect(internalGetMock).toHaveBeenNthCalledWith(
       3,
       '/interpretation/ai-explanation/prompt-evaluations/run%2F1/attempts/case%2F1/2'
+    )
+    expect(internalGetMock).toHaveBeenNthCalledWith(
+      4,
+      '/interpretation/ai-explanation/prompt-evaluation-capacity'
+    )
+    expect(internalGetMock).toHaveBeenNthCalledWith(
+      5,
+      '/interpretation/ai-explanation/participant-capacity'
     )
     expect(internalPostMock).toHaveBeenCalledWith('/interpretation/ai-explanation/prompt-evaluations', {
       confirm: true, expected_provider_invocations: 70, reason: 'freeze release'
