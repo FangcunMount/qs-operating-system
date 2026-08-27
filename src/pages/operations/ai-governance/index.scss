@@ -62,7 +62,7 @@
 
 .ai-governance-navigation {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
   max-width: 1480px;
   margin: 0 auto 18px;
@@ -98,6 +98,10 @@
       color: var(--ai-ink);
       font-size: 16px;
       font-weight: 600;
+
+      .anticon {
+        margin-right: 7px;
+      }
     }
 
     small {
@@ -240,6 +244,117 @@
   }
 }
 
+.ai-governance-priority-card {
+  overflow: hidden;
+  background: linear-gradient(135deg, #f3f8ff, #fff 66%);
+  border-color: rgba(22, 119, 255, 0.28);
+
+  &.is-warning {
+    background: linear-gradient(135deg, #fff8ed, #fff 66%);
+    border-color: rgba(250, 140, 22, 0.36);
+  }
+}
+
+.ai-governance-priority-card__content {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  justify-content: space-between;
+
+  h4,
+  p {
+    margin-bottom: 4px;
+  }
+
+  p {
+    max-width: 920px;
+    color: var(--ai-muted);
+  }
+}
+
+.ai-governance-lifecycle-card > .ant-card-body {
+  padding: 0;
+}
+
+.ai-governance-lifecycle {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.ai-governance-stage {
+  position: relative;
+  min-height: 198px;
+  padding: 18px;
+  border-right: 1px solid var(--ai-border);
+
+  &:last-child {
+    border-right: 0;
+  }
+
+  &.is-active {
+    background: #f3f8ff;
+  }
+
+  &.is-attention,
+  &.is-unknown {
+    background: #fffaf2;
+  }
+
+  h5 {
+    margin: 16px 0 6px;
+    color: var(--ai-ink);
+  }
+
+  p {
+    min-height: 44px;
+    margin-bottom: 12px;
+  }
+
+  .ant-btn-link {
+    height: auto;
+    padding: 0;
+  }
+}
+
+.ai-governance-stage__head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ai-governance-stage__index {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  color: #175cd3;
+  font-weight: 700;
+  background: #eaf3ff;
+  border-radius: 8px;
+  place-items: center;
+}
+
+.ai-governance-stage__pending-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  vertical-align: middle;
+  background: #a8b4bf;
+  border-radius: 50%;
+}
+
+.ai-governance-overview-card {
+  height: 100%;
+
+  .ant-progress {
+    margin-bottom: 14px;
+  }
+
+  .ant-alert {
+    margin-top: 12px;
+  }
+}
+
 @media (max-width: 1100px) {
   .ai-governance-navigation {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -247,6 +362,18 @@
 
   .ai-governance-progress-grid {
     grid-template-columns: 1fr;
+  }
+
+  .ai-governance-lifecycle {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ai-governance-stage:nth-child(3) {
+    border-right: 0;
+  }
+
+  .ai-governance-stage:nth-child(-n + 3) {
+    border-bottom: 1px solid var(--ai-border);
   }
 }
 
@@ -266,5 +393,25 @@
 
   .ai-governance-section-heading {
     flex-direction: column;
+  }
+
+  .ai-governance-priority-card__content {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ai-governance-lifecycle {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-governance-stage,
+  .ai-governance-stage:nth-child(3) {
+    min-height: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--ai-border);
+  }
+
+  .ai-governance-stage:last-child {
+    border-bottom: 0;
   }
 }
