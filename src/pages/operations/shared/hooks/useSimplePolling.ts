@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 interface UseSimplePollingOptions {
   enabled: boolean
@@ -14,13 +14,42 @@ export function useSimplePolling({
   intervalMs,
   onTick
 }: UseSimplePollingOptions): void {
+  const onTickRef = useRef(onTick)
+
+  useEffect(() => {
+    onTickRef.current = onTick
+  }, [onTick])
+
   useEffect(() => {
     if (!enabled) {
       return undefined
     }
-    const timer = window.setInterval(() => {
-      void Promise.resolve(onTick())
-    }, intervalMs)
-    return () => window.clearInterval(timer)
-  }, [enabled, intervalMs, onTick])
+
+    let inFlight = false
+    const tick = async () => {
+      if (document.visibilityState === 'hidden' || inFlight) {
+        return
+      }
+      inFlight = true
+      try {
+        await onTickRef.current()
+      } finally {
+        inFlight = false
+      }
+    }
+    const scheduleTick = () => {
+      void tick().catch(() => undefined)
+    }
+    const timer = window.setInterval(scheduleTick, intervalMs)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        scheduleTick()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [enabled, intervalMs])
 }
