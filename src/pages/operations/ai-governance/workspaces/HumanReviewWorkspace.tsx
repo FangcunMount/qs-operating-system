@@ -52,9 +52,11 @@ export interface QueueItem extends AIReviewAttemptSummary {
 }
 
 export const buildReviewQueue = (runs: AIEvaluationRun[]): QueueItem[] => runs.flatMap((run) =>
-  run.attempts
-    .filter((attempt) => attempt.missing_roles.length > 0)
-    .map((attempt) => ({ ...attempt, runID: run.run_id })))
+  run.can_review
+    ? run.attempts
+      .filter((attempt) => !attempt.failure && attempt.missing_roles.length > 0)
+      .map((attempt) => ({ ...attempt, runID: run.run_id }))
+    : [])
 
 const standardFacts = (input: unknown): unknown => {
   if (!input || typeof input !== 'object') return input
@@ -137,7 +139,7 @@ export const HumanReviewWorkspace: React.FC = () => {
     if (!runID.trim()) return
     const run = await loadRunDetails(runID.trim(), '指定评测 Run 获取失败')
     if (!run) return
-    const first = run.attempts.find((item) => item.missing_roles.length > 0)
+    const first = buildReviewQueue([run])[0]
     if (first) await openAttempt({ ...first, runID: run.run_id }, run)
   }
 
@@ -159,7 +161,7 @@ export const HumanReviewWorkspace: React.FC = () => {
   }
 
   const submitReview = async () => {
-    if (!selectedQueueItem || !role || !reason.trim()) return
+    if (!selectedRun?.can_review || !selectedQueueItem || selectedQueueItem.failure || !role || !reason.trim()) return
     setSubmitting(true)
     const [requestError, response] = await recordAIHumanReview(selectedQueueItem.runID, {
       case_id: selectedQueueItem.case_id,
@@ -237,6 +239,18 @@ export const HumanReviewWorkspace: React.FC = () => {
           showIcon
           message="待审核列表接口暂不可用"
           description={`${error}。仍可使用右上角 Run ID 精确定位审核证据。`}
+        />
+      ) : null}
+
+      {selectedRun && !selectedRun.can_review ? (
+        <Alert
+          className="ai-governance-inline-alert"
+          type="error"
+          showIcon
+          message="当前 Run 不可人工审核"
+          description={selectedRun.progress.failed_attempts > 0
+            ? `检测到 ${selectedRun.progress.failed_attempts} 条技术失败证据。请在“评测发布”工作区审计取消，并在修复后重新评测。`
+            : '服务端未授权该 Run 进入人工审核，请返回评测发布工作区核验状态。'}
         />
       ) : null}
 

@@ -37,6 +37,7 @@ export interface GovernanceOverviewModel {
   publishedProfiles: number
   collectingRuns: number
   awaitingReviewRuns: number
+  failedEvaluationRuns: number
   releasableDrafts: number
   stages: GovernanceStage[]
   priority: GovernancePriorityAction
@@ -68,7 +69,10 @@ export const buildGovernanceOverview = ({
   const draftProfiles = profiles?.filter((profile) => profile.status === 'draft').length || 0
   const publishedProfiles = profiles?.filter((profile) => profile.status === 'published').length || 0
   const collectingRuns = runs?.filter((run) => run.status === 'collecting').length || 0
-  const awaitingReviewRuns = runs?.filter((run) => run.status === 'awaiting_review').length || 0
+  const failedEvaluationRuns = runs?.filter((run) =>
+    run.status === 'awaiting_review' && run.progress.failed_attempts > 0).length || 0
+  const awaitingReviewRuns = runs?.filter((run) =>
+    run.status === 'awaiting_review' && run.can_review && run.progress.failed_attempts === 0).length || 0
   const approvedRuns = runs?.filter((run) => run.status === 'approved') || []
   const rejectedRuns = runs?.filter((run) => run.status === 'rejected').length || 0
   const releasableDrafts = profiles?.filter((profile) => profile.status === 'draft' &&
@@ -81,19 +85,22 @@ export const buildGovernanceOverview = ({
     : draftProfiles + publishedProfiles > 0 ? 'complete' : 'pending'
   const evaluationState: GovernanceStageState = runsUnknown
     ? 'unknown'
-    : collectingRuns > 0 ? 'active'
-      : awaitingReviewRuns + approvedRuns.length > 0 ? 'complete'
-        : rejectedRuns > 0 ? 'attention' : 'pending'
+    : failedEvaluationRuns > 0 ? 'attention'
+      : collectingRuns > 0 ? 'active'
+        : awaitingReviewRuns + approvedRuns.length > 0 ? 'complete'
+          : rejectedRuns > 0 ? 'attention' : 'pending'
   const reviewState: GovernanceStageState = runsUnknown
     ? 'unknown'
-    : awaitingReviewRuns > 0 ? 'active'
-      : approvedRuns.length > 0 ? 'complete'
-        : rejectedRuns > 0 ? 'attention' : 'pending'
+    : failedEvaluationRuns > 0 ? 'attention'
+      : awaitingReviewRuns > 0 ? 'active'
+        : approvedRuns.length > 0 ? 'complete'
+          : rejectedRuns > 0 ? 'attention' : 'pending'
   const finalizationState: GovernanceStageState = runsUnknown
     ? 'unknown'
-    : approvedRuns.length > 0 ? 'complete'
-      : awaitingReviewRuns > 0 ? 'active'
-        : rejectedRuns > 0 ? 'attention' : 'pending'
+    : failedEvaluationRuns > 0 ? 'attention'
+      : approvedRuns.length > 0 ? 'complete'
+        : awaitingReviewRuns > 0 ? 'active'
+          : rejectedRuns > 0 ? 'attention' : 'pending'
   const publicationState: GovernanceStageState = profilesUnknown
     ? 'unknown'
     : releasableDrafts > 0 ? 'active' : publishedProfiles > 0 ? 'complete' : 'pending'
@@ -119,6 +126,14 @@ export const buildGovernanceOverview = ({
       view: 'profiles',
       action: '进入 Profile 管理',
       tone: 'normal'
+    }
+  } else if (failedEvaluationRuns > 0) {
+    priority = {
+      title: `审计取消 ${failedEvaluationRuns} 个技术失败 Run`,
+      description: '执行记录已经完整落库，但生成或独立模型裁判存在技术失败。该类 Run 不得进入人工审核，应保留证据、取消后修复重跑。',
+      view: 'evaluations',
+      action: '核验并取消失败 Run',
+      tone: 'warning'
     }
   } else if (awaitingReviewRuns > 0) {
     priority = {
@@ -170,6 +185,7 @@ export const buildGovernanceOverview = ({
     publishedProfiles,
     collectingRuns,
     awaitingReviewRuns,
+    failedEvaluationRuns,
     releasableDrafts,
     priority,
     stages: [

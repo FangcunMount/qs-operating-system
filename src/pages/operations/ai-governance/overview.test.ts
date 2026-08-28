@@ -16,6 +16,8 @@ const profile = (status: AIProfile['status'] = 'draft'): AIProfile => ({
 const run = (status: AIEvaluationRunSummary['status']): AIEvaluationRunSummary => ({
   run_id: 'run-1',
   status,
+  can_review: status === 'awaiting_review',
+  progress: { failed_attempts: 0 },
   release: {
     profile: {
       id: 'participant-default',
@@ -57,5 +59,18 @@ describe('AI governance overview', () => {
     expect(model.stages.find((item) => item.key === 'evaluation')?.state).toBe('attention')
     expect(model.stages.find((item) => item.key === 'review')?.state).toBe('attention')
     expect(model.priority.view).toBe('evaluations')
+  })
+
+  it('routes technical failures to evaluation disposal instead of human review', () => {
+    const failed = run('awaiting_review')
+    failed.can_review = false
+    failed.can_cancel = true
+    failed.progress.failed_attempts = 2
+
+    const model = buildGovernanceOverview({ profiles: [profile()], runs: [failed] })
+    expect(model.awaitingReviewRuns).toBe(0)
+    expect(model.failedEvaluationRuns).toBe(1)
+    expect(model.priority).toMatchObject({ view: 'evaluations', tone: 'warning' })
+    expect(model.stages.find((item) => item.key === 'review')?.state).toBe('attention')
   })
 })

@@ -212,6 +212,12 @@ export const GovernanceOverviewWorkspace: React.FC = () => {
           suffix: runs === undefined ? '' : '个'
         },
         {
+          key: 'failed-evaluation-runs',
+          title: '技术失败待处置',
+          value: runs === undefined ? '—' : overview.failedEvaluationRuns,
+          suffix: runs === undefined ? '' : '个'
+        },
+        {
           key: 'releasable-drafts',
           title: '证据匹配可发布',
           value: profiles === undefined || runs === undefined ? '—' : overview.releasableDrafts,
