@@ -50,24 +50,24 @@ const collectingRun: AIEvaluationRunSummary = {
     output_schema: { version: 'output/v1', fingerprint: 'output-fingerprint' },
     provider: {
       route: 'generation',
-      route_revision: 'v1',
+      route_revision: 'v2',
       resolved_provider: 'deepseek',
       resolved_model: 'deepseek-v4-flash',
       fingerprint: 'generation-provider-fingerprint'
     },
-    decoding: { max_output_tokens: 8000 },
+    decoding: { max_output_tokens: 12000, reasoning_effort: 'low' },
     semantic_evaluator: {
       version: 'v1',
       prompt: { template_id: 'judge', version: 'v1', fingerprint: 'judge-fingerprint', git_blob_sha: 'judge-sha' },
       output_schema: { version: 'judge-output/v1', fingerprint: 'judge-output-fingerprint' },
       provider: {
         route: 'judge',
-        route_revision: 'v1',
+        route_revision: 'v2',
         resolved_provider: 'deepseek',
         resolved_model: 'deepseek-v4-pro',
         fingerprint: 'judge-provider-fingerprint'
       },
-      decoding: { max_output_tokens: 8000 }
+      decoding: { max_output_tokens: 8000, reasoning_effort: 'low' }
     },
     generation_case_ids: ['PROMPT-EVAL-001'],
     preflight_case_id: 'PROMPT-EVAL-001',
@@ -119,6 +119,8 @@ describe('EvaluationReleaseWorkspace', () => {
     expect(screen.getByText('评测正在串行执行，页面每 15 秒自动刷新')).toBeInTheDocument()
     expect(screen.getByText('当前 PROMPT-EVAL-001 第 1 次：模型调用中')).toBeInTheDocument()
     expect(screen.getByText(/因此裁判次数最多为 35 次/)).toBeInTheDocument()
+    expect(screen.getByText('思考强度 low · 最大输出 12000 tokens')).toBeInTheDocument()
+    expect(screen.getByText('思考强度 low · 最大输出 8000 tokens')).toBeInTheDocument()
   })
 
   it('automatically refreshes while a Run is collecting and stops after it leaves collecting', async () => {

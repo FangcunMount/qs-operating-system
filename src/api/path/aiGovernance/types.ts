@@ -34,6 +34,7 @@ export interface AIDecodingSpec {
   temperature?: number
   top_p?: number
   seed?: number
+  reasoning_effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 }
 
 export interface AISemanticEvaluatorSpec {

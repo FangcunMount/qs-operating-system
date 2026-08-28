@@ -33,6 +33,9 @@ export const ReleaseIdentityCard: React.FC<ReleaseIdentityCardProps> = ({ releas
         <Space direction="vertical" size={0}>
           <Typography.Text>{release.provider.route}@{release.provider.route_revision}</Typography.Text>
           <Typography.Text type="secondary">{release.provider.resolved_provider}/{release.provider.resolved_model}</Typography.Text>
+          <Typography.Text type="secondary">
+            思考强度 {release.decoding.reasoning_effort || 'Provider 默认'} · 最大输出 {release.decoding.max_output_tokens} tokens
+          </Typography.Text>
         </Space>
       </Descriptions.Item>
       <Descriptions.Item label="独立模型裁判">
@@ -40,6 +43,11 @@ export const ReleaseIdentityCard: React.FC<ReleaseIdentityCardProps> = ({ releas
           <Typography.Text>{release.semantic_evaluator.provider.route}@{release.semantic_evaluator.provider.route_revision}</Typography.Text>
           <Typography.Text type="secondary">
             {release.semantic_evaluator.provider.resolved_provider}/{release.semantic_evaluator.provider.resolved_model}
+          </Typography.Text>
+          <Typography.Text type="secondary">
+            思考强度 {release.semantic_evaluator.decoding.reasoning_effort || 'Provider 默认'}
+            {' · '}
+            最大输出 {release.semantic_evaluator.decoding.max_output_tokens} tokens
           </Typography.Text>
         </Space>
       </Descriptions.Item>
