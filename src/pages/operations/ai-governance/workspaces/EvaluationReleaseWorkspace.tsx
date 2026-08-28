@@ -32,6 +32,7 @@ import type {
 import { ReleaseIdentityCard } from '../components/ReleaseIdentityCard'
 import { ReasonCommandModal } from '../components/ReasonCommandModal'
 import { errorMessage, evaluationStatusTag, formatTime } from '../presentation'
+import { useSimplePolling } from '../../shared/hooks/useSimplePolling'
 
 const { Paragraph, Text, Title } = Typography
 
@@ -49,6 +50,14 @@ const statusOptions: Array<{ value: AIEvaluationStatus | ''; label: string }> = 
   { value: 'rejected', label: '已拒绝' },
   { value: 'canceled', label: '已取消' }
 ]
+
+const POLLING_INTERVAL_MS = 15000
+
+const executionPhaseText = (phase?: string): string => {
+  if (phase === 'dispatching') return '模型调用中'
+  if (phase === 'prepared') return '等待执行'
+  return '等待调度'
+}
 
 const commandCopy = (
   command: CommandKind,
@@ -121,6 +130,35 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
   useEffect(() => {
     load()
   }, [load])
+
+  const refreshCollectingRuns = useCallback(async () => {
+    const selectedRunID = selected?.status === 'collecting' ? selected.run_id : ''
+    const listRequest = listAIEvaluationRuns({ status: status || undefined, limit: 20 })
+    const detailRequest = selectedRunID ? getAIEvaluationRun(selectedRunID) : null
+    const listResult = await listRequest
+    const detailResult = detailRequest ? await detailRequest : null
+
+    const [listError, listResponse] = listResult
+    if (!listError && listResponse) {
+      setRuns(listResponse.data?.items || [])
+      setNextCursor(listResponse.data?.next_cursor || '')
+      setError('')
+    }
+
+    if (detailResult) {
+      const [detailError, detailResponse] = detailResult
+      if (!detailError && detailResponse) {
+        setSelected(detailResponse.data)
+      }
+    }
+  }, [selected?.run_id, selected?.status, status])
+
+  const pollingEnabled = runs.some((run) => run.status === 'collecting') || selected?.status === 'collecting'
+  useSimplePolling({
+    enabled: pollingEnabled,
+    intervalMs: POLLING_INTERVAL_MS,
+    onTick: refreshCollectingRuns
+  })
 
   const openRun = async (run: AIEvaluationRunSummary) => {
     setDetailLoading(true)
@@ -226,7 +264,7 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
       render: (value: AIEvaluationStatus) => evaluationStatusTag(value)
     },
     {
-      title: '执行记录 / 35',
+      title: '生成执行 / 35',
       render: (_: unknown, value: AIEvaluationRunSummary) =>
         `${value.progress.generation_attempts}/${value.progress.planned_generation_attempts || 35}`
     },
@@ -319,14 +357,34 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
             <Descriptions.Item label="申请理由">{selected.request_reason || '—'}</Descriptions.Item>
             <Descriptions.Item label="版本">{selected.version}</Descriptions.Item>
           </Descriptions>
+          {selected.status === 'collecting' ? (
+            <Alert
+              className="ai-governance-inline-alert"
+              type="info"
+              showIcon
+              message="评测正在串行执行，页面每 15 秒自动刷新"
+              description={(
+                <Space direction="vertical" size={2}>
+                  <Text>
+                    {selected.execution
+                      ? `当前 ${selected.execution.case_id} 第 ${selected.execution.attempt} 次：${executionPhaseText(selected.execution.phase)}`
+                      : '当前执行记录正在调度中'}
+                  </Text>
+                  <Text type="secondary">
+                    每条先执行生成；仅当输出通过结构校验且存在语义检查项时，才调用独立模型裁判，因此裁判次数最多为 35 次。
+                  </Text>
+                </Space>
+              )}
+            />
+          ) : null}
           <div className="ai-governance-progress-grid">
-            <Card size="small" title="生成与独立模型裁判">
+            <Card size="small" title="35 次生成 + 最多 35 次独立模型裁判">
               <Progress
                 percent={generationPercent}
                 status={selected.progress.failed_attempts > 0 || selected.status === 'rejected' ? 'exception' : 'active'}
               />
               <Space wrap>
-                <Text>{selected.progress.generation_attempts}/35 个执行记录完成</Text>
+                <Text>{selected.progress.generation_attempts}/35 次生成执行完成</Text>
                 {selected.progress.failed_attempts > 0 ? (
                   <Tag color="red">{selected.progress.failed_attempts} 条技术失败</Tag>
                 ) : null}
@@ -346,7 +404,7 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
               type="error"
               showIcon
               message="该 Run 不可进入人工审核"
-              description="执行记录完整不代表生成与独立模型裁判成功。请审计取消该 Run，修复技术故障后启动新的冻结评测。"
+              description="生成执行记录完整不代表生成与独立模型裁判成功。请审计取消该 Run，修复技术故障后启动新的冻结评测。"
             />
           ) : null}
           <ReleaseIdentityCard release={selected.release} />
