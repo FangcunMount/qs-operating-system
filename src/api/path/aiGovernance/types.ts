@@ -67,6 +67,7 @@ export interface AIEvaluationRelease {
 export interface AIReviewProgress {
   planned_generation_attempts: number
   generation_attempts: number
+  failed_attempts: number
   pending_generation_attempts: number
   required_reviews: number
   recorded_reviews: number
@@ -179,6 +180,7 @@ export interface AIEvaluationRunSummary {
   gate?: AIGateResult
   can_review: boolean
   can_finalize: boolean
+  can_cancel: boolean
   recovery_max_provider_invocations: number
 }
 

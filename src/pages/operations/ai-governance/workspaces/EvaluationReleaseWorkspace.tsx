@@ -79,7 +79,9 @@ const commandCopy = (
   return {
     title: '取消评测 Run',
     confirmText: '确认取消',
-    description: '取消只停止后续执行，不会回收已经预留或可能已经发生的模型调用成本。',
+    description: run?.status === 'awaiting_review' && run.progress.failed_attempts > 0
+      ? `该 Run 包含 ${run.progress.failed_attempts} 条技术失败证据。取消会保留冻结证据并释放发布占位；已预留或可能已经发生的模型调用成本不会退还。`
+      : '取消只停止后续执行，不会回收已经预留或可能已经发生的模型调用成本。',
     danger: true
   }
 }
@@ -224,7 +226,7 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
       render: (value: AIEvaluationStatus) => evaluationStatusTag(value)
     },
     {
-      title: '生成 / 35',
+      title: '执行记录 / 35',
       render: (_: unknown, value: AIEvaluationRunSummary) =>
         `${value.progress.generation_attempts}/${value.progress.planned_generation_attempts || 35}`
     },
@@ -303,7 +305,7 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
               {selected.status === 'collecting' && selected.recovery_max_provider_invocations > 0 ? (
                 <Button onClick={() => setCommand('recover')}>恢复</Button>
               ) : null}
-              {selected.status === 'collecting' && !selected.execution?.dispatch_started_at ? (
+              {selected.can_cancel ? (
                 <Button danger icon={<StopOutlined />} onClick={() => setCommand('cancel')}>取消</Button>
               ) : null}
               {selected.can_finalize ? (
@@ -319,8 +321,16 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
           </Descriptions>
           <div className="ai-governance-progress-grid">
             <Card size="small" title="生成与独立模型裁判">
-              <Progress percent={generationPercent} status={selected.status === 'rejected' ? 'exception' : 'active'} />
-              <Text>{selected.progress.generation_attempts}/35 份候选输出完成</Text>
+              <Progress
+                percent={generationPercent}
+                status={selected.progress.failed_attempts > 0 || selected.status === 'rejected' ? 'exception' : 'active'}
+              />
+              <Space wrap>
+                <Text>{selected.progress.generation_attempts}/35 个执行记录完成</Text>
+                {selected.progress.failed_attempts > 0 ? (
+                  <Tag color="red">{selected.progress.failed_attempts} 条技术失败</Tag>
+                ) : null}
+              </Space>
             </Card>
             <Card size="small" title="双角色人工审核">
               <Progress percent={reviewPercent} status={selected.progress.rejected_reviews ? 'exception' : 'active'} />
@@ -330,6 +340,15 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
               </Space>
             </Card>
           </div>
+          {selected.status === 'awaiting_review' && selected.progress.failed_attempts > 0 ? (
+            <Alert
+              className="ai-governance-inline-alert"
+              type="error"
+              showIcon
+              message="该 Run 不可进入人工审核"
+              description="执行记录完整不代表生成与独立模型裁判成功。请审计取消该 Run，修复技术故障后启动新的冻结评测。"
+            />
+          ) : null}
           <ReleaseIdentityCard release={selected.release} />
           {selected.gate ? (
             <Alert
