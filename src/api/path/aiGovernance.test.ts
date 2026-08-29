@@ -4,17 +4,20 @@ import {
   disableAIProfile,
   finalizeAIEvaluation,
   getAIEvaluationAttempt,
+  getAIEvaluationAttemptRecheck,
   getAIEvaluationCapacity,
   getAIEvaluationRun,
   getAIParticipantCapacity,
   getAIProfile,
   listAIEvaluationRuns,
+  listAIEvaluationAttemptRechecks,
   listAIProfiles,
   publishAIProfile,
   recordAIHumanReview,
   recoverAIEvaluation,
   retryAIParticipantGeneration,
-  startAIEvaluation
+  startAIEvaluation,
+  startAIEvaluationAttemptRecheck
 } from './aiGovernance'
 import { internalGet, internalPost } from '../qsServer'
 
@@ -73,6 +76,21 @@ describe('AI governance API', () => {
       '/interpretation/ai-explanation/prompt-evaluations/run%2F1/reviews',
       expect.objectContaining({ role: 'assessment_semantics', decision: 'approve' })
     )
+  })
+
+  it('uses immutable single-attempt recheck routes with the exact two-call confirmation', async () => {
+    await listAIEvaluationAttemptRechecks('run/1', 'case/1', 2)
+    await getAIEvaluationAttemptRecheck('run/1', 'case/1', 2, 'recheck/1')
+    await startAIEvaluationAttemptRecheck('run/1', 'case/1', 2, 'verify repaired candidate release')
+
+    const base = '/interpretation/ai-explanation/prompt-evaluations/run%2F1/attempts/case%2F1/2/rechecks'
+    expect(internalGetMock).toHaveBeenNthCalledWith(1, base, { limit: 20 })
+    expect(internalGetMock).toHaveBeenNthCalledWith(2, `${base}/recheck%2F1`)
+    expect(internalPostMock).toHaveBeenCalledWith(base, {
+      confirm: true,
+      expected_provider_invocations: 2,
+      reason: 'verify repaired candidate release'
+    })
   })
 
   it('keeps Profile lifecycle and governed retry routes stable', async () => {

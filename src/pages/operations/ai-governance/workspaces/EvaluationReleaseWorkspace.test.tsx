@@ -2,8 +2,11 @@ import React from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import {
   getAIEvaluationAttempt,
+  getAIEvaluationAttemptRecheck,
   getAIEvaluationRun,
-  listAIEvaluationRuns
+  listAIEvaluationAttemptRechecks,
+  listAIEvaluationRuns,
+  startAIEvaluationAttemptRecheck
 } from '@/api/path/aiGovernance'
 import type {
   AIEvaluationRun,
@@ -16,16 +19,22 @@ jest.mock('@/api/path/aiGovernance', () => ({
   cancelAIEvaluation: jest.fn(),
   finalizeAIEvaluation: jest.fn(),
   getAIEvaluationAttempt: jest.fn(),
+  getAIEvaluationAttemptRecheck: jest.fn(),
   getAIEvaluationCapacity: jest.fn(),
   getAIEvaluationRun: jest.fn(),
+  listAIEvaluationAttemptRechecks: jest.fn(),
   listAIEvaluationRuns: jest.fn(),
   recoverAIEvaluation: jest.fn(),
-  startAIEvaluation: jest.fn()
+  startAIEvaluation: jest.fn(),
+  startAIEvaluationAttemptRecheck: jest.fn()
 }))
 
 const listRunsMock = listAIEvaluationRuns as jest.Mock
 const getRunMock = getAIEvaluationRun as jest.Mock
 const getAttemptMock = getAIEvaluationAttempt as jest.Mock
+const getRecheckMock = getAIEvaluationAttemptRecheck as jest.Mock
+const listRechecksMock = listAIEvaluationAttemptRechecks as jest.Mock
+const startRecheckMock = startAIEvaluationAttemptRecheck as jest.Mock
 const success = (data: unknown) => Promise.resolve([null, { code: 0, data }])
 
 const progress = {
@@ -106,6 +115,10 @@ describe('EvaluationReleaseWorkspace', () => {
     listRunsMock.mockReset()
     getRunMock.mockReset()
     getAttemptMock.mockReset()
+    getRecheckMock.mockReset()
+    listRechecksMock.mockReset()
+    startRecheckMock.mockReset()
+    listRechecksMock.mockReturnValue(success([]))
     Object.defineProperty(document, 'visibilityState', {
       configurable: true,
       value: 'visible'
@@ -211,6 +224,19 @@ describe('EvaluationReleaseWorkspace', () => {
         detail: 'schema validation failed'
       }]
     }))
+    startRecheckMock.mockReturnValue(success({
+      recheck_id: 'recheck-1',
+      source_run_id: 'run-failed',
+      source_case_id: 'PROMPT-EVAL-002',
+      source_attempt: 4,
+      status: 'queued',
+      version: 1,
+      requested_org_id: 10001,
+      requested_by: 'user:10001',
+      reason: 'verify repaired route',
+      created_at: '2026-08-29T10:00:00Z',
+      release: failedRun.release
+    }))
 
     render(<EvaluationReleaseWorkspace />)
     fireEvent.click(await screen.findByText('run-failed'))
@@ -226,5 +252,20 @@ describe('EvaluationReleaseWorkspace', () => {
     expect(getAttemptMock).toHaveBeenCalledWith('run-failed', 'PROMPT-EVAL-002', 4)
     expect(screen.getByText('deepseek-v4-pro')).toBeInTheDocument()
     expect(screen.getByText('schema validation failed')).toBeInTheDocument()
+    expect(screen.getByText('单条诊断复测')).toBeInTheDocument()
+    expect(listRechecksMock).toHaveBeenCalledWith('run-failed', 'PROMPT-EVAL-002', 4)
+
+    fireEvent.click(screen.getByText('重新测评该记录'))
+    fireEvent.change(screen.getByPlaceholderText('理由会进入不可变审计记录，请描述本次操作依据。'), {
+      target: { value: 'verify repaired route' }
+    })
+    fireEvent.click(screen.getByText('确认成本并启动复测'))
+    await waitFor(() => expect(startRecheckMock).toHaveBeenCalledWith(
+      'run-failed',
+      'PROMPT-EVAL-002',
+      4,
+      'verify repaired route'
+    ))
+    expect((await screen.findAllByText('recheck-1')).length).toBeGreaterThan(0)
   })
 })
