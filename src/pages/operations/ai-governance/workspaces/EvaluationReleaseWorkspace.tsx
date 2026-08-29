@@ -3,10 +3,12 @@ import {
   Alert,
   Button,
   Card,
+  Col,
   Descriptions,
   Empty,
   Input,
   Progress,
+  Row,
   Select,
   Space,
   Table,
@@ -18,6 +20,7 @@ import { CaretRightOutlined, ReloadOutlined, SearchOutlined, StopOutlined } from
 import {
   cancelAIEvaluation,
   finalizeAIEvaluation,
+  getAIEvaluationAttempt,
   getAIEvaluationCapacity,
   getAIEvaluationRun,
   listAIEvaluationRuns,
@@ -27,8 +30,11 @@ import {
 import type {
   AIEvaluationRun,
   AIEvaluationRunSummary,
-  AIEvaluationStatus
+  AIEvaluationStatus,
+  AIReviewAttempt,
+  AIReviewAttemptSummary
 } from '@/api/path/aiGovernance'
+import { JsonEvidence } from '../components/JsonEvidence'
 import { ReleaseIdentityCard } from '../components/ReleaseIdentityCard'
 import { ReasonCommandModal } from '../components/ReasonCommandModal'
 import { errorMessage, evaluationStatusTag, formatTime } from '../presentation'
@@ -39,6 +45,45 @@ const { Paragraph, Text, Title } = Typography
 function renderRunID(value: string) {
   return <Typography.Text code>{value}</Typography.Text>
 }
+
+function renderAssertionStatus(value: string) {
+  return <Tag color={value === 'passed' ? 'green' : 'red'}>{value}</Tag>
+}
+
+function renderFailureCaseID(value: string) {
+  return <Text code>{value}</Text>
+}
+
+function renderFailureAttempt(value: number) {
+  return `#${value}`
+}
+
+function renderFailureStage(_: unknown, item: AIReviewAttemptSummary) {
+  return <Text code>{item.failure?.stage}</Text>
+}
+
+function renderFailureCode(_: unknown, item: AIReviewAttemptSummary) {
+  return <Text code>{item.failure?.code}</Text>
+}
+
+function renderFailureRetryable(_: unknown, item: AIReviewAttemptSummary) {
+  return (
+    <Space wrap>
+      <Tag color={item.failure?.retryable ? 'orange' : 'default'}>
+        {item.failure?.retryable ? '是' : '否'}
+      </Tag>
+      {item.failure?.result_unknown ? <Tag color="red">result_unknown</Tag> : null}
+    </Space>
+  )
+}
+
+function renderFailureSafeMessage(_: unknown, item: AIReviewAttemptSummary) {
+  return item.failure?.safe_message || '—'
+}
+
+export const buildTechnicalFailureEvidence = (
+  run?: AIEvaluationRun | null
+): AIReviewAttemptSummary[] => run?.attempts.filter((attempt) => Boolean(attempt.failure)) || []
 
 type CommandKind = 'start' | 'cancel' | 'recover' | 'finalize'
 
@@ -108,6 +153,8 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
   const [command, setCommand] = useState<CommandKind | null>(null)
   const [error, setError] = useState('')
   const [manualRunID, setManualRunID] = useState('')
+  const [failureDetail, setFailureDetail] = useState<AIReviewAttempt | null>(null)
+  const [failureDetailLoading, setFailureDetailLoading] = useState(false)
 
   const load = useCallback(async (cursor = '', append = false) => {
     setLoading(true)
@@ -161,6 +208,7 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
   })
 
   const openRun = async (run: AIEvaluationRunSummary) => {
+    setFailureDetail(null)
     setDetailLoading(true)
     const [requestError, response] = await getAIEvaluationRun(run.run_id)
     setDetailLoading(false)
@@ -173,6 +221,7 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
 
   const findRunByID = async (runID: string) => {
     if (!runID.trim()) return
+    setFailureDetail(null)
     setDetailLoading(true)
     const [requestError, response] = await getAIEvaluationRun(runID.trim())
     setDetailLoading(false)
@@ -183,6 +232,30 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
     const run = response.data
     setRuns((current) => [run, ...current.filter((item) => item.run_id !== run.run_id)])
     setSelected(run)
+  }
+
+  const openFailureDetail = async (attempt: AIReviewAttemptSummary) => {
+    if (!selected || !attempt.failure) return
+    setFailureDetailLoading(true)
+    const [requestError, response] = await getAIEvaluationAttempt(
+      selected.run_id,
+      attempt.case_id,
+      attempt.attempt
+    )
+    setFailureDetailLoading(false)
+    if (requestError || !response) {
+      message.error(errorMessage(requestError, '技术失败证据获取失败'))
+      return
+    }
+    setFailureDetail(response.data)
+  }
+
+  function renderFailureDetailAction(_: unknown, item: AIReviewAttemptSummary) {
+    return (
+      <Button size="small" loading={failureDetailLoading} onClick={() => openFailureDetail(item)}>
+        查看详情
+      </Button>
+    )
   }
 
   const prepareStart = async () => {
@@ -251,6 +324,7 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
   const reviewPercent = selected?.progress.required_reviews
     ? Math.round(selected.progress.recorded_reviews / selected.progress.required_reviews * 100)
     : 0
+  const technicalFailures = buildTechnicalFailureEvidence(selected)
 
   const columns = [
     {
@@ -404,8 +478,122 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
               type="error"
               showIcon
               message="该 Run 不可进入人工审核"
-              description="生成执行记录完整不代表生成与独立模型裁判成功。请审计取消该 Run，修复技术故障后启动新的冻结评测。"
+              description="生成执行记录完整不代表生成与独立模型裁判成功。下方失败证据仅供诊断，不开放任何人工审核动作。"
             />
+          ) : null}
+          {technicalFailures.length ? (
+            <Card
+              size="small"
+              className="ai-governance-technical-failures"
+              title={`技术失败证据（${technicalFailures.length}）`}
+              extra={<Tag color="red">只读</Tag>}
+            >
+              <Table<AIReviewAttemptSummary>
+                rowKey={(item) => `${item.case_id}:${item.attempt}`}
+                dataSource={technicalFailures}
+                pagination={false}
+                size="small"
+                columns={[
+                  {
+                    title: 'Case',
+                    dataIndex: 'case_id',
+                    render: renderFailureCaseID
+                  },
+                  {
+                    title: 'Attempt',
+                    dataIndex: 'attempt',
+                    render: renderFailureAttempt
+                  },
+                  {
+                    title: 'Stage',
+                    render: renderFailureStage
+                  },
+                  {
+                    title: 'Code',
+                    render: renderFailureCode
+                  },
+                  {
+                    title: 'Retryable',
+                    render: renderFailureRetryable
+                  },
+                  {
+                    title: '安全消息',
+                    render: renderFailureSafeMessage
+                  },
+                  {
+                    title: '详情',
+                    render: renderFailureDetailAction
+                  }
+                ]}
+              />
+
+              {failureDetail ? (
+                <Card
+                  size="small"
+                  className="ai-governance-failure-detail"
+                  loading={failureDetailLoading}
+                  title={(
+                    <Space>
+                      <Text code>{failureDetail.case_id}</Text>
+                      <Tag>#{failureDetail.attempt}</Tag>
+                      <Tag color="red">只读失败详情</Tag>
+                    </Space>
+                  )}
+                >
+                  {failureDetail.failure ? (
+                    <Alert
+                      type="error"
+                      showIcon
+                      message={`${failureDetail.failure.stage}: ${failureDetail.failure.code}`}
+                      description={(
+                        <Space wrap>
+                          <Text>{failureDetail.failure.safe_message}</Text>
+                          <Tag color={failureDetail.failure.retryable ? 'orange' : 'default'}>
+                            retryable: {failureDetail.failure.retryable ? 'true' : 'false'}
+                          </Tag>
+                          {failureDetail.failure.result_unknown ? <Tag color="red">result_unknown</Tag> : null}
+                        </Space>
+                      )}
+                    />
+                  ) : null}
+                  {failureDetail.provider_receipt ? (
+                    <Descriptions size="small" bordered column={4} className="ai-governance-failure-receipt">
+                      <Descriptions.Item label="Provider">{failureDetail.provider_receipt.provider}</Descriptions.Item>
+                      <Descriptions.Item label="Model">{failureDetail.provider_receipt.model}</Descriptions.Item>
+                      <Descriptions.Item label="输出 tokens">{failureDetail.provider_receipt.output_tokens}</Descriptions.Item>
+                      <Descriptions.Item label="耗时">{failureDetail.provider_receipt.latency_ms} ms</Descriptions.Item>
+                    </Descriptions>
+                  ) : null}
+                  <Row gutter={[16, 16]} className="ai-governance-evidence-grid">
+                    <Col xs={24} xl={12}>
+                      <Card size="small" title="AI 原始输出">
+                        <JsonEvidence value={failureDetail.raw_provider_output} emptyText="Provider 未返回输出" />
+                      </Card>
+                    </Col>
+                    <Col xs={24} xl={12}>
+                      <Card size="small" title="规范化输出">
+                        <JsonEvidence value={failureDetail.normalized_output} emptyText="输出未通过结构化解析" />
+                      </Card>
+                    </Col>
+                  </Row>
+                  <Card size="small" title="结构、安全与事实引用校验">
+                    <Table
+                      rowKey={(item) => `${item.type}:${item.scope}:${item.ordinal}`}
+                      dataSource={failureDetail.assertions}
+                      pagination={false}
+                      size="small"
+                      columns={[
+                        { title: '校验', dataIndex: 'type' },
+                        { title: '范围', dataIndex: 'scope' },
+                        { title: '执行器', dataIndex: 'evaluator' },
+                        { title: '结果', dataIndex: 'status', render: renderAssertionStatus },
+                        { title: '证据', dataIndex: 'detail' }
+                      ]}
+                    />
+                  </Card>
+                </Card>
+              ) : null}
+            </Card>
           ) : null}
           <ReleaseIdentityCard release={selected.release} />
           {selected.gate ? (
