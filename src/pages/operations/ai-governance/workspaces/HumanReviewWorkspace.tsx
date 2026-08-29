@@ -249,7 +249,7 @@ export const HumanReviewWorkspace: React.FC = () => {
           showIcon
           message="当前 Run 不可人工审核"
           description={selectedRun.progress.failed_attempts > 0
-            ? `检测到 ${selectedRun.progress.failed_attempts} 条技术失败证据。请在“评测发布”工作区审计取消，并在修复后重新评测。`
+            ? `检测到 ${selectedRun.progress.failed_attempts} 条技术失败证据。请在“评测发布”工作区打开只读详情；本页不会提供审核按钮。`
             : '服务端未授权该 Run 进入人工审核，请返回评测发布工作区核验状态。'}
         />
       ) : null}

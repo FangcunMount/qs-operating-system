@@ -1,15 +1,21 @@
 import React from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import {
+  getAIEvaluationAttempt,
   getAIEvaluationRun,
   listAIEvaluationRuns
 } from '@/api/path/aiGovernance'
-import type { AIEvaluationRun, AIEvaluationRunSummary } from '@/api/path/aiGovernance'
+import type {
+  AIEvaluationRun,
+  AIEvaluationRunSummary,
+  AIReviewAttemptSummary
+} from '@/api/path/aiGovernance'
 import { EvaluationReleaseWorkspace } from './EvaluationReleaseWorkspace'
 
 jest.mock('@/api/path/aiGovernance', () => ({
   cancelAIEvaluation: jest.fn(),
   finalizeAIEvaluation: jest.fn(),
+  getAIEvaluationAttempt: jest.fn(),
   getAIEvaluationCapacity: jest.fn(),
   getAIEvaluationRun: jest.fn(),
   listAIEvaluationRuns: jest.fn(),
@@ -19,6 +25,7 @@ jest.mock('@/api/path/aiGovernance', () => ({
 
 const listRunsMock = listAIEvaluationRuns as jest.Mock
 const getRunMock = getAIEvaluationRun as jest.Mock
+const getAttemptMock = getAIEvaluationAttempt as jest.Mock
 const success = (data: unknown) => Promise.resolve([null, { code: 0, data }])
 
 const progress = {
@@ -98,6 +105,7 @@ describe('EvaluationReleaseWorkspace', () => {
   beforeEach(() => {
     listRunsMock.mockReset()
     getRunMock.mockReset()
+    getAttemptMock.mockReset()
     Object.defineProperty(document, 'visibilityState', {
       configurable: true,
       value: 'visible'
@@ -147,5 +155,76 @@ describe('EvaluationReleaseWorkspace', () => {
       jest.advanceTimersByTime(30000)
     })
     expect(listRunsMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows technical failures as read-only evidence and opens their details', async () => {
+    const failedAttempt: AIReviewAttemptSummary = {
+      case_id: 'PROMPT-EVAL-002',
+      attempt: 4,
+      failure: {
+        stage: 'output_validation',
+        code: 'provider_output_schema_invalid',
+        safe_message: 'Provider output did not satisfy the frozen output schema',
+        retryable: false,
+        result_unknown: false
+      },
+      missing_roles: ['assessment_semantics', 'safety_product'],
+      reviews: []
+    }
+    const failedRun: AIEvaluationRun = {
+      ...collectingDetail,
+      run_id: 'run-failed',
+      status: 'awaiting_review',
+      execution: undefined,
+      progress: {
+        ...progress,
+        generation_attempts: 35,
+        failed_attempts: 1,
+        pending_generation_attempts: 0
+      },
+      attempts: [failedAttempt],
+      can_cancel: true
+    }
+    listRunsMock.mockReturnValue(success({ items: [failedRun] }))
+    getRunMock.mockReturnValue(success(failedRun))
+    getAttemptMock.mockReturnValue(success({
+      ...failedAttempt,
+      assessment_input: { facts: { model: { code: 'prompt-eval-scale' } } },
+      raw_provider_output: '{"schema_version":"invalid"}',
+      normalized_output: undefined,
+      provider_receipt: {
+        invocation_id: 'invocation-1',
+        request_id: 'request-1',
+        provider: 'deepseek',
+        model: 'deepseek-v4-pro',
+        input_tokens: 1000,
+        output_tokens: 800,
+        latency_ms: 12000
+      },
+      assertions: [{
+        type: 'output_schema_valid',
+        scope: 'default',
+        ordinal: 1,
+        hard: true,
+        evaluator: 'deterministic',
+        status: 'failed',
+        detail: 'schema validation failed'
+      }]
+    }))
+
+    render(<EvaluationReleaseWorkspace />)
+    fireEvent.click(await screen.findByText('run-failed'))
+
+    expect(await screen.findByText('技术失败证据（1）')).toBeInTheDocument()
+    expect(screen.getByText('output_validation')).toBeInTheDocument()
+    expect(screen.getByText('provider_output_schema_invalid')).toBeInTheDocument()
+    expect(screen.getByText('Provider output did not satisfy the frozen output schema')).toBeInTheDocument()
+    expect(screen.queryByText(/提交通过意见|提交拒绝意见/)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('查看详情'))
+    expect(await screen.findByText('只读失败详情')).toBeInTheDocument()
+    expect(getAttemptMock).toHaveBeenCalledWith('run-failed', 'PROMPT-EVAL-002', 4)
+    expect(screen.getByText('deepseek-v4-pro')).toBeInTheDocument()
+    expect(screen.getByText('schema validation failed')).toBeInTheDocument()
   })
 })
