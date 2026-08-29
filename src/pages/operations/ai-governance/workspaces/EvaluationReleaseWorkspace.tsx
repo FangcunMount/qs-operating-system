@@ -35,6 +35,7 @@ import type {
   AIReviewAttemptSummary
 } from '@/api/path/aiGovernance'
 import { JsonEvidence } from '../components/JsonEvidence'
+import { AttemptRecheckPanel } from '../components/AttemptRecheckPanel'
 import { ReleaseIdentityCard } from '../components/ReleaseIdentityCard'
 import { ReasonCommandModal } from '../components/ReasonCommandModal'
 import { errorMessage, evaluationStatusTag, formatTime } from '../presentation'
@@ -591,6 +592,11 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
                       ]}
                     />
                   </Card>
+                  <AttemptRecheckPanel
+                    runID={selected.run_id}
+                    caseID={failureDetail.case_id}
+                    attempt={failureDetail.attempt}
+                  />
                 </Card>
               ) : null}
             </Card>

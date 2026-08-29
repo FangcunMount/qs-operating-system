@@ -1,4 +1,5 @@
 export type AIEvaluationStatus = 'collecting' | 'awaiting_review' | 'approved' | 'rejected' | 'canceled'
+export type AIAttemptRecheckStatus = 'queued' | 'dispatching' | 'completed' | 'failed' | 'result_unknown'
 export type AIReviewRole = 'assessment_semantics' | 'safety_product'
 export type AIReviewDecision = 'approve' | 'reject'
 export type AIProfileStatus = 'draft' | 'published' | 'disabled'
@@ -146,6 +147,30 @@ export interface AIReviewAttempt extends AIReviewAttemptSummary {
   provider_receipt?: AIProviderReceipt
   assertions: AIAssertionReceipt[]
   semantic?: AISemanticReceipt
+}
+
+export interface AIAttemptRecheck {
+  recheck_id: string
+  source_run_id: string
+  source_case_id: string
+  source_attempt: number
+  status: AIAttemptRecheckStatus
+  version: number
+  requested_org_id: number
+  requested_by: string
+  reason: string
+  created_at: string
+  finished_at?: string
+  release: AIEvaluationRelease
+  execution?: {
+    case_id: string
+    attempt: number
+    phase: string
+    claimed_at: string
+    lease_expires_at: string
+    dispatch_started_at?: string
+  }
+  result?: AIReviewAttempt
 }
 
 export interface AIGateResult {

@@ -34,6 +34,7 @@ import type {
   AIReviewRole
 } from '@/api/path/aiGovernance'
 import { JsonEvidence } from '../components/JsonEvidence'
+import { AttemptRecheckPanel } from '../components/AttemptRecheckPanel'
 import {
   errorMessage,
   evaluationStatusTag,
@@ -416,6 +417,12 @@ export const HumanReviewWorkspace: React.FC = () => {
                       </Paragraph>
                     </Card>
                   ) : null}
+
+                  <AttemptRecheckPanel
+                    runID={selectedQueueItem.runID}
+                    caseID={attemptDetail.case_id}
+                    attempt={attemptDetail.attempt}
+                  />
 
                   {attemptDetail.reviews.length ? (
                     <Card size="small" title="已记录审核">

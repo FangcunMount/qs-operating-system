@@ -1,6 +1,7 @@
 import { internalGet, internalPost } from '@/api/qsServer'
 import type { QSResponse } from '@/types/qs'
 import type {
+  AIAttemptRecheck,
   AIEvaluationCapacity,
   AIEvaluationListQuery,
   AIEvaluationRun,
@@ -49,6 +50,37 @@ export const getAIEvaluationAttempt = (
   internalGet<AIReviewAttempt>(
     `${BASE_PATH}/prompt-evaluations/${encode(runID)}/attempts/${encode(caseID)}/${attempt}`
   )
+
+const attemptRecheckPath = (runID: string, caseID: string, attempt: number): string =>
+  `${BASE_PATH}/prompt-evaluations/${encode(runID)}/attempts/${encode(caseID)}/${attempt}/rechecks`
+
+export const listAIEvaluationAttemptRechecks = (
+  runID: string,
+  caseID: string,
+  attempt: number,
+  limit = 20
+): Promise<[any, QSResponse<AIAttemptRecheck[]> | undefined]> =>
+  internalGet<AIAttemptRecheck[]>(attemptRecheckPath(runID, caseID, attempt), { limit })
+
+export const getAIEvaluationAttemptRecheck = (
+  runID: string,
+  caseID: string,
+  attempt: number,
+  recheckID: string
+): Promise<[any, QSResponse<AIAttemptRecheck> | undefined]> =>
+  internalGet<AIAttemptRecheck>(`${attemptRecheckPath(runID, caseID, attempt)}/${encode(recheckID)}`)
+
+export const startAIEvaluationAttemptRecheck = (
+  runID: string,
+  caseID: string,
+  attempt: number,
+  reason: string
+): Promise<[any, QSResponse<AIAttemptRecheck> | undefined]> =>
+  internalPost<AIAttemptRecheck>(attemptRecheckPath(runID, caseID, attempt), {
+    confirm: true,
+    expected_provider_invocations: 2,
+    reason
+  })
 
 export const getAIEvaluationCapacity = (): Promise<[any, QSResponse<AIEvaluationCapacity> | undefined]> =>
   internalGet<AIEvaluationCapacity>(`${BASE_PATH}/prompt-evaluation-capacity`)
