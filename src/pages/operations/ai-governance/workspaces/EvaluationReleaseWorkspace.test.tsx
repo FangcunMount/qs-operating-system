@@ -1,5 +1,5 @@
 import React from 'react'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import {
   getAIEvaluationAttempt,
   getAIEvaluationAttemptRecheck,
@@ -267,5 +267,47 @@ describe('EvaluationReleaseWorkspace', () => {
       'verify repaired route'
     ))
     expect((await screen.findAllByText('recheck-1')).length).toBeGreaterThan(0)
+
+    const completedRecheck = {
+      recheck_id: 'recheck-1',
+      source_run_id: 'run-failed',
+      source_case_id: 'PROMPT-EVAL-002',
+      source_attempt: 4,
+      status: 'completed' as const,
+      version: 3,
+      requested_org_id: 10001,
+      requested_by: 'user:10001',
+      reason: 'verify repaired route',
+      created_at: '2026-08-29T10:00:00Z',
+      finished_at: '2026-08-29T10:00:12Z',
+      release: failedRun.release
+    }
+    listRechecksMock.mockReturnValue(success([completedRecheck]))
+    getRecheckMock.mockReturnValue(success({
+      ...completedRecheck,
+      result: {
+        case_id: 'PROMPT-EVAL-002',
+        attempt: 4,
+        output_fingerprint: 'recheck-output-fingerprint',
+        reviews: [],
+        missing_roles: [],
+        assessment_input: { facts: { model: { code: 'prompt-eval-scale' } } },
+        raw_provider_output: '{"schema_version":"ai-explanation-output/v1"}',
+        normalized_output: { schema_version: 'ai-explanation-output/v1' },
+        assertions: []
+      }
+    }))
+
+    const recheckPanel = screen.getByText('单条诊断复测').closest('.ant-card') as HTMLElement
+    fireEvent.click(within(recheckPanel).getByText('刷新'))
+
+    await waitFor(() => expect(getRecheckMock).toHaveBeenCalledWith(
+      'run-failed',
+      'PROMPT-EVAL-002',
+      4,
+      'recheck-1'
+    ))
+    expect(await screen.findByText('复测 AI 原始输出')).toBeInTheDocument()
+    expect(screen.queryByText('复测正在执行，页面每 5 秒刷新；源 Run 不受影响。')).not.toBeInTheDocument()
   })
 })
