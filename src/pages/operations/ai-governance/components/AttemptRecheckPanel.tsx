@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Button, Card, Col, Descriptions, Empty, Row, Space, Table, Tag, Typography, message } from 'antd'
 import { ReloadOutlined, RetweetOutlined } from '@ant-design/icons'
 import {
@@ -60,6 +60,29 @@ export const AttemptRecheckPanel: React.FC<AttemptRecheckPanelProps> = ({ runID,
   const [starting, setStarting] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
   const [error, setError] = useState('')
+  const terminalDetailAttempt = useRef('')
+
+  const loadDetail = useCallback(async (value: AIAttemptRecheck, notifyOnError: boolean) => {
+    setDetailLoading(true)
+    const [requestError, response] = await getAIEvaluationAttemptRecheck(
+      runID,
+      caseID,
+      attempt,
+      value.recheck_id
+    )
+    setDetailLoading(false)
+    if (requestError || !response) {
+      const detailError = errorMessage(requestError, '单条复测证据获取失败')
+      if (notifyOnError) {
+        message.error(detailError)
+      } else {
+        setError(detailError)
+      }
+      return
+    }
+    setError('')
+    setSelected(response.data)
+  }, [attempt, caseID, runID])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -80,6 +103,7 @@ export const AttemptRecheckPanel: React.FC<AttemptRecheckPanelProps> = ({ runID,
   }, [attempt, caseID, runID])
 
   useEffect(() => {
+    terminalDetailAttempt.current = ''
     setItems([])
     setSelected(null)
     setError('')
@@ -108,21 +132,15 @@ export const AttemptRecheckPanel: React.FC<AttemptRecheckPanelProps> = ({ runID,
     onTick: refreshActive
   })
 
-  const openDetail = async (value: AIAttemptRecheck) => {
-    setDetailLoading(true)
-    const [requestError, response] = await getAIEvaluationAttemptRecheck(
-      runID,
-      caseID,
-      attempt,
-      value.recheck_id
-    )
-    setDetailLoading(false)
-    if (requestError || !response) {
-      message.error(errorMessage(requestError, '单条复测证据获取失败'))
-      return
-    }
-    setSelected(response.data)
-  }
+  useEffect(() => {
+    if (!selected || isActive(selected) || selected.result) return
+    const attemptKey = `${selected.recheck_id}:${selected.version}`
+    if (terminalDetailAttempt.current === attemptKey) return
+    terminalDetailAttempt.current = attemptKey
+    loadDetail(selected, false)
+  }, [loadDetail, selected])
+
+  const openDetail = (value: AIAttemptRecheck) => loadDetail(value, true)
 
   const start = async (reason: string) => {
     setStarting(true)
@@ -255,7 +273,11 @@ export const AttemptRecheckPanel: React.FC<AttemptRecheckPanelProps> = ({ runID,
             </>
           ) : (
             <Paragraph type="secondary" className="ai-governance-inline-alert">
-              复测正在执行，页面每 5 秒刷新；源 Run 不受影响。
+              {isActive(selected)
+                ? '复测正在执行，页面每 5 秒刷新；源 Run 不受影响。'
+                : detailLoading
+                  ? '复测已结束，正在加载终态证据。'
+                  : '复测已结束；请点击“打开”重试加载终态证据。'}
             </Paragraph>
           )}
         </Card>
