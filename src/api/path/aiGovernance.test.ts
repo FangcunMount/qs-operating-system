@@ -1,57 +1,54 @@
 import {
-  cancelAIEvaluation,
   createAIProfileDraft,
   disableAIProfile,
-  finalizeAIEvaluation,
+  finalizeAIEvaluationV2,
   getAIEvaluationAttempt,
   getAIEvaluationAttemptRecheck,
+  getAIEvaluationCandidateV2,
   getAIEvaluationCapacity,
+  getAIEvaluationOutputV2,
   getAIEvaluationRun,
+  getAIEvaluationRunV2,
   getAIParticipantCapacity,
   getAIProfile,
   listAIEvaluationRuns,
   listAIEvaluationAttemptRechecks,
   listAIProfiles,
   publishAIProfile,
-  recordAIHumanReview,
-  recoverAIEvaluation,
+  recordAIHumanReviewV2,
+  resolveAIEvaluationResultUnknownV2,
   retryAIParticipantGeneration,
-  startAIEvaluation,
+  startAIEvaluationV2,
   startAIEvaluationAttemptRecheck
 } from './aiGovernance'
-import { internalGet, internalPost } from '../qsServer'
+import { internalGet, internalPost, internalV2Get, internalV2Post } from '../qsServer'
 
 jest.mock('../qsServer', () => ({
   internalGet: jest.fn(() => Promise.resolve([null, { code: 0, data: {} }])),
-  internalPost: jest.fn(() => Promise.resolve([null, { code: 0, data: {} }]))
+  internalPost: jest.fn(() => Promise.resolve([null, { code: 0, data: {} }])),
+  internalV2Get: jest.fn(() => Promise.resolve([null, { code: 0, data: {} }])),
+  internalV2Post: jest.fn(() => Promise.resolve([null, { code: 0, data: {} }]))
 }))
 
 const internalGetMock = internalGet as jest.Mock
 const internalPostMock = internalPost as jest.Mock
+const internalV2GetMock = internalV2Get as jest.Mock
+const internalV2PostMock = internalV2Post as jest.Mock
 
 describe('AI governance API', () => {
   beforeEach(() => {
     internalGetMock.mockClear()
     internalPostMock.mockClear()
+    internalV2GetMock.mockClear()
+    internalV2PostMock.mockClear()
   })
 
-  it('keeps bounded evaluation and review routes stable', async () => {
+  it('keeps v1 evaluation history read-only', async () => {
     await listAIEvaluationRuns({ status: 'awaiting_review', cursor: 'next', limit: 25 })
     await getAIEvaluationRun('run/1')
     await getAIEvaluationAttempt('run/1', 'case/1', 2)
     await getAIEvaluationCapacity()
     await getAIParticipantCapacity()
-    await startAIEvaluation(70, 'freeze release')
-    await recoverAIEvaluation('run/1', 68, 'recover expired lease')
-    await cancelAIEvaluation('run/1', 'cancel release')
-    await recordAIHumanReview('run/1', {
-      case_id: 'case/1',
-      attempt: 2,
-      role: 'assessment_semantics',
-      decision: 'approve',
-      reason: 'evidence reviewed'
-    })
-    await finalizeAIEvaluation('run/1', 'all evidence reviewed')
 
     expect(internalGetMock).toHaveBeenNthCalledWith(1, '/interpretation/ai-explanation/prompt-evaluations', {
       status: 'awaiting_review', cursor: 'next', limit: 25
@@ -61,24 +58,47 @@ describe('AI governance API', () => {
       3,
       '/interpretation/ai-explanation/prompt-evaluations/run%2F1/attempts/case%2F1/2'
     )
-    expect(internalGetMock).toHaveBeenNthCalledWith(
-      4,
-      '/interpretation/ai-explanation/prompt-evaluation-capacity'
-    )
-    expect(internalGetMock).toHaveBeenNthCalledWith(
-      5,
-      '/interpretation/ai-explanation/participant-capacity'
-    )
-    expect(internalPostMock).toHaveBeenCalledWith('/interpretation/ai-explanation/prompt-evaluations', {
-      confirm: true, expected_provider_invocations: 70, reason: 'freeze release'
+    expect(internalPostMock).not.toHaveBeenCalled()
+  })
+
+  it('uses v2 for the active evaluation lifecycle and candidate evidence', async () => {
+    await startAIEvaluationV2(140, 'freeze release')
+    await getAIEvaluationRunV2('run/1')
+    await getAIEvaluationCandidateV2('run/1', 'candidate/1')
+    await getAIEvaluationOutputV2('run/1', 'execution/1')
+    await recordAIHumanReviewV2('run/1', {
+      candidate_id: 'candidate/1',
+      role: 'assessment_semantics',
+      decision: 'approve',
+      reason: 'evidence reviewed'
     })
-    expect(internalPostMock).toHaveBeenCalledWith(
+    await finalizeAIEvaluationV2('run/1', 'all evidence reviewed')
+    await resolveAIEvaluationResultUnknownV2('run/1', {
+      execution_id: 'execution/2',
+      decision: 'authorize_replacement',
+      acknowledged_duplicate_call_and_cost_risk: true,
+      reason: 'operator confirmed unknown result risk'
+    })
+
+    expect(internalV2GetMock).toHaveBeenNthCalledWith(1, '/interpretation/ai-explanation/prompt-evaluations/run%2F1')
+    expect(internalV2GetMock).toHaveBeenNthCalledWith(
+      2,
+      '/interpretation/ai-explanation/prompt-evaluations/run%2F1/candidates/candidate%2F1'
+    )
+    expect(internalV2PostMock).toHaveBeenCalledWith('/interpretation/ai-explanation/prompt-evaluations', {
+      confirm: true, expected_provider_invocations: 140, reason: 'freeze release'
+    })
+    expect(internalV2PostMock).toHaveBeenCalledWith(
       '/interpretation/ai-explanation/prompt-evaluations/run%2F1/reviews',
-      expect.objectContaining({ role: 'assessment_semantics', decision: 'approve' })
+      expect.objectContaining({ candidate_id: 'candidate/1', role: 'assessment_semantics' })
+    )
+    expect(internalV2PostMock).toHaveBeenCalledWith(
+      '/interpretation/ai-explanation/prompt-evaluations/run%2F1/result-unknown/resolve',
+      expect.objectContaining({ execution_id: 'execution/2', confirm: true })
     )
   })
 
-  it('uses immutable single-attempt recheck routes with the exact two-call confirmation', async () => {
+  it('keeps legacy recheck reads on v1 and moves the write to v2', async () => {
     await listAIEvaluationAttemptRechecks('run/1', 'case/1', 2)
     await getAIEvaluationAttemptRecheck('run/1', 'case/1', 2, 'recheck/1')
     await startAIEvaluationAttemptRecheck('run/1', 'case/1', 2, 'verify repaired candidate release')
@@ -86,14 +106,13 @@ describe('AI governance API', () => {
     const base = '/interpretation/ai-explanation/prompt-evaluations/run%2F1/attempts/case%2F1/2/rechecks'
     expect(internalGetMock).toHaveBeenNthCalledWith(1, base, { limit: 20 })
     expect(internalGetMock).toHaveBeenNthCalledWith(2, `${base}/recheck%2F1`)
-    expect(internalPostMock).toHaveBeenCalledWith(base, {
-      confirm: true,
-      expected_provider_invocations: 2,
-      reason: 'verify repaired candidate release'
-    })
+    expect(internalV2PostMock).toHaveBeenCalledWith(
+      '/interpretation/ai-explanation/legacy-prompt-evaluations/run%2F1/attempts/case%2F1/2/rechecks',
+      { confirm: true, expected_provider_invocations: 2, reason: 'verify repaired candidate release' }
+    )
   })
 
-  it('keeps Profile lifecycle and governed retry routes stable', async () => {
+  it('keeps Profile lifecycle and governed participant retry on v1', async () => {
     await listAIProfiles({ status: 'draft', limit: 20 })
     await getAIProfile('participant-default', '1.0.0')
     await createAIProfileDraft({ profile_id: 'participant-default' } as any, 'sha256:definition', 'new release')
@@ -108,13 +127,6 @@ describe('AI governance API', () => {
       reason: 'operator accepted result_unknown risk'
     })
 
-    expect(internalGetMock).toHaveBeenNthCalledWith(1, '/interpretation/ai-explanation/profiles', {
-      status: 'draft', limit: 20
-    })
-    expect(internalGetMock).toHaveBeenNthCalledWith(
-      2,
-      '/interpretation/ai-explanation/profiles/participant-default/versions/1.0.0'
-    )
     expect(internalPostMock).toHaveBeenCalledWith(
       '/interpretation/ai-explanation/profiles/participant-default/versions/1.0.0/publish',
       { evaluation_run_id: '700', reason: 'approved evidence' }

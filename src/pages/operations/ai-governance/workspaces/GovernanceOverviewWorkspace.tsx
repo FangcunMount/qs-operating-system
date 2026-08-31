@@ -69,7 +69,7 @@ const stageIcon = (state: GovernanceStageState): JSX.Element => {
 export const GovernanceOverviewWorkspace: React.FC = () => {
   const history = useHistory()
   const [profiles, setProfiles] = useState<AIProfile[] | undefined>()
-  const [runs, setRuns] = useState<AIEvaluationRunSummary[] | undefined>()
+  const [legacyRuns, setLegacyRuns] = useState<AIEvaluationRunSummary[] | undefined>()
   const [evaluationCapacity, setEvaluationCapacity] = useState<AIEvaluationCapacity | undefined>()
   const [participantCapacity, setParticipantCapacity] = useState<AIParticipantCapacity | undefined>()
   const [profileHasMore, setProfileHasMore] = useState(false)
@@ -104,12 +104,12 @@ export const GovernanceOverviewWorkspace: React.FC = () => {
       nextErrors.push(errorMessage(profileError, 'Profile 目录获取失败'))
     }
     if (runResponse) {
-      setRuns(runResponse.data?.items || [])
+      setLegacyRuns(runResponse.data?.items || [])
       setRunHasMore(Boolean(runResponse.data?.next_cursor))
     } else {
-      setRuns(undefined)
+      setLegacyRuns(undefined)
       setRunHasMore(false)
-      nextErrors.push(errorMessage(runError, '评测目录获取失败'))
+      nextErrors.push(errorMessage(runError, '历史 v1 评测目录获取失败'))
     }
     if (evaluationCapacityResponse) {
       setEvaluationCapacity(evaluationCapacityResponse.data)
@@ -133,10 +133,10 @@ export const GovernanceOverviewWorkspace: React.FC = () => {
 
   const overview = useMemo(() => buildGovernanceOverview({
     profiles,
-    runs,
+    runs: undefined,
     evaluationCapacity,
     participantCapacity
-  }), [evaluationCapacity, participantCapacity, profiles, runs])
+  }), [evaluationCapacity, participantCapacity, profiles])
 
   const evaluationPercent = evaluationCapacity?.daily_provider_invocation_limit
     ? Math.min(100, Math.round(
@@ -188,9 +188,16 @@ export const GovernanceOverviewWorkspace: React.FC = () => {
           type="info"
           showIcon
           message="总览数字来自当前最新 100 条窗口"
-          description="目录仍有下一页；总览不会把当前窗口数量冒充全量统计，精确查询请进入对应工作区。"
+          description="Profile 或历史 v1 目录仍有下一页；总览不会把当前窗口数量冒充全量统计。"
         />
       ) : null}
+
+      <Alert
+        type="info"
+        showIcon
+        message="v2 Run 全量状态不可判定"
+        description={`后端当前只提供 v2 精确 Run ID 查询；下方不会把 ${legacyRuns?.length ?? '未知数量的'} 条历史 v1 记录冒充 v2 目录。`}
+      />
 
       <GovernanceStatGrid items={[
         {
@@ -201,27 +208,27 @@ export const GovernanceOverviewWorkspace: React.FC = () => {
         },
         {
           key: 'collecting-runs',
-          title: '执行中评测',
-          value: runs === undefined ? '—' : overview.collectingRuns,
-          suffix: runs === undefined ? '' : '个'
+          title: 'v2 执行中评测',
+          value: '—',
+          suffix: ''
         },
         {
           key: 'awaiting-review-runs',
           title: '待人工审核',
-          value: runs === undefined ? '—' : overview.awaitingReviewRuns,
-          suffix: runs === undefined ? '' : '个'
+          value: '—',
+          suffix: ''
         },
         {
           key: 'failed-evaluation-runs',
           title: '技术失败待处置',
-          value: runs === undefined ? '—' : overview.failedEvaluationRuns,
-          suffix: runs === undefined ? '' : '个'
+          value: '—',
+          suffix: ''
         },
         {
           key: 'releasable-drafts',
           title: '证据匹配可发布',
-          value: profiles === undefined || runs === undefined ? '—' : overview.releasableDrafts,
-          suffix: profiles === undefined || runs === undefined ? '' : '个',
+          value: '—',
+          suffix: '',
           prefix: <SafetyCertificateOutlined />
         },
         {

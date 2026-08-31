@@ -1,63 +1,60 @@
-import type { AIEvaluationRun } from '@/api/path/aiGovernance'
+import type { AIEvaluationRunV2 } from '@/api/path/aiGovernance'
 import { buildReviewQueue } from './HumanReviewWorkspace'
 
-describe('AI explanation human review queue', () => {
-  it('contains only attempts that still require at least one review role', () => {
-    const runs = [{
-      run_id: '701',
-      can_review: true,
-      attempts: [
-        {
-          case_id: 'PROMPT-EVAL-001',
-          attempt: 1,
-          missing_roles: ['assessment_semantics'],
-          reviews: []
-        },
-        {
-          case_id: 'PROMPT-EVAL-002',
-          attempt: 1,
-          missing_roles: [],
-          reviews: []
-        }
-      ]
-    }] as AIEvaluationRun[]
+const makeRun = (runID: string): AIEvaluationRunV2 => ({
+  run_id: runID,
+  status: 'awaiting_review',
+  slots: [{
+    case_id: 'PROMPT-EVAL-001',
+    slot_ordinal: 1,
+    status: 'accepted',
+    generation_execution_ids: ['generation:1'],
+    candidate: {
+      candidate_id: `candidate:${runID}`,
+      generation_execution_id: 'generation:1',
+      normalized_output_fingerprint: 'sha256:output',
+      accepted_at: '2026-08-31T10:00:00Z',
+      semantic_execution_ids: ['semantic:1'],
+      accepted_semantic_execution_id: 'semantic:1',
+      review_ready: true,
+      assertions: []
+    }
+  }],
+  human_reviews: []
+} as AIEvaluationRunV2)
 
-    expect(buildReviewQueue(runs)).toEqual([expect.objectContaining({
+describe('AI explanation v2 human review queue', () => {
+  it('derives missing roles from review-ready Candidates', () => {
+    const run = makeRun('701')
+    run.human_reviews.push({
+      candidate_id: 'candidate:701',
+      role: 'assessment_semantics',
+      reviewer: 'user:1',
+      decision: 'approve',
+      reviewed_at: '2026-08-31T10:01:00Z',
+      reason: 'facts match'
+    })
+
+    expect(buildReviewQueue([run])).toEqual([expect.objectContaining({
       runID: '701',
-      case_id: 'PROMPT-EVAL-001',
-      missing_roles: ['assessment_semantics']
+      candidate_id: 'candidate:701',
+      caseID: 'PROMPT-EVAL-001',
+      missing_roles: ['safety_product']
     })])
   })
 
-  it('keeps identical case attempts from different runs distinguishable', () => {
-    const makeRun = (runID: string) => ({
-      run_id: runID,
-      can_review: true,
-      attempts: [{
-        case_id: 'PROMPT-EVAL-001',
-        attempt: 1,
-        missing_roles: ['safety_product'],
-        reviews: []
-      }]
-    }) as AIEvaluationRun
-
+  it('keeps Candidates from different runs distinguishable', () => {
     expect(buildReviewQueue([makeRun('701'), makeRun('702')]).map((item) => item.runID))
       .toEqual(['701', '702'])
   })
 
-  it('excludes technical failures and runs that the server did not authorize for review', () => {
-    const failed = {
-      run_id: '703',
-      can_review: false,
-      attempts: [{
-        case_id: 'PROMPT-EVAL-001',
-        attempt: 1,
-        failure: { stage: 'provider_execution', code: 'provider_timeout' },
-        missing_roles: ['assessment_semantics', 'safety_product'],
-        reviews: []
-      }]
-    } as AIEvaluationRun
+  it('excludes non-review-ready Candidates and non-awaiting-review Runs', () => {
+    const run = makeRun('703')
+    run.status = 'blocked'
+    expect(buildReviewQueue([run])).toEqual([])
 
-    expect(buildReviewQueue([failed])).toEqual([])
+    run.status = 'awaiting_review'
+    if (run.slots[0].candidate) run.slots[0].candidate.review_ready = false
+    expect(buildReviewQueue([run])).toEqual([])
   })
 })

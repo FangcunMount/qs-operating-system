@@ -1,313 +1,114 @@
 import React from 'react'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import {
-  getAIEvaluationAttempt,
-  getAIEvaluationAttemptRecheck,
-  getAIEvaluationRun,
-  listAIEvaluationAttemptRechecks,
-  listAIEvaluationRuns,
-  startAIEvaluationAttemptRecheck
-} from '@/api/path/aiGovernance'
-import type {
-  AIEvaluationRun,
-  AIEvaluationRunSummary,
-  AIReviewAttemptSummary
-} from '@/api/path/aiGovernance'
-import { EvaluationReleaseWorkspace } from './EvaluationReleaseWorkspace'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { getAIEvaluationRunV2, listAIEvaluationRuns } from '@/api/path/aiGovernance'
+import type { AIEvaluationRunV2 } from '@/api/path/aiGovernance'
+import { buildTechnicalFailureEvidence, EvaluationReleaseWorkspace } from './EvaluationReleaseWorkspace'
 
 jest.mock('@/api/path/aiGovernance', () => ({
-  cancelAIEvaluation: jest.fn(),
-  finalizeAIEvaluation: jest.fn(),
-  getAIEvaluationAttempt: jest.fn(),
-  getAIEvaluationAttemptRecheck: jest.fn(),
+  finalizeAIEvaluationV2: jest.fn(),
   getAIEvaluationCapacity: jest.fn(),
-  getAIEvaluationRun: jest.fn(),
-  listAIEvaluationAttemptRechecks: jest.fn(),
+  getAIEvaluationOutputV2: jest.fn(),
+  getAIEvaluationRunV2: jest.fn(),
   listAIEvaluationRuns: jest.fn(),
-  recoverAIEvaluation: jest.fn(),
-  startAIEvaluation: jest.fn(),
-  startAIEvaluationAttemptRecheck: jest.fn()
+  resolveAIEvaluationResultUnknownV2: jest.fn(),
+  startAIEvaluationV2: jest.fn()
 }))
 
-const listRunsMock = listAIEvaluationRuns as jest.Mock
-const getRunMock = getAIEvaluationRun as jest.Mock
-const getAttemptMock = getAIEvaluationAttempt as jest.Mock
-const getRecheckMock = getAIEvaluationAttemptRecheck as jest.Mock
-const listRechecksMock = listAIEvaluationAttemptRechecks as jest.Mock
-const startRecheckMock = startAIEvaluationAttemptRecheck as jest.Mock
 const success = (data: unknown) => Promise.resolve([null, { code: 0, data }])
-
-const progress = {
-  planned_generation_attempts: 35,
-  generation_attempts: 1,
-  failed_attempts: 0,
-  pending_generation_attempts: 34,
-  required_reviews: 70,
-  recorded_reviews: 0,
-  missing_reviews: 70,
-  fully_reviewed_attempts: 0,
-  rejected_reviews: 0,
-  all_required_reviews_recorded: false
-}
-
-const collectingRun: AIEvaluationRunSummary = {
-  run_id: 'run-live',
+const ref = { id: 'contract', version: 'v1', fingerprint: 'sha256:contract' }
+const run: AIEvaluationRunV2 = {
+  schema_version: 'prompt-evaluation-evidence/v2',
+  run_id: 'v2-run-1',
   version: 1,
-  status: 'collecting',
-  requested_org_id: 10001,
-  requested_by: 'user:10001',
-  request_reason: 'production evaluation',
-  created_at: '2026-08-28T10:00:00Z',
+  status: 'blocked',
+  organization_id: 12,
+  requested_by: 'user:34',
+  request_reason: 'verify v2',
+  created_at: '2026-08-31T10:00:00Z',
+  release_fingerprint: 'sha256:release',
   release: {
-    suite: { id: 'suite', version: 'v1', fingerprint: 'suite-fingerprint', git_blob_sha: 'suite-sha' },
-    prompt: { template_id: 'prompt', version: 'v1', fingerprint: 'prompt-fingerprint', git_blob_sha: 'prompt-sha' },
-    profile: { id: 'profile', version: 'v1', fingerprint: 'profile-fingerprint' },
-    input_schema: { version: 'input/v1', fingerprint: 'input-fingerprint' },
-    output_schema: { version: 'output/v1', fingerprint: 'output-fingerprint' },
-    provider: {
-      route: 'generation',
-      route_revision: 'v2',
-      resolved_provider: 'deepseek',
-      resolved_model: 'deepseek-v4-flash',
-      fingerprint: 'generation-provider-fingerprint'
-    },
-    decoding: { max_output_tokens: 12000, reasoning_effort: 'low' },
-    semantic_evaluator: {
-      version: 'v1',
-      prompt: { template_id: 'judge', version: 'v1', fingerprint: 'judge-fingerprint', git_blob_sha: 'judge-sha' },
-      output_schema: { version: 'judge-output/v1', fingerprint: 'judge-output-fingerprint' },
-      provider: {
-        route: 'judge',
-        route_revision: 'v2',
-        resolved_provider: 'deepseek',
-        resolved_model: 'deepseek-v4-pro',
-        fingerprint: 'judge-provider-fingerprint'
-      },
-      decoding: { max_output_tokens: 8000, reasoning_effort: 'low' }
-    },
-    generation_case_ids: ['PROMPT-EVAL-001'],
-    preflight_case_id: 'PROMPT-EVAL-001',
-    preflight_rejection_reason: '',
-    repetitions_per_case: 5
+    fingerprint: 'sha256:release',
+    suite: { ...ref, id: 'suite' },
+    prompt: { ...ref, id: 'prompt' },
+    profile: { ...ref, id: 'profile' },
+    input_schema: { ...ref, id: 'input' },
+    output_schema: { ...ref, id: 'output' },
+    generation_route: { ...ref, id: 'generation-route' },
+    semantic_prompt: { ...ref, id: 'semantic-prompt' },
+    semantic_output_schema: { ...ref, id: 'semantic-output' },
+    semantic_route: { ...ref, id: 'semantic-route' },
+    execution_policy: { ...ref, id: 'execution-policy' },
+    gate_policy: { ...ref, id: 'gate-policy' }
   },
-  progress,
-  can_review: false,
-  can_finalize: false,
-  can_cancel: true,
-  recovery_max_provider_invocations: 0
-}
-
-const collectingDetail: AIEvaluationRun = {
-  ...collectingRun,
-  execution: {
+  execution_policy_id: 'execution-policy',
+  execution_policy_version: 'v1',
+  gate_policy_id: 'gate-policy',
+  gate_policy_version: 'v1',
+  reserved_provider_invocations: 140,
+  required_candidates: 35,
+  accepted_candidates: 1,
+  review_ready_candidates: 0,
+  unresolved_result_unknown_count: 1,
+  slots: [{
     case_id: 'PROMPT-EVAL-001',
-    attempt: 1,
-    phase: 'dispatching',
-    claimed_at: '2026-08-28T10:00:01Z',
-    lease_expires_at: '2026-08-28T10:06:01Z'
-  },
-  recoveries: [],
-  attempts: []
+    slot_ordinal: 1,
+    status: 'blocked',
+    generation_execution_ids: ['generation:1']
+  }],
+  generation_executions: [{
+    execution_id: 'generation:1',
+    kind: 'generation',
+    case_id: 'PROMPT-EVAL-001',
+    slot_ordinal: 1,
+    execution_ordinal: 1,
+    invocation_id: 'invocation:1',
+    status: 'result_unknown',
+    started_at: '2026-08-31T10:00:01Z',
+    provider_call_count: 1,
+    provider_receipt_present: false,
+    raw_output_bytes: 0,
+    normalized_output_bytes: 0,
+    failure: {
+      stage: 'provider',
+      kind: 'provider_execution',
+      code: 'provider_result_unknown',
+      retryable: false,
+      result_unknown: true,
+      disposition: 'manual_resolution_required',
+      safe_message: 'provider result is unknown',
+      evidence_refs: ['generation:1']
+    }
+  }],
+  semantic_executions: [],
+  human_reviews: [],
+  result_unknown_resolutions: []
 }
 
 describe('EvaluationReleaseWorkspace', () => {
   beforeEach(() => {
-    listRunsMock.mockReset()
-    getRunMock.mockReset()
-    getAttemptMock.mockReset()
-    getRecheckMock.mockReset()
-    listRechecksMock.mockReset()
-    startRecheckMock.mockReset()
-    listRechecksMock.mockReturnValue(success([]))
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      value: 'visible'
-    })
+    const listRunsMock = listAIEvaluationRuns as jest.Mock
+    const getRunV2Mock = getAIEvaluationRunV2 as jest.Mock
+    listRunsMock.mockReturnValue(success({ items: [] }))
+    getRunV2Mock.mockReturnValue(success(run))
   })
 
-  afterEach(() => {
-    jest.useRealTimers()
+  it('keeps generation and semantic failures visible', () => {
+    expect(buildTechnicalFailureEvidence(run)).toEqual([
+      expect.objectContaining({ execution_id: 'generation:1', status: 'result_unknown' })
+    ])
   })
 
-  it('explains conditional semantic judging and the current serial execution phase', async () => {
-    listRunsMock.mockReturnValue(success({ items: [collectingRun] }))
-    getRunMock.mockReturnValue(success(collectingDetail))
+  it('labels the v1 catalog as history and locates v2 by exact Run ID', async () => {
     render(<EvaluationReleaseWorkspace />)
 
-    fireEvent.click(await screen.findByText('run-live'))
+    expect(await screen.findByText('历史 v1 Run（只读）')).toBeInTheDocument()
+    const input = screen.getByPlaceholderText('输入 v2 Run ID')
+    fireEvent.change(input, { target: { value: 'v2-run-1' } })
+    fireEvent.click(screen.getByLabelText('search').closest('button') as HTMLButtonElement)
 
-    expect(await screen.findByText('35 次生成 + 最多 35 次独立模型裁判')).toBeInTheDocument()
-    expect(screen.getByText('评测正在串行执行，页面每 15 秒自动刷新')).toBeInTheDocument()
-    expect(screen.getByText('当前 PROMPT-EVAL-001 第 1 次：模型调用中')).toBeInTheDocument()
-    expect(screen.getByText(/因此裁判次数最多为 35 次/)).toBeInTheDocument()
-    expect(screen.getByText('思考强度 low · 最大输出 12000 tokens')).toBeInTheDocument()
-    expect(screen.getByText('思考强度 low · 最大输出 8000 tokens')).toBeInTheDocument()
-  })
-
-  it('automatically refreshes while a Run is collecting and stops after it leaves collecting', async () => {
-    jest.useFakeTimers()
-    const awaitingRun: AIEvaluationRunSummary = {
-      ...collectingRun,
-      status: 'awaiting_review',
-      progress: { ...progress, generation_attempts: 35, pending_generation_attempts: 0 }
-    }
-    listRunsMock
-      .mockReturnValueOnce(success({ items: [collectingRun] }))
-      .mockReturnValue(success({ items: [awaitingRun] }))
-    render(<EvaluationReleaseWorkspace />)
-
-    await waitFor(() => expect(listRunsMock).toHaveBeenCalledTimes(1))
-    await act(async () => {
-      jest.advanceTimersByTime(15000)
-      await Promise.resolve()
-    })
-    await waitFor(() => expect(screen.getByText('待人工审核')).toBeInTheDocument())
-    expect(listRunsMock).toHaveBeenCalledTimes(2)
-
-    act(() => {
-      jest.advanceTimersByTime(30000)
-    })
-    expect(listRunsMock).toHaveBeenCalledTimes(2)
-  })
-
-  it('shows technical failures as read-only evidence and opens their details', async () => {
-    const failedAttempt: AIReviewAttemptSummary = {
-      case_id: 'PROMPT-EVAL-002',
-      attempt: 4,
-      failure: {
-        stage: 'output_validation',
-        code: 'provider_output_schema_invalid',
-        safe_message: 'Provider output did not satisfy the frozen output schema',
-        retryable: false,
-        result_unknown: false
-      },
-      missing_roles: ['assessment_semantics', 'safety_product'],
-      reviews: []
-    }
-    const failedRun: AIEvaluationRun = {
-      ...collectingDetail,
-      run_id: 'run-failed',
-      status: 'awaiting_review',
-      execution: undefined,
-      progress: {
-        ...progress,
-        generation_attempts: 35,
-        failed_attempts: 1,
-        pending_generation_attempts: 0
-      },
-      attempts: [failedAttempt],
-      can_cancel: true
-    }
-    listRunsMock.mockReturnValue(success({ items: [failedRun] }))
-    getRunMock.mockReturnValue(success(failedRun))
-    getAttemptMock.mockReturnValue(success({
-      ...failedAttempt,
-      assessment_input: { facts: { model: { code: 'prompt-eval-scale' } } },
-      raw_provider_output: '{"schema_version":"invalid"}',
-      normalized_output: undefined,
-      provider_receipt: {
-        invocation_id: 'invocation-1',
-        request_id: 'request-1',
-        provider: 'deepseek',
-        model: 'deepseek-v4-pro',
-        input_tokens: 1000,
-        output_tokens: 800,
-        latency_ms: 12000
-      },
-      assertions: [{
-        type: 'output_schema_valid',
-        scope: 'default',
-        ordinal: 1,
-        hard: true,
-        evaluator: 'deterministic',
-        status: 'failed',
-        detail: 'schema validation failed'
-      }]
-    }))
-    startRecheckMock.mockReturnValue(success({
-      recheck_id: 'recheck-1',
-      source_run_id: 'run-failed',
-      source_case_id: 'PROMPT-EVAL-002',
-      source_attempt: 4,
-      status: 'queued',
-      version: 1,
-      requested_org_id: 10001,
-      requested_by: 'user:10001',
-      reason: 'verify repaired route',
-      created_at: '2026-08-29T10:00:00Z',
-      release: failedRun.release
-    }))
-
-    render(<EvaluationReleaseWorkspace />)
-    fireEvent.click(await screen.findByText('run-failed'))
-
-    expect(await screen.findByText('技术失败证据（1）')).toBeInTheDocument()
-    expect(screen.getByText('output_validation')).toBeInTheDocument()
-    expect(screen.getByText('provider_output_schema_invalid')).toBeInTheDocument()
-    expect(screen.getByText('Provider output did not satisfy the frozen output schema')).toBeInTheDocument()
-    expect(screen.queryByText(/提交通过意见|提交拒绝意见/)).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByText('查看详情'))
-    expect(await screen.findByText('只读失败详情')).toBeInTheDocument()
-    expect(getAttemptMock).toHaveBeenCalledWith('run-failed', 'PROMPT-EVAL-002', 4)
-    expect(screen.getByText('deepseek-v4-pro')).toBeInTheDocument()
-    expect(screen.getByText('schema validation failed')).toBeInTheDocument()
-    expect(screen.getByText('单条诊断复测')).toBeInTheDocument()
-    expect(listRechecksMock).toHaveBeenCalledWith('run-failed', 'PROMPT-EVAL-002', 4)
-
-    fireEvent.click(screen.getByText('重新测评该记录'))
-    fireEvent.change(screen.getByPlaceholderText('理由会进入不可变审计记录，请描述本次操作依据。'), {
-      target: { value: 'verify repaired route' }
-    })
-    fireEvent.click(screen.getByText('确认成本并启动复测'))
-    await waitFor(() => expect(startRecheckMock).toHaveBeenCalledWith(
-      'run-failed',
-      'PROMPT-EVAL-002',
-      4,
-      'verify repaired route'
-    ))
-    expect((await screen.findAllByText('recheck-1')).length).toBeGreaterThan(0)
-
-    const completedRecheck = {
-      recheck_id: 'recheck-1',
-      source_run_id: 'run-failed',
-      source_case_id: 'PROMPT-EVAL-002',
-      source_attempt: 4,
-      status: 'completed' as const,
-      version: 3,
-      requested_org_id: 10001,
-      requested_by: 'user:10001',
-      reason: 'verify repaired route',
-      created_at: '2026-08-29T10:00:00Z',
-      finished_at: '2026-08-29T10:00:12Z',
-      release: failedRun.release
-    }
-    listRechecksMock.mockReturnValue(success([completedRecheck]))
-    getRecheckMock.mockReturnValue(success({
-      ...completedRecheck,
-      result: {
-        case_id: 'PROMPT-EVAL-002',
-        attempt: 4,
-        output_fingerprint: 'recheck-output-fingerprint',
-        reviews: [],
-        missing_roles: [],
-        assessment_input: { facts: { model: { code: 'prompt-eval-scale' } } },
-        raw_provider_output: '{"schema_version":"ai-explanation-output/v1"}',
-        normalized_output: { schema_version: 'ai-explanation-output/v1' },
-        assertions: []
-      }
-    }))
-
-    const recheckPanel = screen.getByText('单条诊断复测').closest('.ant-card') as HTMLElement
-    fireEvent.click(within(recheckPanel).getByText('刷新'))
-
-    await waitFor(() => expect(getRecheckMock).toHaveBeenCalledWith(
-      'run-failed',
-      'PROMPT-EVAL-002',
-      4,
-      'recheck-1'
-    ))
-    expect(await screen.findByText('复测 AI 原始输出')).toBeInTheDocument()
-    expect(screen.queryByText('复测正在执行，页面每 5 秒刷新；源 Run 不受影响。')).not.toBeInTheDocument()
+    await waitFor(() => expect(getAIEvaluationRunV2).toHaveBeenCalledWith('v2-run-1'))
+    expect(await screen.findByText('Run 已阻塞')).toBeInTheDocument()
+    expect(screen.getAllByText('provider_result_unknown').length).toBeGreaterThan(0)
+    expect(screen.getByText('35 个固定 Slot')).toBeInTheDocument()
   })
 })

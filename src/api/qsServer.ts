@@ -15,7 +15,7 @@ const ensureLeadingSlash = (value: string) => (value.startsWith('/') ? value : `
 
 const stripKnownQSBasePath = (value: string) => {
   const normalizedValue = trimTrailingSlash(value)
-  const knownSuffixes = ['/api/v1/internal/v1', '/api/v2', '/api/v1', '/internal/v1']
+  const knownSuffixes = ['/api/v1/internal/v1', '/api/v2', '/api/v1', '/internal/v2', '/internal/v1']
   const matchedSuffix = knownSuffixes.find((suffix) => normalizedValue.endsWith(suffix))
 
   if (!matchedSuffix) {
@@ -59,7 +59,7 @@ const normalizeRelativeRequestUrl = (base?: string, url?: string) => {
   return normalizedUrl
 }
 
-const buildQSBaseURL = (host: string, prefix: '/api/v1' | '/api/v2' | '/internal/v1') => {
+const buildQSBaseURL = (host: string, prefix: '/api/v1' | '/api/v2' | '/internal/v1' | '/internal/v2') => {
   const origin = stripKnownQSBasePath(host)
   return `${origin}${prefix}`
 }
@@ -76,6 +76,7 @@ const buildDebugUrl = (base: string, url: string) => {
 const baseURL = isDev ? '/api/v1' : buildQSBaseURL(apiHost, '/api/v1')
 const v2BaseURL = isDev ? '/api/v2' : buildQSBaseURL(apiHost, '/api/v2')
 const internalBaseURL = isDev ? '/internal/v1' : buildQSBaseURL(apiHost, '/internal/v1')
+const internalV2BaseURL = isDev ? '/internal/v2' : buildQSBaseURL(apiHost, '/internal/v2')
 
 export const qsAxios = axios.create({
   timeout: 50000,
@@ -105,6 +106,11 @@ export const qsInternalAxios = axios.create({
 export const qsInternalRawAxios = axios.create({
   timeout: 50000,
   baseURL: internalBaseURL
+})
+
+export const qsInternalV2Axios = axios.create({
+  timeout: 50000,
+  baseURL: internalV2BaseURL
 })
 
 // 使用真实后端 QS API
@@ -174,6 +180,7 @@ qsV2Axios.interceptors.request.use(attachCommonHeaders)
 qsV2SilentAxios.interceptors.request.use(attachCommonHeaders)
 qsInternalAxios.interceptors.request.use(attachCommonHeaders)
 qsInternalRawAxios.interceptors.request.use(attachCommonHeaders)
+qsInternalV2Axios.interceptors.request.use(attachCommonHeaders)
 
 qsAxios.interceptors.response.use(
   handleQSResponse,
@@ -193,6 +200,11 @@ qsInternalAxios.interceptors.response.use(
 qsInternalRawAxios.interceptors.response.use(
   (response) => response,
   createResponseErrorHandler(qsInternalRawAxios)
+)
+
+qsInternalV2Axios.interceptors.response.use(
+  handleQSResponse,
+  createResponseErrorHandler(qsInternalV2Axios)
 )
 
 type Fn<T> = (data: QSResponse<T>) => unknown
@@ -354,6 +366,23 @@ export const qsInternalPost = <T>(url: string, data: any = {}, params: any = {})
       })
   })
 
+export const qsInternalV2Get = <T>(url: string, params: any = {}): Promise<[any, QSResponse<T> | undefined]> =>
+  new Promise((resolve) => {
+    qsInternalV2Axios
+      .get(url, { params })
+      .then((result) => resolve([null, result.data as QSResponse<T>]))
+      .catch((err) => resolve([err, undefined]))
+  })
+
+export const qsInternalV2Post = <T>(url: string, data: any = {}, params: any = {}): Promise<[any, QSResponse<T> | undefined]> =>
+  new Promise((resolve) => {
+    const requestData = data === undefined || data === null ? undefined : data
+    qsInternalV2Axios
+      .post(url, requestData, { params })
+      .then((result) => resolve([null, result.data as QSResponse<T>]))
+      .catch((err) => resolve([err, undefined]))
+  })
+
 export const qsPut = <T>(url: string, data: any = {}, params: any = {}): Promise<[any, QSResponse<T> | undefined]> =>
   new Promise((resolve) => {
     qsAxios
@@ -382,3 +411,5 @@ export const del = qsDelete
 export const internalGet = qsInternalGet
 export const internalPost = qsInternalPost
 export const internalRawGet = qsInternalRawGet
+export const internalV2Get = qsInternalV2Get
+export const internalV2Post = qsInternalV2Post

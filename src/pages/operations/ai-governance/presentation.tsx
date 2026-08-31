@@ -1,21 +1,26 @@
 import { Tag } from 'antd'
 import type {
   AIEvaluationStatus,
+  AIEvaluationV2Status,
   AIProfileStatus,
   AIReviewDecision,
   AIReviewRole
 } from '@/api/path/aiGovernance'
 
-const EVALUATION_LABELS: Record<AIEvaluationStatus, string> = {
+const EVALUATION_LABELS: Record<AIEvaluationStatus | AIEvaluationV2Status, string> = {
+  requested: '已申请',
   collecting: '评测执行中',
+  blocked: '已阻塞',
   awaiting_review: '待人工审核',
   approved: '已批准',
   rejected: '已拒绝',
   canceled: '已取消'
 }
 
-const EVALUATION_COLORS: Record<AIEvaluationStatus, string> = {
+const EVALUATION_COLORS: Record<AIEvaluationStatus | AIEvaluationV2Status, string> = {
+  requested: 'processing',
   collecting: 'processing',
+  blocked: 'red',
   awaiting_review: 'orange',
   approved: 'green',
   rejected: 'red',
@@ -33,7 +38,7 @@ const REVIEW_ROLE_LABELS: Record<AIReviewRole, string> = {
   safety_product: '安全与产品审核'
 }
 
-export const evaluationStatusTag = (status: AIEvaluationStatus): JSX.Element => (
+export const evaluationStatusTag = (status: AIEvaluationStatus | AIEvaluationV2Status): JSX.Element => (
   <Tag color={EVALUATION_COLORS[status]}>{EVALUATION_LABELS[status]}</Tag>
 )
 

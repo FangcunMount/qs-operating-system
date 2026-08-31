@@ -237,6 +237,196 @@ export interface AIEvaluationRunPage {
   next_cursor?: string
 }
 
+export type AIEvaluationV2Status =
+  | 'requested'
+  | 'collecting'
+  | 'blocked'
+  | 'awaiting_review'
+  | 'approved'
+  | 'rejected'
+  | 'canceled'
+export type AIExecutionV2Status = 'prepared' | 'dispatching' | 'succeeded' | 'failed' | 'result_unknown'
+export type AIResultUnknownDecision = 'authorize_replacement' | 'cancel_run'
+
+export interface AIFrozenContractRefV2 {
+  id: string
+  version: string
+  fingerprint: string
+}
+
+export interface AIEvaluationReleaseV2 {
+  fingerprint: string
+  suite: AIFrozenContractRefV2
+  prompt: AIFrozenContractRefV2
+  profile: AIFrozenContractRefV2
+  input_schema: AIFrozenContractRefV2
+  output_schema: AIFrozenContractRefV2
+  generation_route: AIFrozenContractRefV2
+  semantic_prompt: AIFrozenContractRefV2
+  semantic_output_schema: AIFrozenContractRefV2
+  semantic_route: AIFrozenContractRefV2
+  execution_policy: AIFrozenContractRefV2
+  gate_policy: AIFrozenContractRefV2
+}
+
+export interface AIEvaluationFailureV2 {
+  stage: string
+  kind: string
+  code: string
+  retryable: boolean
+  result_unknown: boolean
+  disposition: string
+  safe_message: string
+  evidence_refs: string[]
+}
+
+export interface AISemanticResultV2 {
+  evaluator_version: string
+  scores: AISemanticScores
+  rationale: string
+  decisions: Array<{
+    type: string
+    scope: string
+    ordinal: number
+    status: string
+    detail: string
+  }>
+  output_fingerprint: string
+}
+
+export interface AIEvaluationExecutionV2 {
+  execution_id: string
+  kind: 'generation' | 'semantic'
+  case_id?: string
+  slot_ordinal?: number
+  candidate_id?: string
+  execution_ordinal: number
+  invocation_id: string
+  status: AIExecutionV2Status
+  started_at: string
+  finished_at?: string
+  provider_call_count: number
+  provider_receipt_present: boolean
+  provider_receipt?: AIProviderReceipt
+  raw_output_bytes: number
+  normalized_output_bytes: number
+  failure?: AIEvaluationFailureV2
+  semantic_result?: AISemanticResultV2
+}
+
+export interface AIEvaluationCandidateV2 {
+  candidate_id: string
+  generation_execution_id: string
+  normalized_output_fingerprint: string
+  accepted_at: string
+  semantic_execution_ids: string[]
+  accepted_semantic_execution_id?: string
+  review_ready: boolean
+  assertions: AIAssertionReceipt[]
+}
+
+export interface AIEvaluationSlotV2 {
+  case_id: string
+  slot_ordinal: number
+  status: 'pending' | 'accepted' | 'blocked'
+  generation_execution_ids: string[]
+  candidate?: AIEvaluationCandidateV2
+}
+
+export interface AIHumanReviewV2 {
+  candidate_id: string
+  role: AIReviewRole
+  reviewer: string
+  decision: AIReviewDecision
+  reviewed_at: string
+  reason: string
+}
+
+export interface AIEvaluationGateV2 {
+  evaluated_at: string
+  passed: boolean
+  gate_passes: Record<string, boolean>
+  reasons: Array<{
+    gate: string
+    code: string
+    detail: string
+    evidence_refs: string[]
+  }>
+}
+
+export interface AIEvaluationRunV2 {
+  schema_version: 'prompt-evaluation-evidence/v2'
+  run_id: string
+  version: number
+  status: AIEvaluationV2Status
+  organization_id: number
+  requested_by: string
+  request_reason: string
+  created_at: string
+  closed_at?: string
+  finalized_at?: string
+  release_fingerprint: string
+  release: AIEvaluationReleaseV2
+  execution_policy_id: string
+  execution_policy_version: string
+  gate_policy_id: string
+  gate_policy_version: string
+  reserved_provider_invocations: number
+  required_candidates: number
+  accepted_candidates: number
+  review_ready_candidates: number
+  unresolved_result_unknown_count: number
+  execution?: {
+    id: string
+    kind: 'generation' | 'semantic'
+    case_id: string
+    slot_ordinal: number
+    candidate_id?: string
+    execution_ordinal: number
+    phase: string
+    claimed_at: string
+    lease_expires_at: string
+    dispatch_started_at?: string
+  }
+  slots: AIEvaluationSlotV2[]
+  generation_executions: AIEvaluationExecutionV2[]
+  semantic_executions: AIEvaluationExecutionV2[]
+  human_reviews: AIHumanReviewV2[]
+  result_unknown_resolutions: Array<{
+    execution_id: string
+    decision: AIResultUnknownDecision
+    actor: string
+    reason: string
+    acknowledged_duplicate_call_and_cost_risk: boolean
+    resolved_at: string
+  }>
+  gate?: AIEvaluationGateV2
+}
+
+export interface AIEvaluationExecutionEvidenceV2 extends AIEvaluationExecutionV2 {
+  raw_output: string
+  normalized_output: string
+}
+
+export interface AIEvaluationCandidateEvidenceV2 {
+  run_id: string
+  case_id: string
+  slot_ordinal: number
+  assessment_input: unknown
+  candidate: AIEvaluationCandidateV2
+  accepted_generation_execution: AIEvaluationExecutionEvidenceV2
+  accepted_semantic_execution?: AIEvaluationExecutionEvidenceV2
+  human_reviews: AIHumanReviewV2[]
+}
+
+export interface AIEvaluationOutputV2 {
+  execution_id: string
+  kind: 'generation' | 'semantic'
+  raw_output: string
+  normalized_output: string
+  provider_receipt?: AIProviderReceipt
+}
+
 export interface AIEvaluationListQuery {
   status?: AIEvaluationStatus
   cursor?: string
