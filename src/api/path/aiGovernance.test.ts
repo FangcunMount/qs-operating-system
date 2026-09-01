@@ -34,13 +34,14 @@ const internalGetMock = internalGet as jest.Mock
 const internalPostMock = internalPost as jest.Mock
 const internalV2GetMock = internalV2Get as jest.Mock
 const internalV2PostMock = internalV2Post as jest.Mock
+const success = (data: unknown = {}) => Promise.resolve([null, { code: 0, data, message: '' }])
 
 describe('AI governance API', () => {
   beforeEach(() => {
-    internalGetMock.mockClear()
-    internalPostMock.mockClear()
-    internalV2GetMock.mockClear()
-    internalV2PostMock.mockClear()
+    internalGetMock.mockReset().mockImplementation(() => success())
+    internalPostMock.mockReset().mockImplementation(() => success())
+    internalV2GetMock.mockReset().mockImplementation(() => success())
+    internalV2PostMock.mockReset().mockImplementation(() => success())
   })
 
   it('keeps v1 evaluation history read-only', async () => {
@@ -62,6 +63,14 @@ describe('AI governance API', () => {
   })
 
   it('uses v2 for the active evaluation lifecycle and candidate evidence', async () => {
+    internalV2GetMock
+      .mockImplementationOnce(() => success())
+      .mockImplementationOnce(() => success({
+        candidate: { semantic_execution_ids: null, assertions: null },
+        accepted_generation_execution: {},
+        human_reviews: null
+      }))
+
     await startAIEvaluationV2(140, 'freeze release')
     await getAIEvaluationRunV2('run/1')
     await getAIEvaluationCandidateV2('run/1', 'candidate/1')
