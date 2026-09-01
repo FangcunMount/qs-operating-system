@@ -54,6 +54,77 @@ export interface ReviewBatchDraft {
   reason: string
 }
 
+interface ReviewBatchPlanItem {
+  case_id: string
+  slot: number
+  decision: AIReviewDecision
+  reason: string
+}
+
+const reviewPlanKey = (caseID: string, slotOrdinal: number): string => `${caseID}:${slotOrdinal}`
+
+export const parseReviewBatchPlan = (
+  rawPlan: string,
+  queue: QueueItem[],
+  role: AIReviewRole
+): ReviewBatchDraft[] => {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(rawPlan)
+  } catch (_) {
+    throw new Error('审核计划不是有效 JSON')
+  }
+  if (!Array.isArray(parsed) || !parsed.length) {
+    throw new Error('审核计划必须是包含 1 至 35 条记录的 JSON 数组')
+  }
+  if (parsed.length > 35) {
+    throw new Error('单批审核计划不能超过 35 条')
+  }
+
+  const candidates = new Map(
+    queue
+      .filter((item) => item.missing_roles.includes(role))
+      .map((item) => [reviewPlanKey(item.caseID, item.slotOrdinal), item])
+  )
+  const seen = new Set<string>()
+
+  return parsed.map((value, index) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new Error(`第 ${index + 1} 条审核计划必须是对象`)
+    }
+    const item = value as Partial<ReviewBatchPlanItem>
+    const caseID = typeof item.case_id === 'string' ? item.case_id.trim() : ''
+    const slotOrdinal = item.slot
+    const reason = typeof item.reason === 'string' ? item.reason.trim() : ''
+    if (!caseID || !Number.isInteger(slotOrdinal) || Number(slotOrdinal) <= 0) {
+      throw new Error(`第 ${index + 1} 条审核计划的 case_id 或 slot 无效`)
+    }
+    if (item.decision !== 'approve' && item.decision !== 'reject') {
+      throw new Error(`第 ${index + 1} 条审核计划的 decision 必须是 approve 或 reject`)
+    }
+    if (!reason || reason.length > 1000) {
+      throw new Error(`第 ${index + 1} 条审核计划的 reason 必须为 1 至 1000 个字符`)
+    }
+
+    const key = reviewPlanKey(caseID, Number(slotOrdinal))
+    if (seen.has(key)) {
+      throw new Error(`审核计划包含重复项 ${caseID} Slot ${slotOrdinal}`)
+    }
+    const candidate = candidates.get(key)
+    if (!candidate) {
+      throw new Error(`${caseID} Slot ${slotOrdinal} 不属于当前角色的待审队列`)
+    }
+    seen.add(key)
+    return {
+      candidate_id: candidate.candidate_id,
+      caseID,
+      slotOrdinal: Number(slotOrdinal),
+      decision: item.decision,
+      reason
+    }
+  })
+}
+
 export const upsertReviewBatchDraft = (
   drafts: ReviewBatchDraft[],
   draft: ReviewBatchDraft
@@ -102,6 +173,7 @@ export const HumanReviewWorkspace: React.FC = () => {
   const [detail, setDetail] = useState<AIEvaluationCandidateEvidenceV2 | null>(null)
   const [batchRole, setBatchRole] = useState<AIReviewRole | undefined>()
   const [batchDrafts, setBatchDrafts] = useState<ReviewBatchDraft[]>([])
+  const [batchPlanText, setBatchPlanText] = useState('')
   const [decision, setDecision] = useState<AIReviewDecision>('approve')
   const [reason, setReason] = useState('')
   const [loading, setLoading] = useState(false)
@@ -146,6 +218,25 @@ export const HumanReviewWorkspace: React.FC = () => {
     setDetail(null)
     setBatchRole(undefined)
     setBatchDrafts([])
+    setBatchPlanText('')
+  }
+
+  const importReviewBatchPlan = () => {
+    if (!batchRole) {
+      message.warning('请先选择本批审核角色')
+      return
+    }
+    try {
+      const nextDrafts = parseReviewBatchPlan(batchPlanText, queue, batchRole)
+      setBatchDrafts(nextDrafts)
+      setBatchPlanText('')
+      setSelected(null)
+      setDetail(null)
+      setReason('')
+      message.success(`已校验并载入 ${nextDrafts.length} 条审核计划`)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '审核计划校验失败')
+    }
   }
 
   const addReviewToBatch = async () => {
@@ -288,6 +379,21 @@ export const HumanReviewWorkspace: React.FC = () => {
               options={REQUIRED_ROLES.map((value) => ({ value, label: reviewRoleLabel(value) }))}
               style={{ minWidth: 220 }}
             />
+            <Input.TextArea
+              value={batchPlanText}
+              onChange={(event) => setBatchPlanText(event.target.value)}
+              placeholder={'粘贴 JSON 数组，例如：\n[{"case_id":"PROMPT-EVAL-001","slot":1,"decision":"reject","reason":"说明判断依据"}]'}
+              autoSize={{ minRows: 3, maxRows: 8 }}
+            />
+            <Space>
+              <Button
+                disabled={!batchRole || !batchPlanText.trim() || submitting}
+                onClick={importReviewBatchPlan}
+              >
+                校验并载入计划
+              </Button>
+              <Text type="secondary">导入会替换当前本地计划，不会立即写入服务端。</Text>
+            </Space>
             {batchDrafts.length ? (
               <Table
                 rowKey="candidate_id"
