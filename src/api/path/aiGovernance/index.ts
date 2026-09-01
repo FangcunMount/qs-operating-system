@@ -20,11 +20,23 @@ import type {
   AIReviewDecision,
   AIReviewRole
 } from './types'
+import {
+  normalizeAIEvaluationCandidateEvidenceV2,
+  normalizeAIEvaluationRunV2
+} from './normalization'
 
 export * from './types'
 
 const BASE_PATH = '/interpretation/ai-explanation'
 const encode = (value: string) => encodeURIComponent(value)
+
+const normalizeResponseData = async <T>(
+  request: Promise<[any, QSResponse<T> | undefined]>,
+  normalize: (data: T) => T
+): Promise<[any, QSResponse<T> | undefined]> => {
+  const [error, response] = await request
+  return [error, response ? { ...response, data: normalize(response.data) } : undefined]
+}
 
 const cleanQuery = <T extends Record<string, unknown>>(query: T): Partial<T> =>
   Object.keys(query).reduce<Partial<T>>((result, key) => {
@@ -98,23 +110,32 @@ export const startAIEvaluationV2 = (
   expectedProviderInvocations: number,
   reason: string
 ): Promise<[any, QSResponse<AIEvaluationRunV2> | undefined]> =>
-  internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations`, {
-    confirm: true,
-    expected_provider_invocations: expectedProviderInvocations,
-    reason
-  })
+  normalizeResponseData(
+    internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations`, {
+      confirm: true,
+      expected_provider_invocations: expectedProviderInvocations,
+      reason
+    }),
+    normalizeAIEvaluationRunV2
+  )
 
 export const getAIEvaluationRunV2 = (
   runID: string
 ): Promise<[any, QSResponse<AIEvaluationRunV2> | undefined]> =>
-  internalV2Get<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}`)
+  normalizeResponseData(
+    internalV2Get<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}`),
+    normalizeAIEvaluationRunV2
+  )
 
 export const getAIEvaluationCandidateV2 = (
   runID: string,
   candidateID: string
 ): Promise<[any, QSResponse<AIEvaluationCandidateEvidenceV2> | undefined]> =>
-  internalV2Get<AIEvaluationCandidateEvidenceV2>(
-    `${BASE_PATH}/prompt-evaluations/${encode(runID)}/candidates/${encode(candidateID)}`
+  normalizeResponseData(
+    internalV2Get<AIEvaluationCandidateEvidenceV2>(
+      `${BASE_PATH}/prompt-evaluations/${encode(runID)}/candidates/${encode(candidateID)}`
+    ),
+    normalizeAIEvaluationCandidateEvidenceV2
   )
 
 export const getAIEvaluationOutputV2 = (
@@ -129,13 +150,19 @@ export const recordAIHumanReviewV2 = (
   runID: string,
   input: { candidate_id: string; role: AIReviewRole; decision: AIReviewDecision; reason: string }
 ): Promise<[any, QSResponse<AIEvaluationRunV2> | undefined]> =>
-  internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/reviews`, input)
+  normalizeResponseData(
+    internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/reviews`, input),
+    normalizeAIEvaluationRunV2
+  )
 
 export const finalizeAIEvaluationV2 = (
   runID: string,
   reason: string
 ): Promise<[any, QSResponse<AIEvaluationRunV2> | undefined]> =>
-  internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/finalize`, { reason })
+  normalizeResponseData(
+    internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/finalize`, { reason }),
+    normalizeAIEvaluationRunV2
+  )
 
 export const resolveAIEvaluationResultUnknownV2 = (
   runID: string,
@@ -146,10 +173,13 @@ export const resolveAIEvaluationResultUnknownV2 = (
     reason: string
   }
 ): Promise<[any, QSResponse<AIEvaluationRunV2> | undefined]> =>
-  internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/result-unknown/resolve`, {
-    ...input,
-    confirm: true
-  })
+  normalizeResponseData(
+    internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/result-unknown/resolve`, {
+      ...input,
+      confirm: true
+    }),
+    normalizeAIEvaluationRunV2
+  )
 
 export const listAIProfiles = (
   query: AIProfileListQuery = {}
