@@ -16,6 +16,7 @@ import {
   listAIProfiles,
   publishAIProfile,
   recordAIHumanReviewV2,
+  recordAIHumanReviewsV2,
   resolveAIEvaluationResultUnknownV2,
   retryAIParticipantGeneration,
   startAIEvaluationV2,
@@ -81,6 +82,13 @@ describe('AI governance API', () => {
       decision: 'approve',
       reason: 'evidence reviewed'
     })
+    await recordAIHumanReviewsV2('run/1', {
+      role: 'assessment_semantics',
+      reviews: [
+        { candidate_id: 'candidate/1', decision: 'approve', reason: 'facts match' },
+        { candidate_id: 'candidate/2', decision: 'reject', reason: 'unsupported inference' }
+      ]
+    })
     await finalizeAIEvaluationV2('run/1', 'all evidence reviewed')
     await resolveAIEvaluationResultUnknownV2('run/1', {
       execution_id: 'execution/2',
@@ -100,6 +108,10 @@ describe('AI governance API', () => {
     expect(internalV2PostMock).toHaveBeenCalledWith(
       '/interpretation/ai-explanation/prompt-evaluations/run%2F1/reviews',
       expect.objectContaining({ candidate_id: 'candidate/1', role: 'assessment_semantics' })
+    )
+    expect(internalV2PostMock).toHaveBeenCalledWith(
+      '/interpretation/ai-explanation/prompt-evaluations/run%2F1/reviews/batch',
+      expect.objectContaining({ role: 'assessment_semantics', reviews: expect.any(Array) })
     )
     expect(internalV2PostMock).toHaveBeenCalledWith(
       '/interpretation/ai-explanation/prompt-evaluations/run%2F1/result-unknown/resolve',

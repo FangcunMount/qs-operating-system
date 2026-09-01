@@ -17,6 +17,7 @@ import type {
   AIProfileListQuery,
   AIProfilePage,
   AIReviewAttempt,
+  AIHumanReviewBatchRequestV2,
   AIReviewDecision,
   AIReviewRole
 } from './types'
@@ -152,6 +153,15 @@ export const recordAIHumanReviewV2 = (
 ): Promise<[any, QSResponse<AIEvaluationRunV2> | undefined]> =>
   normalizeResponseData(
     internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/reviews`, input),
+    normalizeAIEvaluationRunV2
+  )
+
+export const recordAIHumanReviewsV2 = (
+  runID: string,
+  input: AIHumanReviewBatchRequestV2
+): Promise<[any, QSResponse<AIEvaluationRunV2> | undefined]> =>
+  normalizeResponseData(
+    internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/reviews/batch`, input),
     normalizeAIEvaluationRunV2
   )
 
