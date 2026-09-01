@@ -1,5 +1,9 @@
 import type { AIEvaluationRunV2 } from '@/api/path/aiGovernance'
-import { buildReviewQueue } from './HumanReviewWorkspace'
+import {
+  buildReviewBatchRequest,
+  buildReviewQueue,
+  upsertReviewBatchDraft
+} from './HumanReviewWorkspace'
 
 const makeRun = (runID: string): AIEvaluationRunV2 => ({
   run_id: runID,
@@ -56,5 +60,18 @@ describe('AI explanation v2 human review queue', () => {
     run.status = 'awaiting_review'
     if (run.slots[0].candidate) run.slots[0].candidate.review_ready = false
     expect(buildReviewQueue([run])).toEqual([])
+  })
+
+  it('builds one-role batch input and replaces an edited Candidate draft', () => {
+    const drafts = upsertReviewBatchDraft([
+      { candidate_id: 'candidate:1', caseID: 'PROMPT-EVAL-001', slotOrdinal: 1, decision: 'approve', reason: 'first' }
+    ], {
+      candidate_id: 'candidate:1', caseID: 'PROMPT-EVAL-001', slotOrdinal: 1, decision: 'reject', reason: 'unsupported'
+    })
+
+    expect(buildReviewBatchRequest('assessment_semantics', drafts)).toEqual({
+      role: 'assessment_semantics',
+      reviews: [{ candidate_id: 'candidate:1', decision: 'reject', reason: 'unsupported' }]
+    })
   })
 })

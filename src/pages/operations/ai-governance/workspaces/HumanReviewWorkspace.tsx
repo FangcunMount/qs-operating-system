@@ -8,6 +8,7 @@ import {
   Empty,
   Input,
   List,
+  Modal,
   Progress,
   Radio,
   Row,
@@ -22,12 +23,13 @@ import { ArrowRightOutlined, SearchOutlined } from '@ant-design/icons'
 import {
   getAIEvaluationCandidateV2,
   getAIEvaluationRunV2,
-  recordAIHumanReviewV2
+  recordAIHumanReviewsV2
 } from '@/api/path/aiGovernance'
 import type {
   AIEvaluationCandidateEvidenceV2,
   AIEvaluationCandidateV2,
   AIEvaluationRunV2,
+  AIHumanReviewBatchRequestV2,
   AIReviewDecision,
   AIReviewRole
 } from '@/api/path/aiGovernance'
@@ -43,6 +45,27 @@ export interface QueueItem extends AIEvaluationCandidateV2 {
   slotOrdinal: number
   missing_roles: AIReviewRole[]
 }
+
+export interface ReviewBatchDraft {
+  candidate_id: string
+  caseID: string
+  slotOrdinal: number
+  decision: AIReviewDecision
+  reason: string
+}
+
+export const upsertReviewBatchDraft = (
+  drafts: ReviewBatchDraft[],
+  draft: ReviewBatchDraft
+): ReviewBatchDraft[] => [...drafts.filter((item) => item.candidate_id !== draft.candidate_id), draft]
+
+export const buildReviewBatchRequest = (
+  role: AIReviewRole,
+  drafts: ReviewBatchDraft[]
+): AIHumanReviewBatchRequestV2 => ({
+  role,
+  reviews: drafts.map(({ candidate_id, decision, reason }) => ({ candidate_id, decision, reason }))
+})
 
 export const buildReviewQueue = (runs: AIEvaluationRunV2[]): QueueItem[] => runs.flatMap((run) => {
   if (run.status !== 'awaiting_review') return []
@@ -77,7 +100,8 @@ export const HumanReviewWorkspace: React.FC = () => {
   const [run, setRun] = useState<AIEvaluationRunV2 | null>(null)
   const [selected, setSelected] = useState<QueueItem | null>(null)
   const [detail, setDetail] = useState<AIEvaluationCandidateEvidenceV2 | null>(null)
-  const [role, setRole] = useState<AIReviewRole | undefined>()
+  const [batchRole, setBatchRole] = useState<AIReviewRole | undefined>()
+  const [batchDrafts, setBatchDrafts] = useState<ReviewBatchDraft[]>([])
   const [decision, setDecision] = useState<AIReviewDecision>('approve')
   const [reason, setReason] = useState('')
   const [loading, setLoading] = useState(false)
@@ -85,12 +109,17 @@ export const HumanReviewWorkspace: React.FC = () => {
   const [submitting, setSubmitting] = useState(false)
 
   const queue = useMemo(() => buildReviewQueue(run ? [run] : []), [run])
+  const roleQueue = useMemo(
+    () => batchRole ? queue.filter((item) => item.missing_roles.includes(batchRole)) : queue,
+    [batchRole, queue]
+  )
 
   const openCandidate = async (item: QueueItem) => {
     setSelected(item)
     setDetail(null)
-    setRole(item.missing_roles[0])
-    setReason('')
+    const draft = batchDrafts.find((value) => value.candidate_id === item.candidate_id)
+    setDecision(draft?.decision || 'approve')
+    setReason(draft?.reason || '')
     setDetailLoading(true)
     const [requestError, response] = await getAIEvaluationCandidateV2(item.runID, item.candidate_id)
     setDetailLoading(false)
@@ -115,39 +144,78 @@ export const HumanReviewWorkspace: React.FC = () => {
     setRunID(nextRun.run_id)
     setSelected(null)
     setDetail(null)
-    const first = buildReviewQueue([nextRun])[0]
-    if (first) await openCandidate(first)
+    setBatchRole(undefined)
+    setBatchDrafts([])
   }
 
-  const submitReview = async () => {
-    if (!run || !selected || !role || !reason.trim()) return
-    setSubmitting(true)
-    const [requestError, response] = await recordAIHumanReviewV2(run.run_id, {
+  const addReviewToBatch = async () => {
+    if (!selected || !detail || !batchRole || !selected.missing_roles.includes(batchRole) || !reason.trim()) return
+    const alreadyPlanned = batchDrafts.some((draft) => draft.candidate_id === selected.candidate_id)
+    if (!alreadyPlanned && batchDrafts.length >= 35) {
+      message.warning('单批最多只能提交 35 条审核')
+      return
+    }
+    const nextDrafts = upsertReviewBatchDraft(batchDrafts, {
       candidate_id: selected.candidate_id,
-      role,
+      caseID: selected.caseID,
+      slotOrdinal: selected.slotOrdinal,
       decision,
       reason: reason.trim()
     })
+    setBatchDrafts(nextDrafts)
+    message.success(`已加入批量计划（${nextDrafts.length}/35）`)
+    const next = roleQueue.find((item) => !nextDrafts.some((draft) => draft.candidate_id === item.candidate_id))
+    if (next) await openCandidate(next)
+  }
+
+  const submitReviewBatch = async () => {
+    if (!run || !batchRole || !batchDrafts.length) return
+    setSubmitting(true)
+    const [requestError, response] = await recordAIHumanReviewsV2(
+      run.run_id,
+      buildReviewBatchRequest(batchRole, batchDrafts)
+    )
     setSubmitting(false)
     if (requestError || !response) {
-      message.error(errorMessage(requestError, 'Candidate 人工审核提交失败'))
+      message.error(errorMessage(requestError, 'Candidate 批量审核提交失败'))
       return
     }
     const nextRun = response.data
     setRun(nextRun)
-    message.success('审核意见已记录；审核人身份和双角色隔离由服务端确认')
-    const next = buildReviewQueue([nextRun])[0]
+    setBatchDrafts([])
+    message.success('整批审核已原子记录；审核人身份和双角色隔离由服务端确认')
+    const next = buildReviewQueue([nextRun]).find((item) => item.missing_roles.includes(batchRole))
     if (next) await openCandidate(next)
     else {
       setSelected(null)
       setDetail(null)
-      setRole(undefined)
       setReason('')
     }
   }
 
-  const currentIndex = selected ? queue.findIndex((item) => item.candidate_id === selected.candidate_id) : -1
-  const nextQueueItem = currentIndex >= 0 ? queue[currentIndex + 1] : queue[0]
+  const confirmReviewBatch = () => {
+    if (!run || !batchRole || !batchDrafts.length) return
+    const rejected = batchDrafts.filter((item) => item.decision === 'reject').length
+    Modal.confirm({
+      title: `确认提交 ${batchDrafts.length} 条${reviewRoleLabel(batchRole)}审核？`,
+      content: `Run ${run.run_id}；通过 ${batchDrafts.length - rejected} 条，拒绝 ${rejected} 条。提交后形成不可替换的审计记录。`,
+      okText: '确认批量提交',
+      cancelText: '返回复核',
+      okType: rejected ? 'danger' : 'primary',
+      onOk: submitReviewBatch
+    })
+  }
+
+  const changeBatchRole = async (value: AIReviewRole) => {
+    setBatchRole(value)
+    const next = queue.find((item) => item.missing_roles.includes(value))
+    if (next) await openCandidate(next)
+  }
+
+  const nextQueueItem = roleQueue.find(
+    (item) => item.candidate_id !== selected?.candidate_id &&
+      !batchDrafts.some((draft) => draft.candidate_id === item.candidate_id)
+  )
   const requiredReviews = (run?.required_candidates || 0) * 2
   const reviewPercent = requiredReviews ? Math.round((run?.human_reviews.length || 0) / requiredReviews * 100) : 0
 
@@ -181,11 +249,88 @@ export const HumanReviewWorkspace: React.FC = () => {
         />
       ) : null}
 
+      {run?.status === 'awaiting_review' ? (
+        <Card
+          size="small"
+          title="单角色批量审核计划"
+          style={{ marginBottom: 16 }}
+          extra={(
+            <Space>
+              <Button
+                disabled={!batchDrafts.length || submitting}
+                onClick={() => setBatchDrafts([])}
+              >
+                清空计划
+              </Button>
+              <Button
+                type="primary"
+                danger={batchDrafts.some((item) => item.decision === 'reject')}
+                disabled={!batchRole || !batchDrafts.length}
+                loading={submitting}
+                onClick={confirmReviewBatch}
+              >
+                批量提交（{batchDrafts.length}）
+              </Button>
+            </Space>
+          )}
+        >
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Alert
+              type="info"
+              showIcon
+              message="同一批次只允许一个审核角色，最多 35 条；任一条失败时服务端整批不写入。"
+            />
+            <Select<AIReviewRole>
+              value={batchRole}
+              placeholder="先选择本批审核角色"
+              disabled={batchDrafts.length > 0}
+              onChange={changeBatchRole}
+              options={REQUIRED_ROLES.map((value) => ({ value, label: reviewRoleLabel(value) }))}
+              style={{ minWidth: 220 }}
+            />
+            {batchDrafts.length ? (
+              <Table
+                rowKey="candidate_id"
+                dataSource={batchDrafts}
+                pagination={false}
+                size="small"
+                scroll={{ y: 240 }}
+                columns={[
+                  { title: 'Case', dataIndex: 'caseID' },
+                  { title: 'Slot', dataIndex: 'slotOrdinal', width: 64 },
+                  { title: '结论', dataIndex: 'decision', width: 90, render: reviewDecisionTag },
+                  { title: '理由', dataIndex: 'reason', ellipsis: true },
+                  {
+                    title: '操作',
+                    width: 120,
+                    render: function renderBatchActions(_, item: ReviewBatchDraft) {
+                      return (
+                        <Space>
+                          <Button size="small" onClick={() => {
+                            const target = queue.find((value) => value.candidate_id === item.candidate_id)
+                            if (target) openCandidate(target)
+                          }}>修改</Button>
+                          <Button
+                            size="small"
+                            danger
+                            onClick={() => setBatchDrafts((values) => values.filter((value) => value.candidate_id !== item.candidate_id))}
+                          >删除</Button>
+                        </Space>
+                      )
+                    }
+                  }
+                ]}
+              />
+            ) : <Text type="secondary">逐条检查 Candidate 后加入计划；计划只保存在当前页面，确认后一次写入。</Text>}
+          </Space>
+        </Card>
+      ) : null}
+
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={7}>
-          <Card title={`当前 Run 待审核 Candidate（${queue.length}）`} loading={loading}>
+          <Card title={`当前角色待审核 Candidate（${roleQueue.length}）`} loading={loading}>
             <List
-              dataSource={queue}
+              dataSource={roleQueue}
               locale={{ emptyText: <Empty description="请输入可审核的 v2 Run ID" /> }}
               renderItem={(item) => (
                 <List.Item
@@ -197,7 +342,10 @@ export const HumanReviewWorkspace: React.FC = () => {
                     description={(
                       <Space direction="vertical" size={2}>
                         <Text type="secondary" copyable>{item.candidate_id}</Text>
-                        <Space wrap>{item.missing_roles.map((value) => <Tag key={value}>{reviewRoleLabel(value)}</Tag>)}</Space>
+                        <Space wrap>
+                          {item.missing_roles.map((value) => <Tag key={value}>{reviewRoleLabel(value)}</Tag>)}
+                          {batchDrafts.some((draft) => draft.candidate_id === item.candidate_id) ? <Tag color="blue">已入计划</Tag> : null}
+                        </Space>
                       </Space>
                     )}
                   />
@@ -225,13 +373,7 @@ export const HumanReviewWorkspace: React.FC = () => {
               ) : null}
 
               <div className="ai-governance-review-form">
-                <Select<AIReviewRole>
-                  value={role}
-                  placeholder="选择审核视角"
-                  onChange={setRole}
-                  options={selected.missing_roles.map((value) => ({ value, label: reviewRoleLabel(value) }))}
-                  style={{ minWidth: 190 }}
-                />
+                <Text>{batchRole ? `当前批次：${reviewRoleLabel(batchRole)}` : '请先选择本批审核角色'}</Text>
                 <Radio.Group value={decision} onChange={(event) => setDecision(event.target.value)}>
                   <Radio.Button value="approve">通过</Radio.Button>
                   <Radio.Button value="reject">拒绝</Radio.Button>
@@ -247,11 +389,11 @@ export const HumanReviewWorkspace: React.FC = () => {
                 <Button
                   type="primary"
                   danger={decision === 'reject'}
-                  disabled={!role || !reason.trim() || !detail}
-                  loading={submitting}
-                  onClick={submitReview}
+                  disabled={!batchRole || !selected.missing_roles.includes(batchRole) || !reason.trim() || !detail ||
+                    (batchDrafts.length >= 35 && !batchDrafts.some((draft) => draft.candidate_id === selected.candidate_id))}
+                  onClick={addReviewToBatch}
                 >
-                  提交{decision === 'approve' ? '通过' : '拒绝'}意见
+                  {batchDrafts.some((draft) => draft.candidate_id === selected.candidate_id) ? '更新' : '加入'}批量计划
                 </Button>
               </div>
 

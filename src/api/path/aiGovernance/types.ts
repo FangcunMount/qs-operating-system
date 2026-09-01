@@ -342,6 +342,17 @@ export interface AIHumanReviewV2 {
   reason: string
 }
 
+export interface AIHumanReviewBatchItemV2 {
+  candidate_id: string
+  decision: AIReviewDecision
+  reason: string
+}
+
+export interface AIHumanReviewBatchRequestV2 {
+  role: AIReviewRole
+  reviews: AIHumanReviewBatchItemV2[]
+}
+
 export interface AIEvaluationGateV2 {
   evaluated_at: string
   passed: boolean
