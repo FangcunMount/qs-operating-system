@@ -41,6 +41,25 @@ import { useSimplePolling } from '../../shared/hooks/useSimplePolling'
 
 const { Paragraph, Text, Title } = Typography
 const POLLING_INTERVAL_MS = 15000
+const LAST_V2_RUN_ID_STORAGE_KEY = 'ai-governance:v2:last-run-id'
+
+const readLastV2RunID = (): string => {
+  try {
+    return window.sessionStorage.getItem(LAST_V2_RUN_ID_STORAGE_KEY)?.trim() || ''
+  } catch {
+    return ''
+  }
+}
+
+const rememberLastV2RunID = (runID: string) => {
+  const value = runID.trim()
+  if (!value) return
+  try {
+    window.sessionStorage.setItem(LAST_V2_RUN_ID_STORAGE_KEY, value)
+  } catch {
+    // The exact Run remains visible in component state when storage is unavailable.
+  }
+}
 
 export const buildTechnicalFailureEvidence = (
   run?: AIEvaluationRunV2 | null
@@ -60,7 +79,7 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
   const [legacyRuns, setLegacyRuns] = useState<AIEvaluationRunSummary[]>([])
   const [legacyError, setLegacyError] = useState('')
   const [selected, setSelected] = useState<AIEvaluationRunV2 | null>(null)
-  const [manualRunID, setManualRunID] = useState('')
+  const [manualRunID, setManualRunID] = useState(readLastV2RunID)
   const [loading, setLoading] = useState(false)
   const [commandLoading, setCommandLoading] = useState(false)
   const [startInvocations, setStartInvocations] = useState(0)
@@ -97,8 +116,14 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
     }
     setSelected(response.data)
     setManualRunID(response.data.run_id)
+    rememberLastV2RunID(response.data.run_id)
     return response.data
   }, [])
+
+  useEffect(() => {
+    const runID = readLastV2RunID()
+    if (runID) void loadV2Run(runID, false)
+  }, [loadV2Run])
 
   useSimplePolling({
     enabled: selected?.status === 'requested' || selected?.status === 'collecting',
@@ -141,6 +166,7 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
     }
     setSelected(response.data)
     setManualRunID(response.data.run_id)
+    rememberLastV2RunID(response.data.run_id)
     setCommand(null)
     message.success(command === 'start' ? 'v2 评测已启动' : 'v2 评测已终审')
   }

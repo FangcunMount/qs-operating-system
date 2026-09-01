@@ -86,6 +86,8 @@ const run: AIEvaluationRunV2 = {
 
 describe('EvaluationReleaseWorkspace', () => {
   beforeEach(() => {
+    window.sessionStorage.clear()
+    jest.clearAllMocks()
     const listRunsMock = listAIEvaluationRuns as jest.Mock
     const getRunV2Mock = getAIEvaluationRunV2 as jest.Mock
     listRunsMock.mockReturnValue(success({ items: [] }))
@@ -107,8 +109,19 @@ describe('EvaluationReleaseWorkspace', () => {
     fireEvent.click(screen.getByLabelText('search').closest('button') as HTMLButtonElement)
 
     await waitFor(() => expect(getAIEvaluationRunV2).toHaveBeenCalledWith('v2-run-1'))
+    expect(window.sessionStorage.getItem('ai-governance:v2:last-run-id')).toBe('v2-run-1')
     expect(await screen.findByText('Run 已阻塞')).toBeInTheDocument()
     expect(screen.getAllByText('provider_result_unknown').length).toBeGreaterThan(0)
     expect(screen.getByText('35 个固定 Slot')).toBeInTheDocument()
+  })
+
+  it('restores the last exact v2 Run ID after a page refresh', async () => {
+    window.sessionStorage.setItem('ai-governance:v2:last-run-id', 'v2-run-1')
+
+    render(<EvaluationReleaseWorkspace />)
+
+    await waitFor(() => expect(getAIEvaluationRunV2).toHaveBeenCalledWith('v2-run-1'))
+    expect(screen.getByPlaceholderText('输入 v2 Run ID')).toHaveValue('v2-run-1')
+    expect(await screen.findByText('Run 已阻塞')).toBeInTheDocument()
   })
 })
