@@ -19,8 +19,8 @@ describe('AI governance navigation', () => {
     expect(viewFromAIGovernancePath('/operations/ai-governance/unknown')).toBe('overview')
   })
 
-  it('states that semantic judging is conditional rather than an unconditional 35 calls', () => {
+  it('states the frozen 35-Candidate and 140-call worst-case budget', () => {
     const evaluations = AI_GOVERNANCE_NAVIGATION.find((item) => item.view === 'evaluations')
-    expect(evaluations?.description).toBe('冻结发布身份，执行 35 次生成与最多 35 次独立模型裁判并完成终审。')
+    expect(evaluations?.description).toBe('冻结发布身份，收集 35 个 Candidate；最坏预算为 70 次生成与 70 次独立模型裁判。')
   })
 })

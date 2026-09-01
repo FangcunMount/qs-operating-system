@@ -20,13 +20,13 @@ import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import {
   createAIProfileDraft,
   disableAIProfile,
-  getAIEvaluationRun,
+  getAIEvaluationRunV2,
   getAIProfile,
   listAIProfiles,
   publishAIProfile
 } from '@/api/path/aiGovernance'
 import type {
-  AIEvaluationRun,
+  AIEvaluationRunV2,
   AIProfile,
   AIProfileDefinition,
   AIProfileStatus
@@ -54,13 +54,13 @@ function renderProfileSelector(_: unknown, item: AIProfile) {
   )
 }
 
-export const publicationBlockers = (profile: AIProfile, run: AIEvaluationRun): string[] => {
+export const publicationBlockers = (profile: AIProfile, run: AIEvaluationRunV2): string[] => {
   const blockers: string[] = []
   if (run.status !== 'approved') blockers.push(`评测状态为 ${run.status}，必须为 approved`)
   if (run.release.profile.id !== profile.definition.profile_id) blockers.push('Profile ID 与评测发布身份不一致')
   if (run.release.profile.version !== profile.definition.version) blockers.push('Profile 版本与评测发布身份不一致')
   if (run.release.profile.fingerprint !== profile.fingerprint) blockers.push('Profile 指纹与评测发布身份不一致')
-  if (run.release.prompt.template_id !== profile.definition.generation_policy.prompt_template_id ||
+  if (run.release.prompt.id !== profile.definition.generation_policy.prompt_template_id ||
     run.release.prompt.version !== profile.definition.generation_policy.prompt_version) {
     blockers.push('Prompt 版本与 Profile generation_policy 不一致')
   }
@@ -68,7 +68,7 @@ export const publicationBlockers = (profile: AIProfile, run: AIEvaluationRun): s
     run.release.output_schema.version !== profile.definition.generation_policy.output_schema_version) {
     blockers.push('Input/Output Schema 版本与 Profile 不一致')
   }
-  if (run.release.provider.route !== profile.definition.generation_policy.provider_route) {
+  if (run.release.generation_route.id !== profile.definition.generation_policy.provider_route) {
     blockers.push('模型 Route 与 Profile 不一致')
   }
   return blockers
@@ -90,7 +90,7 @@ export const ProfileGovernanceWorkspace: React.FC = () => {
   const [commandLoading, setCommandLoading] = useState(false)
   const [disableVisible, setDisableVisible] = useState(false)
   const [evidenceRunID, setEvidenceRunID] = useState('')
-  const [evidenceRun, setEvidenceRun] = useState<AIEvaluationRun | null>(null)
+  const [evidenceRun, setEvidenceRun] = useState<AIEvaluationRunV2 | null>(null)
   const [evidenceError, setEvidenceError] = useState('')
   const [publishReason, setPublishReason] = useState('')
 
@@ -174,7 +174,7 @@ export const ProfileGovernanceWorkspace: React.FC = () => {
     if (!selected || !evidenceRunID.trim()) return
     setEvidenceError('')
     setEvidenceRun(null)
-    const [requestError, response] = await getAIEvaluationRun(evidenceRunID.trim())
+    const [requestError, response] = await getAIEvaluationRunV2(evidenceRunID.trim())
     if (requestError || !response) {
       setEvidenceError(errorMessage(requestError, '评测发布证据获取失败'))
       return

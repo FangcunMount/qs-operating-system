@@ -3,12 +3,12 @@ import {
   Alert,
   Button,
   Card,
-  Col,
+  Checkbox,
   Descriptions,
   Empty,
   Input,
+  Modal,
   Progress,
-  Row,
   Select,
   Space,
   Table,
@@ -16,255 +16,104 @@ import {
   Typography,
   message
 } from 'antd'
-import { CaretRightOutlined, ReloadOutlined, SearchOutlined, StopOutlined } from '@ant-design/icons'
+import { CaretRightOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import {
-  cancelAIEvaluation,
-  finalizeAIEvaluation,
-  getAIEvaluationAttempt,
+  finalizeAIEvaluationV2,
   getAIEvaluationCapacity,
-  getAIEvaluationRun,
+  getAIEvaluationOutputV2,
+  getAIEvaluationRunV2,
   listAIEvaluationRuns,
-  recoverAIEvaluation,
-  startAIEvaluation
+  resolveAIEvaluationResultUnknownV2,
+  startAIEvaluationV2
 } from '@/api/path/aiGovernance'
 import type {
-  AIEvaluationRun,
+  AIEvaluationExecutionV2,
+  AIEvaluationOutputV2,
   AIEvaluationRunSummary,
-  AIEvaluationStatus,
-  AIReviewAttempt,
-  AIReviewAttemptSummary
+  AIEvaluationRunV2,
+  AIResultUnknownDecision
 } from '@/api/path/aiGovernance'
 import { JsonEvidence } from '../components/JsonEvidence'
-import { AttemptRecheckPanel } from '../components/AttemptRecheckPanel'
-import { ReleaseIdentityCard } from '../components/ReleaseIdentityCard'
+import { ReleaseIdentityV2Card } from '../components/ReleaseIdentityV2Card'
 import { ReasonCommandModal } from '../components/ReasonCommandModal'
 import { errorMessage, evaluationStatusTag, formatTime } from '../presentation'
 import { useSimplePolling } from '../../shared/hooks/useSimplePolling'
 
 const { Paragraph, Text, Title } = Typography
-
-function renderRunID(value: string) {
-  return <Typography.Text code>{value}</Typography.Text>
-}
-
-function renderAssertionStatus(value: string) {
-  return <Tag color={value === 'passed' ? 'green' : 'red'}>{value}</Tag>
-}
-
-function renderFailureCaseID(value: string) {
-  return <Text code>{value}</Text>
-}
-
-function renderFailureAttempt(value: number) {
-  return `#${value}`
-}
-
-function renderFailureStage(_: unknown, item: AIReviewAttemptSummary) {
-  return <Text code>{item.failure?.stage}</Text>
-}
-
-function renderFailureCode(_: unknown, item: AIReviewAttemptSummary) {
-  return <Text code>{item.failure?.code}</Text>
-}
-
-function renderFailureRetryable(_: unknown, item: AIReviewAttemptSummary) {
-  return (
-    <Space wrap>
-      <Tag color={item.failure?.retryable ? 'orange' : 'default'}>
-        {item.failure?.retryable ? '是' : '否'}
-      </Tag>
-      {item.failure?.result_unknown ? <Tag color="red">result_unknown</Tag> : null}
-    </Space>
-  )
-}
-
-function renderFailureSafeMessage(_: unknown, item: AIReviewAttemptSummary) {
-  return item.failure?.safe_message || '—'
-}
-
-export const buildTechnicalFailureEvidence = (
-  run?: AIEvaluationRun | null
-): AIReviewAttemptSummary[] => run?.attempts.filter((attempt) => Boolean(attempt.failure)) || []
-
-type CommandKind = 'start' | 'cancel' | 'recover' | 'finalize'
-
-const statusOptions: Array<{ value: AIEvaluationStatus | ''; label: string }> = [
-  { value: '', label: '全部状态' },
-  { value: 'collecting', label: '执行中' },
-  { value: 'awaiting_review', label: '待人工审核' },
-  { value: 'approved', label: '已批准' },
-  { value: 'rejected', label: '已拒绝' },
-  { value: 'canceled', label: '已取消' }
-]
-
 const POLLING_INTERVAL_MS = 15000
 
-const executionPhaseText = (phase?: string): string => {
-  if (phase === 'dispatching') return '模型调用中'
-  if (phase === 'prepared') return '等待执行'
-  return '等待调度'
-}
+export const buildTechnicalFailureEvidence = (
+  run?: AIEvaluationRunV2 | null
+): AIEvaluationExecutionV2[] => run
+  ? [...run.generation_executions, ...run.semantic_executions]
+    .filter((execution) => Boolean(execution.failure))
+  : []
 
-const commandCopy = (
-  command: CommandKind,
-  run?: AIEvaluationRun | null,
-  expectedStartProviderInvocations = 0
-): { title: string; confirmText: string; description: React.ReactNode; danger?: boolean } => {
-  if (command === 'start') {
-    return {
-      title: '启动冻结发布组合评测',
-      confirmText: '确认预留并启动',
-      description: `本次启动会预留 ${expectedStartProviderInvocations} 次 Provider 调用。取消、失败或 result_unknown 均不退还预算。`
-    }
-  }
-  if (command === 'recover') {
-    return {
-      title: '恢复评测执行',
-      confirmText: '确认成本并恢复',
-      description: `当前最多可能新增 ${run?.recovery_max_provider_invocations || 0} 次 Provider 调用。`
-    }
-  }
-  if (command === 'finalize') {
-    return {
-      title: '终审评测 Run',
-      confirmText: '生成不可变终审结论',
-      description: '终审会根据完整证据生成 approved 或 rejected 结论，之后不能继续修改审核记录。'
-    }
-  }
-  return {
-    title: '取消评测 Run',
-    confirmText: '确认取消',
-    description: run?.status === 'awaiting_review' && run.progress.failed_attempts > 0
-      ? `该 Run 包含 ${run.progress.failed_attempts} 条技术失败证据。取消会保留冻结证据并释放发布占位；已预留或可能已经发生的模型调用成本不会退还。`
-      : '取消只停止后续执行，不会回收已经预留或可能已经发生的模型调用成本。',
-    danger: true
-  }
+const unresolvedExecutions = (run?: AIEvaluationRunV2 | null): AIEvaluationExecutionV2[] => {
+  if (!run) return []
+  const resolved = new Set(run.result_unknown_resolutions.map((item) => item.execution_id))
+  return [...run.generation_executions, ...run.semantic_executions]
+    .filter((execution) => execution.status === 'result_unknown' && !resolved.has(execution.execution_id))
 }
 
 export const EvaluationReleaseWorkspace: React.FC = () => {
-  const [status, setStatus] = useState<AIEvaluationStatus | ''>('')
-  const [runs, setRuns] = useState<AIEvaluationRunSummary[]>([])
-  const [nextCursor, setNextCursor] = useState('')
-  const [selected, setSelected] = useState<AIEvaluationRun | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [detailLoading, setDetailLoading] = useState(false)
-  const [commandLoading, setCommandLoading] = useState(false)
-  const [startPreparing, setStartPreparing] = useState(false)
-  const [expectedStartProviderInvocations, setExpectedStartProviderInvocations] = useState(0)
-  const [command, setCommand] = useState<CommandKind | null>(null)
-  const [error, setError] = useState('')
+  const [legacyRuns, setLegacyRuns] = useState<AIEvaluationRunSummary[]>([])
+  const [legacyError, setLegacyError] = useState('')
+  const [selected, setSelected] = useState<AIEvaluationRunV2 | null>(null)
   const [manualRunID, setManualRunID] = useState('')
-  const [failureDetail, setFailureDetail] = useState<AIReviewAttempt | null>(null)
-  const [failureDetailLoading, setFailureDetailLoading] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [commandLoading, setCommandLoading] = useState(false)
+  const [startInvocations, setStartInvocations] = useState(0)
+  const [command, setCommand] = useState<'start' | 'finalize' | null>(null)
+  const [output, setOutput] = useState<AIEvaluationOutputV2 | null>(null)
+  const [outputLoading, setOutputLoading] = useState(false)
+  const [unknownExecution, setUnknownExecution] = useState<AIEvaluationExecutionV2 | null>(null)
+  const [unknownDecision, setUnknownDecision] = useState<AIResultUnknownDecision>('authorize_replacement')
+  const [unknownRiskAccepted, setUnknownRiskAccepted] = useState(false)
+  const [unknownReason, setUnknownReason] = useState('')
 
-  const load = useCallback(async (cursor = '', append = false) => {
-    setLoading(true)
-    setError('')
-    const [requestError, response] = await listAIEvaluationRuns({
-      status: status || undefined,
-      cursor: cursor || undefined,
-      limit: 20
-    })
-    setLoading(false)
+  const loadLegacyHistory = useCallback(async () => {
+    const [requestError, response] = await listAIEvaluationRuns({ limit: 20 })
     if (requestError || !response) {
-      setError(errorMessage(requestError, '评测 Run 列表获取失败'))
+      setLegacyError(errorMessage(requestError, '历史 v1 评测目录获取失败'))
       return
     }
-    const items = response.data?.items || []
-    setRuns((current) => append ? [...current, ...items] : items)
-    setNextCursor(response.data?.next_cursor || '')
-  }, [status])
+    setLegacyError('')
+    setLegacyRuns(response.data?.items || [])
+  }, [])
 
   useEffect(() => {
-    load()
-  }, [load])
+    loadLegacyHistory()
+  }, [loadLegacyHistory])
 
-  const refreshCollectingRuns = useCallback(async () => {
-    const selectedRunID = selected?.status === 'collecting' ? selected.run_id : ''
-    const listRequest = listAIEvaluationRuns({ status: status || undefined, limit: 20 })
-    const detailRequest = selectedRunID ? getAIEvaluationRun(selectedRunID) : null
-    const listResult = await listRequest
-    const detailResult = detailRequest ? await detailRequest : null
-
-    const [listError, listResponse] = listResult
-    if (!listError && listResponse) {
-      setRuns(listResponse.data?.items || [])
-      setNextCursor(listResponse.data?.next_cursor || '')
-      setError('')
-    }
-
-    if (detailResult) {
-      const [detailError, detailResponse] = detailResult
-      if (!detailError && detailResponse) {
-        setSelected(detailResponse.data)
-      }
-    }
-  }, [selected?.run_id, selected?.status, status])
-
-  const pollingEnabled = runs.some((run) => run.status === 'collecting') || selected?.status === 'collecting'
-  useSimplePolling({
-    enabled: pollingEnabled,
-    intervalMs: POLLING_INTERVAL_MS,
-    onTick: refreshCollectingRuns
-  })
-
-  const openRun = async (run: AIEvaluationRunSummary) => {
-    setFailureDetail(null)
-    setDetailLoading(true)
-    const [requestError, response] = await getAIEvaluationRun(run.run_id)
-    setDetailLoading(false)
+  const loadV2Run = useCallback(async (runID: string, showError = true) => {
+    if (!runID.trim()) return null
+    setLoading(true)
+    const [requestError, response] = await getAIEvaluationRunV2(runID.trim())
+    setLoading(false)
     if (requestError || !response) {
-      message.error(errorMessage(requestError, '评测详情获取失败'))
-      return
+      if (showError) message.error(errorMessage(requestError, 'v2 评测 Run 获取失败'))
+      return null
     }
     setSelected(response.data)
-  }
+    setManualRunID(response.data.run_id)
+    return response.data
+  }, [])
 
-  const findRunByID = async (runID: string) => {
-    if (!runID.trim()) return
-    setFailureDetail(null)
-    setDetailLoading(true)
-    const [requestError, response] = await getAIEvaluationRun(runID.trim())
-    setDetailLoading(false)
-    if (requestError || !response) {
-      message.error(errorMessage(requestError, '指定评测 Run 获取失败'))
-      return
+  useSimplePolling({
+    enabled: selected?.status === 'requested' || selected?.status === 'collecting',
+    intervalMs: POLLING_INTERVAL_MS,
+    onTick: async () => {
+      if (selected) await loadV2Run(selected.run_id, false)
     }
-    const run = response.data
-    setRuns((current) => [run, ...current.filter((item) => item.run_id !== run.run_id)])
-    setSelected(run)
-  }
-
-  const openFailureDetail = async (attempt: AIReviewAttemptSummary) => {
-    if (!selected || !attempt.failure) return
-    setFailureDetailLoading(true)
-    const [requestError, response] = await getAIEvaluationAttempt(
-      selected.run_id,
-      attempt.case_id,
-      attempt.attempt
-    )
-    setFailureDetailLoading(false)
-    if (requestError || !response) {
-      message.error(errorMessage(requestError, '技术失败证据获取失败'))
-      return
-    }
-    setFailureDetail(response.data)
-  }
-
-  function renderFailureDetailAction(_: unknown, item: AIReviewAttemptSummary) {
-    return (
-      <Button size="small" loading={failureDetailLoading} onClick={() => openFailureDetail(item)}>
-        查看详情
-      </Button>
-    )
-  }
+  })
 
   const prepareStart = async () => {
-    setStartPreparing(true)
+    setCommandLoading(true)
     const [requestError, response] = await getAIEvaluationCapacity()
-    setStartPreparing(false)
+    setCommandLoading(false)
     if (requestError || !response) {
-      message.error(errorMessage(requestError, '启动成本与容量获取失败，不能提交过期成本确认'))
+      message.error(errorMessage(requestError, '评测容量获取失败'))
       return
     }
     const capacity = response.data
@@ -272,360 +121,312 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
       message.warning('当前机构没有可用的完整评测容量')
       return
     }
-    setExpectedStartProviderInvocations(capacity.provider_invocations_per_start)
+    setStartInvocations(capacity.provider_invocations_per_start)
     setCommand('start')
   }
 
   const executeCommand = async (reason: string) => {
     if (!command) return
     setCommandLoading(true)
-    let result: [any, { data: AIEvaluationRun } | undefined]
-    if (command === 'start') {
-      if (expectedStartProviderInvocations < 1) {
-        setCommandLoading(false)
-        message.error('启动成本确认已失效，请重新发起')
-        return
-      }
-      result = await startAIEvaluation(
-        expectedStartProviderInvocations,
-        reason
-      ) as [any, { data: AIEvaluationRun } | undefined]
-    } else if (!selected) {
-      setCommandLoading(false)
-      return
-    } else if (command === 'recover') {
-      result = await recoverAIEvaluation(
-        selected.run_id,
-        selected.recovery_max_provider_invocations,
-        reason
-      ) as [any, { data: AIEvaluationRun } | undefined]
-    } else if (command === 'finalize') {
-      result = await finalizeAIEvaluation(selected.run_id, reason) as [any, { data: AIEvaluationRun } | undefined]
-    } else {
-      result = await cancelAIEvaluation(selected.run_id, reason) as [any, { data: AIEvaluationRun } | undefined]
-    }
+    const result = command === 'start'
+      ? await startAIEvaluationV2(startInvocations, reason)
+      : selected
+        ? await finalizeAIEvaluationV2(selected.run_id, reason)
+        : [new Error('missing run'), undefined] as const
     setCommandLoading(false)
     const [requestError, response] = result
     if (requestError || !response) {
-      message.error(errorMessage(requestError, '评测治理操作失败'))
+      message.error(errorMessage(requestError, 'v2 评测治理操作失败'))
       return
     }
-    setCommand(null)
     setSelected(response.data)
-    message.success('评测治理操作已提交并记录审计')
-    load()
+    setManualRunID(response.data.run_id)
+    setCommand(null)
+    message.success(command === 'start' ? 'v2 评测已启动' : 'v2 评测已终审')
   }
 
-  const generationPercent = useMemo(() => {
-    if (!selected?.progress.planned_generation_attempts) return 0
-    return Math.round(
-      selected.progress.generation_attempts / selected.progress.planned_generation_attempts * 100
-    )
-  }, [selected])
-  const reviewPercent = selected?.progress.required_reviews
-    ? Math.round(selected.progress.recorded_reviews / selected.progress.required_reviews * 100)
-    : 0
-  const technicalFailures = buildTechnicalFailureEvidence(selected)
-
-  const columns = [
-    {
-      title: 'Run',
-      dataIndex: 'run_id',
-      render: renderRunID
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      render: (value: AIEvaluationStatus) => evaluationStatusTag(value)
-    },
-    {
-      title: '生成执行 / 35',
-      render: (_: unknown, value: AIEvaluationRunSummary) =>
-        `${value.progress.generation_attempts}/${value.progress.planned_generation_attempts || 35}`
-    },
-    {
-      title: '人工审核 / 70',
-      render: (_: unknown, value: AIEvaluationRunSummary) =>
-        `${value.progress.recorded_reviews}/${value.progress.required_reviews || 70}`
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'created_at',
-      render: formatTime
+  const openOutput = async (execution: AIEvaluationExecutionV2) => {
+    if (!selected) return
+    setOutputLoading(true)
+    const [requestError, response] = await getAIEvaluationOutputV2(selected.run_id, execution.execution_id)
+    setOutputLoading(false)
+    if (requestError || !response) {
+      message.error(errorMessage(requestError, '执行输出证据获取失败'))
+      return
     }
-  ]
-  const copy = command ? commandCopy(command, selected, expectedStartProviderInvocations) : null
+    setOutput(response.data)
+  }
+
+  const resolveUnknown = async () => {
+    if (!selected || !unknownExecution || !unknownRiskAccepted || !unknownReason.trim()) return
+    setCommandLoading(true)
+    const [requestError, response] = await resolveAIEvaluationResultUnknownV2(selected.run_id, {
+      execution_id: unknownExecution.execution_id,
+      decision: unknownDecision,
+      acknowledged_duplicate_call_and_cost_risk: true,
+      reason: unknownReason.trim()
+    })
+    setCommandLoading(false)
+    if (requestError || !response) {
+      message.error(errorMessage(requestError, 'result_unknown 处理失败'))
+      return
+    }
+    setSelected(response.data)
+    setUnknownExecution(null)
+    setUnknownRiskAccepted(false)
+    setUnknownReason('')
+    message.success('result_unknown 决策已记录')
+  }
+
+  const failures = useMemo(() => buildTechnicalFailureEvidence(selected), [selected])
+  const unresolved = useMemo(() => unresolvedExecutions(selected), [selected])
+  const candidatePercent = selected?.required_candidates
+    ? Math.round(selected.accepted_candidates / selected.required_candidates * 100)
+    : 0
+  const requiredReviews = (selected?.required_candidates || 0) * 2
+  const canFinalize = selected?.status === 'awaiting_review' &&
+    selected.human_reviews.length >= requiredReviews && selected.unresolved_result_unknown_count === 0
 
   return (
     <div className="ai-governance-workspace">
       <div className="ai-governance-section-heading">
         <div>
-          <Title level={4}>评测发布</Title>
-          <Paragraph type="secondary">每个 Run 冻结完整发布身份；质量证据通过不等于自动发布 Profile。</Paragraph>
+          <Title level={4}>评测发布 v2</Title>
+          <Paragraph type="secondary">
+            新评测只走 v2；当前没有 v2 列表接口，启动响应和精确 Run ID 是唯一可信入口。
+          </Paragraph>
         </div>
         <Space wrap>
           <Input.Search
             value={manualRunID}
             onChange={(event) => setManualRunID(event.target.value)}
-            onSearch={findRunByID}
+            onSearch={(value) => loadV2Run(value)}
             enterButton={<SearchOutlined />}
-            placeholder="按 Run ID 定位"
-            style={{ width: 240 }}
+            placeholder="输入 v2 Run ID"
+            style={{ width: 280 }}
           />
-          <Select value={status} options={statusOptions} onChange={setStatus} style={{ width: 160 }} />
-          <Button icon={<ReloadOutlined />} loading={loading} onClick={() => load()}>刷新</Button>
           <Button
-            type="primary"
-            icon={<CaretRightOutlined />}
-            loading={startPreparing}
-            onClick={prepareStart}
+            icon={<ReloadOutlined />}
+            loading={loading}
+            disabled={!selected}
+            onClick={() => selected && loadV2Run(selected.run_id)}
           >
-            启动评测
+            刷新当前 Run
+          </Button>
+          <Button type="primary" icon={<CaretRightOutlined />} loading={commandLoading} onClick={prepareStart}>
+            启动 v2 评测
           </Button>
         </Space>
       </div>
 
-      {error ? (
-        <Alert
-          type="error"
-          showIcon
-          message="评测目录暂不可用"
-          description={`${error}。仍可按 Run ID 精确定位；前端不会用静态样例代替真实评测 Run。`}
-        />
-      ) : null}
-
-      <Table
-        className="ai-governance-selectable-table"
-        rowKey="run_id"
-        loading={loading}
-        dataSource={runs}
-        columns={columns}
-        pagination={false}
-        size="middle"
-        onRow={(record) => ({ onClick: () => openRun(record) })}
-        rowClassName={(record) => record.run_id === selected?.run_id ? 'is-selected' : ''}
-        locale={{ emptyText: <Empty description="当前筛选条件下没有评测 Run" /> }}
-      />
-      {nextCursor ? <Button className="ai-governance-load-more" onClick={() => load(nextCursor, true)}>加载更多</Button> : null}
-
       {selected ? (
         <Card
-          className="ai-governance-detail-card"
-          loading={detailLoading}
+          loading={loading}
           title={<Space>{evaluationStatusTag(selected.status)}<Text code>{selected.run_id}</Text></Space>}
-          extra={(
-            <Space>
-              {selected.status === 'collecting' && selected.recovery_max_provider_invocations > 0 ? (
-                <Button onClick={() => setCommand('recover')}>恢复</Button>
-              ) : null}
-              {selected.can_cancel ? (
-                <Button danger icon={<StopOutlined />} onClick={() => setCommand('cancel')}>取消</Button>
-              ) : null}
-              {selected.can_finalize ? (
-                <Button type="primary" onClick={() => setCommand('finalize')}>终审</Button>
-              ) : null}
-            </Space>
-          )}
+          extra={canFinalize ? <Button type="primary" onClick={() => setCommand('finalize')}>终审</Button> : null}
         >
-          <Descriptions size="small" column={3}>
-            <Descriptions.Item label="申请人">{selected.requested_by || '—'}</Descriptions.Item>
-            <Descriptions.Item label="申请理由">{selected.request_reason || '—'}</Descriptions.Item>
-            <Descriptions.Item label="版本">{selected.version}</Descriptions.Item>
+          <Descriptions size="small" column={3} bordered>
+            <Descriptions.Item label="Candidate">
+              {selected.accepted_candidates}/{selected.required_candidates}
+            </Descriptions.Item>
+            <Descriptions.Item label="审核就绪">{selected.review_ready_candidates}</Descriptions.Item>
+            <Descriptions.Item label="已记录审核">{selected.human_reviews.length}/{requiredReviews}</Descriptions.Item>
+            <Descriptions.Item label="预留调用">{selected.reserved_provider_invocations}</Descriptions.Item>
+            <Descriptions.Item label="未知结果">{selected.unresolved_result_unknown_count}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">{formatTime(selected.created_at)}</Descriptions.Item>
           </Descriptions>
-          {selected.status === 'collecting' ? (
-            <Alert
-              className="ai-governance-inline-alert"
-              type="info"
-              showIcon
-              message="评测正在串行执行，页面每 15 秒自动刷新"
-              description={(
-                <Space direction="vertical" size={2}>
-                  <Text>
-                    {selected.execution
-                      ? `当前 ${selected.execution.case_id} 第 ${selected.execution.attempt} 次：${executionPhaseText(selected.execution.phase)}`
-                      : '当前执行记录正在调度中'}
-                  </Text>
-                  <Text type="secondary">
-                    每条先执行生成；仅当输出通过结构校验且存在语义检查项时，才调用独立模型裁判，因此裁判次数最多为 35 次。
-                  </Text>
-                </Space>
-              )}
-            />
+          <Progress
+            className="ai-governance-inline-alert"
+            percent={candidatePercent}
+            status={selected.status === 'blocked' || selected.status === 'rejected' ? 'exception' : 'active'}
+          />
+          {(selected.status === 'requested' || selected.status === 'collecting') ? (
+            <Alert type="info" showIcon message="评测执行中，页面每 15 秒刷新当前 Run" />
           ) : null}
-          <div className="ai-governance-progress-grid">
-            <Card size="small" title="35 次生成 + 最多 35 次独立模型裁判">
-              <Progress
-                percent={generationPercent}
-                status={selected.progress.failed_attempts > 0 || selected.status === 'rejected' ? 'exception' : 'active'}
-              />
-              <Space wrap>
-                <Text>{selected.progress.generation_attempts}/35 次生成执行完成</Text>
-                {selected.progress.failed_attempts > 0 ? (
-                  <Tag color="red">{selected.progress.failed_attempts} 条技术失败</Tag>
-                ) : null}
-              </Space>
-            </Card>
-            <Card size="small" title="双角色人工审核">
-              <Progress percent={reviewPercent} status={selected.progress.rejected_reviews ? 'exception' : 'active'} />
-              <Space wrap>
-                <Text>{selected.progress.recorded_reviews}/70 条审核完成</Text>
-                {selected.progress.rejected_reviews ? <Tag color="red">{selected.progress.rejected_reviews} 条拒绝</Tag> : null}
-              </Space>
-            </Card>
-          </div>
-          {selected.status === 'awaiting_review' && selected.progress.failed_attempts > 0 ? (
+          {selected.status === 'blocked' ? (
             <Alert
               className="ai-governance-inline-alert"
               type="error"
               showIcon
-              message="该 Run 不可进入人工审核"
-              description="生成执行记录完整不代表生成与独立模型裁判成功。下方失败证据仅供诊断，不开放任何人工审核动作。"
+              message="Run 已阻塞"
+              description="失败证据永久保留；只有 result_unknown 可由人工确认替换或取消。普通质量失败不会替换 Candidate。"
             />
           ) : null}
-          {technicalFailures.length ? (
-            <Card
-              size="small"
-              className="ai-governance-technical-failures"
-              title={`技术失败证据（${technicalFailures.length}）`}
-              extra={<Tag color="red">只读</Tag>}
-            >
-              <Table<AIReviewAttemptSummary>
-                rowKey={(item) => `${item.case_id}:${item.attempt}`}
-                dataSource={technicalFailures}
+          {unresolved.length ? (
+            <Card size="small" title={`待确认 result_unknown（${unresolved.length}）`}>
+              <Table<AIEvaluationExecutionV2>
+                rowKey="execution_id"
+                dataSource={unresolved}
                 pagination={false}
                 size="small"
                 columns={[
+                  { title: '执行', dataIndex: 'execution_id', render: function renderExecutionID(value) { return <Text code>{value}</Text> } },
+                  { title: '类型', dataIndex: 'kind' },
+                  { title: '错误码', render: function renderFailureCode(_, item) { return <Text code>{item.failure?.code}</Text> } },
                   {
-                    title: 'Case',
-                    dataIndex: 'case_id',
-                    render: renderFailureCaseID
-                  },
-                  {
-                    title: 'Attempt',
-                    dataIndex: 'attempt',
-                    render: renderFailureAttempt
-                  },
-                  {
-                    title: 'Stage',
-                    render: renderFailureStage
-                  },
-                  {
-                    title: 'Code',
-                    render: renderFailureCode
-                  },
-                  {
-                    title: 'Retryable',
-                    render: renderFailureRetryable
-                  },
-                  {
-                    title: '安全消息',
-                    render: renderFailureSafeMessage
-                  },
-                  {
-                    title: '详情',
-                    render: renderFailureDetailAction
+                    title: '操作',
+                    render: function renderUnknownAction(_, item) {
+                      return <Button danger size="small" onClick={() => setUnknownExecution(item)}>人工确认</Button>
+                    }
                   }
                 ]}
               />
-
-              {failureDetail ? (
-                <Card
-                  size="small"
-                  className="ai-governance-failure-detail"
-                  loading={failureDetailLoading}
-                  title={(
-                    <Space>
-                      <Text code>{failureDetail.case_id}</Text>
-                      <Tag>#{failureDetail.attempt}</Tag>
-                      <Tag color="red">只读失败详情</Tag>
-                    </Space>
-                  )}
-                >
-                  {failureDetail.failure ? (
-                    <Alert
-                      type="error"
-                      showIcon
-                      message={`${failureDetail.failure.stage}: ${failureDetail.failure.code}`}
-                      description={(
-                        <Space wrap>
-                          <Text>{failureDetail.failure.safe_message}</Text>
-                          <Tag color={failureDetail.failure.retryable ? 'orange' : 'default'}>
-                            retryable: {failureDetail.failure.retryable ? 'true' : 'false'}
-                          </Tag>
-                          {failureDetail.failure.result_unknown ? <Tag color="red">result_unknown</Tag> : null}
-                        </Space>
-                      )}
-                    />
-                  ) : null}
-                  {failureDetail.provider_receipt ? (
-                    <Descriptions size="small" bordered column={4} className="ai-governance-failure-receipt">
-                      <Descriptions.Item label="Provider">{failureDetail.provider_receipt.provider}</Descriptions.Item>
-                      <Descriptions.Item label="Model">{failureDetail.provider_receipt.model}</Descriptions.Item>
-                      <Descriptions.Item label="输出 tokens">{failureDetail.provider_receipt.output_tokens}</Descriptions.Item>
-                      <Descriptions.Item label="耗时">{failureDetail.provider_receipt.latency_ms} ms</Descriptions.Item>
-                    </Descriptions>
-                  ) : null}
-                  <Row gutter={[16, 16]} className="ai-governance-evidence-grid">
-                    <Col xs={24} xl={12}>
-                      <Card size="small" title="AI 原始输出">
-                        <JsonEvidence value={failureDetail.raw_provider_output} emptyText="Provider 未返回输出" />
-                      </Card>
-                    </Col>
-                    <Col xs={24} xl={12}>
-                      <Card size="small" title="规范化输出">
-                        <JsonEvidence value={failureDetail.normalized_output} emptyText="输出未通过结构化解析" />
-                      </Card>
-                    </Col>
-                  </Row>
-                  <Card size="small" title="结构、安全与事实引用校验">
-                    <Table
-                      rowKey={(item) => `${item.type}:${item.scope}:${item.ordinal}`}
-                      dataSource={failureDetail.assertions}
-                      pagination={false}
-                      size="small"
-                      columns={[
-                        { title: '校验', dataIndex: 'type' },
-                        { title: '范围', dataIndex: 'scope' },
-                        { title: '执行器', dataIndex: 'evaluator' },
-                        { title: '结果', dataIndex: 'status', render: renderAssertionStatus },
-                        { title: '证据', dataIndex: 'detail' }
-                      ]}
-                    />
-                  </Card>
-                  <AttemptRecheckPanel
-                    runID={selected.run_id}
-                    caseID={failureDetail.case_id}
-                    attempt={failureDetail.attempt}
-                  />
-                </Card>
-              ) : null}
             </Card>
           ) : null}
-          <ReleaseIdentityCard release={selected.release} />
+          {failures.length ? (
+            <Card size="small" title={`生成 / 语义失败证据（${failures.length}）`}>
+              <Table<AIEvaluationExecutionV2>
+                rowKey="execution_id"
+                dataSource={failures}
+                pagination={false}
+                size="small"
+                columns={[
+                  { title: '执行', dataIndex: 'execution_id', render: function renderExecutionID(value) { return <Text code>{value}</Text> } },
+                  { title: '类型', dataIndex: 'kind' },
+                  { title: 'Case', dataIndex: 'case_id', render: function renderCaseID(value) { return value || '—' } },
+                  { title: 'Stage', render: function renderFailureStage(_, item) { return <Text code>{item.failure?.stage}</Text> } },
+                  { title: 'Code', render: function renderFailureCode(_, item) { return <Text code>{item.failure?.code}</Text> } },
+                  { title: 'Disposition', render: function renderDisposition(_, item) { return <Tag>{item.failure?.disposition}</Tag> } },
+                  {
+                    title: '收据',
+                    render: (_, item) => item.provider_receipt
+                      ? `${item.provider_receipt.provider}/${item.provider_receipt.model}`
+                      : '—'
+                  },
+                  {
+                    title: '详情',
+                    render: function renderOutputAction(_, item) {
+                      return <Button size="small" onClick={() => openOutput(item)}>输出</Button>
+                    }
+                  }
+                ]}
+              />
+            </Card>
+          ) : null}
+          <Card size="small" title="35 个固定 Slot">
+            <Table
+              rowKey={(item) => `${item.case_id}:${item.slot_ordinal}`}
+              dataSource={selected.slots}
+              pagination={false}
+              size="small"
+              columns={[
+                { title: 'Case', dataIndex: 'case_id', render: function renderCaseID(value) { return <Text code>{value}</Text> } },
+                { title: 'Slot', dataIndex: 'slot_ordinal' },
+                { title: '状态', dataIndex: 'status', render: function renderStatus(value) { return <Tag>{value}</Tag> } },
+                { title: '生成执行数', render: (_, item) => item.generation_execution_ids.length },
+                { title: 'Candidate', render: (_, item) => item.candidate?.candidate_id || '—' },
+                {
+                  title: '审核就绪',
+                  render: function renderReviewReady(_, item) {
+                    return item.candidate?.review_ready ? <Tag color="green">是</Tag> : '否'
+                  }
+                }
+              ]}
+            />
+          </Card>
+          <ReleaseIdentityV2Card release={selected.release} />
           {selected.gate ? (
             <Alert
               className="ai-governance-inline-alert"
               type={selected.gate.passed ? 'success' : 'error'}
               showIcon
-              message={selected.gate.passed ? '发布质量门禁通过' : '发布质量门禁未通过'}
-              description={selected.gate.reasons.map((item) => item.detail).join('；') || '所有冻结门禁均通过。'}
+              message={selected.gate.passed ? 'G1-G5 门禁通过' : 'G1-G5 门禁未通过'}
+              description={selected.gate.reasons.map((item) => `${item.gate}: ${item.detail}`).join('；') || '全部冻结门禁均通过。'}
             />
           ) : null}
         </Card>
-      ) : null}
+      ) : <Card><Empty description="启动 v2 评测，或输入精确 Run ID" /></Card>}
 
-      {copy ? (
+      <Card
+        className="ai-governance-detail-card"
+        title="历史 v1 Run（只读）"
+        extra={<Button icon={<ReloadOutlined />} onClick={loadLegacyHistory}>刷新历史</Button>}
+      >
+        <Alert
+          type="info"
+          showIcon
+          message="此目录仅代表历史 v1，不代表 v2 Run 全量状态"
+          description={legacyError || 'v1 启动、恢复、取消、审核和终审写入口已移除。'}
+        />
+        <Table
+          rowKey="run_id"
+          dataSource={legacyRuns}
+          pagination={false}
+          size="small"
+          locale={{ emptyText: <Empty description="没有可见的历史 v1 Run" /> }}
+          columns={[
+            { title: 'Run', dataIndex: 'run_id', render: function renderRunID(value) { return <Text code>{value}</Text> } },
+            { title: '状态', dataIndex: 'status', render: evaluationStatusTag },
+            { title: '生成执行', render: (_, item) => `${item.progress.generation_attempts}/${item.progress.planned_generation_attempts}` },
+            { title: '创建时间', dataIndex: 'created_at', render: formatTime }
+          ]}
+        />
+      </Card>
+
+      {command ? (
         <ReasonCommandModal
           visible
-          title={copy.title}
-          description={copy.description}
-          confirmText={copy.confirmText}
-          danger={copy.danger}
+          title={command === 'start' ? '启动 v2 冻结评测' : '终审 v2 评测'}
+          description={command === 'start'
+            ? `将预留 ${startInvocations} 次 Provider 调用；所有失败继续计入可靠性。`
+            : '服务端将按冻结 G1-G5 Policy 生成不可变 approved 或 rejected 结论。'}
+          confirmText={command === 'start' ? '确认成本并启动' : '确认终审'}
           loading={commandLoading}
           onCancel={() => setCommand(null)}
           onConfirm={executeCommand}
         />
       ) : null}
+
+      <Modal
+        visible={Boolean(unknownExecution)}
+        title="处理 result_unknown"
+        okText="确认并提交"
+        okButtonProps={{ disabled: !unknownRiskAccepted || !unknownReason.trim() }}
+        confirmLoading={commandLoading}
+        onCancel={() => setUnknownExecution(null)}
+        onOk={resolveUnknown}
+      >
+        <Alert
+          type="warning"
+          showIcon
+          message="必须人工确认潜在重复调用与计费风险"
+          description={<Text code>{unknownExecution?.execution_id}</Text>}
+        />
+        <Select<AIResultUnknownDecision>
+          value={unknownDecision}
+          onChange={setUnknownDecision}
+          options={[
+            { value: 'authorize_replacement', label: '授权一次替换执行' },
+            { value: 'cancel_run', label: '取消整个 Run' }
+          ]}
+          className="ai-governance-full-width"
+        />
+        <Input.TextArea
+          rows={3}
+          maxLength={1000}
+          showCount
+          value={unknownReason}
+          onChange={(event) => setUnknownReason(event.target.value)}
+          placeholder="必填：人工判断依据"
+        />
+        <Checkbox checked={unknownRiskAccepted} onChange={(event) => setUnknownRiskAccepted(event.target.checked)}>
+          我确认可能发生重复 Provider 调用与计费
+        </Checkbox>
+      </Modal>
+
+      <Modal visible={Boolean(output)} footer={null} width={900} title="执行输出证据" onCancel={() => setOutput(null)}>
+        <Card loading={outputLoading} size="small">
+          {output?.provider_receipt ? (
+            <Descriptions size="small" bordered column={3}>
+              <Descriptions.Item label="Provider">{output.provider_receipt.provider}</Descriptions.Item>
+              <Descriptions.Item label="Model">{output.provider_receipt.model}</Descriptions.Item>
+              <Descriptions.Item label="Request ID">{output.provider_receipt.request_id || '—'}</Descriptions.Item>
+            </Descriptions>
+          ) : null}
+          <JsonEvidence value={output?.raw_output} emptyText="没有原始输出" />
+          <JsonEvidence value={output?.normalized_output} emptyText="没有规范化输出" />
+        </Card>
+      </Modal>
     </div>
   )
 }

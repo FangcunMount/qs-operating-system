@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   Alert,
   Button,
@@ -18,46 +18,53 @@ import {
   Typography,
   message
 } from 'antd'
-import { ArrowRightOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { ArrowRightOutlined, SearchOutlined } from '@ant-design/icons'
 import {
-  getAIEvaluationAttempt,
-  getAIEvaluationRun,
-  listAIEvaluationRuns,
-  recordAIHumanReview
+  getAIEvaluationCandidateV2,
+  getAIEvaluationRunV2,
+  recordAIHumanReviewV2
 } from '@/api/path/aiGovernance'
 import type {
-  AIEvaluationRun,
-  AIEvaluationRunSummary,
-  AIReviewAttempt,
-  AIReviewAttemptSummary,
+  AIEvaluationCandidateEvidenceV2,
+  AIEvaluationCandidateV2,
+  AIEvaluationRunV2,
   AIReviewDecision,
   AIReviewRole
 } from '@/api/path/aiGovernance'
 import { JsonEvidence } from '../components/JsonEvidence'
-import { AttemptRecheckPanel } from '../components/AttemptRecheckPanel'
-import {
-  errorMessage,
-  evaluationStatusTag,
-  reviewDecisionTag,
-  reviewRoleLabel
-} from '../presentation'
+import { errorMessage, evaluationStatusTag, reviewDecisionTag, reviewRoleLabel } from '../presentation'
 
 const { Paragraph, Text, Title } = Typography
+const REQUIRED_ROLES: AIReviewRole[] = ['assessment_semantics', 'safety_product']
 
-function renderAssertionStatus(value: string) {
-  return <Tag color={value === 'passed' ? 'green' : 'red'}>{value}</Tag>
-}
-
-export interface QueueItem extends AIReviewAttemptSummary {
+export interface QueueItem extends AIEvaluationCandidateV2 {
   runID: string
+  caseID: string
+  slotOrdinal: number
+  missing_roles: AIReviewRole[]
 }
 
-export const buildReviewQueue = (runs: AIEvaluationRun[]): QueueItem[] => runs.flatMap((run) =>
-  run.can_review
-    ? run.attempts
-      .filter((attempt) => !attempt.failure && attempt.missing_roles.length > 0)
-      .map((attempt) => ({ ...attempt, runID: run.run_id }))
-    : [])
+export const buildReviewQueue = (runs: AIEvaluationRunV2[]): QueueItem[] => runs.flatMap((run) => {
+  if (run.status !== 'awaiting_review') return []
+  return run.slots.flatMap((slot) => {
+    if (!slot.candidate?.review_ready) return []
+    const recorded = new Set(
+      run.human_reviews
+        .filter((review) => review.candidate_id === slot.candidate?.candidate_id)
+        .map((review) => review.role)
+    )
+    const missingRoles = REQUIRED_ROLES.filter((role) => !recorded.has(role))
+    return missingRoles.length
+      ? [{
+        ...slot.candidate,
+        runID: run.run_id,
+        caseID: slot.case_id,
+        slotOrdinal: slot.slot_ordinal,
+        missing_roles: missingRoles
+      }]
+      : []
+  })
+})
 
 const standardFacts = (input: unknown): unknown => {
   if (!input || typeof input !== 'object') return input
@@ -66,220 +73,131 @@ const standardFacts = (input: unknown): unknown => {
 }
 
 export const HumanReviewWorkspace: React.FC = () => {
-  const [runCatalog, setRunCatalog] = useState<AIEvaluationRunSummary[]>([])
-  const [selectedRun, setSelectedRun] = useState<AIEvaluationRun | null>(null)
-  const [selectedQueueItem, setSelectedQueueItem] = useState<QueueItem | null>(null)
-  const [attemptDetail, setAttemptDetail] = useState<AIReviewAttempt | null>(null)
+  const [runID, setRunID] = useState('')
+  const [run, setRun] = useState<AIEvaluationRunV2 | null>(null)
+  const [selected, setSelected] = useState<QueueItem | null>(null)
+  const [detail, setDetail] = useState<AIEvaluationCandidateEvidenceV2 | null>(null)
   const [role, setRole] = useState<AIReviewRole | undefined>()
   const [decision, setDecision] = useState<AIReviewDecision>('approve')
   const [reason, setReason] = useState('')
-  const [manualRunID, setManualRunID] = useState('')
   const [loading, setLoading] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
-  const selectedRunIDRef = useRef('')
 
-  const loadRunDetails = useCallback(async (
-    runID: string,
-    fallbackMessage = '评测 Run 详情获取失败'
-  ): Promise<AIEvaluationRun | null> => {
+  const queue = useMemo(() => buildReviewQueue(run ? [run] : []), [run])
+
+  const openCandidate = async (item: QueueItem) => {
+    setSelected(item)
+    setDetail(null)
+    setRole(item.missing_roles[0])
+    setReason('')
     setDetailLoading(true)
-    const [requestError, response] = await getAIEvaluationRun(runID)
+    const [requestError, response] = await getAIEvaluationCandidateV2(item.runID, item.candidate_id)
     setDetailLoading(false)
     if (requestError || !response) {
-      message.error(errorMessage(requestError, fallbackMessage))
-      return null
-    }
-    const run = response.data
-    selectedRunIDRef.current = run.run_id
-    setSelectedRun(run)
-    setRunCatalog((current) => [run, ...current.filter((item) => item.run_id !== run.run_id)])
-    setSelectedQueueItem(null)
-    setAttemptDetail(null)
-    setRole(undefined)
-    setReason('')
-    return run
-  }, [])
-
-  const loadQueue = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    const [requestError, response] = await listAIEvaluationRuns({ status: 'awaiting_review', limit: 100 })
-    setLoading(false)
-    if (requestError || !response) {
-      setRunCatalog([])
-      setError(errorMessage(requestError, '待审核 Run 列表获取失败'))
+      message.error(errorMessage(requestError, 'Candidate 审核证据获取失败'))
       return
     }
-    const items = response.data?.items || []
-    setRunCatalog(items)
-    if (!items.length) {
-      selectedRunIDRef.current = ''
-      setSelectedRun(null)
-      setSelectedQueueItem(null)
-      setAttemptDetail(null)
-      return
-    }
-    const selectedID = items.some((item) => item.run_id === selectedRunIDRef.current)
-      ? selectedRunIDRef.current
-      : items[0].run_id
-    await loadRunDetails(selectedID, '待审核 Run 详情获取失败')
-  }, [loadRunDetails])
-
-  useEffect(() => {
-    loadQueue()
-  }, [loadQueue])
-
-  const queue = useMemo<QueueItem[]>(
-    () => buildReviewQueue(selectedRun ? [selectedRun] : []),
-    [selectedRun]
-  )
-
-  const loadRunByID = async (runID: string) => {
-    if (!runID.trim()) return
-    const run = await loadRunDetails(runID.trim(), '指定评测 Run 获取失败')
-    if (!run) return
-    const first = buildReviewQueue([run])[0]
-    if (first) await openAttempt({ ...first, runID: run.run_id }, run)
+    setDetail(response.data)
   }
 
-  const openAttempt = async (item: QueueItem, knownRun?: AIEvaluationRun) => {
-    setSelectedQueueItem(item)
-    setAttemptDetail(null)
-    setReason('')
-    setRole(item.missing_roles[0])
-    const run = knownRun || (selectedRun?.run_id === item.runID ? selectedRun : null)
-    setSelectedRun(run)
-    setDetailLoading(true)
-    const [requestError, response] = await getAIEvaluationAttempt(item.runID, item.case_id, item.attempt)
-    setDetailLoading(false)
+  const loadRun = async (value: string) => {
+    if (!value.trim()) return
+    setLoading(true)
+    const [requestError, response] = await getAIEvaluationRunV2(value.trim())
+    setLoading(false)
     if (requestError || !response) {
-      message.error(errorMessage(requestError, '评测证据获取失败'))
+      message.error(errorMessage(requestError, 'v2 评测 Run 获取失败'))
       return
     }
-    setAttemptDetail(response.data)
+    const nextRun = response.data
+    setRun(nextRun)
+    setRunID(nextRun.run_id)
+    setSelected(null)
+    setDetail(null)
+    const first = buildReviewQueue([nextRun])[0]
+    if (first) await openCandidate(first)
   }
 
   const submitReview = async () => {
-    if (!selectedRun?.can_review || !selectedQueueItem || selectedQueueItem.failure || !role || !reason.trim()) return
+    if (!run || !selected || !role || !reason.trim()) return
     setSubmitting(true)
-    const [requestError, response] = await recordAIHumanReview(selectedQueueItem.runID, {
-      case_id: selectedQueueItem.case_id,
-      attempt: selectedQueueItem.attempt,
+    const [requestError, response] = await recordAIHumanReviewV2(run.run_id, {
+      candidate_id: selected.candidate_id,
       role,
       decision,
       reason: reason.trim()
     })
     setSubmitting(false)
     if (requestError || !response) {
-      message.error(errorMessage(requestError, '人工审核提交失败'))
+      message.error(errorMessage(requestError, 'Candidate 人工审核提交失败'))
       return
     }
-    message.success('审核意见已记录，审核人身份由服务端可信令牌确认')
-    const current = response.data
-    selectedRunIDRef.current = current.run_id
-    setSelectedRun(current)
-    setRunCatalog((values) => [current, ...values.filter((item) => item.run_id !== current.run_id)])
-    const next = current.attempts.find((attempt) => attempt.missing_roles.length > 0)
-    if (next) {
-      await openAttempt({ ...next, runID: current.run_id }, current)
-    } else {
-      setSelectedQueueItem(null)
-      setAttemptDetail(null)
+    const nextRun = response.data
+    setRun(nextRun)
+    message.success('审核意见已记录；审核人身份和双角色隔离由服务端确认')
+    const next = buildReviewQueue([nextRun])[0]
+    if (next) await openCandidate(next)
+    else {
+      setSelected(null)
+      setDetail(null)
       setRole(undefined)
       setReason('')
     }
   }
 
-  const currentIndex = selectedQueueItem
-    ? queue.findIndex((item) => item.runID === selectedQueueItem.runID &&
-      item.case_id === selectedQueueItem.case_id && item.attempt === selectedQueueItem.attempt)
-    : -1
+  const currentIndex = selected ? queue.findIndex((item) => item.candidate_id === selected.candidate_id) : -1
   const nextQueueItem = currentIndex >= 0 ? queue[currentIndex + 1] : queue[0]
-  const reviewPercent = selectedRun?.progress.required_reviews
-    ? Math.round(selectedRun.progress.recorded_reviews / selectedRun.progress.required_reviews * 100)
-    : 0
+  const requiredReviews = (run?.required_candidates || 0) * 2
+  const reviewPercent = requiredReviews ? Math.round((run?.human_reviews.length || 0) / requiredReviews * 100) : 0
 
   return (
     <div className="ai-governance-workspace">
       <div className="ai-governance-section-heading">
         <div>
-          <Title level={4}>人工审核台</Title>
+          <Title level={4}>Candidate 人工审核台 v2</Title>
           <Paragraph type="secondary">
-            待审核队列由 awaiting_review Run 的缺失角色实时派生；同一审核人不能完成同一输出的两个角色。
+            当前没有 v2 待审列表接口；输入精确 Run ID 后，从 review_ready Candidate 和已记录角色派生队列。
           </Paragraph>
         </div>
-        <Space>
-          <Select
-            value={selectedRun?.run_id}
-            placeholder="选择待审核 Run"
-            loading={loading}
-            options={runCatalog.map((run) => ({
-              value: run.run_id,
-              label: `Run ${run.run_id}`
-            }))}
-            onChange={loadRunByID}
-            style={{ width: 220 }}
-          />
-          <Input.Search
-            value={manualRunID}
-            onChange={(event) => setManualRunID(event.target.value)}
-            onSearch={loadRunByID}
-            enterButton={<SearchOutlined />}
-            placeholder="按 Run ID 定位"
-            style={{ width: 280 }}
-          />
-          <Button icon={<ReloadOutlined />} loading={loading} onClick={loadQueue}>刷新队列</Button>
-        </Space>
+        <Input.Search
+          value={runID}
+          onChange={(event) => setRunID(event.target.value)}
+          onSearch={loadRun}
+          enterButton={<SearchOutlined />}
+          placeholder="输入 awaiting_review v2 Run ID"
+          style={{ width: 320 }}
+          loading={loading}
+        />
       </div>
 
-      {error ? (
-        <Alert
-          type="warning"
-          showIcon
-          message="待审核列表接口暂不可用"
-          description={`${error}。仍可使用右上角 Run ID 精确定位审核证据。`}
-        />
-      ) : null}
-
-      {selectedRun && !selectedRun.can_review ? (
+      {run && run.status !== 'awaiting_review' ? (
         <Alert
           className="ai-governance-inline-alert"
-          type="error"
+          type="warning"
           showIcon
-          message="当前 Run 不可人工审核"
-          description={selectedRun.progress.failed_attempts > 0
-            ? `检测到 ${selectedRun.progress.failed_attempts} 条技术失败证据。请在“评测发布”工作区打开只读详情；本页不会提供审核按钮。`
-            : '服务端未授权该 Run 进入人工审核，请返回评测发布工作区核验状态。'}
+          message={`当前 Run 状态为 ${run.status}，不可审核`}
+          description="只有服务端已收集齐 Candidate 与语义收据并进入 awaiting_review 后，页面才派生审核队列。"
         />
       ) : null}
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={7}>
-          <Card
-            title={`当前 Run 待审核证据（${queue.length}）`}
-            className="ai-governance-review-queue"
-            loading={loading}
-          >
+          <Card title={`当前 Run 待审核 Candidate（${queue.length}）`} loading={loading}>
             <List
               dataSource={queue}
-              locale={{ emptyText: <Empty description="当前没有待审核证据" /> }}
+              locale={{ emptyText: <Empty description="请输入可审核的 v2 Run ID" /> }}
               renderItem={(item) => (
                 <List.Item
-                  className={selectedQueueItem?.runID === item.runID &&
-                    selectedQueueItem.case_id === item.case_id &&
-                    selectedQueueItem.attempt === item.attempt ? 'is-selected' : ''}
-                  onClick={() => openAttempt(item)}
+                  className={selected?.candidate_id === item.candidate_id ? 'is-selected' : ''}
+                  onClick={() => openCandidate(item)}
                 >
                   <List.Item.Meta
-                    title={<Space><Text code>{item.case_id}</Text><Tag>#{item.attempt}</Tag></Space>}
+                    title={<Space><Text code>{item.caseID}</Text><Tag>Slot {item.slotOrdinal}</Tag></Space>}
                     description={(
                       <Space direction="vertical" size={2}>
-                        <Text type="secondary">Run {item.runID}</Text>
-                        <Space wrap>
-                          {item.missing_roles.map((value) => <Tag key={value}>{reviewRoleLabel(value)}</Tag>)}
-                        </Space>
+                        <Text type="secondary" copyable>{item.candidate_id}</Text>
+                        <Space wrap>{item.missing_roles.map((value) => <Tag key={value}>{reviewRoleLabel(value)}</Tag>)}</Space>
                       </Space>
                     )}
                   />
@@ -290,42 +208,28 @@ export const HumanReviewWorkspace: React.FC = () => {
         </Col>
 
         <Col xs={24} lg={17}>
-          {!selectedQueueItem ? (
-            <Card><Empty description="请选择一条待审核证据，或输入 Run ID 定位" /></Card>
-          ) : (
+          {!selected ? <Card><Empty description="请选择 Candidate" /></Card> : (
             <Card
               loading={detailLoading}
-              title={<Space><Text code>{selectedQueueItem.case_id}</Text><Tag>第 {selectedQueueItem.attempt} 次</Tag></Space>}
+              title={<Space><Text code>{selected.caseID}</Text><Tag>Slot {selected.slotOrdinal}</Tag></Space>}
               extra={nextQueueItem ? (
-                <Button icon={<ArrowRightOutlined />} onClick={() => openAttempt(nextQueueItem)}>下一条待审核</Button>
+                <Button icon={<ArrowRightOutlined />} onClick={() => openCandidate(nextQueueItem)}>下一条</Button>
               ) : null}
             >
-              {selectedRun ? (
+              {run ? (
                 <Space direction="vertical" className="ai-governance-review-progress">
-                  <Space>{evaluationStatusTag(selectedRun.status)}<Text code>{selectedRun.run_id}</Text></Space>
+                  <Space>{evaluationStatusTag(run.status)}<Text code>{run.run_id}</Text></Space>
                   <Progress percent={reviewPercent} />
-                  <Text type="secondary">
-                    已记录 {selectedRun.progress.recorded_reviews}/{selectedRun.progress.required_reviews || 70} 条人工审核
-                  </Text>
+                  <Text type="secondary">已记录 {run.human_reviews.length}/{requiredReviews} 条审核</Text>
                 </Space>
               ) : null}
-
-              <Alert
-                type="info"
-                showIcon
-                message="审核视角由服务端最终授权"
-                description="页面只展示当前证据缺失的审核视角；当前服务端以 org_admin 能力保护两个视角，尚未提供按审核人返回可选视角的查询契约。"
-              />
 
               <div className="ai-governance-review-form">
                 <Select<AIReviewRole>
                   value={role}
                   placeholder="选择审核视角"
                   onChange={setRole}
-                  options={selectedQueueItem.missing_roles.map((value) => ({
-                    value,
-                    label: reviewRoleLabel(value)
-                  }))}
+                  options={selected.missing_roles.map((value) => ({ value, label: reviewRoleLabel(value) }))}
                   style={{ minWidth: 190 }}
                 />
                 <Radio.Group value={decision} onChange={(event) => setDecision(event.target.value)}>
@@ -343,7 +247,7 @@ export const HumanReviewWorkspace: React.FC = () => {
                 <Button
                   type="primary"
                   danger={decision === 'reject'}
-                  disabled={!role || !reason.trim()}
+                  disabled={!role || !reason.trim() || !detail}
                   loading={submitting}
                   onClick={submitReview}
                 >
@@ -351,44 +255,30 @@ export const HumanReviewWorkspace: React.FC = () => {
                 </Button>
               </div>
 
-              {attemptDetail ? (
+              {detail ? (
                 <>
-                  {attemptDetail.failure ? (
-                    <Alert
-                      type="error"
-                      showIcon
-                      message={`${attemptDetail.failure.stage}: ${attemptDetail.failure.code}`}
-                      description={(
-                        <Space>
-                          <Text>{attemptDetail.failure.safe_message}</Text>
-                          {attemptDetail.failure.result_unknown ? <Tag color="red">result_unknown</Tag> : null}
-                        </Space>
-                      )}
-                    />
-                  ) : null}
                   <Row gutter={[16, 16]} className="ai-governance-evidence-grid">
                     <Col xs={24} xl={12}>
-                      <Card size="small" title="冻结的测评输入与标准事实">
-                        <JsonEvidence value={standardFacts(attemptDetail.assessment_input)} />
+                      <Card size="small" title="冻结的标准事实">
+                        <JsonEvidence value={standardFacts(detail.assessment_input)} />
                       </Card>
                       <Card size="small" title="完整冻结输入">
-                        <JsonEvidence value={attemptDetail.assessment_input} />
+                        <JsonEvidence value={detail.assessment_input} />
                       </Card>
                     </Col>
                     <Col xs={24} xl={12}>
-                      <Card size="small" title="AI 原始输出">
-                        <JsonEvidence value={attemptDetail.raw_provider_output} emptyText="Provider 未返回可审核输出" />
+                      <Card size="small" title="Candidate 原始输出">
+                        <JsonEvidence value={detail.accepted_generation_execution.raw_output} />
                       </Card>
-                      <Card size="small" title="规范化输出、引用与建议">
-                        <JsonEvidence value={attemptDetail.normalized_output} emptyText="输出未通过结构化解析" />
+                      <Card size="small" title="Candidate 规范化输出">
+                        <JsonEvidence value={detail.accepted_generation_execution.normalized_output} />
                       </Card>
                     </Col>
                   </Row>
-
-                  <Card size="small" title="结构、安全与事实引用校验">
+                  <Card size="small" title="确定性断言">
                     <Table
                       rowKey={(item) => `${item.type}:${item.scope}:${item.ordinal}`}
-                      dataSource={attemptDetail.assertions}
+                      dataSource={detail.candidate.assertions}
                       pagination={false}
                       size="small"
                       columns={[
@@ -398,36 +288,29 @@ export const HumanReviewWorkspace: React.FC = () => {
                         {
                           title: '结果',
                           dataIndex: 'status',
-                          render: renderAssertionStatus
+                          render: function renderAssertionStatus(value) {
+                            return <Tag color={value === 'passed' ? 'green' : 'red'}>{value}</Tag>
+                          }
                         },
                         { title: '证据', dataIndex: 'detail' }
                       ]}
                     />
                   </Card>
-
-                  {attemptDetail.semantic ? (
-                    <Card size="small" title="独立模型裁判">
+                  {detail.accepted_semantic_execution?.semantic_result ? (
+                    <Card size="small" title="已接受的独立语义裁判">
                       <Descriptions size="small" bordered column={5}>
-                        {Object.entries(attemptDetail.semantic.scores).map(([key, value]) => (
+                        {Object.entries(detail.accepted_semantic_execution.semantic_result.scores).map(([key, value]) => (
                           <Descriptions.Item key={key} label={key}>{value}</Descriptions.Item>
                         ))}
                       </Descriptions>
-                      <Paragraph className="ai-governance-semantic-rationale">
-                        {attemptDetail.semantic.rationale}
-                      </Paragraph>
+                      <Paragraph>{detail.accepted_semantic_execution.semantic_result.rationale}</Paragraph>
+                      <JsonEvidence value={detail.accepted_semantic_execution.normalized_output} />
                     </Card>
                   ) : null}
-
-                  <AttemptRecheckPanel
-                    runID={selectedQueueItem.runID}
-                    caseID={attemptDetail.case_id}
-                    attempt={attemptDetail.attempt}
-                  />
-
-                  {attemptDetail.reviews.length ? (
+                  {detail.human_reviews.length ? (
                     <Card size="small" title="已记录审核">
                       <List
-                        dataSource={attemptDetail.reviews}
+                        dataSource={detail.human_reviews}
                         renderItem={(item) => (
                           <List.Item>
                             <List.Item.Meta

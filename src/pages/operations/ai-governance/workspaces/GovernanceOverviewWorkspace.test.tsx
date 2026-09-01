@@ -49,10 +49,11 @@ describe('GovernanceOverviewWorkspace', () => {
     }))
   })
 
-  it('loads real governance facts and recommends the first missing release object', async () => {
+  it('keeps the legacy v1 catalog separate from an unavailable v2 inventory', async () => {
     render(<MemoryRouter><GovernanceOverviewWorkspace /></MemoryRouter>)
 
-    expect(await screen.findByText('创建首个候选 Profile')).toBeInTheDocument()
+    expect(await screen.findByText('先恢复治理目录可见性')).toBeInTheDocument()
+    expect(screen.getByText('v2 Run 全量状态不可判定')).toBeInTheDocument()
     expect(listProfilesMock).toHaveBeenCalledWith({ limit: 100 })
     expect(listRunsMock).toHaveBeenCalledWith({ limit: 100 })
     expect(screen.getByText('Profile 发布不等于用户流量开放')).toBeInTheDocument()

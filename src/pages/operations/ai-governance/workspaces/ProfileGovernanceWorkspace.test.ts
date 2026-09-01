@@ -1,4 +1,4 @@
-import type { AIEvaluationRun, AIProfile } from '@/api/path/aiGovernance'
+import type { AIEvaluationRunV2, AIProfile } from '@/api/path/aiGovernance'
 import { publicationBlockers } from './ProfileGovernanceWorkspace'
 
 const profile = {
@@ -20,12 +20,12 @@ const approvedRun = {
   status: 'approved',
   release: {
     profile: { id: 'participant-default', version: '1.0.0', fingerprint: 'profile-fingerprint' },
-    prompt: { template_id: 'participant-v1', version: '1.0.0' },
-    provider: { route: 'participant-primary' },
+    prompt: { id: 'participant-v1', version: '1.0.0' },
+    generation_route: { id: 'participant-primary' },
     input_schema: { version: 'ai-explanation-input/v1' },
     output_schema: { version: 'ai-explanation-output/v1' }
   }
-} as AIEvaluationRun
+} as AIEvaluationRunV2
 
 describe('Profile publication evidence comparison', () => {
   it('accepts only an approved, exactly matching release identity', () => {
@@ -39,9 +39,9 @@ describe('Profile publication evidence comparison', () => {
       release: {
         ...approvedRun.release,
         profile: { ...approvedRun.release.profile, fingerprint: 'other-fingerprint' },
-        provider: { ...approvedRun.release.provider, route: 'participant-fallback' }
+        generation_route: { ...approvedRun.release.generation_route, id: 'participant-fallback' }
       }
-    } as AIEvaluationRun
+    } as AIEvaluationRunV2
 
     expect(publicationBlockers(profile, drifted)).toEqual(expect.arrayContaining([
       expect.stringContaining('approved'),

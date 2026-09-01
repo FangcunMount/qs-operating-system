@@ -1,4 +1,4 @@
-import { internalGet, internalPost } from '@/api/qsServer'
+import { internalGet, internalPost, internalV2Get, internalV2Post } from '@/api/qsServer'
 import type { QSResponse } from '@/types/qs'
 import type {
   AIAttemptRecheck,
@@ -6,6 +6,9 @@ import type {
   AIEvaluationListQuery,
   AIEvaluationRun,
   AIEvaluationRunPage,
+  AIEvaluationRunV2,
+  AIEvaluationCandidateEvidenceV2,
+  AIEvaluationOutputV2,
   AIParticipantCapacity,
   AIParticipantRetryRequest,
   AIParticipantRetryResult,
@@ -76,11 +79,14 @@ export const startAIEvaluationAttemptRecheck = (
   attempt: number,
   reason: string
 ): Promise<[any, QSResponse<AIAttemptRecheck> | undefined]> =>
-  internalPost<AIAttemptRecheck>(attemptRecheckPath(runID, caseID, attempt), {
-    confirm: true,
-    expected_provider_invocations: 2,
-    reason
-  })
+  internalV2Post<AIAttemptRecheck>(
+    `${BASE_PATH}/legacy-prompt-evaluations/${encode(runID)}/attempts/${encode(caseID)}/${attempt}/rechecks`,
+    {
+      confirm: true,
+      expected_provider_invocations: 2,
+      reason
+    }
+  )
 
 export const getAIEvaluationCapacity = (): Promise<[any, QSResponse<AIEvaluationCapacity> | undefined]> =>
   internalGet<AIEvaluationCapacity>(`${BASE_PATH}/prompt-evaluation-capacity`)
@@ -88,44 +94,62 @@ export const getAIEvaluationCapacity = (): Promise<[any, QSResponse<AIEvaluation
 export const getAIParticipantCapacity = (): Promise<[any, QSResponse<AIParticipantCapacity> | undefined]> =>
   internalGet<AIParticipantCapacity>(`${BASE_PATH}/participant-capacity`)
 
-export const startAIEvaluation = (
+export const startAIEvaluationV2 = (
   expectedProviderInvocations: number,
   reason: string
-): Promise<[any, QSResponse<AIEvaluationRun> | undefined]> =>
-  internalPost<AIEvaluationRun>(`${BASE_PATH}/prompt-evaluations`, {
+): Promise<[any, QSResponse<AIEvaluationRunV2> | undefined]> =>
+  internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations`, {
     confirm: true,
     expected_provider_invocations: expectedProviderInvocations,
     reason
   })
 
-export const recoverAIEvaluation = (
+export const getAIEvaluationRunV2 = (
+  runID: string
+): Promise<[any, QSResponse<AIEvaluationRunV2> | undefined]> =>
+  internalV2Get<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}`)
+
+export const getAIEvaluationCandidateV2 = (
   runID: string,
-  expectedProviderInvocations: number,
+  candidateID: string
+): Promise<[any, QSResponse<AIEvaluationCandidateEvidenceV2> | undefined]> =>
+  internalV2Get<AIEvaluationCandidateEvidenceV2>(
+    `${BASE_PATH}/prompt-evaluations/${encode(runID)}/candidates/${encode(candidateID)}`
+  )
+
+export const getAIEvaluationOutputV2 = (
+  runID: string,
+  executionID: string
+): Promise<[any, QSResponse<AIEvaluationOutputV2> | undefined]> =>
+  internalV2Get<AIEvaluationOutputV2>(
+    `${BASE_PATH}/prompt-evaluations/${encode(runID)}/executions/${encode(executionID)}/output`
+  )
+
+export const recordAIHumanReviewV2 = (
+  runID: string,
+  input: { candidate_id: string; role: AIReviewRole; decision: AIReviewDecision; reason: string }
+): Promise<[any, QSResponse<AIEvaluationRunV2> | undefined]> =>
+  internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/reviews`, input)
+
+export const finalizeAIEvaluationV2 = (
+  runID: string,
   reason: string
-): Promise<[any, QSResponse<AIEvaluationRun> | undefined]> =>
-  internalPost<AIEvaluationRun>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/recover`, {
-    confirm: true,
-    expected_provider_invocations: expectedProviderInvocations,
-    reason
+): Promise<[any, QSResponse<AIEvaluationRunV2> | undefined]> =>
+  internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/finalize`, { reason })
+
+export const resolveAIEvaluationResultUnknownV2 = (
+  runID: string,
+  input: {
+    execution_id: string
+    decision: 'authorize_replacement' | 'cancel_run'
+    acknowledged_duplicate_call_and_cost_risk: boolean
+    reason: string
+  }
+): Promise<[any, QSResponse<AIEvaluationRunV2> | undefined]> =>
+  internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/result-unknown/resolve`, {
+    ...input,
+    confirm: true
   })
-
-export const cancelAIEvaluation = (
-  runID: string,
-  reason: string
-): Promise<[any, QSResponse<AIEvaluationRun> | undefined]> =>
-  internalPost<AIEvaluationRun>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/cancel`, { reason })
-
-export const recordAIHumanReview = (
-  runID: string,
-  input: { case_id: string; attempt: number; role: AIReviewRole; decision: AIReviewDecision; reason: string }
-): Promise<[any, QSResponse<AIEvaluationRun> | undefined]> =>
-  internalPost<AIEvaluationRun>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/reviews`, input)
-
-export const finalizeAIEvaluation = (
-  runID: string,
-  reason: string
-): Promise<[any, QSResponse<AIEvaluationRun> | undefined]> =>
-  internalPost<AIEvaluationRun>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/finalize`, { reason })
 
 export const listAIProfiles = (
   query: AIProfileListQuery = {}
