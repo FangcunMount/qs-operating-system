@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Button,
@@ -18,6 +18,8 @@ import {
 } from 'antd'
 import { CaretRightOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import {
+  cancelAIEvaluationRunV2,
+  listAIEvaluationRunsV2,
   finalizeAIEvaluationV2,
   getAIEvaluationCapacity,
   getAIEvaluationOutputV2,
@@ -31,6 +33,8 @@ import type {
   AIEvaluationOutputV2,
   AIEvaluationRunSummary,
   AIEvaluationRunV2,
+  AIEvaluationRunSummaryV2,
+  AIEvaluationV2Status,
   AIResultUnknownDecision
 } from '@/api/path/aiGovernance'
 import { JsonEvidence } from '../components/JsonEvidence'
@@ -76,6 +80,14 @@ const unresolvedExecutions = (run?: AIEvaluationRunV2 | null): AIEvaluationExecu
 }
 
 export const EvaluationReleaseWorkspace: React.FC = () => {
+  const [runs, setRuns] = useState<AIEvaluationRunSummaryV2[]>([])
+  const [runStatus, setRunStatus] = useState<AIEvaluationV2Status | undefined>()
+  const [cursors, setCursors] = useState<string[]>([''])
+  const [nextCursor, setNextCursor] = useState('')
+  const [listLoading, setListLoading] = useState(false)
+  const [listError, setListError] = useState('')
+  const listRequest = useRef(0)
+  const [operationRun, setOperationRun] = useState<AIEvaluationRunV2 | null>(null)
   const [legacyRuns, setLegacyRuns] = useState<AIEvaluationRunSummary[]>([])
   const [legacyError, setLegacyError] = useState('')
   const [selected, setSelected] = useState<AIEvaluationRunV2 | null>(null)
@@ -83,13 +95,35 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [commandLoading, setCommandLoading] = useState(false)
   const [startInvocations, setStartInvocations] = useState(0)
-  const [command, setCommand] = useState<'start' | 'finalize' | null>(null)
+  const [command, setCommand] = useState<'start' | 'finalize' | 'cancel' | 'discard' | null>(null)
   const [output, setOutput] = useState<AIEvaluationOutputV2 | null>(null)
   const [outputLoading, setOutputLoading] = useState(false)
   const [unknownExecution, setUnknownExecution] = useState<AIEvaluationExecutionV2 | null>(null)
   const [unknownDecision, setUnknownDecision] = useState<AIResultUnknownDecision>('authorize_replacement')
   const [unknownRiskAccepted, setUnknownRiskAccepted] = useState(false)
   const [unknownReason, setUnknownReason] = useState('')
+
+  const cursor = cursors[cursors.length - 1]
+  const loadRuns = useCallback(async () => {
+    const requestID = ++listRequest.current
+    setListLoading(true)
+    const [requestError, response] = await listAIEvaluationRunsV2({ status: runStatus, cursor, limit: 20 })
+    if (requestID !== listRequest.current) return
+    setListLoading(false)
+    if (requestError || !response) {
+      setListError(errorMessage(requestError, '最近评测获取失败'))
+      return
+    }
+    setListError('')
+    setRuns(response.data.items || [])
+    setNextCursor(response.data.next_cursor || '')
+  }, [runStatus, cursor])
+
+  useEffect(() => {
+    setRuns([])
+    setNextCursor('')
+    void loadRuns()
+  }, [loadRuns])
 
   const loadLegacyHistory = useCallback(async () => {
     const [requestError, response] = await listAIEvaluationRuns({ limit: 20 })
@@ -126,10 +160,12 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
   }, [loadV2Run])
 
   useSimplePolling({
-    enabled: selected?.status === 'requested' || selected?.status === 'collecting',
+    enabled: selected?.status === 'requested' || selected?.status === 'collecting' ||
+      runs.some((run) => run.status === 'requested' || run.status === 'collecting'),
     intervalMs: POLLING_INTERVAL_MS,
     onTick: async () => {
-      if (selected) await loadV2Run(selected.run_id, false)
+      await loadRuns()
+      if (selected && !command) await loadV2Run(selected.run_id, false)
     }
   })
 
@@ -150,25 +186,50 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
     setCommand('start')
   }
 
+  const prepareCancellation = async (runID: string) => {
+    const current = await loadV2Run(runID)
+    if (!current) return
+    if (!current.can_cancel && !current.can_discard) {
+      message.warning('当前状态不能取消：请查看执行状态，先处理发送中或结果未知的调用。')
+      void loadRuns()
+      return
+    }
+    setOperationRun(current)
+    setCommand(current.can_discard ? 'discard' : 'cancel')
+  }
+
   const executeCommand = async (reason: string) => {
-    if (!command) return
+    if (!command || ((command === 'cancel' || command === 'discard') && !operationRun)) return
     setCommandLoading(true)
     const result = command === 'start'
       ? await startAIEvaluationV2(startInvocations, reason)
-      : selected
-        ? await finalizeAIEvaluationV2(selected.run_id, reason)
-        : [new Error('missing run'), undefined] as const
+      : (command === 'cancel' || command === 'discard') && operationRun
+        ? await cancelAIEvaluationRunV2(operationRun.run_id, operationRun.version, reason, command === 'discard')
+        : selected
+          ? await finalizeAIEvaluationV2(selected.run_id, reason)
+          : [new Error('missing run'), undefined] as const
     setCommandLoading(false)
     const [requestError, response] = result
     if (requestError || !response) {
       message.error(errorMessage(requestError, 'v2 评测治理操作失败'))
+      void loadRuns()
+      if (command === 'start') {
+        setCommand(null)
+        message.info('若提示 Run 已存在，请从最近评测列表查看同一版本的 Run。')
+      } else if ((command === 'cancel' || command === 'discard') && operationRun) {
+        setCommand(null)
+        void loadV2Run(operationRun.run_id)
+        message.info('Run 状态可能已变化，请刷新后重新选择操作。')
+      }
       return
     }
     setSelected(response.data)
     setManualRunID(response.data.run_id)
     rememberLastV2RunID(response.data.run_id)
     setCommand(null)
-    message.success(command === 'start' ? 'v2 评测已启动' : 'v2 评测已终审')
+    setOperationRun(null)
+    void loadRuns()
+    message.success(command === 'start' ? 'v2 评测已启动' : command === 'finalize' ? 'v2 评测已终审' : '本轮评测已结束，证据和操作理由已保留')
   }
 
   const openOutput = async (execution: AIEvaluationExecutionV2) => {
@@ -201,6 +262,7 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
     setUnknownExecution(null)
     setUnknownRiskAccepted(false)
     setUnknownReason('')
+    void loadRuns()
     message.success('result_unknown 决策已记录')
   }
 
@@ -219,7 +281,7 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
         <div>
           <Title level={4}>评测发布 v2</Title>
           <Paragraph type="secondary">
-            新评测只走 v2；当前没有 v2 列表接口，启动响应和精确 Run ID 是唯一可信入口。
+            从最近评测查看进度、阻塞原因和审核状态，也可输入 Run ID 精确查询。
           </Paragraph>
         </div>
         <Space wrap>
@@ -245,11 +307,62 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
         </Space>
       </div>
 
+      <Card title="最近评测" extra={
+        <Space>
+          <Select<AIEvaluationV2Status | undefined>
+            aria-label="评测状态筛选" value={runStatus} allowClear placeholder="全部状态" style={{ width: 160 }}
+            onChange={(value) => { setRunStatus(value); setCursors(['']) }}
+            options={[
+              { value: 'requested', label: '等待执行' }, { value: 'collecting', label: '执行中' },
+              { value: 'blocked', label: '已阻塞' }, { value: 'awaiting_review', label: '待审核' },
+              { value: 'approved', label: '已批准' }, { value: 'rejected', label: '已拒绝' },
+              { value: 'canceled', label: '已取消 / 已废弃' }
+            ]}
+          />
+          <Button onClick={() => loadRuns()} loading={listLoading}>刷新列表</Button>
+        </Space>
+      }>
+        {listError ? <Alert type="error" showIcon message={listError} /> : null}
+        <Table<AIEvaluationRunSummaryV2>
+          rowKey="run_id" loading={listLoading} dataSource={runs} pagination={false} size="small" scroll={{ x: 1000 }}
+          columns={[
+            { title: 'Run / 创建时间', key: 'run', render: function renderRunCell (_, run) { return <Space direction="vertical" size={0}>
+              <Button type="link" onClick={() => loadV2Run(run.run_id)}>{run.run_id}</Button>
+              <Text type="secondary">{formatTime(run.created_at)}</Text>
+            </Space> } },
+            { title: 'Prompt / Profile', key: 'release', render: (_, run) => `${run.prompt_version} / ${run.profile_version}` },
+            { title: '状态', dataIndex: 'status', render: evaluationStatusTag },
+            { title: '候选 / 审核', key: 'progress', render: function renderRunCell (_, run) { return <Space direction="vertical" size={0}>
+              <Text>候选 {run.accepted_candidates}/{run.required_candidates}</Text>
+              <Text>审核 {run.review_count}/{run.required_candidates * 2}</Text>
+            </Space> } },
+            { title: '最后状态说明', key: 'cause', render: (_, run) => run.last_reason || run.last_cause || '—' },
+            { title: '操作', key: 'actions', render: function renderRunCell (_, run) { return <Space>
+              <Button onClick={() => loadV2Run(run.run_id)}>查看</Button>
+              {(run.can_cancel || run.can_discard) ? <Button danger disabled={commandLoading || loading}
+                onClick={() => prepareCancellation(run.run_id)}>
+                {run.can_discard ? '废弃本轮' : '取消评测'}
+              </Button> : null}
+            </Space> } }
+          ]}
+        />
+        <Space className="ai-governance-inline-alert">
+          <Button disabled={listLoading || cursors.length <= 1} onClick={() => setCursors((values) => values.slice(0, -1))}>上一页</Button>
+          <Text>第 {cursors.length} 页</Text>
+          <Button disabled={listLoading || !nextCursor} onClick={() => setCursors((values) => [...values, nextCursor])}>下一页</Button>
+        </Space>
+      </Card>
+
       {selected ? (
         <Card
           loading={loading}
           title={<Space>{evaluationStatusTag(selected.status)}<Text code>{selected.run_id}</Text></Space>}
-          extra={canFinalize ? <Button type="primary" onClick={() => setCommand('finalize')}>终审</Button> : null}
+          extra={<Space>
+            {canFinalize ? <Button type="primary" onClick={() => setCommand('finalize')}>终审</Button> : null}
+            {(selected.can_cancel || selected.can_discard) ? <Button danger onClick={() => prepareCancellation(selected.run_id)}>
+              {selected.can_discard ? '废弃本轮' : '取消评测'}
+            </Button> : null}
+          </Space>}
         >
           <Descriptions size="small" column={3} bordered>
             <Descriptions.Item label="Candidate">
@@ -261,6 +374,12 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
             <Descriptions.Item label="未知结果">{selected.unresolved_result_unknown_count}</Descriptions.Item>
             <Descriptions.Item label="创建时间">{formatTime(selected.created_at)}</Descriptions.Item>
           </Descriptions>
+          {selected.state_transitions?.length ? <Descriptions size="small" column={1} bordered>
+            {selected.state_transitions.map((transition, index) => <Descriptions.Item key={index}
+              label={`${formatTime(transition.transitioned_at)} · ${transition.to}`}>
+              {transition.reason || transition.cause_code} · {transition.actor}
+            </Descriptions.Item>)}
+          </Descriptions> : null}
           <Progress
             className="ai-governance-inline-alert"
             percent={candidatePercent}
@@ -275,7 +394,7 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
               type="error"
               showIcon
               message="Run 已阻塞"
-              description="失败证据永久保留；只有 result_unknown 可由人工确认替换或取消。普通质量失败不会替换 Candidate。"
+              description="失败证据按审计保留策略保存。结果未知的调用需先作出明确决策；其余阻塞可取消本轮。普通质量失败不会替换 Candidate。"
             />
           ) : null}
           {unresolved.length ? (
@@ -392,11 +511,13 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
       {command ? (
         <ReasonCommandModal
           visible
-          title={command === 'start' ? '启动 v2 冻结评测' : '终审 v2 评测'}
+          title={command === 'start' ? '启动 v2 冻结评测' : command === 'finalize' ? '终审 v2 评测' : command === 'discard' ? '废弃本轮评测' : '取消评测'}
+          danger={command === 'cancel' || command === 'discard'}
           description={command === 'start'
             ? `将预留 ${startInvocations} 次 Provider 调用；所有失败继续计入可靠性。`
-            : '服务端将按冻结 G1-G5 Policy 生成不可变 approved 或 rejected 结论。'}
-          confirmText={command === 'start' ? '确认成本并启动' : '确认终审'}
+            : command === 'finalize' ? '服务端将按冻结 G1-G5 Policy 生成不可变 approved 或 rejected 结论。'
+              : `将结束 Run ${operationRun?.run_id}。已有输出、失败证据和审核记录均保留；本轮不能再用于发布，预留调用不退回。`}
+          confirmText={command === 'start' ? '确认成本并启动' : command === 'finalize' ? '确认终审' : '确认结束本轮'}
           loading={commandLoading}
           onCancel={() => setCommand(null)}
           onConfirm={executeCommand}

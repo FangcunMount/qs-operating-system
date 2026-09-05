@@ -365,7 +365,42 @@ export interface AIEvaluationGateV2 {
   }>
 }
 
+export interface AIEvaluationRunSummaryV2 {
+  run_id: string
+  version: number
+  status: AIEvaluationV2Status
+  created_at: string
+  prompt_version: string
+  profile_version: string
+  required_candidates: number
+  accepted_candidates: number
+  review_ready_candidates: number
+  review_count: number
+  unresolved_result_unknown_count: number
+  last_cause: string
+  last_reason?: string
+  can_cancel: boolean
+  can_discard: boolean
+}
+
+export interface AIEvaluationRunPageV2 {
+  items: AIEvaluationRunSummaryV2[]
+  next_cursor?: string
+}
+
 export interface AIEvaluationRunV2 {
+  canceled_at?: string
+  can_cancel?: boolean
+  can_discard?: boolean
+  state_transitions?: Array<{
+    from: AIEvaluationV2Status | null
+    to: AIEvaluationV2Status
+    cause_code: string
+    reason?: string
+    actor: string
+    transitioned_at: string
+    evidence_refs: string[]
+  }>
   schema_version: 'prompt-evaluation-evidence/v2'
   run_id: string
   version: number

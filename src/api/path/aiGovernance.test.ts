@@ -1,4 +1,6 @@
 import {
+  listAIEvaluationRunsV2,
+  cancelAIEvaluationRunV2,
   createAIProfileDraft,
   disableAIProfile,
   finalizeAIEvaluationV2,
@@ -160,5 +162,18 @@ describe('AI governance API', () => {
       accept_result_unknown_risk: true,
       reason: 'operator accepted result_unknown risk'
     })
+  })
+})
+
+it('uses the v2 Run catalog and versioned cancellation contract', async () => {
+  internalV2GetMock.mockReset().mockImplementation(() => success({ items: [] }))
+  internalV2PostMock.mockReset().mockImplementation(() => success({}))
+  await listAIEvaluationRunsV2({ status: 'blocked', cursor: 'cursor', limit: 20 })
+  expect(internalV2GetMock).toHaveBeenLastCalledWith('/interpretation/ai-explanation/prompt-evaluations', {
+    status: 'blocked', cursor: 'cursor', limit: 20
+  })
+  await cancelAIEvaluationRunV2('635960720508334638', 9, 'superseded', true)
+  expect(internalV2PostMock).toHaveBeenLastCalledWith('/interpretation/ai-explanation/prompt-evaluations/635960720508334638/cancel', {
+    expected_version: 9, reason: 'superseded', discard: true
   })
 })
