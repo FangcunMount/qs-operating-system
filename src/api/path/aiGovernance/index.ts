@@ -168,11 +168,19 @@ export const recordAIHumanReviewsV2 = (
   )
 
 export const finalizeAIEvaluationV2 = (
-  runID: string,
-  reason: string
+  runID: string, reason: string, expectedVersion: number, expectedPassed: boolean
 ): Promise<[any, QSResponse<AIEvaluationRunV2> | undefined]> =>
   normalizeResponseData(
-    internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/finalize`, { reason }),
+    internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/finalize`, {
+      reason, expected_version: expectedVersion, expected_passed: expectedPassed
+    }), normalizeAIEvaluationRunV2
+  )
+
+export const reopenAIEvaluationReviewV2 = (
+  runID: string, reason: string
+): Promise<[any, QSResponse<AIEvaluationRunV2> | undefined]> =>
+  normalizeResponseData(
+    internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/reopen-review`, { reason }),
     normalizeAIEvaluationRunV2
   )
 

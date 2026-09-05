@@ -21,6 +21,7 @@ import {
   cancelAIEvaluationRunV2,
   listAIEvaluationRunsV2,
   finalizeAIEvaluationV2,
+  reopenAIEvaluationReviewV2,
   getAIEvaluationCapacity,
   getAIEvaluationOutputV2,
   getAIEvaluationRunV2,
@@ -95,7 +96,7 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [commandLoading, setCommandLoading] = useState(false)
   const [startInvocations, setStartInvocations] = useState(0)
-  const [command, setCommand] = useState<'start' | 'finalize' | 'cancel' | 'discard' | null>(null)
+  const [command, setCommand] = useState<'start' | 'finalize' | 'reopen' | 'cancel' | 'discard' | null>(null)
   const [output, setOutput] = useState<AIEvaluationOutputV2 | null>(null)
   const [outputLoading, setOutputLoading] = useState(false)
   const [unknownExecution, setUnknownExecution] = useState<AIEvaluationExecutionV2 | null>(null)
@@ -200,13 +201,16 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
 
   const executeCommand = async (reason: string) => {
     if (!command || ((command === 'cancel' || command === 'discard') && !operationRun)) return
+    if (command === 'finalize' && !selected?.gate_preview) { message.error('请刷新并读取终审预检查'); return }
     setCommandLoading(true)
     const result = command === 'start'
       ? await startAIEvaluationV2(startInvocations, reason)
       : (command === 'cancel' || command === 'discard') && operationRun
         ? await cancelAIEvaluationRunV2(operationRun.run_id, operationRun.version, reason, command === 'discard')
         : selected
-          ? await finalizeAIEvaluationV2(selected.run_id, reason)
+          ? command === 'reopen'
+            ? await reopenAIEvaluationReviewV2(selected.run_id, reason)
+            : await finalizeAIEvaluationV2(selected.run_id, reason, selected.version, Boolean(selected.gate_preview?.passed))
           : [new Error('missing run'), undefined] as const
     setCommandLoading(false)
     const [requestError, response] = result
@@ -229,7 +233,17 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
     setCommand(null)
     setOperationRun(null)
     void loadRuns()
-    message.success(command === 'start' ? 'v2 评测已启动' : command === 'finalize' ? 'v2 评测已终审' : '本轮评测已结束，证据和操作理由已保留')
+    message.success(command === 'reopen' ? '已重开受影响候选复核，原终审已归档'
+      : command === 'start' ? 'v2 评测已启动'
+        : command === 'finalize' ? (response.data.gate?.passed ? '终审通过' : '终审已拒绝，请查看门禁原因') : '本轮评测已结束')
+  }
+
+  const openFinalization = async () => {
+    if (!selected) return
+    const [error, response] = await getAIEvaluationRunV2(selected.run_id)
+    if (error || !response?.data.gate_preview) { message.error('无法获取终审预检查，请刷新 Run'); return }
+    setSelected(response.data)
+    setCommand('finalize')
   }
 
   const openOutput = async (execution: AIEvaluationExecutionV2) => {
@@ -358,7 +372,8 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
           loading={loading}
           title={<Space>{evaluationStatusTag(selected.status)}<Text code>{selected.run_id}</Text></Space>}
           extra={<Space>
-            {canFinalize ? <Button type="primary" onClick={() => setCommand('finalize')}>终审</Button> : null}
+            {selected.can_reopen_review ? <Button onClick={() => setCommand('reopen')}>重新复核（不重新生成）</Button> : null}
+            {canFinalize ? <Button type="primary" onClick={openFinalization}>终审预检查</Button> : null}
             {(selected.can_cancel || selected.can_discard) ? <Button danger onClick={() => prepareCancellation(selected.run_id)}>
               {selected.can_discard ? '废弃本轮' : '取消评测'}
             </Button> : null}
@@ -470,6 +485,20 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
             />
           </Card>
           <ReleaseIdentityV2Card release={selected.release} />
+          {selected.gate_preview ? <Alert showIcon className="ai-governance-inline-alert"
+            type={selected.gate_preview.passed ? 'success' : 'warning'}
+            message={selected.gate_preview.passed ? '终审预检查：预计通过' : '终审预检查：当前仍有未通过门禁'}
+            description={selected.gate_preview.reasons.map((item) => `${item.gate}: ${item.detail}`).join('；')}
+          /> : null}
+          <Card title="人工审核与矛盾复核证据">
+            <Paragraph>普通通过不等于矛盾复核确认。以下记录保留审核人、角色、原文摘录及理由。</Paragraph>
+            <JsonEvidence value={selected.human_reviews} />
+          </Card>
+          {selected.review_reopenings?.length ? <Card title="历史终审与重新复核记录">
+            <Paragraph>原拒绝结论及当轮审核完整保留；新一轮只重审受影响候选。</Paragraph>
+            <JsonEvidence value={selected.review_reopenings} />
+          </Card> : null}
+
           {selected.gate ? (
             <Alert
               className="ai-governance-inline-alert"
@@ -518,13 +547,20 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
       {command ? (
         <ReasonCommandModal
           visible
-          title={command === 'start' ? '启动 v2 冻结评测' : command === 'finalize' ? '终审 v2 评测' : command === 'discard' ? '废弃本轮评测' : '取消评测'}
-          danger={command === 'cancel' || command === 'discard'}
-          description={command === 'start'
-            ? `将预留 ${startInvocations} 次 Provider 调用；所有失败继续计入可靠性。`
-            : command === 'finalize' ? '服务端将按冻结 G1-G5 Policy 生成不可变 approved 或 rejected 结论。'
-              : `将结束 Run ${operationRun?.run_id}。已有输出、失败证据和审核记录均保留；本轮不能再用于发布，预留调用不退回。`}
-          confirmText={command === 'start' ? '确认成本并启动' : command === 'finalize' ? '确认终审' : '确认结束本轮'}
+          title={command === 'reopen' ? '重新复核原裁判矛盾'
+            : command === 'finalize' ? (selected?.gate_preview?.passed ? '终审预检查：预计通过' : '终审预检查：将拒绝本轮')
+              : command === 'start' ? '启动 v2 冻结评测' : command === 'discard' ? '废弃本轮评测' : '取消评测'}
+          danger={command === 'cancel' || command === 'discard' || (command === 'finalize' && !selected?.gate_preview?.passed)}
+          description={command === 'reopen'
+            ? '保留原拒绝结论与全部审核，重开受影响候选的两个角色审核。复用原始输出，不调用模型，也不会自动批准。'
+            : command === 'start'
+              ? `将预留 ${startInvocations} 次 Provider 调用；所有失败继续计入可靠性。`
+              : command === 'finalize'
+                ? `预计${selected?.gate_preview?.passed ? '通过' : '拒绝'}。` +
+                  `${selected?.gate_preview?.reasons.map((r) => `${r.gate}: ${r.detail}`).join('；') || '全部门禁通过。'} 提交后形成终审记录。`
+                : `将结束 Run ${operationRun?.run_id}。已有输出、失败证据和审核记录均保留；本轮不能再用于发布，预留调用不退回。`}
+          confirmText={command === 'reopen' ? '确认重新复核' : command === 'start' ? '确认成本并启动'
+            : command === 'finalize' ? (selected?.gate_preview?.passed ? '确认终审通过' : '确认终审拒绝') : '确认结束本轮'}
           loading={commandLoading}
           onCancel={() => setCommand(null)}
           onConfirm={executeCommand}

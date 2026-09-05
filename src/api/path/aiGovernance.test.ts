@@ -91,7 +91,7 @@ describe('AI governance API', () => {
         { candidate_id: 'candidate/2', decision: 'reject', reason: 'unsupported inference' }
       ]
     })
-    await finalizeAIEvaluationV2('run/1', 'all evidence reviewed')
+    await finalizeAIEvaluationV2('run/1', 'all evidence reviewed', 213, false)
     await resolveAIEvaluationResultUnknownV2('run/1', {
       execution_id: 'execution/2',
       decision: 'authorize_replacement',

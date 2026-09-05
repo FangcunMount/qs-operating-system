@@ -7,6 +7,7 @@ jest.mock('@/api/path/aiGovernance', () => ({
   cancelAIEvaluationRunV2: jest.fn(),
   listAIEvaluationRunsV2: jest.fn(),
   finalizeAIEvaluationV2: jest.fn(),
+  reopenAIEvaluationReviewV2: jest.fn(),
   getAIEvaluationCapacity: jest.fn(),
   getAIEvaluationOutputV2: jest.fn(),
   getAIEvaluationRunV2: jest.fn(),
@@ -94,6 +95,27 @@ describe('EvaluationReleaseWorkspace', () => {
     listRunsMock.mockReturnValue(success({ items: [] }))
     ;(listAIEvaluationRunsV2 as jest.Mock).mockReturnValue(success({ items: [] }))
     getRunV2Mock.mockReturnValue(success(run))
+  })
+
+  it('shows predicted rejection before finalization instead of promising approval', async () => {
+    const ready = { ...run, status: 'awaiting_review', unresolved_result_unknown_count: 0,
+      human_reviews: Array.from({ length: 70 }, () => ({ reason: 'reviewed' })),
+      gate_preview: { passed: false, reasons: [{ gate: 'G4', detail: 'hard assertion failed' }] } }
+    ;(getAIEvaluationRunV2 as jest.Mock).mockReturnValue(success(ready))
+    window.sessionStorage.setItem('ai-governance:v2:last-run-id', run.run_id)
+    render(<EvaluationReleaseWorkspace />)
+    fireEvent.click(await screen.findByRole('button', { name: '终审预检查' }))
+    expect(await screen.findByText('终审预检查：将拒绝本轮')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '确认终审拒绝' })).toBeInTheDocument()
+  })
+
+  it('offers audited reopening only when the backend marks the rejected run eligible', async () => {
+    (getAIEvaluationRunV2 as jest.Mock).mockReturnValue(success({ ...run, status: 'rejected', can_reopen_review: true }))
+    window.sessionStorage.setItem('ai-governance:v2:last-run-id', run.run_id)
+    render(<EvaluationReleaseWorkspace />)
+    fireEvent.click(await screen.findByRole('button', { name: '重新复核（不重新生成）' }))
+    expect(await screen.findByText('重新复核原裁判矛盾')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '确认重新复核' })).toBeInTheDocument()
   })
 
   it('keeps generation and semantic failures visible', () => {

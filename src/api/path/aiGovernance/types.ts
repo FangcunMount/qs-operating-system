@@ -412,6 +412,18 @@ export interface AIEvaluationRunPageV2 {
 }
 
 export interface AIEvaluationRunV2 {
+  gate_preview?: AIEvaluationGateV2
+  can_reopen_review?: boolean
+  review_reopenings?: Array<{
+    actor: string
+    reason: string
+    reopened_at: string
+    finalized_at: string
+    candidate_ids: string[]
+    gate: unknown
+    reviews: unknown[]
+  }>
+
   canceled_at?: string
   can_cancel?: boolean
   can_discard?: boolean
