@@ -1,6 +1,7 @@
-import type { AIEvaluationRunV2 } from '@/api/path/aiGovernance'
+import type { AIEvaluationRunV2, AIEvaluationCandidateEvidenceV2 } from '@/api/path/aiGovernance'
 import {
   buildReviewBatchRequest,
+  buildSemanticContradictionReview,
   buildReviewQueue,
   parseReviewBatchPlan,
   upsertReviewBatchDraft
@@ -146,5 +147,65 @@ describe('AI explanation v2 human review queue', () => {
       .toThrow('reason 必须为 1 至 1000 个字符')
     expect(() => parseReviewBatchPlan(JSON.stringify(Array.from({ length: 36 }, () => item)), queue, 'assessment_semantics'))
       .toThrow('单批审核计划不能超过 35 条')
+  })
+})
+
+
+describe('semantic contradiction review', () => {
+  const detail = {
+    candidate: { assertions: [{ type: 'forbidden_claims_absent',
+      scope: 'default',
+      ordinal: 1,
+      status: 'failed',
+      evaluator: 'semantic-v2',
+      detail: '未发现禁止声明' }] },
+    accepted_generation_execution: { normalized_output: '{"summary":"仅描述本次结果"}' },
+    accepted_semantic_execution: { execution_id: 'semantic:1', semantic_result: { evaluator_version: 'v2', output_fingerprint: 'sha256:frozen' } }
+  } as AIEvaluationCandidateEvidenceV2
+
+  it('binds explicit review to frozen judgment and passes it in the batch', () => {
+    const semantic_review = buildSemanticContradictionReview(detail, '仅描述本次结果', '核对原文后确认理由与状态矛盾')
+    expect(semantic_review)
+      .toMatchObject({ execution_id: 'semantic:1',
+        output_fingerprint: 'sha256:frozen',
+        assertion_ordinal: 1,
+        original_detail: '未发现禁止声明' })
+    expect(buildReviewBatchRequest('safety_product',
+      [{ candidate_id: 'candidate:1',
+        caseID: 'PROMPT-EVAL-001',
+        slotOrdinal: 1,
+        decision: 'approve',
+        reason: 'checked',
+        semantic_review }]).reviews[0].semantic_review)
+      .toEqual(semantic_review)
+  })
+
+  it('requires a real excerpt, reason and unique eligible model failure', () => {
+    expect(() => buildSemanticContradictionReview(detail, 'invented', 'checked')).toThrow('原文摘录')
+    expect(() => buildSemanticContradictionReview(detail, '仅描述本次结果', '')).toThrow('复核依据')
+    expect(() => buildSemanticContradictionReview({ ...detail,
+      candidate: { ...detail.candidate,
+        assertions: [] } },
+    '仅描述本次结果',
+    'checked'))
+      .toThrow('唯一可复核')
+    expect(() => buildSemanticContradictionReview({ ...detail,
+      candidate: { ...detail.candidate,
+        assertions: [...detail.candidate.assertions,
+          ...detail.candidate.assertions] } },
+    '仅描述本次结果',
+    'checked'))
+      .toThrow('唯一可复核')
+  })
+
+  it('does not import contradiction approval without opening candidate evidence', () => {
+    expect(() => parseReviewBatchPlan(JSON.stringify([{ case_id: 'PROMPT-EVAL-001',
+      slot: 1,
+      decision: 'approve',
+      reason: 'checked',
+      semantic_review: {} }]),
+    buildReviewQueue([makeRun('708')]),
+    'assessment_semantics'))
+      .toThrow('裁判矛盾复核')
   })
 })

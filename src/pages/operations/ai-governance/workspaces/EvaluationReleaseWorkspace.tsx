@@ -479,6 +479,13 @@ export const EvaluationReleaseWorkspace: React.FC = () => {
               description={selected.gate.reasons.map((item) => `${item.gate}: ${item.detail}`).join('；') || '全部冻结门禁均通过。'}
             />
           ) : null}
+          {selected.gate?.semantic_adjudications?.length ? (
+            <Card title="裁判矛盾复核记录">
+              <Typography.Paragraph>以下断言由两位不同角色审核人复核通过；原始模型失败证据仍保留。复核理由与原文摘录见对应人工审核记录。</Typography.Paragraph>
+              <JsonEvidence value={selected.gate.semantic_adjudications} />
+              <JsonEvidence value={selected.human_reviews.filter((review) => review.semantic_review)} />
+            </Card>
+          ) : null}
         </Card>
       ) : <Card><Empty description="启动 v2 评测，或输入精确 Run ID" /></Card>}
 

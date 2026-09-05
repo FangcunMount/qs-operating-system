@@ -3,6 +3,7 @@ import {
   Alert,
   Button,
   Card,
+  Checkbox,
   Col,
   Descriptions,
   Empty,
@@ -30,6 +31,7 @@ import type {
   AIEvaluationCandidateV2,
   AIEvaluationRunV2,
   AIHumanReviewBatchRequestV2,
+  AISemanticContradictionReview,
   AIReviewDecision,
   AIReviewRole
 } from '@/api/path/aiGovernance'
@@ -47,6 +49,7 @@ export interface QueueItem extends AIEvaluationCandidateV2 {
 }
 
 export interface ReviewBatchDraft {
+  semantic_review?: AISemanticContradictionReview
   candidate_id: string
   caseID: string
   slotOrdinal: number
@@ -55,6 +58,7 @@ export interface ReviewBatchDraft {
 }
 
 interface ReviewBatchPlanItem {
+  semantic_review?: unknown
   case_id: string
   slot: number
   decision: AIReviewDecision
@@ -93,6 +97,7 @@ export const parseReviewBatchPlan = (
       throw new Error(`第 ${index + 1} 条审核计划必须是对象`)
     }
     const item = value as Partial<ReviewBatchPlanItem>
+    if (item.semantic_review !== undefined) throw new Error('裁判矛盾复核需逐条打开候选、核对原文后加入计划')
     const caseID = typeof item.case_id === 'string' ? item.case_id.trim() : ''
     const slotOrdinal = item.slot
     const reason = typeof item.reason === 'string' ? item.reason.trim() : ''
@@ -135,7 +140,9 @@ export const buildReviewBatchRequest = (
   drafts: ReviewBatchDraft[]
 ): AIHumanReviewBatchRequestV2 => ({
   role,
-  reviews: drafts.map(({ candidate_id, decision, reason }) => ({ candidate_id, decision, reason }))
+  reviews: drafts.map(({ candidate_id, decision, reason, semantic_review }) => ({
+    candidate_id, decision, reason, ...(semantic_review ? { semantic_review } : {})
+  }))
 })
 
 export const buildReviewQueue = (runs: AIEvaluationRunV2[]): QueueItem[] => runs.flatMap((run) => {
@@ -166,6 +173,26 @@ const standardFacts = (input: unknown): unknown => {
   return record.facts || record.assessment || record
 }
 
+export const buildSemanticContradictionReview = (
+  detail: AIEvaluationCandidateEvidenceV2, excerpt: string, reason: string
+): AISemanticContradictionReview => {
+  const execution = detail.accepted_semantic_execution
+  const targets = detail.candidate.assertions.filter((a) =>
+    a.type === 'forbidden_claims_absent' && a.scope === 'default' && a.status === 'failed' &&
+    a.evaluator === `semantic-${execution?.semantic_result?.evaluator_version}`)
+  if (!execution?.semantic_result || targets.length !== 1) throw new Error('当前候选没有唯一可复核的禁止声明断言失败')
+  if (!excerpt.trim() || excerpt.length > 1000 || !detail.accepted_generation_execution.normalized_output.includes(excerpt.trim())) {
+    throw new Error('请填写候选规范化输出中的原文摘录（最多 1000 字）')
+  }
+  if (!reason.trim() || reason.length > 1000) throw new Error('请填写明确的矛盾复核依据（最多 1000 字）')
+  return {
+    policy_version: 'semantic-contradiction-dual-review/v1', execution_id: execution.execution_id,
+    output_fingerprint: execution.semantic_result.output_fingerprint,
+    assertion_ordinal: targets[0].ordinal, original_detail: targets[0].detail || '',
+    candidate_excerpt: excerpt.trim(), reason: reason.trim()
+  }
+}
+
 export const HumanReviewWorkspace: React.FC = () => {
   const [runID, setRunID] = useState('')
   const [run, setRun] = useState<AIEvaluationRunV2 | null>(null)
@@ -176,6 +203,9 @@ export const HumanReviewWorkspace: React.FC = () => {
   const [batchPlanText, setBatchPlanText] = useState('')
   const [decision, setDecision] = useState<AIReviewDecision>('approve')
   const [reason, setReason] = useState('')
+  const [reviewContradiction, setReviewContradiction] = useState(false)
+  const [contradictionExcerpt, setContradictionExcerpt] = useState('')
+  const [contradictionReason, setContradictionReason] = useState('')
   const [loading, setLoading] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -192,6 +222,9 @@ export const HumanReviewWorkspace: React.FC = () => {
     const draft = batchDrafts.find((value) => value.candidate_id === item.candidate_id)
     setDecision(draft?.decision || 'approve')
     setReason(draft?.reason || '')
+    setReviewContradiction(Boolean(draft?.semantic_review))
+    setContradictionExcerpt(draft?.semantic_review?.candidate_excerpt || '')
+    setContradictionReason(draft?.semantic_review?.reason || '')
     setDetailLoading(true)
     const [requestError, response] = await getAIEvaluationCandidateV2(item.runID, item.candidate_id)
     setDetailLoading(false)
@@ -241,6 +274,17 @@ export const HumanReviewWorkspace: React.FC = () => {
 
   const addReviewToBatch = async () => {
     if (!selected || !detail || !batchRole || !selected.missing_roles.includes(batchRole) || !reason.trim()) return
+    if (detail.candidate.candidate_id !== selected.candidate_id) return
+    let semanticReview: AISemanticContradictionReview | undefined
+    if (reviewContradiction) {
+      if (decision !== 'approve') { message.warning('确认裁判矛盾需完成候选通过审核；拒绝时保留原始失败'); return }
+      try {
+        semanticReview = buildSemanticContradictionReview(detail, contradictionExcerpt, contradictionReason)
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : '复核依据无效')
+        return
+      }
+    }
     const alreadyPlanned = batchDrafts.some((draft) => draft.candidate_id === selected.candidate_id)
     if (!alreadyPlanned && batchDrafts.length >= 35) {
       message.warning('单批最多只能提交 35 条审核')
@@ -251,7 +295,8 @@ export const HumanReviewWorkspace: React.FC = () => {
       caseID: selected.caseID,
       slotOrdinal: selected.slotOrdinal,
       decision,
-      reason: reason.trim()
+      reason: reason.trim(),
+      semantic_review: semanticReview
     })
     setBatchDrafts(nextDrafts)
     message.success(`已加入批量计划（${nextDrafts.length}/35）`)
@@ -289,7 +334,9 @@ export const HumanReviewWorkspace: React.FC = () => {
     const rejected = batchDrafts.filter((item) => item.decision === 'reject').length
     Modal.confirm({
       title: `确认提交 ${batchDrafts.length} 条${reviewRoleLabel(batchRole)}审核？`,
-      content: `Run ${run.run_id}；通过 ${batchDrafts.length - rejected} 条，拒绝 ${rejected} 条。提交后形成不可替换的审计记录。`,
+      content: `Run ${run.run_id}；通过 ${batchDrafts.length - rejected} 条，拒绝 ${rejected} 条。` +
+        `其中 ${batchDrafts.filter((item) => item.semantic_review).length} 条包含裁判矛盾复核；` +
+        '需另一位不同审核人以另一个角色确认同一断言才能生效。提交后形成不可替换的审计记录。',
       okText: '确认批量提交',
       cancelText: '返回复核',
       okType: rejected ? 'danger' : 'primary',
@@ -523,6 +570,34 @@ export const HumanReviewWorkspace: React.FC = () => {
                       </Card>
                     </Col>
                   </Row>
+                  {detail.candidate.assertions.some((a) =>
+                    a.type === 'forbidden_claims_absent' && a.scope === 'default' &&
+                    a.status === 'failed' && a.evaluator.startsWith('semantic-')) ? (
+                      <Card size="small" title="裁判矛盾复核">
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <Alert type="warning" showIcon message="仅当裁判理由确认满足要求、状态却标为失败时使用"
+                            description="请阅读完整候选和裁判原文。两位不同审核人需分别以测评语义、安全与产品角色确认；原始失败保留，单角色确认不生效。此操作不能豁免真实内容违规或确定性校验失败。"
+                          />
+                          <Checkbox checked={reviewContradiction} onChange={(event) => setReviewContradiction(event.target.checked)}>
+                          我已核对原文，确认该条裁判的判断与理由矛盾
+                          </Checkbox>
+                          {reviewContradiction ? <>
+                            <Input.TextArea aria-label="复核候选原文摘录" value={contradictionExcerpt}
+                              onChange={(event) => setContradictionExcerpt(event.target.value)} maxLength={1000}
+                              placeholder="粘贴候选规范化输出中的原文摘录" />
+                            <Input.TextArea aria-label="裁判矛盾复核依据" value={contradictionReason}
+                              onChange={(event) => setContradictionReason(event.target.value)} maxLength={1000}
+                              placeholder="说明为什么该断言已满足，以及裁判状态与理由如何矛盾" />
+                            <Text>填写后使用上方“加入批量计划”，与本角色候选审核一起提交。</Text>
+                          </> : null}
+                        </Space>
+                      </Card>
+                    ) : null}
+                  {detail.human_reviews.some((review) => review.semantic_review) ? (
+                    <Card size="small" title="已记录的裁判复核（原始失败保留）">
+                      <JsonEvidence value={detail.human_reviews.filter((review) => review.semantic_review)} />
+                    </Card>
+                  ) : null}
                   <Card size="small" title="确定性断言">
                     <Table
                       rowKey={(item) => `${item.type}:${item.scope}:${item.ordinal}`}

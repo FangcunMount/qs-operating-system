@@ -333,7 +333,18 @@ export interface AIEvaluationSlotV2 {
   candidate?: AIEvaluationCandidateV2
 }
 
+export interface AISemanticContradictionReview {
+  policy_version: 'semantic-contradiction-dual-review/v1'
+  execution_id: string
+  output_fingerprint: string
+  assertion_ordinal: number
+  original_detail: string
+  candidate_excerpt: string
+  reason: string
+}
+
 export interface AIHumanReviewV2 {
+  semantic_review?: AISemanticContradictionReview
   candidate_id: string
   role: AIReviewRole
   reviewer: string
@@ -343,6 +354,7 @@ export interface AIHumanReviewV2 {
 }
 
 export interface AIHumanReviewBatchItemV2 {
+  semantic_review?: AISemanticContradictionReview
   candidate_id: string
   decision: AIReviewDecision
   reason: string
@@ -354,6 +366,17 @@ export interface AIHumanReviewBatchRequestV2 {
 }
 
 export interface AIEvaluationGateV2 {
+  semantic_adjudications?: Array<{
+    policy_version: string
+    candidate_id: string
+    execution_id: string
+    output_fingerprint: string
+    assertion_type: string
+    assertion_ordinal: number
+    original_status: string
+    effective_status: string
+    reviewers: string[]
+  }>
   evaluated_at: string
   passed: boolean
   gate_passes: Record<string, boolean>
