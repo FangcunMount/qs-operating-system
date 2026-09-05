@@ -7,6 +7,8 @@ import type {
   AIEvaluationRun,
   AIEvaluationRunPage,
   AIEvaluationRunV2,
+  AIEvaluationRunPageV2,
+  AIEvaluationV2Status,
   AIEvaluationCandidateEvidenceV2,
   AIEvaluationOutputV2,
   AIParticipantCapacity,
@@ -234,3 +236,23 @@ export const retryAIParticipantGeneration = (
   request: AIParticipantRetryRequest
 ): Promise<[any, QSResponse<AIParticipantRetryResult> | undefined]> =>
   internalPost<AIParticipantRetryResult>(`${BASE_PATH}/generations/${encode(generationID)}/retry`, request)
+
+export const listAIEvaluationRunsV2 = (
+  query: { status?: AIEvaluationV2Status; cursor?: string; limit?: number } = {}
+): Promise<[any, QSResponse<AIEvaluationRunPageV2> | undefined]> =>
+  internalV2Get<AIEvaluationRunPageV2>(`${BASE_PATH}/prompt-evaluations`, cleanQuery({ limit: 20, ...query }))
+
+export const cancelAIEvaluationRunV2 = (
+  runID: string,
+  expectedVersion: number,
+  reason: string,
+  discard: boolean
+): Promise<[any, QSResponse<AIEvaluationRunV2> | undefined]> =>
+  normalizeResponseData(
+    internalV2Post<AIEvaluationRunV2>(`${BASE_PATH}/prompt-evaluations/${encode(runID)}/cancel`, {
+      expected_version: expectedVersion,
+      reason,
+      discard
+    }),
+    normalizeAIEvaluationRunV2
+  )
