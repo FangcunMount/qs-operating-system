@@ -1,3 +1,4 @@
+import { resolveIamAuthnBaseURL } from './iamAuthnBase'
 import axios, { AxiosError, AxiosRequestConfig } from 'axios'
 import { message } from 'antd'
 import { FcResponse } from '../types/server'
@@ -22,6 +23,7 @@ const apiAxios = axios.create({
 
 // 直接使用真实网络请求
 apiAxios.interceptors.request.use((cfg) => {
+  if (cfg.url?.startsWith('/authn/')) cfg.baseURL = resolveIamAuthnBaseURL()
   const accessToken = getStoredAccessToken()
   if (accessToken) {
     cfg.headers['Authorization'] = `Bearer ${accessToken}`

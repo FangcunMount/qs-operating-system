@@ -9,19 +9,19 @@ import {
   revokeRoleInheritance,
   updateResource
 } from './authz'
-import { iamV3Del, iamV3Get, iamV3Post, iamV3Put } from '../iamV3Server'
+import { iamV4Del, iamV4Get, iamV4Post, iamV4Put } from '../iamV4Server'
 
-jest.mock('../iamV3Server', () => ({
-  iamV3Del: jest.fn(() => Promise.resolve([null, { code: 200, message: 'success' }])),
-  iamV3Get: jest.fn(() => Promise.resolve([null, { code: 200, message: 'success', data: [] }])),
-  iamV3Post: jest.fn(() => Promise.resolve([null, { code: 200, message: 'success', data: {} }])),
-  iamV3Put: jest.fn(() => Promise.resolve([null, { code: 200, message: 'success', data: {} }]))
+jest.mock('../iamV4Server', () => ({
+  iamV4Del: jest.fn(() => Promise.resolve([null, { code: 200, message: 'success' }])),
+  iamV4Get: jest.fn(() => Promise.resolve([null, { code: 200, message: 'success', data: [] }])),
+  iamV4Post: jest.fn(() => Promise.resolve([null, { code: 200, message: 'success', data: {} }])),
+  iamV4Put: jest.fn(() => Promise.resolve([null, { code: 200, message: 'success', data: {} }]))
 }))
 
-const delMock = iamV3Del as jest.Mock
-const getMock = iamV3Get as jest.Mock
-const postMock = iamV3Post as jest.Mock
-const putMock = iamV3Put as jest.Mock
+const delMock = iamV4Del as jest.Mock
+const getMock = iamV4Get as jest.Mock
+const postMock = iamV4Post as jest.Mock
+const putMock = iamV4Put as jest.Mock
 
 describe('AuthZ v3 API contract', () => {
   beforeEach(() => {

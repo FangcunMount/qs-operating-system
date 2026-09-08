@@ -5,7 +5,7 @@ import { config } from '../config/config'
 import { handle401Error } from './tokenRefresh'
 import { getStoredAccessToken } from '@/utils/jwtClaims'
 
-export interface IamV3Response<T> {
+export interface IamV4Response<T> {
   code: number
   message: string
   data?: T
@@ -26,18 +26,18 @@ const replaceApiVersion = (value: string, version: string) => {
   return `${normalized}/api/${version}`
 }
 
-export const resolveIamV3BaseURL = (): string => {
+export const resolveIamV4BaseURL = (): string => {
   if (process.env.NODE_ENV === 'development') return ''
   const host = process.env.REACT_APP_IAM_HOST || config.iamHost || `https://iam.${config.domain}`
-  return replaceApiVersion(host, 'v3')
+  return replaceApiVersion(host, 'v4')
 }
 
-const iamV3Axios = axios.create({
+const iamV4Axios = axios.create({
   timeout: 50000,
-  baseURL: resolveIamV3BaseURL()
+  baseURL: resolveIamV4BaseURL()
 })
 
-iamV3Axios.interceptors.request.use((request) => {
+iamV4Axios.interceptors.request.use((request) => {
   const accessToken = getStoredAccessToken()
   if (accessToken) {
     request.headers = request.headers || {}
@@ -46,9 +46,9 @@ iamV3Axios.interceptors.request.use((request) => {
   return request
 })
 
-iamV3Axios.interceptors.response.use(
+iamV4Axios.interceptors.response.use(
   (response) => {
-    const payload = response.data as IamV3Response<unknown> | undefined
+    const payload = response.data as IamV4Response<unknown> | undefined
     if (payload && typeof payload.code === 'number' && payload.code !== 0 && payload.code !== 200) {
       errorHandler.handleAuthError(String(payload.code))
       return Promise.reject(payload)
@@ -59,7 +59,7 @@ iamV3Axios.interceptors.response.use(
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
     if (error.response?.status === 401 && originalRequest) {
       try {
-        return await handle401Error(error, originalRequest, request => iamV3Axios(request))
+        return await handle401Error(error, originalRequest, request => iamV4Axios(request))
       } catch (refreshError) {
         return Promise.reject(refreshError)
       }
@@ -70,28 +70,28 @@ iamV3Axios.interceptors.response.use(
   }
 )
 
-export type IamV3Result<T> = Promise<[unknown, IamV3Response<T> | undefined]>
+export type IamV4Result<T> = Promise<[unknown, IamV4Response<T> | undefined]>
 
-export const iamV3Get = <T>(url: string, params: RequestData = {}): IamV3Result<T> => (
-  iamV3Axios.get(url, { params })
-    .then(result => [null, result.data as IamV3Response<T>] as [unknown, IamV3Response<T>])
+export const iamV4Get = <T>(url: string, params: RequestData = {}): IamV4Result<T> => (
+  iamV4Axios.get(url, { params })
+    .then(result => [null, result.data as IamV4Response<T>] as [unknown, IamV4Response<T>])
     .catch(error => [error, undefined] as [unknown, undefined])
 )
 
-export const iamV3Post = <T>(url: string, data: RequestData): IamV3Result<T> => (
-  iamV3Axios.post(url, data)
-    .then(result => [null, result.data as IamV3Response<T>] as [unknown, IamV3Response<T>])
+export const iamV4Post = <T>(url: string, data: RequestData): IamV4Result<T> => (
+  iamV4Axios.post(url, data)
+    .then(result => [null, result.data as IamV4Response<T>] as [unknown, IamV4Response<T>])
     .catch(error => [error, undefined] as [unknown, undefined])
 )
 
-export const iamV3Put = <T>(url: string, data: RequestData): IamV3Result<T> => (
-  iamV3Axios.put(url, data)
-    .then(result => [null, result.data as IamV3Response<T>] as [unknown, IamV3Response<T>])
+export const iamV4Put = <T>(url: string, data: RequestData): IamV4Result<T> => (
+  iamV4Axios.put(url, data)
+    .then(result => [null, result.data as IamV4Response<T>] as [unknown, IamV4Response<T>])
     .catch(error => [error, undefined] as [unknown, undefined])
 )
 
-export const iamV3Del = <T>(url: string, data: RequestData = {}): IamV3Result<T> => (
-  iamV3Axios.delete(url, { data })
-    .then(result => [null, result.data as IamV3Response<T>] as [unknown, IamV3Response<T>])
+export const iamV4Del = <T>(url: string, data: RequestData = {}): IamV4Result<T> => (
+  iamV4Axios.delete(url, { data })
+    .then(result => [null, result.data as IamV4Response<T>] as [unknown, IamV4Response<T>])
     .catch(error => [error, undefined] as [unknown, undefined])
 )
