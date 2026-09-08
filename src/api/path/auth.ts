@@ -13,7 +13,6 @@ export interface ILoginRequest {
     state?: string
     corp_id?: string
     auth_code?: string
-    tenant_id?: number
   }
   device_id?: string
 }
@@ -34,7 +33,6 @@ export function login<T = ITokenPair>(
     method_payload: {
       username,
       password,
-      tenant_id: 1
     }
   })
 }

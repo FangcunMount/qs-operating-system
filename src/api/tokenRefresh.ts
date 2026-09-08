@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios'
 import { errorHandler } from 'fc-tools-pc/dist/bundle'
-import { config } from '@/config/config'
+import { resolveIamAuthnBaseURL } from './iamAuthnBase'
 import {
   clearStoredTokens,
   getStoredRefreshToken,
@@ -9,19 +9,9 @@ import {
   validateJwtClaims
 } from '@/utils/jwtClaims'
 
-const isDev = process.env.NODE_ENV === 'development'
-const authBaseURL = isDev
-  ? ''
-  : (
-    process.env.REACT_APP_IAM_HOST
-    || config.iamHost
-    || process.env.REACT_APP_HOST
-    || config.host
-  )
-
 const refreshAxios = axios.create({
   timeout: 50000,
-  baseURL: authBaseURL
+  baseURL: resolveIamAuthnBaseURL()
 })
 
 type TokenRefreshSubscriber = {

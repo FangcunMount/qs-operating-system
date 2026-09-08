@@ -1,6 +1,6 @@
-import { resolveIamV3BaseURL } from './iamV3Server'
+import { resolveIamV4BaseURL } from './iamV4Server'
 
-describe('IAM v3 client base URL', () => {
+describe('IAM v4 client base URL', () => {
   const originalHost = process.env.REACT_APP_IAM_HOST
 
   afterEach(() => {
@@ -13,11 +13,11 @@ describe('IAM v3 client base URL', () => {
 
   it('replaces a configured IAM v2 suffix without changing the origin', () => {
     process.env.REACT_APP_IAM_HOST = 'https://iam.example.com/api/v2/'
-    expect(resolveIamV3BaseURL()).toBe('https://iam.example.com/api/v3')
+    expect(resolveIamV4BaseURL()).toBe('https://iam.example.com/api/v4')
   })
 
   it('appends v3 when the configured host has no API suffix', () => {
     process.env.REACT_APP_IAM_HOST = 'https://iam.example.com'
-    expect(resolveIamV3BaseURL()).toBe('https://iam.example.com/api/v3')
+    expect(resolveIamV4BaseURL()).toBe('https://iam.example.com/api/v4')
   })
 })

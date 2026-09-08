@@ -4,7 +4,7 @@ import { errorHandler } from 'fc-tools-pc/dist/bundle'
 import { config } from '../config/config'
 import type { QSResponse } from '@/types/qs'
 import { handle401Error } from './tokenRefresh'
-import { getCurrentTenantId, getStoredAccessToken } from '@/utils/jwtClaims'
+import { getStoredAccessToken } from '@/utils/jwtClaims'
 
 const isDev = process.env.NODE_ENV === 'development'
 const apiHost = process.env.REACT_APP_QS_HOST || config.qsHost || `https://qs.${config.domain}`
@@ -117,10 +117,7 @@ export const qsInternalV2Axios = axios.create({
 const attachCommonHeaders = (cfg: AxiosRequestConfig) => {
   cfg.headers = cfg.headers || {}
   cfg.url = normalizeRelativeRequestUrl(cfg.baseURL, cfg.url)
-  const tenantId = getCurrentTenantId()
-  if (tenantId) {
-    cfg.headers['tenant_id'] = tenantId
-  }
+
   const token = getStoredAccessToken()
   if (token) {
     cfg.headers['Authorization'] = `Bearer ${token}`

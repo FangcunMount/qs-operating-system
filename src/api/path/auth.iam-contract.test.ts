@@ -29,7 +29,6 @@ describe('IAM AuthN REST contract', () => {
       method_payload: {
         username: 'alice',
         password: 'secret',
-        tenant_id: 1
       }
     })
   })

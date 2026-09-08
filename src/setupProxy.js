@@ -93,29 +93,33 @@ module.exports = function (app) {
       changeOrigin: true
     })
   )
-  // AuthZ 管理面已升级到 v3；必须先于其他 IAM v2 路由注册。
+  // AuthZ 管理面已升级到 v4；必须先于其他 IAM v2 路由注册。
   app.use(
     '/authz',
     createProxyMiddleware({
       target: iamProxy.target,
       changeOrigin: true,
-      pathRewrite: (path) => `/api/v3${path}`,
+      pathRewrite: (path) => `/api/v4${path}`,
       logLevel: 'debug',
       onProxyReq: (proxyReq, req) => {
-        console.log('[Proxy] IAM AuthZ v3 Request:', req.method, req.url, '-> ', proxyReq.path)
+        console.log('[Proxy] IAM AuthZ v4 Request:', req.method, req.url, '-> ', proxyReq.path)
         const authHeader = req.headers.authorization
         if (authHeader) {
           proxyReq.setHeader('Authorization', authHeader)
         }
       },
       onProxyRes: (proxyRes, req) => {
-        console.log('[Proxy] IAM AuthZ v3 Response:', proxyRes.statusCode, req.url)
+        console.log('[Proxy] IAM AuthZ v4 Response:', proxyRes.statusCode, req.url)
       }
     })
   )
+  app.use('/authn', createProxyMiddleware({
+    target: iamProxy.target, changeOrigin: true,
+    pathRewrite: path => `/api/v3${path}`
+  }))
   // 其他 IAM 模块继续使用 v2，避免 AuthZ 升级影响登录、Identity、IDP。
   app.use(
-    ['/.well-known', '/authn', '/identity', '/suggest', '/idp'],
+    ['/.well-known', '/identity', '/suggest', '/idp'],
     createProxyMiddleware({
       target: iamProxy.target,
       changeOrigin: true,

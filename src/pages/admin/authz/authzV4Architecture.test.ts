@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 
-describe('AuthZ v3 admin architecture', () => {
+describe('AuthZ v4 admin architecture', () => {
   const sourceRoot = path.resolve(__dirname, '../../../..')
   const files = [
     'src/api/path/authz.ts',
@@ -28,10 +28,11 @@ describe('AuthZ v3 admin architecture', () => {
     })
   })
 
-  it('keeps AuthZ on v3 while the remaining IAM proxy stays on v2', () => {
+  it('keeps AuthZ on v4, AuthN on v3 and Identity on v2', () => {
     const proxy = fs.readFileSync(path.join(sourceRoot, 'src/setupProxy.js'), 'utf8')
-    expect(proxy).toContain('pathRewrite: (path) => `/api/v3${path}`')
-    expect(proxy).toContain('[\'/.well-known\', \'/authn\', \'/identity\', \'/suggest\', \'/idp\']')
+    expect(proxy).toContain('pathRewrite: path => `/api/v3${path}`')
+    expect(proxy).toContain('pathRewrite: (path) => `/api/v4${path}`')
+    expect(proxy).toContain('[\'/.well-known\', \'/identity\', \'/suggest\', \'/idp\']')
   })
 
   it('keeps staff editing on direct roles and exposes inherited projection state', () => {
