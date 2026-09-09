@@ -1,15 +1,17 @@
 import type { IRoute, RouteCapability } from '@/types/router'
 
-const PLATFORM_ADMIN_ROLES = ['super_admin', 'platform:admin', 'iam:admin']
+const PLATFORM_ADMIN_ROLES = ['platform_admin']
 
 const ROLE_CAPABILITY_MAP: Record<string, RouteCapability[]> = {
+  'qs:assessment_operator': ['read_subjects', 'read_assessment_progress', 'evaluate_assessments'],
+  'qs:result_reviewer': ['read_subjects', 'read_assessment_records'],
   'qs:admin': [
-    'org_admin', 'manage_content', 'manage_evaluation_plans', 'evaluate_assessments',
+    'read_assessment_progress', 'org_admin', 'manage_content', 'manage_evaluation_plans', 'evaluate_assessments',
     'audit_interpretation', 'read_subjects', 'read_assessment_records',
     'read_norm_tables', 'manage_norm_tables'
   ],
   'qs:content_manager': ['manage_content', 'read_norm_tables', 'manage_norm_tables'],
-  'qs:evaluation_plan_manager': ['manage_evaluation_plans', 'read_subjects'],
+  'qs:evaluation_plan_manager': ['manage_evaluation_plans', 'read_subjects', 'read_assessment_progress'],
   'qs:evaluator': ['evaluate_assessments', 'read_subjects', 'read_assessment_records']
 }
 
@@ -26,6 +28,7 @@ function deriveCapabilities(roles: string[]): Set<RouteCapability> {
 
   if (roles.some((role) => PLATFORM_ADMIN_ROLES.includes(role))) {
     [
+      'read_assessment_progress',
       'platform_admin',
       'org_admin',
       'manage_content',
@@ -69,7 +72,9 @@ export function routeAllowsAccess(route: IRoute, access: AccessContext, profileF
     return false
   }
 
-  if (route.allowClinicianAccess && access.isClinician) {
+  const resultRoute = route.requiredCapabilities?.includes('read_assessment_records')
+  const independentRoles = process.env.REACT_APP_AUTHZ_ROLE_MODEL === 'independent-v1'
+  if (route.allowClinicianAccess && access.isClinician && !(independentRoles && resultRoute)) {
     return true
   }
 
