@@ -21,12 +21,14 @@ import {
   PlusOutlined,
   SafetyCertificateOutlined,
   SafetyOutlined,
+  TableOutlined,
   TeamOutlined
 } from '@ant-design/icons'
 import { observer } from 'mobx-react-lite'
 import { rootStore } from '@/store'
 import type { IAssignment, IPermissionGrant, IRole } from '@/api/path/authz'
 import GrantEditor from './GrantEditor'
+import RolePermissionMatrix from './RolePermissionMatrix'
 import { describeConstraintSet, getAuthorizationMode } from './constraintModel'
 import './index.scss'
 
@@ -190,152 +192,165 @@ const AuthzConfig: React.FC = observer(() => {
         message="RBAC + 对象属性约束"
         description="角色表达稳定能力；PermissionGrant 表达资源、单一动作和可选对象属性条件。业务关系和列表数据范围仍由业务模块负责。"
       />
-      <Row gutter={24}>
-        <Col xs={24} xl={7}>
-          <Card
-            title={<><SafetyOutlined /> 角色</>}
-            extra={(
-              <Button type="primary" size="small" icon={<PlusOutlined />} onClick={openCreateRole}>
-                添加角色
-              </Button>
-            )}
-            loading={authStore.rolesLoading}
-          >
-            <div className="role-list">
-              {authStore.roleList.map(role => (
-                <div
-                  key={role.id}
-                  role="button"
-                  tabIndex={0}
-                  className={`role-item ${authStore.selectedRole?.id === role.id ? 'active' : ''}`}
-                  onClick={() => authStore.setSelectedRole(role)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') authStore.setSelectedRole(role)
-                  }}
-                >
-                  <div className="role-header">
-                    <h4>{role.display_name}</h4>
-                    <Tag color="blue">{role.name}</Tag>
-                  </div>
-                  <p className="role-desc">{role.description || '暂无描述'}</p>
-                  <div className="role-actions">
-                    <Button
-                      type="link"
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        openEditRole(role)
+      <Tabs defaultActiveKey="roles" className="authz-page-tabs">
+        <TabPane
+          key="roles"
+          tab={<span><SafetyOutlined /> 角色配置</span>}
+        >
+          <Row gutter={24}>
+            <Col xs={24} xl={7}>
+              <Card
+                title={<><SafetyOutlined /> 角色</>}
+                extra={(
+                  <Button type="primary" size="small" icon={<PlusOutlined />} onClick={openCreateRole}>
+                    添加角色
+                  </Button>
+                )}
+                loading={authStore.rolesLoading}
+              >
+                <div className="role-list">
+                  {authStore.roleList.map(role => (
+                    <div
+                      key={role.id}
+                      role="button"
+                      tabIndex={0}
+                      className={`role-item ${authStore.selectedRole?.id === role.id ? 'active' : ''}`}
+                      onClick={() => authStore.setSelectedRole(role)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') authStore.setSelectedRole(role)
                       }}
                     >
-                      编辑
-                    </Button>
-                    <Button
-                      type="link"
-                      size="small"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        Modal.confirm({
-                          title: '确定删除该角色吗？',
-                          content: '仍有关联成员或 Grant 时，IAM 会拒绝删除。',
-                          okText: '删除',
-                          okButtonProps: { danger: true },
-                          onOk: () => authStore.deleteRole(role.id)
-                        })
-                      }}
-                    >
-                      删除
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} xl={17}>
-          {authStore.selectedRole ? (
-            <>
-              <Card title="角色信息" className="role-summary-card">
-                <Descriptions column={2}>
-                  <Descriptions.Item label="角色名称">
-                    {authStore.selectedRole.display_name}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="角色标识">
-                    {authStore.selectedRole.name}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="权限授权">
-                    {authStore.currentRoleGrants.length} 条
-                  </Descriptions.Item>
-                  <Descriptions.Item label="角色成员">
-                    {authStore.currentRoleAssignments.length} 人
-                  </Descriptions.Item>
-                  <Descriptions.Item label="角色描述" span={2}>
-                    {authStore.selectedRole.description || '-'}
-                  </Descriptions.Item>
-                </Descriptions>
-              </Card>
-
-              <Card>
-                <Tabs defaultActiveKey="grants">
-                  <TabPane
-                    key="grants"
-                    tab={<span><SafetyCertificateOutlined /> 权限授权</span>}
-                  >
-                    <div className="tab-toolbar">
-                      <div>
-                        <Text strong>PermissionGrant</Text>
-                        <Text type="secondary"> 多条 Grant 之间为 OR，单条内的条件为 AND。</Text>
+                      <div className="role-header">
+                        <h4>{role.display_name}</h4>
+                        <Tag color="blue">{role.name}</Tag>
                       </div>
-                      <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={() => setGrantModalVisible(true)}
-                      >
-                        创建授权
-                      </Button>
+                      <p className="role-desc">{role.description || '暂无描述'}</p>
+                      <div className="role-actions">
+                        <Button
+                          type="link"
+                          size="small"
+                          icon={<EditOutlined />}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            openEditRole(role)
+                          }}
+                        >
+                          编辑
+                        </Button>
+                        <Button
+                          type="link"
+                          size="small"
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            Modal.confirm({
+                              title: '确定删除该角色吗？',
+                              content: '仍有关联成员或 Grant 时，IAM 会拒绝删除。',
+                              okText: '删除',
+                              okButtonProps: { danger: true },
+                              onOk: () => authStore.deleteRole(role.id)
+                            })
+                          }}
+                        >
+                          删除
+                        </Button>
+                      </div>
                     </div>
-                    <Table
-                      dataSource={authStore.currentRoleGrants}
-                      columns={grantColumns}
-                      rowKey="id"
-                      pagination={false}
-                      loading={authStore.roleDetailsLoading}
-                      scroll={{ x: 980 }}
-                    />
-                  </TabPane>
-                  <TabPane key="assignments" tab={<span><TeamOutlined /> 角色成员</span>}>
-                    <div className="tab-toolbar">
-                      <Text type="secondary">主体绑定角色；业务资源条件不配置在成员关系中。</Text>
-                      <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={() => setAssignmentModalVisible(true)}
-                      >
-                        添加成员
-                      </Button>
-                    </div>
-                    <Table
-                      dataSource={authStore.currentRoleAssignments}
-                      columns={assignmentColumns}
-                      rowKey="id"
-                      pagination={false}
-                      loading={authStore.roleDetailsLoading}
-                    />
-                  </TabPane>
-                </Tabs>
+                  ))}
+                </div>
               </Card>
-            </>
-          ) : (
-            <Card className="empty-role-card">
-              <SafetyOutlined />
-              <p>请选择一个角色查看授权与成员</p>
-            </Card>
-          )}
-        </Col>
-      </Row>
+            </Col>
+
+            <Col xs={24} xl={17}>
+              {authStore.selectedRole ? (
+                <>
+                  <Card title="角色信息" className="role-summary-card">
+                    <Descriptions column={2}>
+                      <Descriptions.Item label="角色名称">
+                        {authStore.selectedRole.display_name}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="角色标识">
+                        {authStore.selectedRole.name}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="权限授权">
+                        {authStore.currentRoleGrants.length} 条
+                      </Descriptions.Item>
+                      <Descriptions.Item label="角色成员">
+                        {authStore.currentRoleAssignments.length} 人
+                      </Descriptions.Item>
+                      <Descriptions.Item label="角色描述" span={2}>
+                        {authStore.selectedRole.description || '-'}
+                      </Descriptions.Item>
+                    </Descriptions>
+                  </Card>
+
+                  <Card>
+                    <Tabs defaultActiveKey="grants">
+                      <TabPane
+                        key="grants"
+                        tab={<span><SafetyCertificateOutlined /> 权限授权</span>}
+                      >
+                        <div className="tab-toolbar">
+                          <div>
+                            <Text strong>PermissionGrant</Text>
+                            <Text type="secondary"> 多条 Grant 之间为 OR，单条内的条件为 AND。</Text>
+                          </div>
+                          <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={() => setGrantModalVisible(true)}
+                          >
+                            创建授权
+                          </Button>
+                        </div>
+                        <Table
+                          dataSource={authStore.currentRoleGrants}
+                          columns={grantColumns}
+                          rowKey="id"
+                          pagination={false}
+                          loading={authStore.roleDetailsLoading}
+                          scroll={{ x: 980 }}
+                        />
+                      </TabPane>
+                      <TabPane key="assignments" tab={<span><TeamOutlined /> 角色成员</span>}>
+                        <div className="tab-toolbar">
+                          <Text type="secondary">主体绑定角色；业务资源条件不配置在成员关系中。</Text>
+                          <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={() => setAssignmentModalVisible(true)}
+                          >
+                            添加成员
+                          </Button>
+                        </div>
+                        <Table
+                          dataSource={authStore.currentRoleAssignments}
+                          columns={assignmentColumns}
+                          rowKey="id"
+                          pagination={false}
+                          loading={authStore.roleDetailsLoading}
+                        />
+                      </TabPane>
+                    </Tabs>
+                  </Card>
+                </>
+              ) : (
+                <Card className="empty-role-card">
+                  <SafetyOutlined />
+                  <p>请选择一个角色查看授权与成员</p>
+                </Card>
+              )}
+            </Col>
+          </Row>
+        </TabPane>
+        <TabPane
+          key="matrix"
+          tab={<span><TableOutlined /> 权限矩阵</span>}
+        >
+          <RolePermissionMatrix />
+        </TabPane>
+      </Tabs>
 
       <Modal
         title={editingRole ? '编辑角色' : '添加角色'}
