@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useHistory } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
 import { Spin, Tabs } from 'antd'
-import { subjectStore } from '@/store'
+import { rootStore, subjectStore } from '@/store'
 import { DashboardTab, ClinicianRelationsTab, ScaleRecordsTab, SurveyRecordsTab } from './components'
 import './index.scss'
 
@@ -15,33 +15,38 @@ const SubjectDetail: React.FC = observer(() => {
   const [scaleNameFilter, setScaleNameFilter] = useState<string | undefined>(undefined)
   const [surveySearchText, setSurveySearchText] = useState('')
   const [surveyNameFilter, setSurveyNameFilter] = useState<string | undefined>(undefined)
+  const canReadResults = rootStore.userStore.accessContext.capabilities.has('read_assessment_records')
 
   const fetchData = () => {
     if (id) {
-      subjectStore.fetchTesteeDetailPage(id)
+      subjectStore.fetchTesteeDetailPage(id, { includeProfessionalResults: canReadResults })
     }
   }
 
   useEffect(() => {
     fetchData()
-  }, [id])
+  }, [id, canReadResults])
 
   const detail = subjectStore.subjectDetail
 
   // 查看详情回调
   const handleViewSurveyDetail = (record: any) => {
+    if (!canReadResults) return
     history.push(`/subject/${id}/answer/${record.id}`)
   }
 
   const handleViewScaleDetail = (record: any) => {
+    if (!canReadResults) return
     history.push(`/subject/${id}/assessment/${record.id}`)
   }
 
   const handleLoadScaleFactors = (record: any) => {
+    if (!canReadResults) return
     subjectStore.fetchAssessmentFactors(record.id)
   }
 
   const handleReloadScaleFactors = (record: any) => {
+    if (!canReadResults) return
     subjectStore.fetchAssessmentFactors(record.id, true)
   }
 
@@ -98,47 +103,49 @@ const SubjectDetail: React.FC = observer(() => {
   return (
     <div className="subject-detail-page">
       <Tabs defaultActiveKey="1" size="large" className="main-tabs">
-        {/* 仪表盘 Tab */}
         <TabPane tab="仪表盘" key="1">
           <DashboardTab
             basicInfo={detail.basicInfo}
             periodicStats={detail.periodicStats}
             scaleAnalysis={detail.scaleAnalysis}
+            showScaleAnalysis={canReadResults}
             testeeId={id}
             onRefresh={fetchData}
           />
         </TabPane>
 
-        {/* 量表测评记录 Tab */}
-        <TabPane tab="量表测评记录" key="2">
-          <ScaleRecordsTab
-            data={filteredScales}
-            searchText={scaleSearchText}
-            nameFilter={scaleNameFilter}
-            nameOptions={scaleNameOptions}
-            onSearchChange={setScaleSearchText}
-            onFilterChange={(value) => setScaleNameFilter(value as string | undefined)}
-            onReset={handleResetScaleFilter}
-            onViewDetail={handleViewScaleDetail}
-            onLoadFactors={handleLoadScaleFactors}
-            onReloadFactors={handleReloadScaleFactors}
-            isFactorLoading={(assessmentId) => !!subjectStore.factorLoading[assessmentId]}
-          />
-        </TabPane>
+        {canReadResults && (
+          <TabPane tab="量表测评记录" key="2">
+            <ScaleRecordsTab
+              data={filteredScales}
+              searchText={scaleSearchText}
+              nameFilter={scaleNameFilter}
+              nameOptions={scaleNameOptions}
+              onSearchChange={setScaleSearchText}
+              onFilterChange={(value) => setScaleNameFilter(value as string | undefined)}
+              onReset={handleResetScaleFilter}
+              onViewDetail={handleViewScaleDetail}
+              onLoadFactors={handleLoadScaleFactors}
+              onReloadFactors={handleReloadScaleFactors}
+              isFactorLoading={(assessmentId) => !!subjectStore.factorLoading[assessmentId]}
+            />
+          </TabPane>
+        )}
 
-        {/* 调查问卷记录 Tab */}
-        <TabPane tab="调查问卷记录" key="3">
-          <SurveyRecordsTab
-            data={filteredSurveys}
-            searchText={surveySearchText}
-            nameFilter={surveyNameFilter}
-            nameOptions={surveyNameOptions}
-            onSearchChange={setSurveySearchText}
-            onFilterChange={(value) => setSurveyNameFilter(value as string | undefined)}
-            onReset={handleResetSurveyFilter}
-            onViewDetail={handleViewSurveyDetail}
-          />
-        </TabPane>
+        {canReadResults && (
+          <TabPane tab="调查问卷记录" key="3">
+            <SurveyRecordsTab
+              data={filteredSurveys}
+              searchText={surveySearchText}
+              nameFilter={surveyNameFilter}
+              nameOptions={surveyNameOptions}
+              onSearchChange={setSurveySearchText}
+              onFilterChange={(value) => setSurveyNameFilter(value as string | undefined)}
+              onReset={handleResetSurveyFilter}
+              onViewDetail={handleViewSurveyDetail}
+            />
+          </TabPane>
+        )}
 
         <TabPane tab="临床人员归属" key="4">
           <ClinicianRelationsTab testeeId={id} />

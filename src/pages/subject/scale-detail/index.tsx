@@ -52,7 +52,6 @@ const SubjectScaleDetail: React.FC = () => {
   const [reloadVersion, setReloadVersion] = useState(0)
   const [loading, setLoading] = useState(false)
   const { userStore } = rootStore
-  const canRetry = userStore.accessContext.capabilities.has('evaluate_assessments')
   const canAudit = userStore.accessContext.capabilities.has('audit_interpretation')
 
   // 合并答案与题目信息
@@ -302,6 +301,10 @@ const SubjectScaleDetail: React.FC = () => {
 
   const riskConfig = getRiskConfig(assessment.level?.code || 'normal')
   const latestRun = runs[0]
+  const caps = userStore.accessContext.capabilities
+  const canRetry = caps.has('org_admin') ||
+    (assessment.origin_type === 'adhoc' && caps.has('evaluate_assessments')) ||
+    (assessment.origin_type === 'plan' && caps.has('manage_evaluation_plans'))
   const retryable = canRetry && latestRun?.retryable === true && (
     assessment.status === 'failed' || latestRun.status === 'failed'
   )

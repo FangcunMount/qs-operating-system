@@ -81,14 +81,6 @@ class UserStore {
       return
     }
 
-    if (!this.currentUser.roles.includes('qs:staff')) {
-      runInAction(() => {
-        this.clinicianIdentity = null
-        this.clinicianResolved = true
-      })
-      return
-    }
-
     const [error, data] = await clinicianApi.probeMyClinician()
     runInAction(() => {
       this.clinicianIdentity = !error && data?.data ? data.data : null

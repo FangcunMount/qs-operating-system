@@ -173,6 +173,9 @@ const Home: React.FC = observer(() => {
     if (userStore.accessContext.capabilities.has('read_assessment_records')) {
       return { text: '查看测评记录', path: '/assessment/list', icon: <BarChartOutlined /> }
     }
+    if (userStore.accessContext.capabilities.has('read_assessment_progress')) {
+      return { text: '查看测评进度', path: '/assessment/progress', icon: <BarChartOutlined /> }
+    }
     return { text: '个人资料', path: '/user/profile', icon: <SettingOutlined /> }
   })()
 

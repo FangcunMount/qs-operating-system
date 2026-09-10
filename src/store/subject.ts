@@ -311,26 +311,32 @@ class SubjectStore {
     }
   }
 
-  // 综合获取受试者详情页所有数据
-  async fetchTesteeDetailPage(id: number | string) {
+  // 综合获取受试者详情页所有数据。
+  // includeProfessionalResults=false 时不请求测评/答卷/分析等专业结果面，避免运营过程角色误拉评分与报告。
+  async fetchTesteeDetailPage(id: number | string, options?: { includeProfessionalResults?: boolean }) {
+    const includeProfessionalResults = options?.includeProfessionalResults !== false
     this.setLoading(true)
     try {
-      // 1. 获取受试者基础信息
       await this.fetchTesteeDetail(id)
 
       if (!this.testeeInfo) {
         return
       }
 
-      // 2. 并行获取所有相关数据
-      await Promise.all([
-        this.fetchTesteeAssessments(this.testeeInfo.id),
-        this.fetchTesteeAnswerSheets(this.testeeInfo.id),
-        this.fetchScaleAnalysis(this.testeeInfo.id),
-        this.fetchPeriodicStats(this.testeeInfo.id)
-      ])
+      const requests: Array<Promise<unknown>> = [this.fetchPeriodicStats(this.testeeInfo.id)]
+      if (includeProfessionalResults) {
+        requests.push(
+          this.fetchTesteeAssessments(this.testeeInfo.id),
+          this.fetchTesteeAnswerSheets(this.testeeInfo.id),
+          this.fetchScaleAnalysis(this.testeeInfo.id)
+        )
+      } else {
+        this.setAssessmentList([])
+        this.setAnswerSheetList([])
+        this.setScaleAnalysis(null)
+      }
 
-      // 3. 转换数据格式为详情页需要的格式
+      await Promise.all(requests)
       await this.convertToSubjectDetail()
     } catch (error) {
       console.error('获取受试者详情页数据失败:', error)

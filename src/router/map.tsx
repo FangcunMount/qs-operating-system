@@ -17,6 +17,7 @@ const createIcon = (Icon: React.ComponentType) => React.createElement(Icon)
 
 // 页面组件懒加载
 // 注意：lazy import 不支持路径别名，必须使用相对路径
+const AssessmentProgress = lazy(() => import('../pages/assessment/progress'))
 const Home = lazy(() => import('../pages/home'))
 const SurveyList = lazy(() => import('../pages/survey/list/index'))
 const ScaleList = lazy(() => import('../pages/scale/list/index'))
@@ -168,6 +169,14 @@ export const routes: Array<IRoute> = [
         requiredCapabilities: ['read_assessment_records'],
         allowClinicianAccess: true,
         activeMenuName: 'assessment-records'
+      },
+      {
+        title: '测评进度',
+        name: 'assessment-progress',
+        path: '/assessment/progress',
+        component: AssessmentProgress,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['read_assessment_progress']
       },
       {
         title: '测评记录',
