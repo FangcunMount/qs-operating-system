@@ -355,7 +355,7 @@ const AuthzConfig: React.FC = observer(() => {
               { pattern: /^[a-z][a-z0-9:_-]*$/, message: '仅支持小写字母、数字、冒号、下划线和中划线' }
             ]}
           >
-            <Input placeholder="例如 qs:evaluator" disabled={Boolean(editingRole)} />
+            <Input placeholder="例如 qs:result_reviewer" disabled={Boolean(editingRole)} />
           </Form.Item>
           <Form.Item label="角色名称" name="display_name" rules={[{ required: true, message: '请输入角色名称' }]}>
             <Input placeholder="角色展示名称" />

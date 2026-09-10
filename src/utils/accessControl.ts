@@ -12,7 +12,6 @@ const ROLE_CAPABILITY_MAP: Record<string, RouteCapability[]> = {
   ],
   'qs:content_manager': ['manage_content', 'read_norm_tables', 'manage_norm_tables'],
   'qs:evaluation_plan_manager': ['manage_evaluation_plans', 'read_subjects', 'read_assessment_progress'],
-  'qs:evaluator': ['evaluate_assessments', 'read_subjects', 'read_assessment_records']
 }
 
 export interface AccessContext {
@@ -73,8 +72,7 @@ export function routeAllowsAccess(route: IRoute, access: AccessContext, profileF
   }
 
   const resultRoute = route.requiredCapabilities?.includes('read_assessment_records')
-  const independentRoles = process.env.REACT_APP_AUTHZ_ROLE_MODEL === 'independent-v1'
-  if (route.allowClinicianAccess && access.isClinician && !(independentRoles && resultRoute)) {
+  if (route.allowClinicianAccess && access.isClinician && !resultRoute) {
     return true
   }
 

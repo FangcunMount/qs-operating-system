@@ -50,7 +50,7 @@ const StaffManagement: React.FC = observer(() => {
     form.resetFields()
     form.setFieldsValue({
       account_mode: 'create',
-      roles: ['qs:staff'],
+      roles: ['qs:assessment_operator'],
       is_active: true
     })
     setModalVisible(true)
@@ -275,7 +275,7 @@ const StaffManagement: React.FC = observer(() => {
           layout="vertical"
           initialValues={{
             account_mode: 'create',
-            roles: ['qs:staff'],
+            roles: ['qs:assessment_operator'],
             is_active: true
           }}
         >

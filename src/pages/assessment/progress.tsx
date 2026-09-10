@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Alert, Button, Card, Table, Tag, message, Popconfirm } from 'antd'
+import { Alert, Button, Card, Table, Tag, message, Popconfirm, Space } from 'antd'
 import { get, post } from '@/api/qsServer'
 import { userStore } from '@/store/userStore'
 import { observer } from 'mobx-react'
@@ -33,6 +33,23 @@ const AssessmentProgress: React.FC = () => {
   const [error, setError] = useState(false)
   const requestVersion = useRef(0)
   const [retrying, setRetrying] = useState<string>()
+  const [selected, setSelected] = useState<React.Key[]>([])
+  const [executing, setExecuting] = useState(false)
+  const canExecute = userStore.accessContext.capabilities.has('evaluate_assessments')
+  const executeBatch = async () => {
+    if (executing || !selected.length) return
+    setExecuting(true)
+    try {
+      const [failure, response] = await post<{ success_count: number; failed_count: number }>(
+        '/evaluations/batch-evaluate', { assessment_ids: selected.map(String) }
+      )
+      if (failure || !response?.data) { message.error('批量执行未完成，请检查权限和测评状态。'); return }
+      message.info(`已处理：成功 ${response.data.success_count}，失败 ${response.data.failed_count}`)
+      setSelected([])
+      setRevision((value) => value + 1)
+    } catch (_) { message.error('批量执行结果暂不可确认，请刷新进度后检查。') }
+    finally { setExecuting(false) }
+  }
   const retry = async (id: string) => {
     setRetrying(id)
     try {
@@ -55,6 +72,7 @@ const AssessmentProgress: React.FC = () => {
   useEffect(() => {
     const version = ++requestVersion.current
     setLoading(true)
+    setSelected([])
     setError(false)
     setResult({ items: [], total: 0, page, page_size: 20 })
     get<ProgressPage>('/evaluations/assessment-progress', { page, page_size: 20 })
@@ -67,9 +85,17 @@ const AssessmentProgress: React.FC = () => {
       .finally(() => { if (version === requestVersion.current) setLoading(false) })
     return () => { requestVersion.current++ }
   }, [page, revision])
-  return <Card title="测评进度" extra={<Button onClick={() => setRevision(revision + 1)}>刷新</Button>}>
+  return <Card title="测评进度" extra={<Space>
+    {canExecute && <Popconfirm title={`执行选中的 ${selected.length} 项测评？`} onConfirm={executeBatch}
+      disabled={!selected.length || executing}>
+      <Button type="primary" loading={executing} disabled={!selected.length || loading}>批量执行</Button>
+    </Popconfirm>}
+    <Button disabled={executing} onClick={() => setRevision(revision + 1)}>刷新</Button>
+  </Space>}>
     {error && <Alert type="error" showIcon message="无法加载测评进度，请确认访问权限后重试。" />}
     <Table<Progress> rowKey="id" loading={loading} dataSource={result.items}
+      rowSelection={canExecute ? { selectedRowKeys: selected, onChange: setSelected,
+        getCheckboxProps: () => ({ disabled: executing }) } : undefined}
       pagination={{ current: page, pageSize: 20, total: result.total, showSizeChanger: false, onChange: setPage }}
       columns={[
         { title: '测评编号', dataIndex: 'id' },
