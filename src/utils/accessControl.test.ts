@@ -27,6 +27,13 @@ describe('norm-table access', () => {
 })
 
 describe('independent business roles', () => {
+  it('combines independent jobs without granting audit capability', () => {
+    const access = buildAccessContext(['qs:assessment_operator', 'qs:result_reviewer'], true)
+    expect(access.capabilities.has('read_assessment_progress')).toBe(true)
+    expect(access.capabilities.has('read_assessment_records')).toBe(true)
+    expect(access.capabilities.has('evaluate_assessments')).toBe(true)
+    expect(access.capabilities.has('audit_interpretation')).toBe(false)
+  })
   it('separates process operations from professional results', () => {
     const ops = buildAccessContext(['qs:assessment_operator'], false)
     expect(ops.capabilities.has('read_assessment_progress')).toBe(true)
