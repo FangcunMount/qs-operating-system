@@ -346,7 +346,7 @@ const AuthzConfig: React.FC = observer(() => {
         </TabPane>
         <TabPane
           key="matrix"
-          tab={<span><TableOutlined /> 权限矩阵</span>}
+          tab={<span><TableOutlined /> 权限总览</span>}
         >
           <RolePermissionMatrix />
         </TabPane>
