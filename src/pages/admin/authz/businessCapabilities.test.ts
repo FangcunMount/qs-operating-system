@@ -23,6 +23,9 @@ it('keeps whole-capability status conditional and explains OR alternatives', () 
     constraint_set: { version: 1 as const, all_of: [{ key: 'object.origin_type', operator: 'eq' as const,
       value: { type: 'string' as const, string: origin } }] } }))
   const result = capabilityResult(progress, { ...data, grants }, ['r1'])
+  const cell = result.items[0]?.cell
   expect(result.state).toBe('conditional')
-  expect(conditionSummary(result.items[0].cell!)).toBe('（仅限临时测评） 或 （仅限计划测评）')
+  expect(cell).toBeDefined()
+  if (!cell) throw new Error('expected conditional cell')
+  expect(conditionSummary(cell)).toBe('（仅限临时测评） 或 （仅限计划测评）')
 })
