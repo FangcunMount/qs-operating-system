@@ -6,10 +6,12 @@ import {
   getRolePermissionProfile,
   PERMISSION_DOMAIN_META,
   ROLE_PERMISSION_MATRIX_COLUMNS,
-  ROLE_PERMISSION_PROFILES,
-  type RolePermissionGrant,
-  type RolePermissionMatrixColumnKey,
-  type RolePermissionProfile
+  ROLE_PERMISSION_PROFILES
+} from '@/constants/rolePermissionMatrix'
+import type {
+  RolePermissionGrant,
+  RolePermissionMatrixColumnKey,
+  RolePermissionProfile
 } from '@/constants/rolePermissionMatrix'
 
 const { Text, Paragraph } = Typography
@@ -20,105 +22,49 @@ type MatrixRow = {
   roleKey: string
 } & Record<RolePermissionMatrixColumnKey, string>
 
-const RolePermissionMatrix: React.FC = () => {
-  const [roleKey, setRoleKey] = useState('qs:assessment_operator')
-  const profile = getRolePermissionProfile(roleKey) || ROLE_PERMISSION_PROFILES[0]
+function renderResourceKey(value: string) {
+  return <Text code>{value}</Text>
+}
 
-  const grantColumns: ColumnsType<RolePermissionGrant> = [
-    {
-      title: '资源',
-      dataIndex: 'resourceLabel',
-      key: 'resourceLabel',
-      width: 160
-    },
-    {
-      title: '资源键',
-      dataIndex: 'resource',
-      key: 'resource',
-      width: 260,
-      render: (value: string) => <Text code>{value}</Text>
-    },
-    {
-      title: '域',
-      dataIndex: 'domain',
-      key: 'domain',
-      width: 100,
-      render: (domain: RolePermissionGrant['domain']) => {
-        const meta = PERMISSION_DOMAIN_META[domain]
-        return <Tag color={meta.color}>{meta.label}</Tag>
-      }
-    },
-    {
-      title: '动作',
-      dataIndex: 'actions',
-      key: 'actions',
-      render: (actions: string[]) => (
-        <Space wrap size={[4, 4]}>
-          {actions.map((action) => (
-            <Tag key={action}>{action}</Tag>
-          ))}
-        </Space>
-      )
-    },
-    {
-      title: '条件',
-      dataIndex: 'condition',
-      key: 'condition',
-      width: 180,
-      render: (value?: string) => value || '—'
-    }
-  ]
+function renderDomain(domain: RolePermissionGrant['domain']) {
+  const meta = PERMISSION_DOMAIN_META[domain]
+  return <Tag color={meta.color}>{meta.label}</Tag>
+}
 
-  const matrixColumns: ColumnsType<MatrixRow> = useMemo(
-    () => [
-      {
-        title: '角色',
-        dataIndex: 'role',
-        key: 'role',
-        fixed: 'left',
-        width: 150,
-        render: (value: string, row) => (
-          <Space direction="vertical" size={0}>
-            <Text strong>{value}</Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {row.roleKey}
-            </Text>
-          </Space>
-        )
-      },
-      ...ROLE_PERMISSION_MATRIX_COLUMNS.map((column) => ({
-        title: column.label,
-        dataIndex: column.key,
-        key: column.key,
-        width: 130,
-        render: (value: string) =>
-          value === '—' ? (
-            <Text type="secondary">—</Text>
-          ) : (
-            <Text type={value === '*' ? 'success' : undefined}>{value}</Text>
-          )
-      }))
-    ],
-    []
+function renderActions(actions: string[]) {
+  return (
+    <Space wrap size={[4, 4]}>
+      {actions.map((action) => (
+        <Tag key={action}>{action}</Tag>
+      ))}
+    </Space>
   )
+}
 
-  const matrixRows: MatrixRow[] = useMemo(
-    () =>
-      ROLE_PERMISSION_PROFILES.filter((item) => item.key !== 'iam_admin').map((item) => {
-        const cells = Object.fromEntries(
-          ROLE_PERMISSION_MATRIX_COLUMNS.map((column) => [column.key, getMatrixCell(item.key, column.key)])
-        ) as Record<RolePermissionMatrixColumnKey, string>
-        return {
-          key: item.key,
-          role: item.label,
-          roleKey: item.key,
-          ...cells
-        }
-      }),
-    []
+function renderCondition(value?: string) {
+  return value || '—'
+}
+
+function renderRoleLabel(value: string, row: MatrixRow) {
+  return (
+    <Space direction="vertical" size={0}>
+      <Text strong>{value}</Text>
+      <Text type="secondary" style={{ fontSize: 12 }}>
+        {row.roleKey}
+      </Text>
+    </Space>
   )
+}
 
-  const renderProfileCard = (item: RolePermissionProfile) => (
+function renderMatrixCell(value: string) {
+  if (value === '—') {
+    return <Text type="secondary">—</Text>
+  }
+  return <Text type={value === '*' ? 'success' : undefined}>{value}</Text>
+}
+
+function renderProfileCard(item: RolePermissionProfile) {
+  return (
     <Card
       key={item.key}
       size="small"
@@ -143,6 +89,84 @@ const RolePermissionMatrix: React.FC = () => {
         ))}
       </Space>
     </Card>
+  )
+}
+
+const grantColumns: ColumnsType<RolePermissionGrant> = [
+  {
+    title: '资源',
+    dataIndex: 'resourceLabel',
+    key: 'resourceLabel',
+    width: 160
+  },
+  {
+    title: '资源键',
+    dataIndex: 'resource',
+    key: 'resource',
+    width: 260,
+    render: renderResourceKey
+  },
+  {
+    title: '域',
+    dataIndex: 'domain',
+    key: 'domain',
+    width: 100,
+    render: renderDomain
+  },
+  {
+    title: '动作',
+    dataIndex: 'actions',
+    key: 'actions',
+    render: renderActions
+  },
+  {
+    title: '条件',
+    dataIndex: 'condition',
+    key: 'condition',
+    width: 180,
+    render: renderCondition
+  }
+]
+
+const RolePermissionMatrix: React.FC = () => {
+  const [roleKey, setRoleKey] = useState('qs:assessment_operator')
+  const profile = getRolePermissionProfile(roleKey) || ROLE_PERMISSION_PROFILES[0]
+
+  const matrixColumns: ColumnsType<MatrixRow> = useMemo(
+    () => [
+      {
+        title: '角色',
+        dataIndex: 'role',
+        key: 'role',
+        fixed: 'left',
+        width: 150,
+        render: renderRoleLabel
+      },
+      ...ROLE_PERMISSION_MATRIX_COLUMNS.map((column) => ({
+        title: column.label,
+        dataIndex: column.key,
+        key: column.key,
+        width: 130,
+        render: renderMatrixCell
+      }))
+    ],
+    []
+  )
+
+  const matrixRows: MatrixRow[] = useMemo(
+    () =>
+      ROLE_PERMISSION_PROFILES.filter((item) => item.key !== 'iam_admin').map((item) => {
+        const cells = Object.fromEntries(
+          ROLE_PERMISSION_MATRIX_COLUMNS.map((column) => [column.key, getMatrixCell(item.key, column.key)])
+        ) as Record<RolePermissionMatrixColumnKey, string>
+        return {
+          key: item.key,
+          role: item.label,
+          roleKey: item.key,
+          ...cells
+        }
+      }),
+    []
   )
 
   return (
