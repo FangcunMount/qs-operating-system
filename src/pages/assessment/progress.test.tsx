@@ -73,9 +73,9 @@ it('fails closed for retired permissions without loading results', async () => {
 })
 
 it.each([false, undefined])('hides retry when manual eligibility is %s', async (available) => {
- (get as jest.Mock).mockResolvedValue([null, { data: { items: [{ ...row, manual_retry_available: available }], total: 1 } }])
- render(<AssessmentProgress />)
- await screen.findByText(id)
- expect(screen.queryByRole('button', { name: /重\s*试/ })).not.toBeInTheDocument()
- expect(post).not.toHaveBeenCalled()
+  (get as jest.Mock).mockResolvedValue([null, { data: { items: [{ ...row, manual_retry_available: available }], total: 1 } }])
+  render(<AssessmentProgress />)
+  await screen.findByText(id)
+  expect(screen.queryByRole('button', { name: /重\s*试/ })).not.toBeInTheDocument()
+  expect(post).not.toHaveBeenCalled()
 })
