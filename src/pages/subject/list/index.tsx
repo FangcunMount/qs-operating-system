@@ -4,6 +4,7 @@ import { SearchOutlined, StarOutlined, StarFilled } from '@ant-design/icons'
 import { useHistory } from 'react-router-dom'
 import moment from 'moment'
 import { testeeApi, ITestee } from '@/api/path/subject'
+import { IStore, loadStoreOptions } from '@/api/path/store'
 import { identityApi, IChildSuggestItem } from '@/api/path/identity'
 import { clinicianApi, IClinician } from '@/api/path/clinician'
 import { LazyTable } from '@/components/lazyTable'
@@ -16,6 +17,8 @@ const { RangePicker } = DatePicker
 
 const SubjectList: React.FC = () => {
   const history = useHistory()
+  const [storeFilter, setStoreFilter] = useState<string | undefined>()
+  const [stores, setStores] = useState<IStore[]>([])
   const [keyword, setKeyword] = useState('')
   const [isKeyFocusFilter, setIsKeyFocusFilter] = useState<boolean | undefined>(undefined)
   const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>(undefined)
@@ -31,6 +34,15 @@ const SubjectList: React.FC = () => {
   const [clinicianOptions, setClinicianOptions] = useState<IClinician[]>([])
   const suggestTimer = useRef<number | null>(null)
   const canFilterByClinician = rootStore.userStore.accessContext.capabilities.has('org_admin')
+
+  useEffect(() => {
+    if (!canFilterByClinician) return
+    let active = true
+    loadStoreOptions(false).then((rows) => { if (active) setStores(rows) }).catch((err) => {
+      if (active) message.error(extractErrorMessage(err, '读取门店选项失败'))
+    })
+    return () => { active = false }
+  }, [canFilterByClinician])
 
   const calculateAge = (birthday?: string): number => {
     if (!birthday) return 0
@@ -80,6 +92,8 @@ const SubjectList: React.FC = () => {
       try {
         const queryParams = {
           profile_id: targetProfileId,
+          store_id: storeFilter && storeFilter !== 'unassigned' ? storeFilter : undefined,
+          unassigned_store: storeFilter === 'unassigned' ? true : undefined,
           clinician_id: selectedClinicianId,
           is_key_focus: isKeyFocusFilter,
           created_start_date: createdDateRange?.[0]?.format('YYYY-MM-DD'),
@@ -105,7 +119,7 @@ const SubjectList: React.FC = () => {
         setLoading(false)
       }
     },
-    [createdDateRange, isKeyFocusFilter, page, pageSize, selectedProfileId, selectedClinicianId]
+    [createdDateRange, isKeyFocusFilter, page, pageSize, selectedProfileId, selectedClinicianId, storeFilter]
   )
 
   useEffect(() => {
@@ -192,11 +206,12 @@ const SubjectList: React.FC = () => {
   )
 
   const hasActiveFilters = useMemo(
-    () => Boolean(keyword || selectedProfileId || selectedClinicianId || isKeyFocusFilter !== undefined || createdDateRange),
-    [createdDateRange, isKeyFocusFilter, keyword, selectedClinicianId, selectedProfileId]
+    () => Boolean(storeFilter || keyword || selectedProfileId || selectedClinicianId || isKeyFocusFilter !== undefined || createdDateRange),
+    [createdDateRange, isKeyFocusFilter, keyword, selectedClinicianId, selectedProfileId, storeFilter]
   )
 
   const resetFilters = useCallback(() => {
+    setStoreFilter(undefined)
     setKeyword('')
     setSelectedProfileId(undefined)
     setSelectedClinicianId(undefined)
@@ -208,6 +223,10 @@ const SubjectList: React.FC = () => {
 
   const columns = useMemo(
     () => [
+      {
+        title: '服务门店', dataIndex: 'store_id', width: 150,
+        render: (id?: string | null) => id ? stores.find((item) => item.id === id)?.name || id : '未归属'
+      },
       {
         title: '姓名',
         dataIndex: 'name',
@@ -323,12 +342,15 @@ const SubjectList: React.FC = () => {
         }
       }
     ],
-    [history]
+    [history, stores]
   )
 
   return (
     <div className="subject-list-page">
       <div className="filter-bar">
+        {canFilterByClinician && <Select aria-label="服务门店筛选" allowClear placeholder="全部门店归属" value={storeFilter}
+          style={{ width: 220 }} onChange={(value: string | undefined) => { setStoreFilter(value); setPage(1) }}
+          options={[{ value: 'unassigned', label: '未归属门店' }, ...stores.map((item) => ({ value: item.id, label: `${item.name}（${item.code}）` }))]} /> }
         <Space size="middle">
           <Space size={8}>
             <span className="filter-label">重点关注</span>

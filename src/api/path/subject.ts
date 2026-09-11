@@ -5,6 +5,8 @@ import type { QSResponse } from '@/types/qs'
 
 // 受试者接口请求参数
 export interface IListTesteeRequest {
+  store_id?: string
+  unassigned_store?: boolean
   org_id?: number
   name?: string
   profile_id?: string
@@ -63,6 +65,8 @@ export interface ITesteeDetail {
 
 // 受试者响应数据（简化版，用于列表）
 export interface ITestee {
+  store_id?: string | null
+  store_version?: number
   id: number
   name: string
   gender: string

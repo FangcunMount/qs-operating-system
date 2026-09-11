@@ -4,6 +4,7 @@ import { observer } from 'mobx-react-lite'
 import { Spin, Tabs } from 'antd'
 import { rootStore, subjectStore } from '@/store'
 import { DashboardTab, ClinicianRelationsTab, ScaleRecordsTab, SurveyRecordsTab } from './components'
+import StoreOwnershipPanel from './components/StoreOwnershipPanel'
 import './index.scss'
 
 const { TabPane } = Tabs
@@ -103,6 +104,9 @@ const SubjectDetail: React.FC = observer(() => {
   return (
     <div className="subject-detail-page">
       <Tabs defaultActiveKey="1" size="large" className="main-tabs">
+        {rootStore.userStore.accessContext.capabilities.has('org_admin') && (
+          <TabPane tab="服务门店" key="store"><StoreOwnershipPanel key={id} testeeId={id} /></TabPane>
+        )}
         <TabPane tab="仪表盘" key="1">
           <DashboardTab
             basicInfo={detail.basicInfo}
