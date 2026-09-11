@@ -11,6 +11,7 @@ interface Progress {
   questionnaire_version: string
   origin_type: string
   origin_id?: string
+  manual_retry_available?: boolean
   status: string
   submitted_at?: string
   evaluated_at?: string
@@ -62,7 +63,7 @@ const AssessmentProgress: React.FC = () => {
   const renderAction = (_: unknown, row: Progress) => {
     const allowed = userStore.hasPermission('qs:evaluation:collection:assessments', 'retry')
     if (userStore.permissionNeedsRefresh('qs:evaluation:collection:assessments', 'retry')) return <span>权限数据待刷新</span>
-    if (!allowed || row.status !== 'failed') return null
+    if (!allowed || row.status !== 'failed' || row.manual_retry_available !== true) return null
     return <Popconfirm title="重试此测评？" onConfirm={() => retry(row.id)}>
       <Button loading={retrying === row.id} disabled={Boolean(retrying)} size="small">重试</Button>
     </Popconfirm>

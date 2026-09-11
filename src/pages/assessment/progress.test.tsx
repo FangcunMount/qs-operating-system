@@ -10,7 +10,7 @@ jest.mock('@/store/userStore', () => ({ userStore: { accessContext: {}, hasPermi
 jest.mock('mobx-react', () => ({ observer: (component: any) => component }))
 
 const id = '635426176763965998'
-const row = { id, testee_id: '21', questionnaire_code: 'Q1', origin_type: 'adhoc', status: 'failed' }
+const row = { id, testee_id: '21', questionnaire_code: 'Q1', origin_type: 'adhoc', status: 'failed', manual_retry_available: true }
 const load = (origin = 'adhoc') => {
   (get as jest.Mock).mockResolvedValue([null, { data: { items: [{ ...row, origin_type: origin }], total: 1 } }])
 }
@@ -70,4 +70,12 @@ it('fails closed for retired permissions without loading results', async () => {
   expect(await screen.findByText('权限数据待刷新')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /重\s*试/ })).not.toBeInTheDocument()
   expect(post).not.toHaveBeenCalled()
+})
+
+it.each([false, undefined])('hides retry when manual eligibility is %s', async (available) => {
+ (get as jest.Mock).mockResolvedValue([null, { data: { items: [{ ...row, manual_retry_available: available }], total: 1 } }])
+ render(<AssessmentProgress />)
+ await screen.findByText(id)
+ expect(screen.queryByRole('button', { name: /重\s*试/ })).not.toBeInTheDocument()
+ expect(post).not.toHaveBeenCalled()
 })
