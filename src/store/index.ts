@@ -9,7 +9,7 @@ import { answerSheetStore } from './answerSheetStore'
 import { subjectStore } from './subject'
 import { surveyStore } from './surveyStore'
 import { scaleStore } from './scaleStore'
-import { staffStore } from './staffStore'
+import { operatorStore } from './operatorStore'
 import { personalityModelStore, personalityEditorWorkflowStore } from './personality'
 
 // 单独导出各个 store（方便直接引用）
@@ -26,7 +26,7 @@ export {
   scaleStore,
   personalityModelStore,
   personalityEditorWorkflowStore,
-  staffStore
+  operatorStore
 }
 
 // 统一导出所有 store（用于新代码）
@@ -51,8 +51,8 @@ export const rootStore = {
   personalityModelStore,
   personalityEditorWorkflowStore,
   
-  // 员工管理
-  staffStore
+  // 运营人员管理
+  operatorStore
 }
 
 // 开发环境下暴露到 window 对象方便调试

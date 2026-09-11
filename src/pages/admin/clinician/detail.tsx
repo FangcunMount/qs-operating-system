@@ -296,7 +296,6 @@ const ClinicianDetailPage: React.FC = () => {
             <Descriptions.Item label="类型">{renderClinicianTypeLabel(clinician)}</Descriptions.Item>
             <Descriptions.Item label="科室">{clinician.department || '-'}</Descriptions.Item>
             <Descriptions.Item label="职称">{clinician.title || '-'}</Descriptions.Item>
-            <Descriptions.Item label="员工绑定">{clinician.operator_id ? `#${clinician.operator_id}` : '未绑定'}</Descriptions.Item>
             <Descriptions.Item label="状态">
               <Tag color={clinician.is_active ? 'success' : 'error'}>{clinician.is_active ? '激活' : '停用'}</Tag>
             </Descriptions.Item>

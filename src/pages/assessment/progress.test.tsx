@@ -17,7 +17,7 @@ const load = (origin = 'adhoc') => {
 
 beforeEach(() => {
   jest.clearAllMocks()
-  Object.assign(userStore, { accessContext: buildAccessContext(['qs:assessment_operator'], false) })
+  Object.assign(userStore, { accessContext: buildAccessContext(['qs:assessment_operator']) })
   ;(userStore.hasPermission as jest.Mock).mockReturnValue(true)
   ;(userStore.permissionNeedsRefresh as jest.Mock).mockReturnValue(false)
   load()
@@ -52,7 +52,7 @@ it('allows an operator with retry permission to retry a plan assessment', async 
 })
 
 it('allows a planner to submit plan retry without loading results', async () => {
-  Object.assign(userStore, { accessContext: buildAccessContext(['qs:evaluation_plan_manager'], false) })
+  Object.assign(userStore, { accessContext: buildAccessContext(['qs:evaluation_plan_manager']) })
   load('plan')
   render(<AssessmentProgress />)
   await screen.findByText(id)

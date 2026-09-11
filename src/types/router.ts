@@ -1,6 +1,6 @@
 import React from 'react'
 
-export type MenuScope = 'public' | 'org_admin' | 'platform_admin' | 'clinician' | 'hidden'
+export type MenuScope = 'public' | 'org_admin' | 'platform_admin' | 'hidden'
 
 export type RouteCapability =
   | 'platform_admin'
@@ -28,9 +28,6 @@ export interface IRoute {
   menuScope?: MenuScope
   requiredRoles?: string[]
   requiredCapabilities?: RouteCapability[]
-  requiresClinician?: boolean
-  allowClinicianAccess?: boolean
-  hideForClinicianOnly?: boolean
   activeMenuName?: string
   children?: Array<IRoute>
 }

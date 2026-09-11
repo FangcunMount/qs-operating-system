@@ -52,7 +52,7 @@ const taskStatusTextMap: Record<string, string> = {
 }
 
 interface QueuePanelProps {
-  mode: 'personal' | 'admin'
+  mode: 'admin'
   title?: string
   scopeDescription?: string
   clinicianId?: string
@@ -87,9 +87,7 @@ const QueuePanel: React.FC<QueuePanelProps> = ({
 
   const fetchQueueSummary = async () => {
     const [error, response] =
-      mode === 'admin'
-        ? await workbenchApi.getOrgWorkbenchQueueSummary(queueParams)
-        : await workbenchApi.getMyWorkbenchQueueSummary()
+      await workbenchApi.getOrgWorkbenchQueueSummary(queueParams)
     if (error || !response?.data) {
       console.error(error)
       message.error(extractErrorMessage(error, '获取工作台队列统计失败'))
@@ -112,9 +110,7 @@ const QueuePanel: React.FC<QueuePanelProps> = ({
         page_size: pageSize
       }
       const [error, response] =
-        mode === 'admin'
-          ? await workbenchApi.listOrgWorkbenchQueue(targetQueueType, params)
-          : await workbenchApi.listMyWorkbenchQueue(targetQueueType, params)
+        await workbenchApi.listOrgWorkbenchQueue(targetQueueType, params)
       if (error || !response?.data) {
         throw error || new Error('获取工作台队列失败')
       }

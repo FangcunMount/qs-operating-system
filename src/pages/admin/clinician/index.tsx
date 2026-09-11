@@ -5,7 +5,6 @@ import { PlusOutlined } from '@ant-design/icons'
 import { useHistory } from 'react-router-dom'
 import type { ColumnsType } from 'antd/es/table'
 import { clinicianApi, IAssessmentEntry, IClinician } from '@/api/path/clinician'
-import { staffApi, IStaff } from '@/api/path/staff'
 import { extractErrorMessage } from '@/utils/apiError'
 import { buildAssessmentEntryPublicLink, copyAssessmentEntryPublicLink, triggerAssessmentEntryQRCodeDownload } from '@/utils/assessmentEntry'
 import './index.scss'
@@ -22,16 +21,12 @@ const ClinicianManagement: React.FC = () => {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [modalVisible, setModalVisible] = useState(false)
-  const [bindVisible, setBindVisible] = useState(false)
   const [editingItem, setEditingItem] = useState<IClinician | null>(null)
-  const [bindingItem, setBindingItem] = useState<IClinician | null>(null)
   const [previewVisible, setPreviewVisible] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewClinician, setPreviewClinician] = useState<IClinician | null>(null)
   const [previewEntry, setPreviewEntry] = useState<IAssessmentEntry | null>(null)
-  const [staffOptions, setStaffOptions] = useState<IStaff[]>([])
   const [form] = Form.useForm()
-  const [bindForm] = Form.useForm()
 
   const clinicianTypeOptions = useMemo(
     () => [
@@ -42,23 +37,6 @@ const ClinicianManagement: React.FC = () => {
     ],
     []
   )
-
-  const bindableStaffOptions = useMemo(() => {
-    const occupiedByOthers = new Set(
-      items
-        .filter((item) => item.is_active && item.operator_id && item.id !== bindingItem?.id)
-        .map((item) => String(item.operator_id))
-    )
-    const currentOperatorId = bindingItem?.operator_id ? String(bindingItem.operator_id) : ''
-
-    return staffOptions.filter((item) => {
-      if (!item.is_active) {
-        return false
-      }
-      const id = String(item.id)
-      return !occupiedByOthers.has(id) || id === currentOperatorId
-    })
-  }, [bindingItem, items, staffOptions])
 
   const fetchClinicians = async (nextPage = page, nextPageSize = pageSize) => {
     setLoading(true)
@@ -83,20 +61,6 @@ const ClinicianManagement: React.FC = () => {
       setLoading(false)
     }
   }
-
-  const fetchStaff = async () => {
-    const [error, response] = await staffApi.listStaff({
-      page: 1,
-      page_size: 100
-    })
-    if (!error && response?.data) {
-      setStaffOptions(response.data.items || [])
-    }
-  }
-
-  useEffect(() => {
-    fetchStaff()
-  }, [])
 
   useEffect(() => { void fetchClinicians(1) }, [storeFilter])
 
@@ -158,54 +122,9 @@ const ClinicianManagement: React.FC = () => {
     }
     message.success(item.is_active ? '已停用' : '已启用')
     fetchClinicians()
-    fetchStaff()
-  }
-
-  const handleOpenBind = (item: IClinician) => {
-    setBindingItem(item)
-    bindForm.resetFields()
-    if (item.operator_id) {
-      bindForm.setFieldsValue({ operator_id: item.operator_id })
-    }
-    setBindVisible(true)
-  }
-
-  const handleBindSubmit = async () => {
-    if (!bindingItem) return
-    try {
-      const values = await bindForm.validateFields()
-      const [error] = await clinicianApi.bindOperator(bindingItem.id, String(values.operator_id))
-      if (error) {
-        throw error
-      }
-      message.success('绑定员工成功')
-      setBindVisible(false)
-      fetchClinicians()
-      fetchStaff()
-    } catch (error) {
-      console.error(error)
-      message.error(extractErrorMessage(error, '绑定员工失败'))
-    }
-  }
-
-  const handleUnbind = async (item: IClinician) => {
-    const [error] = await clinicianApi.unbindOperator(item.id)
-    if (error) {
-      message.error(extractErrorMessage(error, '解绑员工失败'))
-      return
-    }
-    message.success('解绑员工成功')
-    fetchClinicians()
-    fetchStaff()
   }
 
   const renderClinicianStatus = (value: boolean) => <Tag color={value ? 'success' : 'error'}>{value ? '激活' : '停用'}</Tag>
-
-  const renderBoundStaff = (_: unknown, record: IClinician) => {
-    if (!record.operator_id) return <Tag>未绑定</Tag>
-    const staff = staffOptions.find((item) => String(item.id) === String(record.operator_id))
-    return <span>{staff?.name || `员工#${record.operator_id}`}</span>
-  }
 
   const resolveClinicianQRCodeEntry = async (clinician: IClinician) => {
     const [listError, listResponse] = await clinicianApi.listClinicianAssessmentEntries(clinician.id, { page: 1, page_size: 100 })
@@ -278,16 +197,6 @@ const ClinicianManagement: React.FC = () => {
       <Button type="link" size="small" onClick={() => handleOpenEdit(record)}>
         编辑
       </Button>
-      <Button type="link" size="small" onClick={() => handleOpenBind(record)}>
-        {record.operator_id ? '改绑员工' : '绑定员工'}
-      </Button>
-      {record.operator_id && (
-        <Popconfirm title="确认解绑当前员工？" onConfirm={() => handleUnbind(record)}>
-          <Button type="link" size="small" danger>
-            解绑
-          </Button>
-        </Popconfirm>
-      )}
       <Popconfirm title={record.is_active ? '确认停用该临床人员？' : '确认启用该临床人员？'} onConfirm={() => handleToggleActive(record)}>
         <Button type="link" size="small">
           {record.is_active ? '停用' : '启用'}
@@ -316,12 +225,6 @@ const ClinicianManagement: React.FC = () => {
       key: 'is_active',
       width: 100,
       render: renderClinicianStatus
-    },
-    {
-      title: '绑定员工',
-      key: 'operator_id',
-      width: 180,
-      render: renderBoundStaff
     },
     { title: '受试者数', dataIndex: 'assigned_testee_count', key: 'assigned_testee_count', width: 110 },
     { title: '入口数', dataIndex: 'assessment_entry_count', key: 'assessment_entry_count', width: 90 },
@@ -397,20 +300,6 @@ const ClinicianManagement: React.FC = () => {
               </Radio.Group>
             </Form.Item>
           )}
-        </Form>
-      </Modal>
-
-      <Modal title="绑定员工" visible={bindVisible} onOk={handleBindSubmit} onCancel={() => setBindVisible(false)} destroyOnClose>
-        <Form layout="vertical" form={bindForm}>
-          <Form.Item label="员工" name="operator_id" rules={[{ required: true, message: '请选择员工' }]}>
-            <Select showSearch optionFilterProp="children" placeholder="请选择要绑定的员工">
-              {bindableStaffOptions.map((item) => (
-                <Option key={item.id} value={item.id}>
-                  {item.name} (#{item.id})
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
         </Form>
       </Modal>
 

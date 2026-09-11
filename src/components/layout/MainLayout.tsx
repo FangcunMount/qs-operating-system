@@ -8,7 +8,6 @@ import {
   UserOutlined,
   LogoutOutlined,
   SettingOutlined,
-  TeamOutlined,
   BellOutlined,
   QuestionCircleOutlined,
   GithubOutlined,
@@ -217,18 +216,6 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
       if (route.children && route.children.some(child => !child.hideInMenu)) {
         const visibleChildren = route.children.filter(child => !child.hideInMenu)
 
-        if (route.name === 'clinician-workbench' && visibleChildren.length === 1) {
-          const child = visibleChildren[0]
-          return (
-            <Menu.Item
-              key={child.name}
-              icon={route.icon}
-              onClick={() => history.push(child.path)}
-            >
-              {getRouteDisplayTitle(route.name, route.title, userStore.accessContext)}
-            </Menu.Item>
-          )
-        }
 
         return (
           <Menu.SubMenu 
@@ -297,15 +284,6 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
       >
         账号安全
       </Menu.Item>
-      {userStore.accessContext.isClinician && (
-        <Menu.Item
-          key="workbench"
-          icon={<TeamOutlined />}
-          onClick={() => history.push('/clinician/me')}
-        >
-          临床工作台
-        </Menu.Item>
-      )}
       {userStore.accessContext.isPlatformAdmin && (
         <Menu.Item 
           key="settings" 

@@ -5,9 +5,8 @@ export function getRouteDisplayTitle(
   routeTitle: string,
   access: AccessContext
 ): string {
-  if (access.isClinician && (routeName === 'subject' || routeName === 'subject-list')) {
-    return '我的受试者'
-  }
+  void routeName
+  void access
 
   return routeTitle
 }

@@ -113,13 +113,6 @@ const UserProfile: React.FC = observer(() => {
               <Descriptions.Item label="手机号">{userStore.getContact('phone') || '-'}</Descriptions.Item>
               <Descriptions.Item label="邮箱">{userStore.getContact('email') || '-'}</Descriptions.Item>
               <Descriptions.Item label="角色">{roleTags?.length ? roleTags : '-'}</Descriptions.Item>
-              <Descriptions.Item label="临床身份">
-                {userStore.clinicianIdentity ? (
-                  <Tag color="success">{userStore.clinicianIdentity.name}</Tag>
-                ) : (
-                  <Tag>未绑定 clinician</Tag>
-                )}
-              </Descriptions.Item>
               <Descriptions.Item label="状态">
                 {userStore.currentUser?.status && getStatusTag(userStore.currentUser.status)}
               </Descriptions.Item>

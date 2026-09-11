@@ -410,3 +410,11 @@ export const internalPost = qsInternalPost
 export const internalRawGet = qsInternalRawGet
 export const internalV2Get = qsInternalV2Get
 export const internalV2Post = qsInternalV2Post
+
+// Explicit request body for versioned lifecycle commands; existing query-only delete stays unchanged.
+export const qsDeleteWithBody = <T>(url: string, data: unknown): Promise<[any, QSResponse<T> | undefined]> =>
+  new Promise((resolve) => {
+    qsAxios.delete(url, { data })
+      .then((result) => resolve([null, result.data as QSResponse<T>]))
+      .catch((err) => resolve([err, undefined]))
+  })

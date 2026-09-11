@@ -29,7 +29,6 @@ export interface IWorkbenchTaskSummary {
 export interface IWorkbenchClinicianAssignment {
   id: string
   org_id: string
-  operator_id?: string
   name: string
   department?: string
   title?: string
@@ -69,15 +68,6 @@ export interface IWorkbenchQueueSummaryParams {
   clinician_id?: number | string
 }
 
-export const getMyWorkbenchQueueSummary = (): Promise<[any, QSResponse<IWorkbenchQueueSummaryResponse> | undefined]> =>
-  get<IWorkbenchQueueSummaryResponse>('/clinicians/me/workbench/queues/summary')
-
-export const listMyWorkbenchQueue = (
-  queueType: WorkbenchQueueType,
-  params: IWorkbenchQueueListParams
-): Promise<[any, QSResponse<IWorkbenchQueueResponse> | undefined]> =>
-  get<IWorkbenchQueueResponse>(`/clinicians/me/workbench/queues/${queueType}`, params)
-
 export const getOrgWorkbenchQueueSummary = (
   params: IWorkbenchQueueSummaryParams = {}
 ): Promise<[any, QSResponse<IWorkbenchQueueSummaryResponse> | undefined]> =>
@@ -90,8 +80,6 @@ export const listOrgWorkbenchQueue = (
   get<IWorkbenchQueueResponse>(`/workbench/queues/${queueType}`, params)
 
 export const workbenchApi = {
-  getMyWorkbenchQueueSummary,
-  listMyWorkbenchQueue,
   getOrgWorkbenchQueueSummary,
   listOrgWorkbenchQueue
 }

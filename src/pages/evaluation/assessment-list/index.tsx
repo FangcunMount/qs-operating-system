@@ -4,7 +4,6 @@ import type { ColumnsType } from 'antd/es/table'
 import { useHistory } from 'react-router-dom'
 import { assessmentApi } from '@/api/path/assessment'
 import type { IAssessment } from '@/api/path/assessment'
-import { rootStore } from '@/store'
 
 const statusTextMap: Record<string, string> = {
   pending: '待处理',
@@ -31,7 +30,6 @@ const riskColorMap: Record<string, string> = {
 
 const AssessmentListPage: React.FC = () => {
   const history = useHistory()
-  const { userStore } = rootStore
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<IAssessment[]>([])
   const [page, setPage] = useState(1)
@@ -41,7 +39,7 @@ const AssessmentListPage: React.FC = () => {
   const [testeeIdInput, setTesteeIdInput] = useState('')
   const [appliedTesteeId, setAppliedTesteeId] = useState<string | undefined>(undefined)
 
-  const title = userStore.accessContext.isClinician ? '测评记录' : '测评记录列表'
+  const title = '测评记录列表'
 
   const fetchData = useCallback(async () => {
     setLoading(true)

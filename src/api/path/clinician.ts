@@ -1,5 +1,4 @@
 import type { ITestee } from './subject'
-import { getMyWorkbenchQueueSummary, listMyWorkbenchQueue } from './workbench'
 import type {
   IWorkbenchQueueCounts,
   IWorkbenchQueueItem,
@@ -8,7 +7,7 @@ import type {
   IWorkbenchTaskSummary,
   WorkbenchQueueType
 } from './workbench'
-import { get, post, put, silentGet } from '../qsServer'
+import { get, post, put } from '../qsServer'
 
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 
@@ -20,7 +19,6 @@ export interface IClinician {
   version?: number
   id: string
   org_id: string
-  operator_id?: string
   name: string
   department?: string
   title?: string
@@ -43,7 +41,6 @@ export interface IClinicianListResponse {
 
 export interface ICreateClinicianRequest {
   org_id?: number
-  operator_id?: string
   name: string
   department?: string
   title?: string
@@ -169,9 +166,7 @@ export const clinicianApi = {
 
   deactivateClinician: (id: number | string) => post<IClinician>(`/clinicians/${id}/deactivate`, undefined),
 
-  bindOperator: (id: number | string, operator_id: string) => post<IClinician>(`/clinicians/${id}/bind-operator`, { operator_id }),
 
-  unbindOperator: (id: number | string) => post<IClinician>(`/clinicians/${id}/unbind-operator`, undefined),
 
   listClinicianTestees: (id: number | string, params: { page?: number; page_size?: number }) => get<any>(`/clinicians/${id}/testees`, params),
 
@@ -206,27 +201,4 @@ export const clinicianApi = {
 
   listTesteeClinicianRelations: (testeeId: number | string) => get<ITesteeClinicianRelationListResponse>(`/testees/${testeeId}/clinician-relations`),
 
-  getMyClinician: () => get<IClinician>('/clinicians/me'),
-
-  probeMyClinician: () => silentGet<IClinician>('/clinicians/me'),
-
-  listMyClinicianTestees: (params: { page?: number; page_size?: number }) => get<any>('/clinicians/me/testees', params),
-
-  listMyClinicianRelations: (params: { page?: number; page_size?: number }) =>
-    get<IClinicianRelationListResponse>('/clinicians/me/relations', params),
-
-  listMyAssessmentEntries: (params: { page?: number; page_size?: number }) =>
-    get<IAssessmentEntryListResponse>('/clinicians/me/assessment-entries', params),
-
-  getMyAssessmentEntry: (id: number | string) => get<IAssessmentEntry>(`/clinicians/me/assessment-entries/${id}`),
-
-  createMyAssessmentEntry: (data: ICreateAssessmentEntryRequest) => post<IAssessmentEntry>('/clinicians/me/assessment-entries', data),
-
-  deactivateMyAssessmentEntry: (id: number | string) => post<IAssessmentEntry>(`/clinicians/me/assessment-entries/${id}/deactivate`, undefined),
-
-  reactivateMyAssessmentEntry: (id: number | string) => post<IAssessmentEntry>(`/clinicians/me/assessment-entries/${id}/reactivate`, undefined),
-
-  getMyWorkbenchQueueSummary,
-
-  listMyWorkbenchQueue
 }

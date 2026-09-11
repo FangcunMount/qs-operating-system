@@ -1,51 +1,39 @@
 import React, { useEffect, useState } from 'react'
-import { Alert, Button, Card, Form, Input, Modal, Popconfirm, Radio, Select, Space, Table, Tag, Typography } from 'antd'
+import { Alert, Button, Card, Form, Input, Modal, Radio, Select, Space, Table, Tag, Typography } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, SyncOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { observer } from 'mobx-react-lite'
 import { rootStore } from '@/store'
-import type { ICreateStaffRequest, IStaff, IUpdateStaffRequest } from '@/api/path/staff'
-import type { IClinician } from '@/api/path/clinician'
-import { clinicianApi } from '@/api/path/clinician'
+import type { ICreateOperatorRequest, IOperator, IUpdateOperatorRequest } from '@/api/path/operator'
+import OperatorRetirement from './retirement'
 import { OPERATOR_ROLE_COLOR_MAP, OPERATOR_ROLE_OPTIONS } from '@/constants/operatorRoles'
 import { extractErrorMessage } from '@/utils/apiError'
 import './index.scss'
 
 type AccountMode = 'create' | 'existing'
 
-const StaffManagement: React.FC = observer(() => {
-  const { staffStore, authStore } = rootStore
+const OperatorManagement: React.FC = observer(() => {
+  const { operatorStore, authStore } = rootStore
   const [modalVisible, setModalVisible] = useState(false)
-  const [editingStaff, setEditingStaff] = useState<IStaff | null>(null)
-  const [clinicians, setClinicians] = useState<IClinician[]>([])
+  const [editingOperator, setEditingOperator] = useState<IOperator | null>(null)
+  const [retiring, setRetiring] = useState<IOperator | null>(null)
   const [accountMode, setAccountMode] = useState<AccountMode>('create')
   const [form] = Form.useForm()
 
   useEffect(() => {
-    fetchStaffList()
-    fetchClinicians()
+    fetchOperatorList()
     authStore.fetchRoleList({ limit: 100, offset: 0 })
   }, [])
 
-  const fetchStaffList = (page = 1, pageSize = 20) => {
-    staffStore.fetchStaffList({
+  const fetchOperatorList = (page = 1, pageSize = 20) => {
+    operatorStore.fetchOperatorList({
       page,
       page_size: pageSize
     })
   }
 
-  const fetchClinicians = async () => {
-    const [error, response] = await clinicianApi.listClinicians({
-      page: 1,
-      page_size: 200
-    })
-    if (!error && response?.data) {
-      setClinicians(response.data.items || [])
-    }
-  }
-
   const handleAdd = () => {
-    setEditingStaff(null)
+    setEditingOperator(null)
     setAccountMode('create')
     form.resetFields()
     form.setFieldsValue({
@@ -56,8 +44,8 @@ const StaffManagement: React.FC = observer(() => {
     setModalVisible(true)
   }
 
-  const handleEdit = (record: IStaff) => {
-    setEditingStaff(record)
+  const handleEdit = (record: IOperator) => {
+    setEditingOperator(record)
     setAccountMode('existing')
     form.resetFields()
     form.setFieldsValue({
@@ -72,36 +60,27 @@ const StaffManagement: React.FC = observer(() => {
     setModalVisible(true)
   }
 
-  const handleDelete = async (id: string) => {
-    const success = await staffStore.deleteStaff(id)
-    if (success) {
-      fetchStaffList(staffStore.pageInfo.current, staffStore.pageInfo.pageSize)
-      fetchClinicians()
-    }
-  }
-
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
 
-      if (editingStaff) {
-        const data: IUpdateStaffRequest = {
+      if (editingOperator) {
+        const data: IUpdateOperatorRequest = {
           name: values.name,
           roles: values.roles,
           phone: values.phone || undefined,
           email: values.email || undefined,
           is_active: Boolean(values.is_active)
         }
-        const success = await staffStore.updateStaff(editingStaff.id, data)
+        const success = await operatorStore.updateOperator(editingOperator.id, data)
         if (success) {
           setModalVisible(false)
-          fetchStaffList(staffStore.pageInfo.current, staffStore.pageInfo.pageSize)
-          fetchClinicians()
+          fetchOperatorList(operatorStore.pageInfo.current, operatorStore.pageInfo.pageSize)
         }
         return
       }
 
-      const data: ICreateStaffRequest = {
+      const data: ICreateOperatorRequest = {
         name: values.name,
         roles: values.roles,
         phone: values.phone || undefined,
@@ -113,11 +92,10 @@ const StaffManagement: React.FC = observer(() => {
         data.user_id = String(values.user_id || '').trim()
       }
 
-      const success = await staffStore.createStaff(data)
+      const success = await operatorStore.createOperator(data)
       if (success) {
         setModalVisible(false)
-        fetchStaffList(staffStore.pageInfo.current, staffStore.pageInfo.pageSize)
-        fetchClinicians()
+        fetchOperatorList(operatorStore.pageInfo.current, operatorStore.pageInfo.pageSize)
       }
     } catch (error: any) {
       if (error?.errorFields) {
@@ -125,12 +103,12 @@ const StaffManagement: React.FC = observer(() => {
       }
       Modal.error({
         title: '提交失败',
-        content: extractErrorMessage(error, '提交员工信息失败')
+        content: extractErrorMessage(error, '提交运营人员信息失败')
       })
     }
   }
 
-  const columns: ColumnsType<IStaff> = [
+  const columns: ColumnsType<IOperator> = [
     {
       title: 'ID',
       dataIndex: 'id',
@@ -189,23 +167,6 @@ const StaffManagement: React.FC = observer(() => {
       }
     },
     {
-      title: '绑定 Clinician',
-      key: 'clinician_binding',
-      width: 220,
-      render(_, record) {
-        const clinician = clinicians.find((item) => item.operator_id === record.id)
-        if (!clinician) {
-          return <Tag>未绑定</Tag>
-        }
-        return (
-          <Space size={4} wrap>
-            <Tag color={clinician.is_active ? 'success' : 'default'}>{clinician.is_active ? '已绑定' : '已绑定(停用)'}</Tag>
-            <span>{clinician.name}</span>
-          </Space>
-        )
-      }
-    },
-    {
       title: '操作',
       key: 'action',
       fixed: 'right',
@@ -216,45 +177,43 @@ const StaffManagement: React.FC = observer(() => {
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
               编辑
             </Button>
-            <Popconfirm title="确定要删除该员工吗？" onConfirm={() => handleDelete(record.id)} okText="确定" cancelText="取消">
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
-            </Popconfirm>
+            <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => setRetiring(record)}>退出后台</Button>
           </Space>
         )
       }
     }
   ]
 
-  const modalTitle = editingStaff ? '编辑员工' : '添加员工'
-  const showCreateFields = !editingStaff && accountMode === 'create'
-  const showExistingFields = !editingStaff && accountMode === 'existing'
+  const modalTitle = editingOperator ? '编辑运营人员' : '添加运营人员'
+  const showCreateFields = !editingOperator && accountMode === 'create'
+  const showExistingFields = !editingOperator && accountMode === 'existing'
 
   return (
-    <div className="staff-management-page">
+    <div className="operator-management-page">
+      {retiring && <OperatorRetirement operator={retiring} onClose={() => setRetiring(null)}
+        onChanged={() => fetchOperatorList(operatorStore.pageInfo.current, operatorStore.pageInfo.pageSize)} />}
       <Card>
         <div className="page-header">
-          <h2>员工管理</h2>
+          <h2>运营人员管理</h2>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-            添加员工
+            添加运营人员
           </Button>
         </div>
 
         <Table
           columns={columns}
-          dataSource={staffStore.staffList}
+          dataSource={operatorStore.operatorList}
           rowKey="id"
-          loading={staffStore.loading}
+          loading={operatorStore.loading}
           scroll={{ x: 1600 }}
           pagination={{
-            current: staffStore.pageInfo.current,
-            pageSize: staffStore.pageInfo.pageSize,
-            total: staffStore.pageInfo.total,
+            current: operatorStore.pageInfo.current,
+            pageSize: operatorStore.pageInfo.pageSize,
+            total: operatorStore.pageInfo.total,
             showSizeChanger: true,
             showTotal: (total) => `共 ${total} 条`,
             onChange: (page, pageSize) => {
-              fetchStaffList(page, pageSize || 20)
+              fetchOperatorList(page, pageSize || 20)
             }
           }}
         />
@@ -279,7 +238,7 @@ const StaffManagement: React.FC = observer(() => {
             is_active: true
           }}
         >
-          {!editingStaff && (
+          {!editingOperator && (
             <Form.Item label="账号模式" name="account_mode">
               <Radio.Group onChange={(event) => setAccountMode(event.target.value as AccountMode)}>
                 <Radio.Button value="create">新建账号</Radio.Button>
@@ -292,7 +251,7 @@ const StaffManagement: React.FC = observer(() => {
             <Input placeholder="请输入姓名" />
           </Form.Item>
 
-          {editingStaff && (
+          {editingOperator && (
             <Form.Item label="用户ID" name="user_id">
               <Input disabled />
             </Form.Item>
@@ -366,7 +325,7 @@ const StaffManagement: React.FC = observer(() => {
             />
           </Form.Item>
 
-          {editingStaff?.authz_projection_pending && (
+          {editingOperator?.authz_projection_pending && (
             <Alert
               type="info"
               showIcon
@@ -387,6 +346,6 @@ const StaffManagement: React.FC = observer(() => {
   )
 })
 
-StaffManagement.displayName = 'StaffManagement'
+OperatorManagement.displayName = 'OperatorManagement'
 
-export default StaffManagement
+export default OperatorManagement

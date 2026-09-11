@@ -146,7 +146,6 @@ export interface IStatisticsFreshness {
 
 export interface IClinicianStatisticsSubject {
   id: string
-  operator_id?: string | null
   name: string
   department?: string
   title?: string
@@ -277,7 +276,6 @@ function buildStatisticsQueryParams(params?: IStatisticsQueryParams) {
 
 type StatisticsClinicianItem = {
   id: number
-  operator_id?: number
   name: string
   department?: string
   title?: string
@@ -347,7 +345,6 @@ function adaptClinician(item: StatisticsClinicianItem, timeRange: IStatisticsTim
     time_range: timeRange,
     clinician: {
       id: String(item.id),
-      operator_id: item.operator_id ? String(item.operator_id) : null,
       name: item.name,
       department: item.department,
       title: item.title,
@@ -459,28 +456,6 @@ export const getAssessmentEntryStatistics = async (
   return [error, response ? { ...response, data: adaptEntry(response.data.item, response.data.time_range) } : undefined]
 }
 
-export const getMyClinicianOverviewStatistics = async (
-  params?: IStatisticsQueryParams
-): Promise<[any, QSResponse<IClinicianStatisticsResponse> | undefined]> => {
-  const query = buildStatisticsQueryParams(params)
-  const [error, response] = await v2Get<StatisticsDetail<StatisticsClinicianItem>>('/statistics/clinicians/me/overview', query)
-  return [error, response ? { ...response, data: adaptClinician(response.data.item, response.data.time_range) } : undefined]
-}
-
-export const listMyClinicianEntryStatistics = async (
-  params?: IStatisticsQueryParams
-): Promise<[any, QSResponse<IAssessmentEntryStatisticsListResponse> | undefined]> => {
-  const query = buildStatisticsQueryParams(params)
-  const [error, response] = await v2Get<StatisticsPage<StatisticsEntryItem>>('/statistics/clinicians/me/entries', query)
-  return [error, response ? (mapStatisticsPage(response, adaptEntry) as QSResponse<IAssessmentEntryStatisticsListResponse>) : undefined]
-}
-
-export const getMyClinicianTesteeSummaryStatistics = async (
-  params?: IStatisticsQueryParams
-): Promise<[any, QSResponse<IClinicianTesteeSummaryStatistics> | undefined]> => {
-  return v2Get<IClinicianTesteeSummaryStatistics>('/statistics/clinicians/me/testees-summary', buildStatisticsQueryParams(params))
-}
-
 export const batchContentStatistics = async (
   items: IContentStatisticsReference[]
 ): Promise<[any, QSResponse<IContentBatchStatisticsResponse> | undefined]> => {
@@ -512,8 +487,5 @@ export const statisticsApi = {
   getClinicianStatistics,
   listAssessmentEntryStatistics,
   getAssessmentEntryStatistics,
-  getMyClinicianOverviewStatistics,
-  listMyClinicianEntryStatistics,
-  getMyClinicianTesteeSummaryStatistics,
   batchContentStatistics
 }

@@ -16,17 +16,13 @@ export function filterRoutesForMenu(
   profileFetchDone: boolean
 ): IRoute[] {
   const out: IRoute[] = []
-  const isClinicianWorkbenchPrimary =
-    access.isClinician && !access.isPlatformAdmin && access.capabilities.size === 0
 
   for (const route of routes) {
     if (route.hideInMenu) continue
-    if (route.hideForClinicianOnly && isClinicianWorkbenchPrimary) continue
     if (route.children?.length) {
       const kids = route.children.filter(
         c =>
           !c.hideInMenu &&
-          !(c.hideForClinicianOnly && isClinicianWorkbenchPrimary) &&
           hasRouteRoleAccess(c, access, profileFetchDone)
       )
       if (kids.length === 0) continue

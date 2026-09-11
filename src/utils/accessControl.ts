@@ -18,7 +18,6 @@ export interface AccessContext {
   roles: string[]
   hasAnyRole: boolean
   isPlatformAdmin: boolean
-  isClinician: boolean
   capabilities: Set<RouteCapability>
 }
 
@@ -49,7 +48,7 @@ function deriveCapabilities(roles: string[]): Set<RouteCapability> {
   return capabilities
 }
 
-export function buildAccessContext(roles: string[] | undefined, isClinician: boolean): AccessContext {
+export function buildAccessContext(roles: string[] | undefined): AccessContext {
   const normalizedRoles = Array.from(new Set((roles || []).filter(Boolean)))
   const capabilities = deriveCapabilities(normalizedRoles)
   const isPlatformAdmin = normalizedRoles.some((role) => PLATFORM_ADMIN_ROLES.includes(role))
@@ -58,7 +57,6 @@ export function buildAccessContext(roles: string[] | undefined, isClinician: boo
     roles: normalizedRoles,
     hasAnyRole: normalizedRoles.length > 0,
     isPlatformAdmin,
-    isClinician,
     capabilities
   }
 }
@@ -67,20 +65,13 @@ export function routeAllowsAccess(route: IRoute, access: AccessContext, profileF
   if (!profileFetchDone) return true
   if (!access.hasAnyRole) return false
 
-  if (route.requiresClinician && !access.isClinician) {
-    return false
-  }
 
-  const resultRoute = route.requiredCapabilities?.includes('read_assessment_records')
-  if (route.allowClinicianAccess && access.isClinician && !resultRoute) {
-    return true
-  }
 
   if (route.menuScope === 'platform_admin' && !access.isPlatformAdmin) {
     return false
   }
 
-  if (access.isPlatformAdmin && route.menuScope !== 'clinician') {
+  if (access.isPlatformAdmin) {
     return true
   }
 
@@ -98,9 +89,6 @@ export function routeAllowsAccess(route: IRoute, access: AccessContext, profileF
     }
   }
 
-  if (route.menuScope === 'clinician' && !access.isClinician) {
-    return false
-  }
 
   return true
 }

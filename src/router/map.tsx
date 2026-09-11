@@ -1,9 +1,9 @@
 import React, { lazy } from 'react'
+import { Redirect } from 'react-router-dom'
 import { IRoute } from '../types/router'
 import {
   HomeOutlined,
   SettingOutlined,
-  TeamOutlined,
   AuditOutlined,
   FolderOutlined,
   BarChartOutlined,
@@ -13,6 +13,8 @@ import {
 import { isBehaviorAbilityPublishingEnabled } from '@/constants/behaviorAbilityFeature'
 
 // 图标创建辅助函数，确保 React 被使用
+const LegacyStaffRedirect: React.FC = () => <Redirect to="/admin/operators" />
+
 const createIcon = (Icon: React.ComponentType) => React.createElement(Icon)
 
 // 页面组件懒加载
@@ -56,14 +58,13 @@ const Login = lazy(() => import('../pages/user/login'))
 const UserProfile = lazy(() => import('../pages/user/profile'))
 const AccountSecurity = lazy(() => import('../pages/account/security'))
 const AdminAuthz = lazy(() => import('../pages/admin/authz'))
-const AdminStaff = lazy(() => import('../pages/admin/staff'))
+const AdminOperator = lazy(() => import('../pages/admin/operators'))
 const AdminWechatApp = lazy(() => import('../pages/admin/wechat-app'))
 const AdminClinician = lazy(() => import('../pages/admin/clinician'))
 const AdminClinicianDetail = lazy(() => import('../pages/admin/clinician/detail'))
 const AdminStores = lazy(() => import('../pages/admin/store'))
 const AdminAssessmentEntryDetail = lazy(() => import('../pages/admin/clinician/entry-detail'))
 const AdminResource = lazy(() => import('../pages/admin/resource'))
-const ClinicianWorkbench = lazy(() => import('../pages/clinician/workbench'))
 const OrgWorkbench = lazy(() => import('../pages/workbench'))
 const AssessmentList = lazy(() => import('../pages/evaluation/assessment-list'))
 const SecurityJWKS = lazy(() => import('../pages/security/jwks'))
@@ -108,7 +109,6 @@ export const routes: Array<IRoute> = [
     icon: createIcon(BarChartOutlined),
     menuScope: 'org_admin',
     requiredCapabilities: ['read_subjects'],
-    allowClinicianAccess: true,
     children: [
       {
         title: '全院工作台',
@@ -125,7 +125,6 @@ export const routes: Array<IRoute> = [
         component: SubjectList,
         menuScope: 'org_admin',
         requiredCapabilities: ['read_subjects'],
-        allowClinicianAccess: true
       },
       {
         title: '受试者详情',
@@ -135,7 +134,6 @@ export const routes: Array<IRoute> = [
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['read_subjects'],
-        allowClinicianAccess: true,
         activeMenuName: 'subject-list'
       },
       {
@@ -146,7 +144,6 @@ export const routes: Array<IRoute> = [
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['read_assessment_records'],
-        allowClinicianAccess: true,
         activeMenuName: 'assessment-records'
       },
       {
@@ -157,7 +154,6 @@ export const routes: Array<IRoute> = [
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['read_assessment_records'],
-        allowClinicianAccess: true,
         activeMenuName: 'assessment-records'
       },
       {
@@ -168,7 +164,6 @@ export const routes: Array<IRoute> = [
         hideInMenu: true,
         menuScope: 'hidden',
         requiredCapabilities: ['read_assessment_records'],
-        allowClinicianAccess: true,
         activeMenuName: 'assessment-records'
       },
       {
@@ -186,7 +181,6 @@ export const routes: Array<IRoute> = [
         component: AssessmentList,
         menuScope: 'org_admin',
         requiredCapabilities: ['read_assessment_records'],
-        allowClinicianAccess: true
       },
       {
         title: '测评计划',
@@ -732,51 +726,6 @@ export const routes: Array<IRoute> = [
     ]
   },
   {
-    title: '临床工作台',
-    name: 'clinician-workbench',
-    path: '/clinician',
-    icon: createIcon(TeamOutlined),
-    menuScope: 'clinician',
-    requiresClinician: true,
-    children: [
-      {
-        title: '临床工作台',
-        name: 'clinician-me',
-        path: '/clinician/me',
-        component: ClinicianWorkbench,
-        menuScope: 'clinician',
-        requiresClinician: true
-      },
-      {
-        title: '我的受试者',
-        name: 'clinician-me-testees',
-        path: '/clinician/me/testees',
-        component: ClinicianWorkbench,
-        hideInMenu: true,
-        menuScope: 'hidden',
-        requiresClinician: true
-      },
-      {
-        title: '我的关系',
-        name: 'clinician-me-relations',
-        path: '/clinician/me/relations',
-        component: ClinicianWorkbench,
-        hideInMenu: true,
-        menuScope: 'hidden',
-        requiresClinician: true
-      },
-      {
-        title: '我的入口',
-        name: 'clinician-me-entries',
-        path: '/clinician/me/entries',
-        component: ClinicianWorkbench,
-        hideInMenu: true,
-        menuScope: 'hidden',
-        requiresClinician: true
-      }
-    ]
-  },
-  {
     title: '组织管理',
     name: 'organization-management',
     path: '/admin/organization',
@@ -785,10 +734,14 @@ export const routes: Array<IRoute> = [
     requiredCapabilities: ['org_admin'],
     children: [
       {
-        title: '员工与账号',
-        name: 'admin-staff',
-        path: '/admin/staff',
-        component: AdminStaff,
+        title: '运营人员旧地址', name: 'legacy-staff', path: '/admin/staff',
+        component: LegacyStaffRedirect, hideInMenu: true, menuScope: 'hidden'
+      },
+      {
+        title: '运营人员',
+        name: 'admin-operator',
+        path: '/admin/operators',
+        component: AdminOperator,
         menuScope: 'org_admin',
         requiredCapabilities: ['org_admin']
       },

@@ -30,7 +30,6 @@ import { formatAssessmentFailureRate, hasReportTrendData } from '@/components/st
 import PlanActivityMetricsPanel from '@/components/statistics/PlanActivityMetricsPanel'
 import PlanFulfillmentMetricsPanel from '@/components/statistics/PlanFulfillmentMetricsPanel'
 import { formatPlanRate, resolvePlanActivity, resolvePlanFulfillment } from '@/components/statistics/planStatistics'
-import ClinicianWorkbenchPage from '@/pages/clinician/workbench'
 import './index.scss'
 
 const { Title, Text } = Typography
@@ -109,7 +108,7 @@ const Home: React.FC = observer(() => {
 
   const quickLinkMeta: Record<string, { description: string; color: string }> = {
     operations: {
-      description: userStore.accessContext.isClinician ? '查看我的受试者、测评记录与相关统计' : '查看受试者、测评记录、计划与统计',
+      description: '查看受试者、测评记录、计划与统计',
       color: '#722ed1'
     },
     'system-governance': {
@@ -117,7 +116,6 @@ const Home: React.FC = observer(() => {
       color: '#fa8c16'
     },
     content: { description: '管理问卷和量表内容', color: '#1890ff' },
-    'clinician-workbench': { description: '进入我的受试者、关系和入口工作区', color: '#52c41a' },
     'organization-management': { description: '管理员工、临床人员、权限和资源', color: '#f5222d' }
   }
 
@@ -132,27 +130,15 @@ const Home: React.FC = observer(() => {
         path: targetPath,
         color: meta.color,
         description: meta.description,
-        primary: route.name === 'clinician-workbench'
+        primary: false
       }
     })
   const dedupedQuickLinks = quickLinks.filter(
     (link, index, arr) => arr.findIndex((item) => item.path === link.path) === index
   )
 
-  const clinicianWorkbenchLink = userStore.accessContext.isClinician
-    ? {
-      title: '临床工作台',
-      icon: <TeamOutlined />,
-      path: '/clinician/me',
-      color: '#52c41a',
-      description: '进入我的受试者、关系和入口工作区',
-      primary: true
-    }
-    : null
-
   const orderedQuickLinks = [
-    ...(clinicianWorkbenchLink ? [clinicianWorkbenchLink] : []),
-    ...dedupedQuickLinks.filter((link) => !userStore.accessContext.isClinician || link.path !== '/clinician/me')
+    ...dedupedQuickLinks
   ]
     .filter((link, index, arr) => arr.findIndex((item) => item.path === link.path) === index)
     .sort((a, b) => {
@@ -161,9 +147,6 @@ const Home: React.FC = observer(() => {
     })
 
   const headerAction = (() => {
-    if (userStore.accessContext.isClinician) {
-      return { text: '进入工作台', path: '/clinician/me', icon: <TeamOutlined /> }
-    }
     if (userStore.accessContext.capabilities.has('manage_content')) {
       return { text: '创建新量表', path: '/scale/info/new', icon: <PlusOutlined /> }
     }
@@ -186,12 +169,10 @@ const Home: React.FC = observer(() => {
         <div className="header-content">
           <div>
             <Title level={2} className="header-title">
-              {userStore.accessContext.isClinician ? '临床工作台' : '测评运营后台'}
+              测评运营后台
             </Title>
             <Text className="header-subtitle">
-              {userStore.accessContext.isClinician
-                ? '聚焦我的受试者、关系和测评入口'
-                : '按当前身份展示机构管理、内容配置与测评运营能力'}
+              按当前身份展示机构管理、内容配置与测评运营能力
             </Text>
           </div>
           <Button 
@@ -441,7 +422,6 @@ const Home: React.FC = observer(() => {
           </Row>
         </Card>
 
-        {userStore.accessContext.isClinician && <ClinicianWorkbenchPage embedded />}
 
         {/* 使用指南 */}
         <Row gutter={[16, 16]}>
