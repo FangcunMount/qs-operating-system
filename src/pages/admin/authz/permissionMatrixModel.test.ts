@@ -50,7 +50,7 @@ it('preserves conditional OR alternatives for combined roles', () => {
   const second = matrixCell(row, grants, ['r2'], [resource])
   expect(cellSignature(first)).not.toBe(cellSignature(second))
   const combined = matrixCell(row, grants, ['r1', 'r2'], [resource])
-  expect(combined.state).toBe('conditional')
+  expect(combined.state).toBe('stale')
   expect(combined.grants).toHaveLength(2)
   expect(matrixCell(row, [...grants, grant({ id: 'g3' })], ['r1', 'r2'], [resource]).state).toBe('direct')
 })

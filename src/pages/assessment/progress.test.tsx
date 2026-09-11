@@ -6,7 +6,7 @@ import { userStore } from '@/store/userStore'
 import { buildAccessContext } from '@/utils/accessControl'
 
 jest.mock('@/api/qsServer', () => ({ get: jest.fn(), post: jest.fn() }))
-jest.mock('@/store/userStore', () => ({ userStore: { accessContext: {} } }))
+jest.mock('@/store/userStore', () => ({ userStore: { accessContext: {}, hasPermission: jest.fn(), permissionNeedsRefresh: jest.fn() } }))
 jest.mock('mobx-react', () => ({ observer: (component: any) => component }))
 
 const id = '635426176763965998'
@@ -18,6 +18,8 @@ const load = (origin = 'adhoc') => {
 beforeEach(() => {
   jest.clearAllMocks()
   Object.assign(userStore, { accessContext: buildAccessContext(['qs:assessment_operator'], false) })
+  ;(userStore.hasPermission as jest.Mock).mockReturnValue(true)
+  ;(userStore.permissionNeedsRefresh as jest.Mock).mockReturnValue(false)
   load()
   ;(post as jest.Mock).mockResolvedValue([null, { data: { success_count: 1, failed_count: 0 } }])
 })
@@ -42,11 +44,11 @@ it('shows a denied progress response without requesting professional results', a
   expect(screen.queryByText(id)).not.toBeInTheDocument()
 })
 
-it('does not expose plan retry to an assessment operator', async () => {
+it('allows an operator with retry permission to retry a plan assessment', async () => {
   load('plan')
   render(<AssessmentProgress />)
   await screen.findByText(id)
-  expect(screen.queryByRole('button', { name: /重\s*试/ })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /重\s*试/ })).toBeInTheDocument()
 })
 
 it('allows a planner to submit plan retry without loading results', async () => {
@@ -59,4 +61,13 @@ it('allows a planner to submit plan retry without loading results', async () => 
   fireEvent.click(await screen.findByRole('button', { name: /OK|确 定|确定/ }))
   await waitFor(() => expect(post).toHaveBeenCalledWith(`/evaluations/assessments/${id}/retry`, undefined))
   expect((get as jest.Mock).mock.calls.every(([url]) => url === '/evaluations/assessment-progress')).toBe(true)
+})
+
+it('fails closed for retired permissions without loading results', async () => {
+  (userStore.hasPermission as jest.Mock).mockReturnValue(false)
+  ;(userStore.permissionNeedsRefresh as jest.Mock).mockReturnValue(true)
+  render(<AssessmentProgress />)
+  expect(await screen.findByText('权限数据待刷新')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /重\s*试/ })).not.toBeInTheDocument()
+  expect(post).not.toHaveBeenCalled()
 })

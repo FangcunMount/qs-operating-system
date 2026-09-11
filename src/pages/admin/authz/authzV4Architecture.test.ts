@@ -9,7 +9,6 @@ describe('AuthZ v4 admin architecture', () => {
     'src/pages/admin/authz/index.tsx',
     'src/pages/admin/authz/GrantEditor.tsx',
     'src/pages/admin/resource/index.tsx',
-    'src/pages/admin/resource/AttributeSchemaEditor.tsx'
   ]
 
   it('does not reintroduce retired Policy/Scope contracts', () => {
@@ -26,6 +25,11 @@ describe('AuthZ v4 admin architecture', () => {
       const source = fs.readFileSync(path.join(sourceRoot, file), 'utf8')
       forbidden.forEach(token => expect(source).not.toContain(token))
     })
+  })
+
+  it('removes condition editing surfaces', () => {
+    expect(fs.existsSync(path.join(sourceRoot, 'src/pages/admin/resource/AttributeSchemaEditor.tsx'))).toBe(false)
+    expect(fs.existsSync(path.join(sourceRoot, 'src/pages/admin/authz/constraintModel.ts'))).toBe(false)
   })
 
   it('keeps AuthZ on v4, AuthN on v3 and Identity on v2', () => {

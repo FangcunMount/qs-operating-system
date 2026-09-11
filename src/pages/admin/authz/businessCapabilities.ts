@@ -1,6 +1,5 @@
 import { ACTION_LABELS, matrixCell, cellSignature, matrixRows } from './permissionMatrixModel'
 import type { MatrixCell, MatrixData, MatrixRow } from './permissionMatrixModel'
-import { describeConstraintSet } from './constraintModel'
 
 export interface Capability { id: string; label: string; group: string; resource: string; actions: string[] }
 const assessments = 'qs:evaluation:collection:assessments'
@@ -21,10 +20,10 @@ export function capabilities(data: MatrixData): Capability[] {
     .map(row => ({ id: row.key, label: `${row.resource.display_name} · ${ACTION_LABELS[row.action] || row.action}`,
       group: `${row.resource.app_name} · 其他目录能力`, resource: row.resource.key, actions: [row.action] }))]
 }
-export type CapabilityState = 'complete' | 'partial' | 'conditional' | 'none' | 'unknown'
+export type CapabilityState = 'complete' | 'partial' | 'stale' | 'none' | 'unknown'
 export const CAPABILITY_META: Record<CapabilityState, { label: string; color?: string }> = {
   complete: { label: '完整配置', color: 'green' }, partial: { label: '部分配置', color: 'gold' },
-  conditional: { label: '有条件', color: 'orange' }, none: { label: '未配置' }, unknown: { label: '目录待核对', color: 'default' }
+  stale: { label: '权限数据待刷新', color: 'orange' }, none: { label: '未配置' }, unknown: { label: '目录待核对', color: 'default' }
 }
 export interface CapabilityResult {
   state: CapabilityState
@@ -42,7 +41,7 @@ export function capabilityResult(capability: Capability, data: MatrixData, roleI
   if (items.some(item => !item.row)) state = 'unknown'
   else if (configured === 0) state = 'none'
   else if (configured < items.length) state = 'partial'
-  else if (items.some(item => item.cell?.state === 'conditional')) state = 'conditional'
+  else if (items.some(item => item.cell?.state === 'stale')) state = 'stale'
   else state = 'complete'
   const signature = items.map(item => {
     if (!item.cell) return 'unknown'
@@ -50,14 +49,4 @@ export function capabilityResult(capability: Capability, data: MatrixData, roleI
   }).join('|')
   return { state, items, signature }
 }
-export function conditionSummary(cell: MatrixCell): string {
-  if (cell.state !== 'conditional') return ''
-  const alternatives = cell.grants.map(grant => grant.constraint_set.all_of.map(predicate => {
-    if (predicate.key === 'object.origin_type' && predicate.operator === 'eq' && predicate.value.type === 'string') {
-      if (predicate.value.string === 'adhoc') return '仅限临时测评'
-      if (predicate.value.string === 'plan') return '仅限计划测评'
-    }
-    return describeConstraintSet({ version: 1, all_of: [predicate] })
-  }).join('，且')).map(text => `（${text}）`)
-  return Array.from(new Set(alternatives)).join(' 或 ')
-}
+export function conditionSummary(cell: MatrixCell): string { return cell.state === 'stale' ? '权限数据待刷新' : '' }

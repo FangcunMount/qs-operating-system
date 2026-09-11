@@ -301,10 +301,8 @@ const SubjectScaleDetail: React.FC = () => {
 
   const riskConfig = getRiskConfig(assessment.level?.code || 'normal')
   const latestRun = runs[0]
-  const caps = userStore.accessContext.capabilities
-  const canRetry = caps.has('org_admin') ||
-    (assessment.origin_type === 'adhoc' && caps.has('evaluate_assessments')) ||
-    (assessment.origin_type === 'plan' && caps.has('manage_evaluation_plans'))
+  const retryNeedsRefresh = userStore.permissionNeedsRefresh('qs:evaluation:collection:assessments', 'retry')
+  const canRetry = userStore.hasPermission('qs:evaluation:collection:assessments', 'retry')
   const retryable = canRetry && latestRun?.retryable === true && (
     assessment.status === 'failed' || latestRun.status === 'failed'
   )
@@ -396,6 +394,7 @@ const SubjectScaleDetail: React.FC = () => {
             )}
           </Descriptions>
           <div style={{ marginTop: 16 }}>
+            {retryNeedsRefresh ? <span>权限数据待刷新</span> : null}
             {retryable ? <Button type="primary" onClick={handleRetry}>重新执行</Button> : null}
             {canAudit ? <Button style={{ marginLeft: retryable ? 8 : 0 }} onClick={openAuditLifecycle}>报告审计生命周期</Button> : null}
           </div>

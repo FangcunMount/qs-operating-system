@@ -29,7 +29,7 @@ export default function BusinessRoleViews({ data, compare, onEvidence, onDetails
     return <div className="role-workspace__status">
       <Tag color={meta.color}>{meta.label}</Tag>
       {result.items.map(action => <div key={action.action}>
-        {action.cell?.state === 'conditional' && <Paragraph className="role-workspace__condition">
+        {action.cell?.state === 'stale' && <Paragraph className="role-workspace__condition">
           {ACTION_LABELS[action.action] || action.action}：{conditionSummary(action.cell)}
         </Paragraph>}
         {result.state === 'partial' && action.cell?.state === 'none' &&
@@ -91,7 +91,7 @@ export default function BusinessRoleViews({ data, compare, onEvidence, onDetails
       </Card>)}
       <Collapse key={role.id} className="role-workspace__group" defaultActiveKey={groups.filter(group =>
         group.includes('其他目录能力') && allCapabilities.some(item => item.group === group
-          && ['complete', 'partial', 'conditional'].includes(capabilityResult(item, data, [role.id]).state)))}>
+          && ['complete', 'partial', 'stale'].includes(capabilityResult(item, data, [role.id]).state)))}>
         {groups.filter(group => group.includes('其他目录能力')).map(group =>
           <Collapse.Panel key={group} header={group}>
             {allCapabilities.filter(item => item.group === group).map(item =>

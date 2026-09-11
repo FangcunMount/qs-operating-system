@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Button, Card, Checkbox, Drawer, Empty, Input, Select, Space, Table, Tabs, Tag, Typography } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { describeConstraintSet } from './constraintModel'
 import { ACTION_LABELS, CELL_META, cellSignature, grantResourceKey, loadMatrixData, matrixCell, matrixRows } from './permissionMatrixModel'
 import type { MatrixCell, MatrixData, MatrixRow } from './permissionMatrixModel'
 import './permissionMatrix.scss'
@@ -164,7 +163,7 @@ const RolePermissionMatrix: React.FC = () => {
           title={data.roles.find(role => role.id === grant.role_id)?.display_name}>
           <Paragraph>资源范围：<Text code>{grantResourceKey(grant, data.resources)}</Text></Paragraph>
           <Paragraph>动作：<Text code>{grant.action}</Text></Paragraph>
-          <Paragraph>条件：{describeConstraintSet(grant.constraint_set)}</Paragraph>
+          <Paragraph>{grant.constraint_set.all_of.length ? '权限数据待刷新' : '资源与动作授权'}</Paragraph>
           <Text type="secondary">授权编号：{grant.id}</Text>
         </Card>)}
       </>}
