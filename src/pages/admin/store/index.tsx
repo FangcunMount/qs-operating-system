@@ -3,10 +3,12 @@ import { Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag
 import { useHistory } from 'react-router-dom'
 import type { ColumnsType } from 'antd/es/table'
 import { IStore, storeApi } from '@/api/path/store'
+import ClinicianManager from './clinician-manager'
 import { extractErrorMessage } from '@/utils/apiError'
 
 const StoreManagement: React.FC = () => {
   const history = useHistory()
+  const [managing, setManaging] = useState<IStore | null>(null)
   const [items, setItems] = useState<IStore[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -74,6 +76,7 @@ const StoreManagement: React.FC = () => {
   })
   const renderActions = (_: unknown, item: IStore) => (
     <Space>
+      <Button type="link" onClick={() => setManaging(item)}>管理医生</Button>
       <Button type="link" onClick={() => edit(item)}>编辑</Button>
       {item.is_active && item.clinician_count > 0
         ? <Button type="link" onClick={() => explainDeactivation(item)}>停用说明</Button>
@@ -102,6 +105,7 @@ const StoreManagement: React.FC = () => {
     </Space>
     <Table rowKey="id" loading={loading} dataSource={items} columns={columns}
       pagination={{ current: page, total, pageSize: 20, showSizeChanger: false, onChange: setPage }} />
+    {managing && <ClinicianManager key={managing.id} store={managing} onClose={() => setManaging(null)} onChanged={() => void load()} />}
     <Modal title={editing ? '编辑门店' : '创建门店'} visible={open} onCancel={() => setOpen(false)} onOk={save} 
       confirmLoading={saving} destroyOnClose>
       <Form form={form} layout="vertical">
