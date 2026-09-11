@@ -1,3 +1,5 @@
+import { isEntryPermanentlyInvalidated, entryInvalidationLabel } from '@/utils/entryInvalidation'
+import ClinicianStorePanel from './store-panel'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useHistory, useParams } from 'react-router-dom'
 import { Button, Card, DatePicker, Descriptions, Form, Input, Modal, Select, Space, Table, Tag, message } from 'antd'
@@ -41,7 +43,7 @@ const ClinicianDetailPage: React.FC = () => {
   const renderRelationTypeLabel = (item?: IClinicianRelationItem['relation']) => item?.relation_type_label || formatRelationType(item?.relation_type)
   const renderRelationSourceLabel = (item?: IClinicianRelationItem['relation']) => item?.source_type_label || formatRelationSource(item?.source_type)
   const renderTargetTypeLabel = (item?: IAssessmentEntry | null) => item?.target_type_label || formatTargetType(item?.target_type)
-  const primaryEntry = useMemo(() => entries.find((item) => item.is_active) || entries[0] || null, [entries])
+  const primaryEntry = useMemo(() => entries.find((item) => item.is_active && !isEntryPermanentlyInvalidated(item)) || null, [entries])
 
   const targetTypeOptions = useMemo(
     () => [
@@ -148,6 +150,7 @@ const ClinicianDetailPage: React.FC = () => {
   }
 
   const handleToggleEntry = async (item: IAssessmentEntry) => {
+    if (isEntryPermanentlyInvalidated(item)) return
     const [error] = item.is_active ? await clinicianApi.deactivateAssessmentEntry(item.id) : await clinicianApi.reactivateAssessmentEntry(item.id)
     if (error) {
       message.error(item.is_active ? '停用入口失败' : '启用入口失败')
@@ -227,9 +230,9 @@ const ClinicianDetailPage: React.FC = () => {
       <Button type="link" size="small" onClick={() => copyAssessmentEntryPublicLink(record.token)}>
         复制链接
       </Button>
-      <Button type="link" size="small" onClick={() => handleToggleEntry(record)}>
+      {!isEntryPermanentlyInvalidated(record) && <Button type="link" size="small" onClick={() => handleToggleEntry(record)}>
         {record.is_active ? '停用' : '启用'}
-      </Button>
+      </Button>}
     </Space>
   )
 
@@ -259,6 +262,10 @@ const ClinicianDetailPage: React.FC = () => {
     }
   ]
 
+  const renderPermanentEntryStatus = (value: boolean, item: IAssessmentEntry) => (
+    isEntryPermanentlyInvalidated(item) ? <Tag color="error">{entryInvalidationLabel(item)}</Tag> : renderEntryStatus(value)
+  )
+
   const entryColumns: ColumnsType<IAssessmentEntry> = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 120 },
     { title: '目标类型', key: 'target_type', width: 100, render: (_: unknown, record) => renderTargetTypeLabel(record) },
@@ -269,7 +276,7 @@ const ClinicianDetailPage: React.FC = () => {
       dataIndex: 'is_active',
       key: 'is_active',
       width: 100,
-      render: renderEntryStatus
+      render: renderPermanentEntryStatus
     },
     { title: '过期时间', dataIndex: 'expires_at', key: 'expires_at', width: 180, render: renderExpiresAt },
     {
@@ -299,6 +306,7 @@ const ClinicianDetailPage: React.FC = () => {
         )}
       </Card>
 
+      {clinician && <ClinicianStorePanel clinician={clinician} onChanged={() => { void fetchData() }} />}
       <Card
         title="当前入口二维码"
         style={{ marginTop: 16 }}

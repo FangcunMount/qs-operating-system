@@ -1,3 +1,4 @@
+import { isEntryPermanentlyInvalidated, entryInvalidationLabel } from '@/utils/entryInvalidation'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useHistory, useLocation } from 'react-router-dom'
 import {
@@ -230,6 +231,7 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
   }
 
   const handleToggleEntry = async (item: IAssessmentEntry) => {
+    if (isEntryPermanentlyInvalidated(item)) return
     const [error] = item.is_active ? await clinicianApi.deactivateMyAssessmentEntry(item.id) : await clinicianApi.reactivateMyAssessmentEntry(item.id)
     if (error) {
       message.error(item.is_active ? '停用入口失败' : '启用入口失败')
@@ -318,9 +320,9 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
       <Button type="link" size="small" onClick={() => copyAssessmentEntryPublicLink(record.token)}>
         复制链接
       </Button>
-      <Button type="link" size="small" onClick={() => handleToggleEntry(record)}>
+      {!isEntryPermanentlyInvalidated(record) && <Button type="link" size="small" onClick={() => handleToggleEntry(record)}>
         {record.is_active ? '停用' : '启用'}
-      </Button>
+      </Button>}
     </Space>
   )
 
@@ -350,11 +352,15 @@ const ClinicianWorkbenchPage: React.FC<ClinicianWorkbenchPageProps> = ({ embedde
     }
   ]
 
+  const renderPermanentEntryStatus = (value: boolean, item: IAssessmentEntry) => (
+    isEntryPermanentlyInvalidated(item) ? <Tag color="error">{entryInvalidationLabel(item)}</Tag> : renderStatus(value)
+  )
+
   const entryColumns: ColumnsType<IAssessmentEntry> = [
     { title: '目标类型', key: 'target_type', width: 100, render: (_: unknown, record) => renderTargetTypeLabel(record) },
     { title: '目标编码', dataIndex: 'target_code', key: 'target_code', width: 160 },
     { title: '版本', dataIndex: 'target_version', key: 'target_version', width: 120 },
-    { title: '状态', dataIndex: 'is_active', key: 'is_active', width: 100, render: renderStatus },
+    { title: '状态', dataIndex: 'is_active', key: 'is_active', width: 100, render: renderPermanentEntryStatus },
     {
       title: '累计入口打开',
       key: 'resolve_count',

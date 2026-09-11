@@ -1,3 +1,4 @@
+import { isEntryPermanentlyInvalidated, entryInvalidationLabel } from '@/utils/entryInvalidation'
 import React, { useEffect, useState } from 'react'
 import { useHistory, useParams } from 'react-router-dom'
 import { Button, Card, Descriptions, Space, Tag, message } from 'antd'
@@ -34,6 +35,7 @@ const AssessmentEntryDetailPage: React.FC = () => {
   }, [id])
 
   const handleToggleActive = async () => {
+    if (entry && isEntryPermanentlyInvalidated(entry)) return
     if (!entry) return
     const [error] = entry.is_active ? await clinicianApi.deactivateAssessmentEntry(entry.id) : await clinicianApi.reactivateAssessmentEntry(entry.id)
     if (error) {
@@ -71,9 +73,11 @@ const AssessmentEntryDetailPage: React.FC = () => {
           <Button onClick={handleDownloadQRCode} disabled={!entry?.qrcode_url}>
             下载小程序码
           </Button>
-          <Button type="primary" onClick={handleToggleActive} disabled={!entry}>
-            {entry?.is_active ? '停用入口' : '启用入口'}
-          </Button>
+          {entry && isEntryPermanentlyInvalidated(entry)
+            ? <Button type="primary" onClick={() => history.push(`/admin/clinicians/${entry.clinician_id}`)}>创建新入口</Button>
+            : <Button type="primary" onClick={handleToggleActive} disabled={!entry}>
+              {entry?.is_active ? '停用入口' : '启用入口'}
+            </Button>}
         </Space>
       }
     >
@@ -88,7 +92,9 @@ const AssessmentEntryDetailPage: React.FC = () => {
           <Descriptions.Item label="目标编码">{entry.target_code}</Descriptions.Item>
           <Descriptions.Item label="目标版本">{entry.target_version || '-'}</Descriptions.Item>
           <Descriptions.Item label="状态">
-            <Tag color={entry.is_active ? 'success' : 'error'}>{entry.is_active_label || (entry.is_active ? '启用' : '停用')}</Tag>
+            <Tag color={entry.is_active ? 'success' : 'error'}>
+              {isEntryPermanentlyInvalidated(entry) ? entryInvalidationLabel(entry) : entry.is_active_label || (entry.is_active ? '启用' : '停用')}
+            </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="过期时间" span={2}>
             {entry.expires_at || '长期有效'}

@@ -13,6 +13,11 @@ import { get, post, put, silentGet } from '../qsServer'
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 
 export interface IClinician {
+  store_id?: string | null
+  store_code?: string
+  store_name?: string
+  store_configured?: boolean
+  version?: number
   id: string
   org_id: string
   operator_id?: string
@@ -56,6 +61,9 @@ export interface IUpdateClinicianRequest {
 }
 
 export interface IAssessmentEntry {
+  invalidated_at?: string
+  invalidation_reason?: string
+  permanently_invalidated?: boolean
   id: string
   org_id: string
   clinician_id: string
@@ -148,7 +156,8 @@ export type IClinicianWorkbenchQueueItem = IWorkbenchQueueItem
 export type IClinicianWorkbenchQueueResponse = IWorkbenchQueueResponse
 
 export const clinicianApi = {
-  listClinicians: (params: { org_id?: number; page?: number; page_size?: number }) => get<IClinicianListResponse>('/clinicians', params),
+  listClinicians: (params: { org_id?: number; page?: number; page_size?: number; store_id?: string; unconfigured?: boolean }) =>
+    get<IClinicianListResponse>('/clinicians', params),
 
   getClinician: (id: number | string) => get<IClinician>(`/clinicians/${id}`),
 

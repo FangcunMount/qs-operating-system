@@ -1,3 +1,4 @@
+import { isEntryPermanentlyInvalidated } from '@/utils/entryInvalidation'
 import React, { useEffect, useMemo, useState } from 'react'
 import { Button, Card, Form, Input, Modal, Popconfirm, Radio, Select, Space, Table, Tag, message } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
@@ -8,11 +9,13 @@ import { staffApi, IStaff } from '@/api/path/staff'
 import { extractErrorMessage } from '@/utils/apiError'
 import { buildAssessmentEntryPublicLink, copyAssessmentEntryPublicLink, triggerAssessmentEntryQRCodeDownload } from '@/utils/assessmentEntry'
 import './index.scss'
+import StoreFilters from './store-filters'
 
 const { Option } = Select
 
 const ClinicianManagement: React.FC = () => {
   const history = useHistory()
+  const [storeFilter, setStoreFilter] = useState<string | undefined>(new URLSearchParams(history.location.search).get('store_id') || undefined)
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<IClinician[]>([])
   const [total, setTotal] = useState(0)
@@ -62,7 +65,9 @@ const ClinicianManagement: React.FC = () => {
     try {
       const [error, response] = await clinicianApi.listClinicians({
         page: nextPage,
-        page_size: nextPageSize
+        page_size: nextPageSize,
+        store_id: storeFilter === 'unconfigured' ? undefined : storeFilter,
+        unconfigured: storeFilter === 'unconfigured' || undefined
       })
       if (error || !response?.data) {
         throw error || new Error('获取临床人员列表失败')
@@ -90,9 +95,10 @@ const ClinicianManagement: React.FC = () => {
   }
 
   useEffect(() => {
-    fetchClinicians()
     fetchStaff()
   }, [])
+
+  useEffect(() => { void fetchClinicians(1) }, [storeFilter])
 
   const handleOpenCreate = () => {
     setEditingItem(null)
@@ -208,9 +214,10 @@ const ClinicianManagement: React.FC = () => {
     }
 
     const items = listResponse.data.items || []
-    const candidate = items.find((item) => item.is_active) || items[0]
+    const available = items.filter((item) => !isEntryPermanentlyInvalidated(item))
+    const candidate = available.find((item) => item.is_active) || available[0]
     if (!candidate) {
-      throw new Error('当前临床人员暂无入口')
+      throw new Error('当前无可用入口；旧二维码如因调店失效，请进入医生详情创建新入口')
     }
     if (candidate.qrcode_url) {
       return candidate
@@ -290,6 +297,7 @@ const ClinicianManagement: React.FC = () => {
   )
 
   const columns: ColumnsType<IClinician> = [
+    { title: '服务门店', key: 'store', render: (_: unknown, item) => item.store_name || (item.store_id ? item.store_id : '未配置') },
     { title: '姓名', dataIndex: 'name', key: 'name', width: 140 },
     {
       title: '类型',
@@ -336,6 +344,7 @@ const ClinicianManagement: React.FC = () => {
           </Button>
         </div>
 
+        <StoreFilters value={storeFilter} onChange={setStoreFilter} />
         <Table
           rowKey="id"
           loading={loading}

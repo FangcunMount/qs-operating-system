@@ -60,6 +60,7 @@ const AdminStaff = lazy(() => import('../pages/admin/staff'))
 const AdminWechatApp = lazy(() => import('../pages/admin/wechat-app'))
 const AdminClinician = lazy(() => import('../pages/admin/clinician'))
 const AdminClinicianDetail = lazy(() => import('../pages/admin/clinician/detail'))
+const AdminStores = lazy(() => import('../pages/admin/store'))
 const AdminAssessmentEntryDetail = lazy(() => import('../pages/admin/clinician/entry-detail'))
 const AdminResource = lazy(() => import('../pages/admin/resource'))
 const ClinicianWorkbench = lazy(() => import('../pages/clinician/workbench'))
@@ -796,6 +797,14 @@ export const routes: Array<IRoute> = [
         name: 'admin-wechat-apps',
         path: '/admin/wechat-apps',
         component: AdminWechatApp,
+        menuScope: 'org_admin',
+        requiredCapabilities: ['org_admin']
+      },
+      {
+        title: '门店管理',
+        name: 'admin-stores',
+        path: '/admin/stores',
+        component: AdminStores,
         menuScope: 'org_admin',
         requiredCapabilities: ['org_admin']
       },
