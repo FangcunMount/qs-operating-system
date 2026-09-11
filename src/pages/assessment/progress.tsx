@@ -60,10 +60,8 @@ const AssessmentProgress: React.FC = () => {
     } finally { setRetrying(undefined) }
   }
   const renderAction = (_: unknown, row: Progress) => {
-    const caps = userStore.accessContext.capabilities
-    const allowed = caps.has('org_admin') ||
-      (row.origin_type === 'adhoc' && caps.has('evaluate_assessments')) ||
-      (row.origin_type === 'plan' && caps.has('manage_evaluation_plans'))
+    const allowed = userStore.hasPermission('qs:evaluation:collection:assessments', 'retry')
+    if (userStore.permissionNeedsRefresh('qs:evaluation:collection:assessments', 'retry')) return <span>权限数据待刷新</span>
     if (!allowed || row.status !== 'failed') return null
     return <Popconfirm title="重试此测评？" onConfirm={() => retry(row.id)}>
       <Button loading={retrying === row.id} disabled={Boolean(retrying)} size="small">重试</Button>

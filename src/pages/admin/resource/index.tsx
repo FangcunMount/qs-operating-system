@@ -12,14 +12,12 @@ import {
   Table,
   Tag,
   Typography,
-  message
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, DatabaseOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { observer } from 'mobx-react-lite'
 import { rootStore } from '@/store'
-import type { IAttributeDefinition, IResource } from '@/api/path/authz'
-import AttributeSchemaEditor from './AttributeSchemaEditor'
+import type { IResource } from '@/api/path/authz'
 import './index.scss'
 
 const { Paragraph, Text } = Typography
@@ -99,30 +97,11 @@ const ResourceManagement: React.FC = observer(() => {
     try {
       const values = await form.validateFields()
       const actions = (values.actions || []).map((item: string) => item.trim()).filter(Boolean)
-      const attributes: IAttributeDefinition[] = (values.attributes || []).map((item: IAttributeDefinition) => ({
-        key: item.key.trim(),
-        type: item.type,
-        ...(item.type === 'string' && item.allowed_string_values?.length
-          ? {
-            allowed_string_values: item.allowed_string_values
-              .map(value => value.trim())
-              .filter(Boolean)
-          }
-          : {})
-      }))
-      if (attributes.length > 32) {
-        message.error('单个资源最多注册 32 个对象属性')
-        return
-      }
-      if (new Set(attributes.map(item => item.key)).size !== attributes.length) {
-        message.error('对象属性键不能重复')
-        return
-      }
       const payload = {
         display_name: values.display_name,
         description: values.description,
         actions,
-        attribute_schema: { version: 1 as const, attributes },
+        attribute_schema: { version: 1 as const, attributes: [] },
         key: values.key,
         domain: values.domain,
         app_name: values.app_name,
@@ -166,18 +145,6 @@ const ResourceManagement: React.FC = observer(() => {
     </Space>
   )
 
-  const renderAttributeSchema = (schema: IResource['attribute_schema']) => {
-    const attributes = schema?.attributes || []
-    return attributes.length > 0 ? (
-      <Space wrap size={[4, 4]}>
-        {attributes.map(attribute => (
-          <Tag color="purple" key={attribute.key}>
-            {attribute.key}:{attribute.type}
-          </Tag>
-        ))}
-      </Space>
-    ) : <Tag>仅无条件授权</Tag>
-  }
 
   const renderDescription = (text: string) => (
     text
@@ -235,13 +202,6 @@ const ResourceManagement: React.FC = observer(() => {
       key: 'actions',
       width: 220,
       render: renderActions
-    },
-    {
-      title: '对象属性 Schema',
-      dataIndex: 'attribute_schema',
-      key: 'attribute_schema',
-      width: 300,
-      render: renderAttributeSchema
     },
     {
       title: '描述',
@@ -398,10 +358,6 @@ const ResourceManagement: React.FC = observer(() => {
             >
               {/* 使用 tags 模式手动输入动作 */}
             </Select>
-          </Form.Item>
-
-          <Form.Item label="对象属性 Schema">
-            <AttributeSchemaEditor />
           </Form.Item>
 
           <Form.Item label="描述" name="description">

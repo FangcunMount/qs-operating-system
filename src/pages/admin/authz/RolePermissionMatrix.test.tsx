@@ -46,7 +46,7 @@ it('shows live roles, combined configuration, and exact conditional grant eviden
   const cell = await screen.findByRole('button', { name: '运营员 · 测评 · retry · 查看授权依据' })
   expect(screen.getByText('所选角色组合')).toBeInTheDocument()
   fireEvent.click(cell)
-  expect(await screen.findByText(/object.origin_type = adhoc/)).toBeInTheDocument()
+  expect((await screen.findAllByText(/权限数据待刷新/))[0]).toBeInTheDocument()
   expect(screen.getByText('授权编号：9007199254740993')).toBeInTheDocument()
 })
 it('filters resource actions and differences, and clears stale data after refresh fails', async () => {
@@ -81,10 +81,10 @@ it('surfaces active grants that no longer map to a catalog action', async () => 
 it('opens on role responsibilities with conditions in business language', async () => {
   render(<RolePermissionMatrix />)
   expect(await screen.findByRole('tab', { name: '角色职责' })).toHaveAttribute('aria-selected', 'true')
-  expect(screen.getByText(/仅限临时测评/)).toBeInTheDocument()
+  expect(screen.getAllByText(/权限数据待刷新/)[0]).toBeInTheDocument()
   expect(screen.queryByText('资源 / 动作')).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: /评估员 qs:result_reviewer/ }))
-  expect(screen.queryByText(/仅限临时测评/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/权限数据待刷新/)).not.toBeInTheDocument()
 })
 
 it('compares business capabilities and shows configuration added to the baseline role', async () => {

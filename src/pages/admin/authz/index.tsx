@@ -29,7 +29,6 @@ import { rootStore } from '@/store'
 import type { IAssignment, IPermissionGrant, IRole } from '@/api/path/authz'
 import GrantEditor from './GrantEditor'
 import RolePermissionMatrix from './RolePermissionMatrix'
-import { describeConstraintSet, getAuthorizationMode } from './constraintModel'
 import './index.scss'
 
 const { TabPane } = Tabs
@@ -106,15 +105,15 @@ const AuthzConfig: React.FC = observer(() => {
   }
 
   const renderGrantMode = (_: unknown, grant: IPermissionGrant) => {
-    const mode = getAuthorizationMode(grant.constraint_set)
+    const mode = grant.constraint_set.all_of.length ? 'RETIRED' : 'UNCONDITIONAL'
     return mode === 'UNCONDITIONAL'
-      ? <Tag color="green">无条件能力</Tag>
-      : <Tag color="orange">需要对象校验</Tag>
+      ? <Tag color="green">资源与动作授权</Tag>
+      : <Tag color="orange">权限数据待刷新</Tag>
   }
 
   const renderGrantConditions = (_: unknown, grant: IPermissionGrant) => (
     <Text code={grant.constraint_set.all_of.length > 0}>
-      {describeConstraintSet(grant.constraint_set)}
+      {grant.constraint_set.all_of.length ? '权限数据待刷新' : '无附加条件'}
     </Text>
   )
 

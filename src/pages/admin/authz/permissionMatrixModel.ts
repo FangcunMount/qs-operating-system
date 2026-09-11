@@ -3,7 +3,7 @@ import type { IListResponse, IPermissionGrant, IResource, IRole } from '@/api/pa
 
 export interface MatrixData { roles: IRole[]; resources: IResource[]; grants: IPermissionGrant[]; loadedAt: Date }
 export interface MatrixRow { key: string; resource: IResource; action: string }
-export type CellState = 'none' | 'conditional' | 'direct' | 'wildcard'
+export type CellState = 'none' | 'stale' | 'direct' | 'wildcard'
 export interface MatrixCell { state: CellState; grants: IPermissionGrant[] }
 
 // Never present a truncated or inconsistent catalog as complete.
@@ -50,7 +50,7 @@ export const ACTION_LABELS: Record<string, string> = {
   retry: '重试', force_retry: '强制重试', statistics: '查看统计', analyze: '分析', audit: '审核', publish: '发布'
 }
 export const CELL_META: Record<CellState, { label: string; color?: string }> = {
-  none: { label: '未配置' }, conditional: { label: '条件授权', color: 'orange' },
+  none: { label: '未配置' }, stale: { label: '权限数据待刷新', color: 'orange' },
   direct: { label: '直接授权', color: 'green' }, wildcard: { label: '通配覆盖', color: 'blue' }
 }
 export function matrixRows(resources: IResource[]): MatrixRow[] {
@@ -72,12 +72,12 @@ export function matrixCell(row: MatrixRow, grants: IPermissionGrant[], roleIds: 
     && coversResource(grantResourceKey(grant, resources), row.resource.key))
   if (!matches.length) return { state: 'none', grants: [] }
   const unconditional = matches.filter(grant => grant.constraint_set.all_of.length === 0)
-  if (!unconditional.length) return { state: 'conditional', grants: matches }
+  if (!unconditional.length) return { state: 'stale', grants: matches }
   const direct = unconditional.some(grant => grant.action === row.action && grantResourceKey(grant, resources) === row.resource.key)
   return { state: direct ? 'direct' : 'wildcard', grants: matches }
 }
 export function cellSignature(cell: MatrixCell): string {
-  if (cell.state !== 'conditional') return cell.state
+  if (cell.state !== 'stale') return cell.state
   return JSON.stringify(Array.from(new Set(cell.grants.map(grant => JSON.stringify(
     grant.constraint_set.all_of.map(predicate => JSON.stringify(predicate)).sort()
   )))).sort())

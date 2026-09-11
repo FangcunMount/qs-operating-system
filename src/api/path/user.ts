@@ -16,6 +16,7 @@ export interface IUserProfile {
   contacts: IContact[]
   /** 当前用户角色名列表（与权限配置中的 role name 对应）；未返回时菜单不做角色限制 */
   roles?: string[]
+  permissions?: Array<{ resource: string; action: string; mode: string }>
   createdAt?: string
   updatedAt?: string
 }

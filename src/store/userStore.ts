@@ -12,6 +12,7 @@ import {
   persistTokenPair,
   validateJwtClaims
 } from '@/utils/jwtClaims'
+import { hasActionPermission, hasRetiredActionPermission } from '@/utils/actionPermissions'
 import { buildAccessContext } from '@/utils/accessControl'
 
 // 导出类型供其他模块使用
@@ -41,6 +42,9 @@ class UserStore {
   get accessContext() {
     return buildAccessContext(this.currentUser?.roles, Boolean(this.clinicianIdentity))
   }
+
+  hasPermission(resource: string, action: string) { return hasActionPermission(this.currentUser?.permissions, resource, action) }
+  permissionNeedsRefresh(resource: string, action: string) { return hasRetiredActionPermission(this.currentUser?.permissions, resource, action) }
 
   // 获取用户信息
   async fetchUserProfile() {
