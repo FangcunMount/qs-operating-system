@@ -202,6 +202,10 @@ jobs:
           echo "Ref: ${DEPLOY_REF}"
           echo "SHA: ${DEPLOY_SHA}"
           echo "Service: ${SERVICE}"
+          if [ "${{ vars.PRODUCTION_DEPLOY_PAUSED }}" = "true" ] && [ "${{ needs.docker.result }}" = "success" ] && [ "${{ needs.deploy.result }}" = "skipped" ]; then
+            echo "Image published; production deployment is intentionally paused."
+            exit 0
+          fi
           if [ "${{ needs.docker.result }}" != "success" ] || [ "${{ needs.deploy.result }}" != "success" ]; then
             echo "Production deploy failed or was skipped."
             exit 1
