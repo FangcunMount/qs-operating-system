@@ -12,6 +12,7 @@ import {
   pathForAIGovernanceView,
   viewFromAIGovernancePath
 } from './navigation'
+import { NativeConfigurationWorkspace } from './workspaces/native/NativeConfigurationWorkspace'
 import './index.scss'
 
 const { Paragraph, Text, Title } = Typography
@@ -23,6 +24,8 @@ const AIGovernancePage: React.FC = () => {
 
   const renderWorkspace = () => {
     switch (activeView) {
+    case 'configuration':
+      return <NativeConfigurationWorkspace />
     case 'overview':
       return <GovernanceOverviewWorkspace />
     case 'reviews':

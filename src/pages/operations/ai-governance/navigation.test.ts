@@ -24,3 +24,8 @@ describe('AI governance navigation', () => {
     expect(evaluations?.description).toBe('冻结发布身份，收集 35 个 Candidate；最坏预算为 70 次生成与 70 次独立模型裁判。')
   })
 })
+
+it('routes native configuration to its dedicated workspace', () => {
+  expect(pathForAIGovernanceView('configuration')).toBe('/operations/ai-governance/configuration')
+  expect(viewFromAIGovernancePath('/operations/ai-governance/configuration')).toBe('configuration')
+})

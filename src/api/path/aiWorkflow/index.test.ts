@@ -1,0 +1,55 @@
+import * as api from './index'
+import { internalV2Get, internalV2PostOnce } from '@/api/qsServer'
+jest.mock('@/api/qsServer', () => ({ internalV2Get: jest.fn(), internalV2PostOnce: jest.fn() }))
+const get = internalV2Get as jest.Mock
+const post = internalV2PostOnce as jest.Mock
+beforeEach(() => jest.clearAllMocks())
+it('reads only the new QS proxy with slash-bearing identity in query parameters', () => {
+  api.listAssets('prompt', '中文/id', 'cursor')
+  api.getAsset('schema', 'schema/input', 'v1/sub')
+  api.getPromptDraft('draft/id')
+  api.getDraftReceipt('command/id')
+  api.getFreezeReceipt('freeze/id')
+  expect(get).toHaveBeenNthCalledWith(1, '/interpretation/ai-workflow/assets/prompt', {
+    identity: '中文/id',
+    cursor: 'cursor',
+    limit: 20
+  })
+  expect(get).toHaveBeenNthCalledWith(2, '/interpretation/ai-workflow/assets/schema/detail', {
+    identity: 'schema/input',
+    version: 'v1/sub'
+  })
+  expect(get).toHaveBeenNthCalledWith(3, '/interpretation/ai-workflow/prompt-drafts/draft%2Fid')
+  expect(get).toHaveBeenNthCalledWith(
+    4,
+    '/interpretation/ai-workflow/prompt-drafts/commands/command%2Fid'
+  )
+  expect(get).toHaveBeenNthCalledWith(
+    5,
+    '/interpretation/ai-workflow/prompt-drafts/freeze-commands/freeze%2Fid'
+  )
+  expect(post).not.toHaveBeenCalled()
+})
+it('sends fixed command identities and revisions through the no-replay transport', () => {
+  const source = { identity: 'p', version: 'v1', fingerprint: 'sha256:f', content_sha256: 'c' }
+  const command = { command_id: 'c', reason: '修改' }
+  const create = { ...command, source, template_id: 'p', target_version: 'v2' }
+  const revise = {
+    ...command,
+    expected_revision: 7,
+    content: {
+      system_message: '系统',
+      task_template: '正文',
+      data_preamble: '数据',
+      allowed_placeholders: []
+    }
+  }
+  api.createPromptDraft('d', create)
+  api.revisePromptDraft('d', revise)
+  api.freezePromptDraft('d', { ...command, expected_revision: 8 })
+  expect(post.mock.calls).toEqual([
+    ['/interpretation/ai-workflow/prompt-drafts/d/create', create],
+    ['/interpretation/ai-workflow/prompt-drafts/d/revisions', revise],
+    ['/interpretation/ai-workflow/prompt-drafts/d/freeze', { ...command, expected_revision: 8 }]
+  ])
+})

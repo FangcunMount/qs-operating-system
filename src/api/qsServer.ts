@@ -148,10 +148,10 @@ const handleQSResponse = (response: any) => {
 const createResponseErrorHandler = (
   client: typeof qsAxios
 ) => async (err: AxiosError) => {
-  const originalRequest = err.config as AxiosRequestConfig & { _retry?: boolean }
+  const originalRequest = err.config as AxiosRequestConfig & { _retry?: boolean; qsNoReplay?: boolean }
 
   // 处理 401 错误并自动刷新 token
-  if (err.response?.status === 401 && originalRequest) {
+  if (err.response?.status === 401 && originalRequest && !originalRequest.qsNoReplay) {
     try {
       return await handle401Error(err, originalRequest, (config) => client(config))
     } catch (refreshErr) {
@@ -417,4 +417,15 @@ export const qsDeleteWithBody = <T>(url: string, data: unknown): Promise<[any, Q
     qsAxios.delete(url, { data })
       .then((result) => resolve([null, result.data as QSResponse<T>]))
       .catch((err) => resolve([err, undefined]))
+  })
+
+
+// Versioned AI commands reconcile their original receipt after any uncertain response.
+// Do not replay these writes during authentication refresh.
+export const internalV2PostOnce = <T>(url: string, data: unknown): Promise<[any, QSResponse<T> | undefined]> =>
+  new Promise((resolve) => {
+    const requestConfig: AxiosRequestConfig & { qsNoReplay: boolean } = { qsNoReplay: true }
+    qsInternalV2Axios.post(url, data, requestConfig)
+      .then((result) => resolve([null, result.data as QSResponse<T>]))
+      .catch((error) => resolve([error, undefined]))
   })
