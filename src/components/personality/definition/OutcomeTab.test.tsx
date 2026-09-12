@@ -1,4 +1,3 @@
-import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import OutcomeTab from './OutcomeTab'
 import type { PersonalityTypologyRuntimeSpec } from '@/models/assessmentModel'

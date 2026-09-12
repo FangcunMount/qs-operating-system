@@ -1,4 +1,3 @@
-import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { Signal } from '@/api/path/systemGovernance'
 import { IssuesTab } from './IssuesTab'

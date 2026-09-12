@@ -8,6 +8,39 @@ import {
 } from './HumanReviewWorkspace'
 
 const makeRun = (runID: string): AIEvaluationRunV2 => ({
+  schema_version: 'prompt-evaluation-evidence/v2',
+  version: 1,
+  organization_id: 1,
+  requested_by: 'user:test',
+  request_reason: 'review queue test',
+  created_at: '2026-08-31T10:00:00Z',
+  release_fingerprint: 'sha256:release',
+  release: {
+    fingerprint: 'sha256:release',
+    suite: { id: 'suite', version: 'v1', fingerprint: 'sha256:suite' },
+    prompt: { id: 'prompt', version: 'v1', fingerprint: 'sha256:prompt' },
+    profile: { id: 'profile', version: 'v1', fingerprint: 'sha256:profile' },
+    input_schema: { id: 'input_schema', version: 'v1', fingerprint: 'sha256:input_schema' },
+    output_schema: { id: 'output_schema', version: 'v1', fingerprint: 'sha256:output_schema' },
+    generation_route: { id: 'generation_route', version: 'v1', fingerprint: 'sha256:generation_route' },
+    semantic_prompt: { id: 'semantic_prompt', version: 'v1', fingerprint: 'sha256:semantic_prompt' },
+    semantic_output_schema: { id: 'semantic_output_schema', version: 'v1', fingerprint: 'sha256:semantic_output_schema' },
+    semantic_route: { id: 'semantic_route', version: 'v1', fingerprint: 'sha256:semantic_route' },
+    execution_policy: { id: 'execution_policy', version: 'v1', fingerprint: 'sha256:execution_policy' },
+    gate_policy: { id: 'gate_policy', version: 'v1', fingerprint: 'sha256:gate_policy' },
+  },
+  execution_policy_id: 'execution_policy',
+  execution_policy_version: 'v1',
+  gate_policy_id: 'gate_policy',
+  gate_policy_version: 'v1',
+  reserved_provider_invocations: 1,
+  required_candidates: 1,
+  accepted_candidates: 1,
+  review_ready_candidates: 1,
+  unresolved_result_unknown_count: 0,
+  generation_executions: [],
+  semantic_executions: [],
+  result_unknown_resolutions: [],
   run_id: runID,
   status: 'awaiting_review',
   slots: [{
@@ -27,7 +60,7 @@ const makeRun = (runID: string): AIEvaluationRunV2 => ({
     }
   }],
   human_reviews: []
-} as AIEvaluationRunV2)
+})
 
 describe('AI explanation v2 human review queue', () => {
   it('derives missing roles from review-ready Candidates', () => {

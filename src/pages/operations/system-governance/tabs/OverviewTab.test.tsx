@@ -1,4 +1,3 @@
-import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import cacheDegradedFixture from '@/api/path/__fixtures__/systemGovernance.cache-degraded.json'
 import healthyFixture from '@/api/path/__fixtures__/systemGovernance.healthy.json'

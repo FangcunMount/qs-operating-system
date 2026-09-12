@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react'
-import { Alert, Button, Card, Form, Input, Modal, Radio, Select, Space, Table, Tag, Typography } from 'antd'
+import { Alert, Button, Card, Form, Input, Modal, Radio, Space, Table, Tag, Typography } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, SyncOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { observer } from 'mobx-react-lite'
 import { rootStore } from '@/store'
 import type { ICreateOperatorRequest, IOperator, IUpdateOperatorRequest } from '@/api/path/operator'
 import OperatorRetirement from './retirement'
+import OperatorScopeEditor from './scope'
 import { OPERATOR_ROLE_COLOR_MAP, OPERATOR_ROLE_OPTIONS } from '@/constants/operatorRoles'
 import { extractErrorMessage } from '@/utils/apiError'
 import './index.scss'
@@ -16,6 +17,7 @@ const OperatorManagement: React.FC = observer(() => {
   const { operatorStore, authStore } = rootStore
   const [modalVisible, setModalVisible] = useState(false)
   const [editingOperator, setEditingOperator] = useState<IOperator | null>(null)
+  const [scopeTarget, setScopeTarget] = useState<IOperator | null>(null)
   const [retiring, setRetiring] = useState<IOperator | null>(null)
   const [accountMode, setAccountMode] = useState<AccountMode>('create')
   const [form] = Form.useForm()
@@ -38,7 +40,7 @@ const OperatorManagement: React.FC = observer(() => {
     form.resetFields()
     form.setFieldsValue({
       account_mode: 'create',
-      roles: ['qs:assessment_operator'],
+      roles: [],
       is_active: true
     })
     setModalVisible(true)
@@ -67,7 +69,6 @@ const OperatorManagement: React.FC = observer(() => {
       if (editingOperator) {
         const data: IUpdateOperatorRequest = {
           name: values.name,
-          roles: values.roles,
           phone: values.phone || undefined,
           email: values.email || undefined,
           is_active: Boolean(values.is_active)
@@ -82,7 +83,7 @@ const OperatorManagement: React.FC = observer(() => {
 
       const data: ICreateOperatorRequest = {
         name: values.name,
-        roles: values.roles,
+        roles: [],
         phone: values.phone || undefined,
         email: values.email || undefined,
         password: values.password || undefined,
@@ -177,6 +178,7 @@ const OperatorManagement: React.FC = observer(() => {
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
               编辑
             </Button>
+            <Button type="link" size="small" onClick={() => setScopeTarget(record)}>角色与范围</Button>
             <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => setRetiring(record)}>退出后台</Button>
           </Space>
         )
@@ -219,6 +221,9 @@ const OperatorManagement: React.FC = observer(() => {
         />
       </Card>
 
+      {scopeTarget && <OperatorScopeEditor
+        id={String(scopeTarget.id)} name={scopeTarget.name} onClose={() => setScopeTarget(null)}
+        onSaved={() => fetchOperatorList()} />}
       <Modal
         title={modalTitle}
         visible={modalVisible}
@@ -234,7 +239,7 @@ const OperatorManagement: React.FC = observer(() => {
           layout="vertical"
           initialValues={{
             account_mode: 'create',
-            roles: ['qs:assessment_operator'],
+            roles: [],
             is_active: true
           }}
         >
@@ -309,21 +314,12 @@ const OperatorManagement: React.FC = observer(() => {
             </Form.Item>
           )}
 
-          <Form.Item
-            label="直接角色"
-            name="roles"
-            extra="可选择多个独立职责，权限按所选角色合并。"
-            rules={[{ required: true, message: '请选择至少一个角色' }]}
-          >
-            <Select
-              mode="multiple"
-              placeholder="请选择角色"
-              options={OPERATOR_ROLE_OPTIONS.map((item) => ({
-                value: item.value,
-                label: item.label
-              }))}
-            />
-          </Form.Item>
+          <Alert
+            type="info"
+            showIcon
+            message={editingOperator ? '请通过“角色与范围”单独维护授权，此处仅编辑人员资料。' : '本次仅创建运营人员身份，不授予角色。创建后请在列表中打开“角色与范围”完成权限配置。'}
+            style={{ marginBottom: 16 }}
+          />
 
           {editingOperator?.authz_projection_pending && (
             <Alert

@@ -1,12 +1,12 @@
-import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import queueFullFixture from '@/api/path/__fixtures__/systemGovernance.queue-full.json'
+import { normalizeSignals } from '@/api/path/systemGovernance/normalizers'
 import { SignalList } from './SignalList'
 
 describe('SignalList', () => {
   it('renders critical signal from fixture', () => {
     const onOpenDomain = jest.fn()
-    render(<SignalList signals={queueFullFixture.signals} onOpenDomain={onOpenDomain} />)
+    render(<SignalList signals={normalizeSignals(queueFullFixture.signals)} onOpenDomain={onOpenDomain} />)
     expect(screen.getByText('answersheet_submit 队列接近满载')).toBeInTheDocument()
     expect(screen.getByText('严重')).toBeInTheDocument()
     expect(screen.getByText(/请求可能开始排队/)).toBeInTheDocument()

@@ -1,4 +1,3 @@
-import React from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { ActionDescriptor, postSystemGovernanceActionRun } from '@/api/path/systemGovernance'
 import { ActionRunDrawer } from './ActionRunDrawer'

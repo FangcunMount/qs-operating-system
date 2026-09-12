@@ -1,4 +1,3 @@
-import React from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import AssessmentProgress from './progress'
 import { get, post } from '@/api/qsServer'

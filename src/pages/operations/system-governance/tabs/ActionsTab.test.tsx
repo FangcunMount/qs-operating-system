@@ -1,4 +1,3 @@
-import React from 'react'
 import { render, screen } from '@testing-library/react'
 import type { ActionDescriptor, Signal } from '@/api/path/systemGovernance'
 import { ActionsTab } from './ActionsTab'

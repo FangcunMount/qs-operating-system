@@ -1,4 +1,3 @@
-import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import healthyFixture from '@/api/path/__fixtures__/systemGovernance.healthy.json'
 import { normalizeSystemGovernanceOverview } from '@/api/path/systemGovernance'

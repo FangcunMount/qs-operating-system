@@ -1,4 +1,3 @@
-import React from 'react'
 import { render, screen } from '@testing-library/react'
 import resiliencePressureFixture from '@/api/path/__fixtures__/systemGovernance.resilience-pressure.json'
 import { normalizeSystemGovernanceResilience } from '@/api/path/systemGovernance'

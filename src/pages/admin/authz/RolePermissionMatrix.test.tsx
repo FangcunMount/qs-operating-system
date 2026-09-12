@@ -1,4 +1,3 @@
-import React from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import RolePermissionMatrix from './RolePermissionMatrix'
 import { loadMatrixData } from './permissionMatrixModel'

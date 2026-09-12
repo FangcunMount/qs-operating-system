@@ -150,8 +150,8 @@ export const testeeApi = {
   },
 
   // PUT /testees/{id} - 更新受试者
-  updateTestee: (id: number | string, data: IUpdateTesteeRequest): Promise<[any, QSResponse<ITesteeDetail> | undefined]> => {
-    return put<ITesteeDetail>(`/testees/${id}`, data)
+  updateTestee: (id: number | string, data: IUpdateTesteeRequest): Promise<[any, QSResponse<{ id: string; updated: boolean }> | undefined]> => {
+    return put<{ id: string; updated: boolean }>(`/testees/${id}`, data)
   },
 
   // GET /testees/{id}/scale-analysis - 获取量表趋势分析

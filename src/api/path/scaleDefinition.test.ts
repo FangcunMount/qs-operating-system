@@ -104,6 +104,7 @@ describe('scaleDefinition adapter', () => {
   it('registers canonical JSON OutcomeCode values before the definition is saved', () => {
     const next = ensureScaleDefinitionOutcomeRegistry({
       ...definition,
+      // @ts-expect-error Exercise legacy runtime JSON containing a null registry.
       Outcomes: null,
       Conclusions: [{
         Kind: 'risk',
