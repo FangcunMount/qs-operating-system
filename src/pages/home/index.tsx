@@ -1,14 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { Alert, Card, Row, Col, Button, Typography, Space, Spin, Empty } from 'antd'
+import React, { useState } from 'react'
+import { Card, Row, Col, Button, Typography, Space } from 'antd'
 import { 
   ExperimentOutlined, 
-  FormOutlined, 
-  TeamOutlined,
   RightOutlined,
   DownOutlined,
   UpOutlined,
   PlusOutlined,
-  AuditOutlined,
   BarChartOutlined,
   CalendarOutlined,
   FolderOutlined,
@@ -20,64 +17,14 @@ import { rootStore } from '@/store'
 import { routes } from '@/router/map'
 import { filterRoutesForMenu } from '@/utils/menuAccess'
 import { getRouteDisplayTitle } from '@/utils/routeDisplay'
-import { getOverviewStatistics } from '@/api/path/statistics'
-import type { IStatisticsOverviewResponse } from '@/api/path/statistics'
-import AccessFunnelChart from '@/components/statistics/AccessFunnelChart'
-import AssessmentReportTrendChart from '@/components/statistics/AssessmentReportTrendChart'
-import HomeStatModuleHeader from '@/components/statistics/HomeStatModuleHeader'
-import { ACCESS_FUNNEL_PARALLEL_NOTE, buildAccessFunnelSteps, hasFunnelData } from '@/components/statistics/accessFunnel'
-import { formatAssessmentFailureRate, hasReportTrendData } from '@/components/statistics/assessmentService'
-import PlanActivityMetricsPanel from '@/components/statistics/PlanActivityMetricsPanel'
-import PlanFulfillmentMetricsPanel from '@/components/statistics/PlanFulfillmentMetricsPanel'
-import { formatPlanRate, resolvePlanActivity, resolvePlanFulfillment } from '@/components/statistics/planStatistics'
 import OperationsPanel from '@/components/statistics/OperationsPanel'
 import './index.scss'
 
 const { Title, Text } = Typography
-const CHART_COLORS = ['#1677ff', '#00b578', '#faad14', '#ff7a45', '#722ed1', '#13c2c2', '#eb2f96']
-
-function formatNumber(value: number) {
-  return value.toLocaleString()
-}
-
 const Home: React.FC = observer(() => {
   const history = useHistory()
   const { userStore } = rootStore
   const [expandedTips, setExpandedTips] = useState<Set<number>>(new Set())
-  const [overviewStats, setOverviewStats] = useState<IStatisticsOverviewResponse | null>(null)
-  const [overviewLoading, setOverviewLoading] = useState(false)
-
-  useEffect(() => {
-    const shouldFetchOverview = userStore.accessContext.capabilities.has('org_admin') || userStore.accessContext.isPlatformAdmin
-    if (!shouldFetchOverview) {
-      setOverviewStats(null)
-      return
-    }
-
-    let cancelled = false
-    setOverviewLoading(true)
-    getOverviewStatistics({ preset: '30d' })
-      .then(([error, response]) => {
-        if (cancelled) return
-        if (error || !response?.data) {
-          throw error || new Error('获取统计概览失败')
-        }
-        setOverviewStats(response.data)
-      })
-      .catch((error) => {
-        if (cancelled) return
-        console.error(error)
-      })
-      .finally(() => {
-        if (!cancelled) setOverviewLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [userStore.accessContext.capabilities, userStore.accessContext.isPlatformAdmin])
-
-  const showAdminStats = userStore.accessContext.capabilities.has('org_admin') || userStore.accessContext.isPlatformAdmin
   const visibleRoutes = filterRoutesForMenu(routes, userStore.accessContext, userStore.profileFetchDone)
 
   const toggleTip = (index: number) => {
@@ -90,23 +37,6 @@ const Home: React.FC = observer(() => {
     setExpandedTips(newExpanded)
   }
 
-  const accessFunnelChart = useMemo(() => {
-    if (!overviewStats) return { steps: [], conversions: [], outcomes: [] }
-    return buildAccessFunnelSteps(overviewStats.access_funnel.window, CHART_COLORS)
-  }, [overviewStats])
-
-  const assessmentFailureMeta = useMemo(() => {
-    const failed = overviewStats?.assessment_service.window.assessment_failed_count || 0
-    const created = overviewStats?.assessment_service.window.assessment_created_count || 0
-    return {
-      failed,
-      rate: formatAssessmentFailureRate(failed, created)
-    }
-  }, [overviewStats])
-
-  const planActivity = useMemo(() => resolvePlanActivity(overviewStats?.plan), [overviewStats])
-  const planFulfillment = useMemo(() => resolvePlanFulfillment(overviewStats?.plan), [overviewStats])
-
   const quickLinkMeta: Record<string, { description: string; color: string }> = {
     operations: {
       description: '查看受试者、测评记录、计划与统计',
@@ -117,7 +47,7 @@ const Home: React.FC = observer(() => {
       color: '#fa8c16'
     },
     content: { description: '管理问卷和量表内容', color: '#1890ff' },
-    'organization-management': { description: '管理员工、临床人员、权限和资源', color: '#f5222d' }
+    'organization-management': { description: '管理运营人员、医生、门店与权限', color: '#f5222d' }
   }
 
   const quickLinks = visibleRoutes
@@ -165,7 +95,6 @@ const Home: React.FC = observer(() => {
 
   return (
     <div className="home-page">
-      <OperationsPanel />
       {/* 欢迎横幅 */}
       <div className="home-header">
         <div className="header-content">
@@ -190,197 +119,7 @@ const Home: React.FC = observer(() => {
       </div>
 
       <div className="home-container">
-        {/* 统计 Dashboard */}
-        {showAdminStats && (
-          <Spin spinning={overviewLoading}>
-            <div className="stats-section">
-              {overviewStats?.freshness ? (
-                <Alert
-                  type={overviewStats.freshness.is_stale ? 'warning' : 'info'}
-                  showIcon
-                  message={`统计数据截至 ${overviewStats.freshness.as_of_date}`}
-                  style={{ marginBottom: 16 }}
-                />
-              ) : null}
-              <Card
-                className="home-org-scale"
-                hoverable
-                onClick={() => history.push('/statistics/center')}
-              >
-                <HomeStatModuleHeader
-                  tone="organization"
-                  title="机构规模"
-                  subtitle="资源底盘"
-                  icon={<TeamOutlined />}
-                />
-                <div className="home-org-scale__metrics">
-                  <div className="home-org-scale__metric">
-                    <span className="home-org-scale__label">受试者总数</span>
-                    <b className="home-org-scale__value">
-                      {formatNumber(overviewStats?.organization_overview.testee_count || 0)}
-                    </b>
-                  </div>
-                  <div className="home-org-scale__metric">
-                    <span className="home-org-scale__label">临床人员</span>
-                    <b className="home-org-scale__value">
-                      {formatNumber(overviewStats?.organization_overview.clinician_count || 0)}
-                    </b>
-                  </div>
-                  <div className="home-org-scale__metric">
-                    <span className="home-org-scale__label">活跃入口</span>
-                    <b className="home-org-scale__value">
-                      {formatNumber(overviewStats?.organization_overview.active_entry_count || 0)}
-                    </b>
-                  </div>
-                  <div className="home-org-scale__metric">
-                    <span className="home-org-scale__label">使用内容</span>
-                    <b className="home-org-scale__value">
-                      {formatNumber(overviewStats?.organization_overview.content_count || 0)}
-                    </b>
-                  </div>
-                  <div className="home-org-scale__metric">
-                    <span className="home-org-scale__label">累计答卷提交</span>
-                    <b className="home-org-scale__value">
-                      {formatNumber(overviewStats?.organization_overview.answer_sheet_submission_count || 0)}
-                    </b>
-                  </div>
-                  <div className="home-org-scale__metric">
-                    <span className="home-org-scale__label">窗口答卷提交</span>
-                    <b className="home-org-scale__value">
-                      {formatNumber(overviewStats?.assessment_service.window.answersheet_submitted_count || 0)}
-                    </b>
-                  </div>
-                </div>
-              </Card>
-
-              <Row gutter={[20, 20]} className="home-stat-modules">
-                <Col xs={24} lg={12}>
-                  <Card className="home-stat-module home-stat-module--funnel" hoverable onClick={() => history.push('/statistics/center')}>
-                    <HomeStatModuleHeader
-                      tone="funnel"
-                      title="接入漏斗"
-                      subtitle="近 30 天"
-                      icon={<BarChartOutlined />}
-                    />
-                    <div className="module-primary">
-                      <span className="module-primary-value">
-                        {formatNumber(overviewStats?.access_funnel.window.testee_created_count || 0)}
-                      </span>
-                      <span className="module-primary-label">新建档案</span>
-                    </div>
-                    <div className="module-note">{ACCESS_FUNNEL_PARALLEL_NOTE}</div>
-                    <div className="module-chart">
-                      {hasFunnelData(accessFunnelChart.steps) ? (
-                        <AccessFunnelChart
-                          steps={accessFunnelChart.steps}
-                          conversions={accessFunnelChart.conversions}
-                          outcomes={accessFunnelChart.outcomes}
-                          compact
-                        />
-                      ) : (
-                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无接入数据" />
-                      )}
-                    </div>
-                  </Card>
-                </Col>
-
-                <Col xs={24} lg={12}>
-                  <Card className="home-stat-module home-stat-module--assessment" hoverable onClick={() => history.push('/statistics/center')}>
-                    <HomeStatModuleHeader
-                      tone="assessment"
-                      title="测评服务"
-                      subtitle="近 30 天"
-                      icon={<FormOutlined />}
-                    />
-                    <div className="module-primary">
-                      <span className="module-primary-value">
-                        {formatNumber(overviewStats?.assessment_service.window.report_generated_count || 0)}
-                      </span>
-                      <span className="module-primary-label">产出报告</span>
-                    </div>
-                    <div className="module-meta-grid">
-                      <span>测评失败 <b>{formatNumber(assessmentFailureMeta.failed)}</b></span>
-                      <span>失败率 <b>{assessmentFailureMeta.rate}</b></span>
-                    </div>
-                    <div className="module-chart">
-                      {hasReportTrendData(overviewStats?.assessment_service.trend.report_generated || []) ? (
-                        <AssessmentReportTrendChart
-                          reportGenerated={overviewStats?.assessment_service.trend.report_generated || []}
-                          strokeColor={CHART_COLORS[6]}
-                          compact
-                        />
-                      ) : (
-                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无产出报告趋势" />
-                      )}
-                    </div>
-                  </Card>
-                </Col>
-
-                <Col xs={24} lg={12}>
-                  <Card
-                    className="home-stat-module home-stat-module--plan-activity"
-                    hoverable
-                    onClick={() => history.push('/statistics/center')}
-                  >
-                    <HomeStatModuleHeader
-                      tone="plan-activity"
-                      title="Plan 事件"
-                      subtitle="近 30 天 · 事件日"
-                      icon={<CalendarOutlined />}
-                    />
-                    <div className="module-primary">
-                      <span className="module-primary-value">
-                        {formatNumber(planActivity.window.task_completed_count)}
-                      </span>
-                      <span className="module-primary-label">事件完成</span>
-                    </div>
-                    <div className="module-meta-grid">
-                      <span>任务发放 <b>{formatNumber(planActivity.window.task_created_count)}</b></span>
-                      <span>任务打开 <b>{formatNumber(planActivity.window.task_opened_count)}</b></span>
-                    </div>
-                    <div className="module-chart">
-                      <PlanActivityMetricsPanel activity={planActivity} compact />
-                    </div>
-                  </Card>
-                </Col>
-
-                <Col xs={24} lg={12}>
-                  <Card
-                    className="home-stat-module home-stat-module--plan-fulfillment"
-                    hoverable
-                    onClick={() => history.push('/statistics/center')}
-                  >
-                    <HomeStatModuleHeader
-                      tone="plan-fulfillment"
-                      title="Plan 履约"
-                      subtitle="近 30 天 · cohort"
-                      icon={<AuditOutlined />}
-                    />
-                    <div className="module-primary">
-                      <span className="module-primary-value">
-                        {formatPlanRate(planFulfillment?.window.completion_rate)}
-                      </span>
-                      <span className="module-primary-label">cohort 完成率</span>
-                    </div>
-                    <div className="module-meta-grid">
-                      <span>应完成 <b>{formatNumber(planFulfillment?.window.due_task_count || 0)}</b></span>
-                      <span>逾期 <b>{formatNumber(planFulfillment?.window.overdue_task_count || 0)}</b></span>
-                    </div>
-                    <div className="module-chart">
-                      <PlanFulfillmentMetricsPanel fulfillment={planFulfillment} compact />
-                    </div>
-                  </Card>
-                </Col>
-              </Row>
-
-              <div className="stats-section-footer">
-                <Button type="link" onClick={() => history.push('/statistics/center')}>
-                  查看完整统计中心
-                </Button>
-              </div>
-            </div>
-          </Spin>
-        )}
+        <OperationsPanel compact />
 
         {/* 快捷入口 */}
         <Card 

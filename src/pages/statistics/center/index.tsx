@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Card, Col, DatePicker, Empty, Row, Select, Space, Statistic, Table, Tabs, Typography, message } from 'antd'
+import { Alert, Button, Card, Col, DatePicker, Empty, Row, Select, Space, Statistic, Table, Tabs, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   Bar,
@@ -94,6 +94,7 @@ function formatNumber(value: number): string {
 
 const StatisticsCenterPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const [preset, setPreset] = useState<PresetValue>('30d')
   const [customRange, setCustomRange] = useState<any[] | null>(null)
   const [activeTab, setActiveTab] = useState('overview')
@@ -114,6 +115,7 @@ const StatisticsCenterPage: React.FC = () => {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
+    setError('')
     try {
       const params = buildParams()
       const [[overviewError, overviewResponse], [clinicianError, clinicianResponse], [entryError, entryResponse]] = await Promise.all([
@@ -131,7 +133,8 @@ const StatisticsCenterPage: React.FC = () => {
       setEntries(!entryError && entryResponse?.data ? entryResponse.data.items || [] : [])
     } catch (error) {
       console.error(error)
-      message.error(extractErrorMessage(error, '获取统计中心数据失败'))
+      setOverview(null)
+      setError(extractErrorMessage(error, '获取总部分析失败，请稍后重试'))
     } finally {
       setLoading(false)
     }
@@ -275,11 +278,11 @@ const StatisticsCenterPage: React.FC = () => {
   )
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
           <div>
-            <Title level={3} style={{ marginBottom: 4 }}>统计中心</Title>
+            <Title level={3} style={{ marginBottom: 4 }}>总部分析</Title>
             <Text type="secondary">按机构总览、接入漏斗、测评服务、维度分析和 Plan 维度查看运营数据。</Text>
           </div>
           <Space wrap>
@@ -317,7 +320,8 @@ const StatisticsCenterPage: React.FC = () => {
           />
         ) : null}
 
-        <Tabs activeKey={activeTab} onChange={setActiveTab}>
+        {error && <Alert type="error" showIcon message="总部分析暂不可用" description={error} action={<Button onClick={fetchData}>重试</Button>} />}
+        {!error && <Tabs activeKey={activeTab} onChange={setActiveTab}>
           <TabPane tab="统计中心概览" key="overview">
             <Space direction="vertical" size={16} className="statistics-dashboard">
               <Card className="dashboard-summary" loading={loading}>
@@ -774,7 +778,7 @@ const StatisticsCenterPage: React.FC = () => {
               </Card>
             </Space>
           </TabPane>
-        </Tabs>
+        </Tabs>}
       </Space>
     </div>
   )
@@ -782,5 +786,13 @@ const StatisticsCenterPage: React.FC = () => {
 
 export default observer(function StatisticsCenter() {
   const access = rootStore.userStore.accessContext
-  return <><OperationsPanel />{(access.isPlatformAdmin || access.capabilities.has('org_admin')) && <StatisticsCenterPage />}</>
+  const admin = access.isPlatformAdmin || access.capabilities.has('org_admin')
+  return <div style={{ padding: 24 }}>
+    <Title level={3}>统计中心</Title>
+    <Typography.Paragraph type="secondary">查看当前服务人数与历史开展工作量，按授权范围比较门店。</Typography.Paragraph>
+    {admin ? <Tabs defaultActiveKey="operations" destroyInactiveTabPane>
+      <TabPane tab="门店运营" key="operations"><OperationsPanel /></TabPane>
+      <TabPane tab="总部分析" key="analysis"><StatisticsCenterPage /></TabPane>
+    </Tabs> : <OperationsPanel />}
+  </div>
 })

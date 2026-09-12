@@ -1,4 +1,5 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import OperationsPanel from './OperationsPanel'
 import { getOperationsOverview, getOperationsStores } from '@/api/path/statistics'
 import { rootStore } from '@/store'
@@ -42,5 +43,16 @@ test('revoked permission hides loaded counts and prevents further queries', asyn
   ;(rootStore.userStore.hasPermission as jest.Mock).mockReturnValue(false)
   view.rerender(<OperationsPanel />)
   expect(screen.queryByText('A门店')).not.toBeInTheDocument()
+  expect(getOperationsOverview).toHaveBeenCalledTimes(1)
+})
+
+test('compact home summary avoids store list query and full table', async () => {
+  render(<MemoryRouter><OperationsPanel compact /></MemoryRouter>)
+  await screen.findByText('当前服务人数')
+  expect(screen.getByText('本月运营概况')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: '查看完整统计' })).toHaveAttribute('href', '/statistics/center')
+  expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  expect(screen.queryByLabelText('选择门店')).not.toBeInTheDocument()
+  expect(getOperationsStores).not.toHaveBeenCalled()
   expect(getOperationsOverview).toHaveBeenCalledTimes(1)
 })

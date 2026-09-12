@@ -18,7 +18,7 @@ import { useHistory, useLocation } from 'react-router-dom'
 import { routes } from '../../router/map'
 import { IRoute } from '../../types/router'
 import { rootStore } from '@/store'
-import { filterRoutesForMenu } from '@/utils/menuAccess'
+import { filterRoutesForMenu, matchesMenuPath } from '@/utils/menuAccess'
 import { getDefaultLandingPath } from '@/utils/accessControl'
 import { getRouteDisplayTitle } from '@/utils/routeDisplay'
 import { brandAlt, brandAssets } from '@/config/brand'
@@ -96,7 +96,7 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
           for (const child of sortedChildren) {
             const childPath = child.path.split(':')[0].replace(/\/$/, '')
             // 使用更精确的匹配：确保路径完全匹配或匹配到路径段边界
-            if (path === childPath || path.startsWith(childPath + '/') || (childPath !== '/' && path.startsWith(childPath))) {
+            if (matchesMenuPath(path, childPath)) {
               // 如果匹配到的菜单项是隐藏的，返回父菜单下的第一个可见菜单项
               if (child.hideInMenu) {
                 if (child.activeMenuName) {
@@ -110,7 +110,7 @@ const MainLayout: React.FC<IMainLayoutProps> = observer(({ children }) => {
           }
         }
         // 检查当前路由
-        if (path === route.path || (route.path !== '/' && path.startsWith(route.path + '/') || path.startsWith(route.path))) {
+        if (matchesMenuPath(path, route.path)) {
           // 如果匹配到的菜单项是隐藏的，尝试返回父菜单下的第一个可见菜单项
           if (route.hideInMenu) {
             if (route.activeMenuName) {

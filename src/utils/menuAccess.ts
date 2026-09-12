@@ -34,3 +34,8 @@ export function filterRoutesForMenu(
   }
   return out
 }
+
+/** Root is exact-only; nested routes must match at a path segment boundary. */
+export function matchesMenuPath(path: string, routePath: string): boolean {
+  return path === routePath || (routePath !== '/' && path.startsWith(routePath + '/'))
+}
