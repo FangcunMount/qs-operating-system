@@ -229,8 +229,7 @@ export const routes: Array<IRoute> = [
     exact: true,
     component: StatisticsCenter,
     icon: createIcon(LineChartOutlined),
-    menuScope: 'org_admin',
-    requiredCapabilities: ['org_admin']
+    requiredCapabilities: ['read_operations_statistics']
   },
   {
     title: '内容管理',

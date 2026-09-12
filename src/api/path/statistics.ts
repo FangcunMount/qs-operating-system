@@ -489,3 +489,21 @@ export const statisticsApi = {
   getAssessmentEntryStatistics,
   batchContentStatistics
 }
+
+/** Pure operations counts; professional result payloads remain on their existing APIs. */
+export interface IOperationsCounts { submissions: number; completions: number }
+export interface IOperationsStore extends IOperationsCounts {
+  id: string; code: string; name: string; is_active: boolean; current_service_count: number
+}
+export interface IOperationsOverview extends IOperationsCounts {
+  scope: string; from: string; to_exclusive: string; workload_through: string
+  published_at: string; published_version: string; current_population_read_at: string
+  current_service_count: number; unknown?: IOperationsCounts
+  unknown_reasons?: Record<string, IOperationsCounts>
+  stores: IOperationsStore[]; daily: Array<IOperationsCounts & { date: string }>
+}
+export interface IOperationsQuery { from?: string; to?: string; store_ids?: string }
+export const getOperationsOverview = (params?: IOperationsQuery): Promise<[any, QSResponse<IOperationsOverview> | undefined]> =>
+  v2Get<IOperationsOverview>('/statistics/operations/overview', params)
+export const getOperationsStores = (params?: IOperationsQuery): Promise<[any, QSResponse<IOperationsOverview> | undefined]> =>
+  v2Get<IOperationsOverview>('/statistics/operations/stores', params)

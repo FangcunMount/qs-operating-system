@@ -13,6 +13,7 @@ export type RouteCapability =
   | 'audit_interpretation'
   | 'read_subjects'
   | 'read_assessment_records'
+  | 'read_operations_statistics'
   | 'read_assessment_progress'
 
 export interface IRoute {

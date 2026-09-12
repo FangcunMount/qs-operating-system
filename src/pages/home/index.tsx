@@ -30,6 +30,7 @@ import { formatAssessmentFailureRate, hasReportTrendData } from '@/components/st
 import PlanActivityMetricsPanel from '@/components/statistics/PlanActivityMetricsPanel'
 import PlanFulfillmentMetricsPanel from '@/components/statistics/PlanFulfillmentMetricsPanel'
 import { formatPlanRate, resolvePlanActivity, resolvePlanFulfillment } from '@/components/statistics/planStatistics'
+import OperationsPanel from '@/components/statistics/OperationsPanel'
 import './index.scss'
 
 const { Title, Text } = Typography
@@ -164,6 +165,7 @@ const Home: React.FC = observer(() => {
 
   return (
     <div className="home-page">
+      <OperationsPanel />
       {/* 欢迎横幅 */}
       <div className="home-header">
         <div className="header-content">

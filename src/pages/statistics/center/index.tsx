@@ -53,6 +53,9 @@ import {
   resolvePlanActivity,
   resolvePlanFulfillment
 } from '@/components/statistics/planStatistics'
+import OperationsPanel from '@/components/statistics/OperationsPanel'
+import { rootStore } from '@/store'
+import { observer } from 'mobx-react-lite'
 import './index.scss'
 
 const { Title, Text } = Typography
@@ -777,4 +780,7 @@ const StatisticsCenterPage: React.FC = () => {
   )
 }
 
-export default StatisticsCenterPage
+export default observer(function StatisticsCenter() {
+  const access = rootStore.userStore.accessContext
+  return <><OperationsPanel />{(access.isPlatformAdmin || access.capabilities.has('org_admin')) && <StatisticsCenterPage />}</>
+})

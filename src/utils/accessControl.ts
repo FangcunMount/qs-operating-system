@@ -3,15 +3,15 @@ import type { IRoute, RouteCapability } from '@/types/router'
 const PLATFORM_ADMIN_ROLES = ['platform_admin']
 
 const ROLE_CAPABILITY_MAP: Record<string, RouteCapability[]> = {
-  'qs:assessment_operator': ['read_subjects', 'read_assessment_progress', 'evaluate_assessments'],
-  'qs:result_reviewer': ['read_subjects', 'read_assessment_records'],
-  'qs:admin': [
+  'qs:assessment_operator': ['read_operations_statistics', 'read_subjects', 'read_assessment_progress', 'evaluate_assessments'],
+  'qs:result_reviewer': ['read_operations_statistics', 'read_subjects', 'read_assessment_records'],
+  'qs:admin': ['read_operations_statistics',
     'read_assessment_progress', 'org_admin', 'manage_content', 'manage_evaluation_plans', 'evaluate_assessments',
     'audit_interpretation', 'read_subjects', 'read_assessment_records',
     'read_norm_tables', 'manage_norm_tables'
   ],
   'qs:content_manager': ['manage_content', 'read_norm_tables', 'manage_norm_tables'],
-  'qs:evaluation_plan_manager': ['manage_evaluation_plans', 'read_subjects', 'read_assessment_progress'],
+  'qs:evaluation_plan_manager': ['read_operations_statistics', 'manage_evaluation_plans', 'read_subjects', 'read_assessment_progress'],
 }
 
 export interface AccessContext {
@@ -28,6 +28,7 @@ function deriveCapabilities(roles: string[]): Set<RouteCapability> {
     [
       'read_assessment_progress',
       'platform_admin',
+      'read_operations_statistics',
       'org_admin',
       'manage_content',
       'read_norm_tables',
