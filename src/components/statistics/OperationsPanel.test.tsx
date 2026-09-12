@@ -7,7 +7,10 @@ jest.mock('@/store', () => ({ rootStore: { userStore: { hasPermission: jest.fn()
 jest.mock('@/api/path/statistics', () => ({ getOperationsOverview: jest.fn(), getOperationsStores: jest.fn() }))
 jest.mock('recharts', () => {
   const Stub = ({ children }: any) => <div>{children}</div>
-  return { ResponsiveContainer: Stub, LineChart: Stub, Line: () => null, CartesianGrid: () => null, Legend: () => null, Tooltip: () => null, XAxis: () => null, YAxis: () => null }
+  return {
+    ResponsiveContainer: Stub, LineChart: Stub, Line: () => null, CartesianGrid: () => null,
+    Legend: () => null, Tooltip: () => null, XAxis: () => null, YAxis: () => null
+  }
 })
 const payload = { scope: 'stores', current_service_count: 2, submissions: 3, completions: 1,
   workload_through: '2026-09-11', published_at: '2026-09-12T00:00:00Z', current_population_read_at: '2026-09-12T02:00:00Z',
@@ -26,7 +29,7 @@ test('store counts show freshness and inactive history without company unknown b
   expect(screen.queryByText(/未知开展门店：/)).not.toBeInTheDocument()
 })
 test('failed statistics shows retry without fabricating zero counts', async () => {
-  ;(getOperationsOverview as jest.Mock).mockResolvedValue([new Error('尚未发布'), undefined])
+  (getOperationsOverview as jest.Mock).mockResolvedValue([new Error('尚未发布'), undefined])
   render(<OperationsPanel />)
   await screen.findByText('运营统计暂不可用')
   expect(screen.queryByText('当前服务人数')).not.toBeInTheDocument()
