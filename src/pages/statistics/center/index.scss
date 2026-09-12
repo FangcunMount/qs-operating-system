@@ -334,3 +334,11 @@
   > .ant-tabs > .ant-tabs-nav::before { border-bottom-color: #e4ecf7; }
 }
 @media (max-width: 700px) { .statistics-workspace { padding: 16px; } }
+
+.statistics-workspace__heading {
+  display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 24px;
+  h3.ant-typography { color: #173052; font-size: 27px; margin: 4px 0 6px; }
+  .ant-typography { margin-bottom: 0; }
+  .ant-btn { border-radius: 10px; }
+}
+.statistics-workspace__eyebrow { color: #5781bd; font-size: 12px; letter-spacing: 2px; }

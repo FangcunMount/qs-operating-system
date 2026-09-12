@@ -18,5 +18,5 @@ test('home welcomes first, shows a compact summary and keeps shortcuts outside s
   expect(screen.queryByText('机构规模')).not.toBeInTheDocument()
   expect(screen.getByText('功能入口')).toBeInTheDocument()
   const header = container.querySelector('.home-header')
-  expect(header?.compareDocumentPosition(screen.getByText('运营摘要')) as number & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect((header?.compareDocumentPosition(screen.getByText('运营摘要')) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 })
