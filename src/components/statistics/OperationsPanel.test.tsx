@@ -8,8 +8,9 @@ jest.mock('@/store', () => ({ rootStore: { userStore: { hasPermission: jest.fn()
 jest.mock('@/api/path/statistics', () => ({ getOperationsOverview: jest.fn(), getOperationsStores: jest.fn() }))
 jest.mock('recharts', () => {
   const Stub = ({ children }: any) => <div>{children}</div>
+  const ChartStub = ({ children }: any) => <svg>{children}</svg>
   return {
-    ResponsiveContainer: Stub, LineChart: Stub, Line: () => null, CartesianGrid: () => null,
+    ResponsiveContainer: Stub, ComposedChart: ChartStub, Area: () => null, Line: () => null, CartesianGrid: () => null,
     Legend: () => null, Tooltip: () => null, XAxis: () => null, YAxis: () => null
   }
 })
@@ -50,7 +51,7 @@ test('compact home summary avoids store list query and full table', async () => 
   render(<MemoryRouter><OperationsPanel compact /></MemoryRouter>)
   await screen.findByText('当前服务人数')
   expect(screen.getByText('本月运营概况')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: '查看完整统计' })).toHaveAttribute('href', '/statistics/center')
+  expect(screen.getByRole('link', { name: /查看完整统计/ })).toHaveAttribute('href', '/statistics/center')
   expect(screen.queryByRole('table')).not.toBeInTheDocument()
   expect(screen.queryByLabelText('选择门店')).not.toBeInTheDocument()
   expect(getOperationsStores).not.toHaveBeenCalled()

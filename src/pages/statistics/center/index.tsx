@@ -787,7 +787,7 @@ const StatisticsCenterPage: React.FC = () => {
 export default observer(function StatisticsCenter() {
   const access = rootStore.userStore.accessContext
   const admin = access.isPlatformAdmin || access.capabilities.has('org_admin')
-  return <div style={{ padding: 24 }}>
+  return <div className="statistics-workspace">
     <Title level={3}>统计中心</Title>
     <Typography.Paragraph type="secondary">查看当前服务人数与历史开展工作量，按授权范围比较门店。</Typography.Paragraph>
     {admin ? <Tabs defaultActiveKey="operations" destroyInactiveTabPane>

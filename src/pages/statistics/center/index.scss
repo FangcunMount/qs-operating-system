@@ -322,3 +322,15 @@
     height: 220px;
   }
 }
+
+.statistics-workspace {
+  padding: 28px;
+  min-height: 100%;
+  background: linear-gradient(135deg, #f1f6fd, #f8fafd);
+  > h3 { color: #173052; font-size: 25px; margin-bottom: 8px; }
+  > .ant-typography { color: #64748b; }
+  > h3.ant-typography { color: #173052; }
+  > .ant-tabs > .ant-tabs-nav { margin: 6px 0 24px; }
+  > .ant-tabs > .ant-tabs-nav::before { border-bottom-color: #e4ecf7; }
+}
+@media (max-width: 700px) { .statistics-workspace { padding: 16px; } }
