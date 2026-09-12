@@ -47,3 +47,15 @@ it('store search stays in its authorized QS list without querying global profile
   expect(identityApi.suggestChild).not.toHaveBeenCalled()
   expect((testeeApi.listTestees as jest.Mock).mock.calls.every(([query]) => !query.unassigned_store)).toBe(true)
 })
+it('selecting a suggested profile preserves its string ID when checking unassigned matches', async () => {
+  rootStore.userStore.accessContext.capabilities.add('org_admin')
+  ;(identityApi.suggestChild as jest.Mock).mockResolvedValue([null, { data: [{ id: '632367179001508398', name: '匹配档案' }] }])
+  render(<MemoryRouter><SubjectList /></MemoryRouter>)
+  const input = screen.getByPlaceholderText('搜索姓名 / 档案ID / 手机号')
+  fireEvent.focus(input)
+  fireEvent.change(input, { target: { value: '匹配' } })
+  fireEvent.click(await screen.findByText('匹配档案', { selector: 'span' }))
+  await waitFor(() => expect(testeeApi.listTestees).toHaveBeenLastCalledWith(expect.objectContaining({
+    profile_id: '632367179001508398', name: undefined, unassigned_store: true
+  })))
+})

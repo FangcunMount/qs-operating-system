@@ -18,10 +18,9 @@ import {
 } from '@/api/path/assessment'
 import { rootStore } from '@/store'
 import { answerSheetApi } from '@/api/path/answerSheet'
-import { getSurvey } from '@/api/path/survey'
 import { convertQuestionFromDTO } from '@/api/path/questionConverter'
 import { IAnswer } from '@/models/answerSheet'
-import { IQuestion } from '@/models/question'
+import { mergeAnswersWithQuestions } from '../answer-detail/mergeAnswers'
 import ShowAnswerItem from '../answer-detail/components/ShowAnswerItem'
 import './index.scss'
 
@@ -54,83 +53,19 @@ const SubjectScaleDetail: React.FC = () => {
   const { userStore } = rootStore
   const canAudit = userStore.accessContext.capabilities.has('audit_interpretation')
 
-  // 合并答案与题目信息
-  const mergeAnswersWithQuestions = (
-    answers: any[],
-    questions: IQuestion[]
-  ): IAnswer[] => {
-    // 创建题目映射表（按 question_code）
-    const questionMap = new Map<string, IQuestion>()
-    questions.forEach(q => {
-      questionMap.set(q.code, q)
-    })
-
-    // 合并答案与题目信息
-    return answers.map((answer: any) => {
-      const question = questionMap.get(answer.question_code)
-      if (!question) {
-        console.warn(`未找到题目 ${answer.question_code} 的信息`)
-        // 如果找不到题目信息，返回基础答案对象
-        return {
-          question_code: answer.question_code,
-          title: `题目 ${answer.question_code}`,
-          type: answer.question_type || 'Text',
-          tips: '',
-          show_controller: { questions: [], rule: 'and' },
-          value: answer.value || ''
-        } as IAnswer
-      }
-
-      // 将题目信息转换为答案格式
-      const mergedAnswer: any = {
-        question_code: question.code,
-        title: question.title,
-        type: question.type,
-        tips: question.tips || '',
-        show_controller: question.show_controller || { questions: [], rule: 'and' }
-      }
-
-      // 根据题目类型处理答案值
-      if (answer.question_type === 'Radio' || answer.question_type === 'Checkbox') {
-        // 选择题：需要标记选中的选项
-        const selectedValues = Array.isArray(answer.value) ? answer.value : [answer.value]
-        if ('options' in question && question.options) {
-          mergedAnswer.options = question.options.map((opt: any) => ({
-            ...opt,
-            is_select: selectedValues.includes(opt.code) ? '1' : '0'
-          }))
-        }
-      } else if (answer.question_type === 'Text' || answer.question_type === 'Textarea') {
-        // 文本题：直接使用值
-        mergedAnswer.value = answer.value || ''
-        if ('placeholder' in question) {
-          mergedAnswer.placeholder = question.placeholder || ''
-        }
-      } else if (answer.question_type === 'Number') {
-        // 数字题
-        mergedAnswer.value = answer.value || ''
-        if ('placeholder' in question) {
-          mergedAnswer.placeholder = question.placeholder || ''
-        }
-      } else if (answer.question_type === 'Date') {
-        // 日期题
-        mergedAnswer.value = answer.value || ''
-        mergedAnswer.format = 'YYYY-MM-DD'
-      } else {
-        // 其他类型
-        mergedAnswer.value = answer.value || ''
-      }
-
-      return mergedAnswer as IAnswer
-    })
-  }
-
   useEffect(() => {
+    let active = true
     const fetchData = async () => {
+      setAssessment(null)
+      setMergedAnswers([])
+      setFactorScores([])
+      setHighRiskFactors(null)
+      setRuns([])
       setLoading(true)
       try {
         // 1. 获取测评基本信息
         const [err, res] = await assessmentApi.get(testId)
+        if (!active) return
         if (err || !res?.data) {
           message.error('获取测评详情失败')
           return
@@ -144,6 +79,7 @@ const SubjectScaleDetail: React.FC = () => {
           assessmentApi.getHighRiskFactors(testId),
           assessmentApi.getRuns(testId)
         ])
+        if (!active) return
         if (!scoreErr && scoreRes?.data?.factor_scores) {
           setFactorScores(scoreRes.data.factor_scores)
         }
@@ -158,45 +94,24 @@ const SubjectScaleDetail: React.FC = () => {
         // 5. 如果有答卷ID，获取原始答卷并合并题目信息
         if (res.data.answer_sheet_id) {
           const [answerErr, answerRes] = await answerSheetApi.getAnswerSheetDetail(res.data.answer_sheet_id)
+          if (!active) return
           if (!answerErr && answerRes?.data) {
             const answerSheetData = answerRes.data
             
-            // 获取问卷信息（包含题目详情）
-            if (answerSheetData.questionnaire_code) {
-              const [qErr, qRes] = await getSurvey(answerSheetData.questionnaire_code)
-              if (!qErr && qRes?.data) {
-                const questionnaire = qRes.data
-                // 将问卷中的 QuestionDTO 转换为 IQuestion
-                const questions: IQuestion[] = (questionnaire.questions || []).map((q: any) => {
-                  if (q.question_type !== undefined) {
-                    return convertQuestionFromDTO(q)
-                  }
-                  return q as IQuestion
-                })
-
-                // 合并答案与题目信息
-                const merged = mergeAnswersWithQuestions(
-                  answerSheetData.answers || [],
-                  questions
-                )
-                setMergedAnswers(merged)
-              } else {
-                // 如果获取问卷失败，直接使用答案数据
-                setMergedAnswers(answerSheetData.answers || [])
-              }
-            } else {
-              setMergedAnswers(answerSheetData.answers || [])
-            }
+            const answers = answerSheetData.answers || []
+            const questions = answers.filter((answer) => answer.question).map((answer) => convertQuestionFromDTO(answer.question))
+            setMergedAnswers(mergeAnswersWithQuestions(answers, questions))
           }
         }
       } catch (error) {
         console.error('获取测评详情失败:', error)
         message.error('获取测评详情失败')
       } finally {
-        setLoading(false)
+        if (active) setLoading(false)
       }
     }
     fetchData()
+    return () => { active = false }
   }, [subjectId, testId, reloadVersion])
 
   // 计算雷达图数据：使用百分比（基于 report.dimensions 中的 max_score）

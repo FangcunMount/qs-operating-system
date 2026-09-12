@@ -220,8 +220,8 @@ const SubjectList: React.FC = () => {
 
   const handleSuggestSelect = useCallback(
     (_: string, option: any) => {
-      const profileId = option?.profileId || option?.value
-      const display = option?.labelText || option?.value || ''
+      const profileId = option?.value
+      const display = option?.title || option?.value || ''
       const profileIdStr = profileId ? String(profileId) : undefined
 
       suggestRequest.current++
@@ -405,7 +405,7 @@ const SubjectList: React.FC = () => {
           <AutoComplete
             style={{ width: 260 }}
             options={childSuggests.map((item) => ({
-              value: item.name || String(item.id),
+              value: String(item.id),
               label: (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span>{item.name}</span>
@@ -415,8 +415,7 @@ const SubjectList: React.FC = () => {
                   </span>
                 </div>
               ),
-              profileId: item.id,
-              labelText: item.name
+              title: item.name
             }))}
             onSelect={handleSuggestSelect}
             notFoundContent={suggestLoading ? <Spin size="small" /> : null}
