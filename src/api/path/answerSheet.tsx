@@ -27,7 +27,8 @@ export async function getAnswerSheetList(
   pageSize?: number,
   fillerId?: number,
   startTime?: string,
-  endTime?: string
+  endTime?: string,
+  testeeId?: number | string
 ): Promise<[any, QSResponse<IAnswerSheetListResponse> | undefined]> {
   const params: Record<string, string | number> = {}
   if (questionnaireCode) params.questionnaire_code = questionnaireCode
@@ -36,6 +37,7 @@ export async function getAnswerSheetList(
   if (fillerId) params.filler_id = fillerId
   if (startTime) params.start_time = startTime
   if (endTime) params.end_time = endTime
+  if (testeeId) params.testee_id = testeeId
   return get<IAnswerSheetListResponse>('/answersheets', params)
 }
 

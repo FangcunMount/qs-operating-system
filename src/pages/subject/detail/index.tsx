@@ -18,15 +18,17 @@ const SubjectDetail: React.FC = observer(() => {
   const [surveyNameFilter, setSurveyNameFilter] = useState<string | undefined>(undefined)
   const canReadResults = rootStore.userStore.accessContext.capabilities.has('read_assessment_records')
 
+  const canReadPlans = rootStore.userStore.hasPermission('qs:plan_task:collection:evaluation_plan_tasks', 'list')
+
   const fetchData = () => {
     if (id) {
-      subjectStore.fetchTesteeDetailPage(id, { includeProfessionalResults: canReadResults })
+      subjectStore.fetchTesteeDetailPage(id, { includeProfessionalResults: canReadResults, includePlans: canReadPlans })
     }
   }
 
   useEffect(() => {
     fetchData()
-  }, [id, canReadResults])
+  }, [id, canReadResults, canReadPlans])
 
   const detail = subjectStore.subjectDetail
 
@@ -113,6 +115,7 @@ const SubjectDetail: React.FC = observer(() => {
             periodicStats={detail.periodicStats}
             scaleAnalysis={detail.scaleAnalysis}
             showScaleAnalysis={canReadResults}
+            showPeriodicStats={canReadPlans}
             testeeId={id}
             onRefresh={fetchData}
           />

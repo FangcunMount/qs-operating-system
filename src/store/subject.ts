@@ -96,6 +96,7 @@ export interface SubjectDetail {
 }
 
 class SubjectStore {
+  private detailRequestVersion = 0
   subjectDetail: SubjectDetail | null = null
   loading = false
   factorLoading: Record<string, boolean> = {}
@@ -154,10 +155,12 @@ class SubjectStore {
 
   // 使用新 API 获取受试者详情
   async fetchTesteeDetail(id: number | string) {
+    const requestVersion = this.detailRequestVersion
     this.setLoading(true)
     try {
       const [err, response] = await testeeApi.getTestee(id)
 
+      if (requestVersion !== this.detailRequestVersion) return
       if (err || !response?.data) {
         message.error('获取受试者详情失败')
         return
@@ -165,15 +168,17 @@ class SubjectStore {
 
       this.setTesteeInfo(response.data)
     } catch (error) {
+      if (requestVersion !== this.detailRequestVersion) return
       console.error('获取受试者详情失败:', error)
       message.error('获取受试者详情失败')
     } finally {
-      this.setLoading(false)
+      if (requestVersion === this.detailRequestVersion) this.setLoading(false)
     }
   }
 
   // 获取受试者的测评记录
   async fetchTesteeAssessments(testeeId: number) {
+    const requestVersion = this.detailRequestVersion
     try {
       const [err, response] = await assessmentApi.list({
         testee_id: testeeId,
@@ -181,6 +186,7 @@ class SubjectStore {
         page_size: 100 // 获取所有记录
       })
 
+      if (requestVersion !== this.detailRequestVersion) return
       if (err || !response?.data) {
         message.error('获取测评记录失败')
         return
@@ -188,17 +194,20 @@ class SubjectStore {
 
       this.setAssessmentList(response.data.items || [])
     } catch (error) {
+      if (requestVersion !== this.detailRequestVersion) return
       console.error('获取测评记录失败:', error)
       message.error('获取测评记录失败')
     }
   }
 
   // 获取受试者的答卷记录
-  async fetchTesteeAnswerSheets(fillerId: number) {
+  async fetchTesteeAnswerSheets(testeeId: number | string) {
+    const requestVersion = this.detailRequestVersion
     try {
-      // 使用新 API，支持 filler_id 筛选
-      const [err, response] = await answerSheetApi.getAnswerSheetList(undefined, 1, 100, fillerId)
+      // 按受试者筛选；填写人可能是监护人，不等同于受试者。
+      const [err, response] = await answerSheetApi.getAnswerSheetList(undefined, 1, 100, undefined, undefined, undefined, testeeId)
 
+      if (requestVersion !== this.detailRequestVersion) return
       if (err || !response?.data) {
         console.warn('获取答卷记录失败')
         this.setAnswerSheetList([])
@@ -208,6 +217,7 @@ class SubjectStore {
       // 新 API 返回格式：{ items, total }
       this.setAnswerSheetList(response.data.items || [])
     } catch (error) {
+      if (requestVersion !== this.detailRequestVersion) return
       console.error('获取答卷记录失败:', error)
       this.setAnswerSheetList([])
     }
@@ -251,9 +261,11 @@ class SubjectStore {
 
   // 获取量表趋势分析
   async fetchScaleAnalysis(testeeId: number | string) {
+    const requestVersion = this.detailRequestVersion
     try {
       const [err, response] = await testeeApi.getScaleAnalysis(testeeId)
 
+      if (requestVersion !== this.detailRequestVersion) return
       if (err || !response?.data) {
         console.warn('获取量表趋势分析失败')
         return
@@ -261,15 +273,18 @@ class SubjectStore {
 
       this.setScaleAnalysis(response.data)
     } catch (error) {
+      if (requestVersion !== this.detailRequestVersion) return
       console.error('获取量表趋势分析失败:', error)
     }
   }
 
   // 周期履约属于 Plan；每个 Enrollment round 独立展示。
   async fetchPeriodicStats(testeeId: number | string) {
+    const requestVersion = this.detailRequestVersion
     try {
       const [error, response] = await planApi.getTesteeEnrollments(String(testeeId), { page: 1, page_size: 100 })
 
+      if (requestVersion !== this.detailRequestVersion) return
       if (error || !response?.data) {
         console.warn('获取周期性测评统计失败:', error)
         this.setPeriodicStats({
@@ -283,6 +298,7 @@ class SubjectStore {
       }
       this.setPeriodicStats(response.data)
     } catch (error) {
+      if (requestVersion !== this.detailRequestVersion) return
       console.error('获取周期性测评统计失败:', error)
       this.setPeriodicStats({
         items: [],
@@ -313,17 +329,27 @@ class SubjectStore {
 
   // 综合获取受试者详情页所有数据。
   // includeProfessionalResults=false 时不请求测评/答卷/分析等专业结果面，避免运营过程角色误拉评分与报告。
-  async fetchTesteeDetailPage(id: number | string, options?: { includeProfessionalResults?: boolean }) {
+  async fetchTesteeDetailPage(id: number | string, options?: { includeProfessionalResults?: boolean; includePlans?: boolean }) {
+    const requestVersion = ++this.detailRequestVersion
     const includeProfessionalResults = options?.includeProfessionalResults !== false
     this.setLoading(true)
     try {
+      this.setTesteeInfo(null)
+      this.setSubjectDetail(null)
+      this.setAssessmentList([])
+      this.setAnswerSheetList([])
+      this.setScaleAnalysis(null)
+      this.setPeriodicStats(null)
       await this.fetchTesteeDetail(id)
+      if (requestVersion !== this.detailRequestVersion) return
 
       if (!this.testeeInfo) {
         return
       }
 
-      const requests: Array<Promise<unknown>> = [this.fetchPeriodicStats(this.testeeInfo.id)]
+      const requests: Array<Promise<unknown>> = []
+      if (options?.includePlans) requests.push(this.fetchPeriodicStats(this.testeeInfo.id))
+      else this.setPeriodicStats(null)
       if (includeProfessionalResults) {
         requests.push(
           this.fetchTesteeAssessments(this.testeeInfo.id),
@@ -337,12 +363,13 @@ class SubjectStore {
       }
 
       await Promise.all(requests)
+      if (requestVersion !== this.detailRequestVersion) return
       await this.convertToSubjectDetail()
     } catch (error) {
       console.error('获取受试者详情页数据失败:', error)
       message.error('获取受试者详情页数据失败')
     } finally {
-      this.setLoading(false)
+      if (requestVersion === this.detailRequestVersion) this.setLoading(false)
     }
   }
 

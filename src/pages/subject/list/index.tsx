@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AutoComplete, Button, DatePicker, Input, Select, Space, Tag, Switch, Tooltip, Spin, message } from 'antd'
+import { Alert, AutoComplete, Button, DatePicker, Input, Modal, Select, Space, Tag, Switch, Tooltip, Spin, message } from 'antd'
 import { SearchOutlined, StarOutlined, StarFilled } from '@ant-design/icons'
 import { useHistory } from 'react-router-dom'
 import moment from 'moment'
@@ -11,15 +11,21 @@ import { LazyTable } from '@/components/lazyTable'
 import { extractErrorMessage } from '@/utils/apiError'
 import { rootStore } from '@/store'
 import { formatClinicianType, formatGender } from '@/utils/display'
+import StoreOwnershipPanel from '../detail/components/StoreOwnershipPanel'
 import './index.scss'
 
 const { RangePicker } = DatePicker
 
 const SubjectList: React.FC = () => {
   const history = useHistory()
+  const [ownershipTesteeId, setOwnershipTesteeId] = useState<string>()
   const [storeFilter, setStoreFilter] = useState<string | undefined>()
   const [stores, setStores] = useState<IStore[]>([])
   const [keyword, setKeyword] = useState('')
+  const [searchName, setSearchName] = useState('')
+  const [unassignedMatches, setUnassignedMatches] = useState(0)
+  const listRequest = useRef(0)
+  const suggestRequest = useRef(0)
   const [isKeyFocusFilter, setIsKeyFocusFilter] = useState<boolean | undefined>(undefined)
   const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>(undefined)
   const [selectedClinicianId, setSelectedClinicianId] = useState<string | undefined>(undefined)
@@ -88,10 +94,13 @@ const SubjectList: React.FC = () => {
       const targetPage = override?.page ?? page
       const targetPageSize = override?.pageSize ?? pageSize
 
+      const request = ++listRequest.current
       setLoading(true)
+      setUnassignedMatches(0)
       try {
         const queryParams = {
           profile_id: targetProfileId,
+          name: targetProfileId ? undefined : searchName || undefined,
           store_id: storeFilter && storeFilter !== 'unassigned' ? storeFilter : undefined,
           unassigned_store: storeFilter === 'unassigned' ? true : undefined,
           clinician_id: selectedClinicianId,
@@ -104,7 +113,10 @@ const SubjectList: React.FC = () => {
 
         const [err, response] = await testeeApi.listTestees(queryParams)
 
+        if (request !== listRequest.current) return
         if (err || !response?.data) {
+          setDataSource([])
+          setTotal(0)
           message.error(extractErrorMessage(err, '获取受试者列表失败'))
           return
         }
@@ -112,18 +124,26 @@ const SubjectList: React.FC = () => {
         // 测评统计由 GET /testees 内嵌 assessment_stats，不再异步拉取
         setDataSource(response.data.items)
         setTotal(response.data.total)
+        if (canFilterByClinician && !storeFilter && response.data.total === 0 && (targetProfileId || searchName)) {
+          const [unassignedErr, unassigned] = await testeeApi.listTestees({ ...queryParams, unassigned_store: true, page: 1, page_size: 1 })
+          if (request === listRequest.current && !unassignedErr) setUnassignedMatches(unassigned?.data?.total || 0)
+        }
       } catch (error) {
+        if (request !== listRequest.current) return
+        setDataSource([])
+        setTotal(0)
         console.error('获取受试者列表失败:', error)
         message.error('获取受试者列表失败')
       } finally {
-        setLoading(false)
+        if (request === listRequest.current) setLoading(false)
       }
     },
-    [createdDateRange, isKeyFocusFilter, page, pageSize, selectedProfileId, selectedClinicianId, storeFilter]
+    [createdDateRange, isKeyFocusFilter, page, pageSize, selectedProfileId, selectedClinicianId, storeFilter, searchName, canFilterByClinician]
   )
 
   useEffect(() => {
     fetchData()
+    return () => { listRequest.current++ }
   }, [fetchData])
 
   useEffect(() => {
@@ -145,6 +165,7 @@ const SubjectList: React.FC = () => {
 
   useEffect(() => {
     return () => {
+      suggestRequest.current++
       if (suggestTimer.current) {
         window.clearTimeout(suggestTimer.current)
       }
@@ -161,14 +182,19 @@ const SubjectList: React.FC = () => {
 
   const handleSuggestSearch = useCallback((value: string) => {
     setKeyword(value)
-    setSelectedProfileId(undefined)
-    setPage(1)
+    const request = ++suggestRequest.current
+    if (!value) {
+      setSelectedProfileId(undefined)
+      setSearchName('')
+      setPage(1)
+    }
 
     if (suggestTimer.current) {
       window.clearTimeout(suggestTimer.current)
     }
 
-    if (!value) {
+    if (!value || !canFilterByClinician) {
+      setSuggestLoading(false)
       setChildSuggests([])
       return
     }
@@ -177,6 +203,7 @@ const SubjectList: React.FC = () => {
       setSuggestLoading(true)
       try {
         const [err, response] = await identityApi.suggestChild(value)
+        if (request !== suggestRequest.current) return
         if (err || !response?.data) {
           setChildSuggests([])
           return
@@ -186,10 +213,10 @@ const SubjectList: React.FC = () => {
         console.warn('档案联想搜索失败', error)
         setChildSuggests([])
       } finally {
-        setSuggestLoading(false)
+        if (request === suggestRequest.current) setSuggestLoading(false)
       }
     }, 300)
-  }, [])
+  }, [canFilterByClinician])
 
   const handleSuggestSelect = useCallback(
     (_: string, option: any) => {
@@ -197,12 +224,15 @@ const SubjectList: React.FC = () => {
       const display = option?.labelText || option?.value || ''
       const profileIdStr = profileId ? String(profileId) : undefined
 
+      suggestRequest.current++
+      if (suggestTimer.current) window.clearTimeout(suggestTimer.current)
+      setSuggestLoading(false)
       setKeyword(display)
       setSelectedProfileId(profileIdStr)
       setPage(1)
-      fetchData({ profileId: profileIdStr, page: 1 })
+      setSearchName('')
     },
-    [fetchData]
+    []
   )
 
   const hasActiveFilters = useMemo(
@@ -213,6 +243,7 @@ const SubjectList: React.FC = () => {
   const resetFilters = useCallback(() => {
     setStoreFilter(undefined)
     setKeyword('')
+    setSearchName('')
     setSelectedProfileId(undefined)
     setSelectedClinicianId(undefined)
     setIsKeyFocusFilter(undefined)
@@ -334,6 +365,9 @@ const SubjectList: React.FC = () => {
         fixed: 'right' as const,
         align: 'center' as const,
         render: function renderAction(_: any, record: ITestee) {
+          if (!record.store_id) return canFilterByClinician
+            ? <Button type="link" onClick={() => setOwnershipTesteeId(String(record.id))}>配置归属</Button>
+            : <span>尚未归属门店</span>
           return (
             <Button type="link" size="small" className="action-btn" onClick={() => history.push(`/subject/detail/${record.id}`)}>
               查看详情
@@ -342,11 +376,15 @@ const SubjectList: React.FC = () => {
         }
       }
     ],
-    [history, stores]
+    [history, stores, canFilterByClinician]
   )
 
   return (
     <div className="subject-list-page">
+      <Modal title="服务门店归属" visible={!!ownershipTesteeId} footer={null} destroyOnClose width={850}
+        onCancel={() => { setOwnershipTesteeId(undefined); fetchData() }}>
+        {ownershipTesteeId && <StoreOwnershipPanel key={ownershipTesteeId} testeeId={ownershipTesteeId} />}
+      </Modal>
       <div className="filter-bar">
         {canFilterByClinician && <Select aria-label="服务门店筛选" allowClear placeholder="全部门店归属" value={storeFilter}
           style={{ width: 220 }} onChange={(value: string | undefined) => { setStoreFilter(value); setPage(1) }}
@@ -380,17 +418,16 @@ const SubjectList: React.FC = () => {
               profileId: item.id,
               labelText: item.name
             }))}
-            onSearch={handleSuggestSearch}
             onSelect={handleSuggestSelect}
             notFoundContent={suggestLoading ? <Spin size="small" /> : null}
             value={keyword}
           >
             <Input
-              placeholder="搜索姓名 / 档案ID / 手机号"
+              placeholder={canFilterByClinician ? '搜索姓名 / 档案ID / 手机号' : '搜索本范围内受试者姓名'}
               prefix={<SearchOutlined />}
               allowClear
               onChange={(e) => handleSuggestSearch(e.target.value)}
-              onPressEnter={() => fetchData()}
+              onPressEnter={() => { setSelectedProfileId(undefined); setSearchName(keyword.trim()); setPage(1) }}
             />
           </AutoComplete>
           {canFilterByClinician && (
@@ -430,6 +467,12 @@ const SubjectList: React.FC = () => {
           )}
         </Space>
       </div>
+      {unassignedMatches > 0 && <Alert type="info" showIcon style={{ marginBottom: 16 }}
+        message={`找到 ${unassignedMatches} 位未归属门店的受试者`}
+        description="这些记录不在当前门店业务列表中。总部可查看未归属清单；此操作不会分配门店或开放专业结果。"
+        action={<Button onClick={() => { setStoreFilter('unassigned'); setPage(1) }}>查看未归属清单</Button>} />}
+      {storeFilter === 'unassigned' && <Alert type="info" showIcon style={{ marginBottom: 16 }}
+        message="未归属门店清单" description="仅供总部核对归属信息；完成门店归属后，才能按业务权限读取详情与专业结果。" />}
       <div className="table-container">
         <LazyTable<ITestee & Record<string, unknown>>
           columns={columns}

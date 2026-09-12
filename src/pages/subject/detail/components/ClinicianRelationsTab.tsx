@@ -1,3 +1,5 @@
+import { observer } from 'mobx-react-lite'
+import { rootStore } from '@/store'
 import React, { useEffect, useRef, useState } from 'react'
 import { Button, Card, Form, Modal, Popconfirm, Select, Table, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -9,7 +11,8 @@ interface Props {
   testeeId: string
 }
 
-const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
+const ClinicianRelationsTab: React.FC<Props> = observer(({ testeeId }) => {
+  const canManage = rootStore.userStore.accessContext.capabilities.has('org_admin')
   const mountedRef = useRef(true)
   const [loading, setLoading] = useState(false)
   const [assignVisible, setAssignVisible] = useState(false)
@@ -33,8 +36,8 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
     try {
       const [[relationsErr, relationsRes], [clinicianErr, clinicianRes]] = await Promise.all([
         clinicianApi.listTesteeClinicianRelations(testeeId),
-        clinicianApi.listClinicians({ page: 1, page_size: 200 })
-      ])
+        canManage ? clinicianApi.listClinicians({ page: 1, page_size: 200 }) : Promise.resolve([null, undefined] as [null, undefined])
+      ] as const)
 
       if (!mountedRef.current) {
         return
@@ -67,7 +70,7 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
     return () => {
       mountedRef.current = false
     }
-  }, [testeeId])
+  }, [testeeId, canManage])
 
   const handleAssign = async () => {
     try {
@@ -194,7 +197,7 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
     <div>
       <Card
         title="当前临床人员归属"
-        extra={
+        extra={canManage &&
           <div>
             <Button
               style={{ marginRight: 8 }}
@@ -213,7 +216,7 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
           rowKey={(record) => `${record.relation?.id || record.clinician?.id || 'relation'}`}
           loading={loading}
           dataSource={activeRelations}
-          columns={activeColumns}
+          columns={canManage ? activeColumns : activeColumns.filter((column) => column.key !== 'action')}
           pagination={false}
         />
       </Card>
@@ -274,6 +277,6 @@ const ClinicianRelationsTab: React.FC<Props> = ({ testeeId }) => {
       </Modal>
     </div>
   )
-}
+})
 
 export default ClinicianRelationsTab
