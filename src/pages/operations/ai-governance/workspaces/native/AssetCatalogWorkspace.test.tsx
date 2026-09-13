@@ -13,6 +13,22 @@ const item = (version: string) => ({
 })
 const ok = (data: any) => Promise.resolve([null, { data }])
 beforeEach(() => jest.clearAllMocks())
+it('selects generation and semantic routes separately from the loaded asset', async () => {
+  const routeItem = { ...item('v2'), kind: 'route' as const }
+  const detail = { item: routeItem, definition_json: '{}' }
+  ;(listAssets as jest.Mock).mockReturnValue(ok({ items: [routeItem], next_cursor: '' }))
+  ;(getAsset as jest.Mock).mockReturnValue(ok(detail))
+  const select = jest.fn()
+  render(<AssetCatalogWorkspace onDraft={jest.fn()} onEvaluationAsset={select} />)
+  expect(screen.queryByText('用于语义评测')).not.toBeInTheDocument()
+  fireEvent.click(await screen.findByText('查看正文'))
+  fireEvent.click(await screen.findByText('用于评测生成'))
+  fireEvent.click(screen.getByText('用于语义评测'))
+  expect(select.mock.calls).toEqual([
+    ['generation_route', routeItem.reference],
+    ['semantic_route', routeItem.reference]
+  ])
+})
 it('shows unknown on denied catalog without implying an empty usable inventory', async () => {
   (listAssets as jest.Mock).mockReturnValue(Promise.resolve([{ status: 403 }, undefined]))
   render(<AssetCatalogWorkspace onDraft={jest.fn()} />)
