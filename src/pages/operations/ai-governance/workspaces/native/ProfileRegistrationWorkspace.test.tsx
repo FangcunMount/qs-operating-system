@@ -76,7 +76,8 @@ it('preserves the original policy while binding selected immutable prompt and ro
     generation_policy: { ...original.generation_policy, prompt_version: 'v2' }
   })
   expect(selection.profile.definition_json).toBe(before)
-  render(<ProfileRegistrationWorkspace owner="user-1" selection={selection} />)
+  const onSuite = jest.fn()
+  render(<ProfileRegistrationWorkspace owner="user-1" selection={selection} onSuite={onSuite} />)
   setup()
   fireEvent.click(screen.getByRole('button', { name: '注册新策略版本' }))
   await screen.findByText('已注册的策略版本')
@@ -90,6 +91,8 @@ it('preserves the original policy while binding selected immutable prompt and ro
     reason: '使用新冻结模板'
   })
   expect(sessionStorage.getItem(profileJournalKey('user-1'))).toBeNull()
+  fireEvent.click(screen.getByText('用于绑定评测套件'))
+  expect(onSuite).toHaveBeenCalledWith(receipt((api.registerProfile as jest.Mock).mock.calls[0][0]).manifest)
 })
 it.each([409, 504])(
   'keeps HTTP %s unknown and restores original receipt without another write',

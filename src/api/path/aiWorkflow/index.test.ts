@@ -62,9 +62,34 @@ it('uses the lifecycle endpoint separately from historical revision reads', () =
 
 it('registers native Profile through the no-replay proxy and reads only the original receipt', () => {
   const source = { identity: 'p', version: 'v1', fingerprint: 'sha256:f', content_sha256: 'c' }
-  const command = { command_id: 'c', reason: '新策略', source, definition_json: '{}', prompt: source, generation_route: source }
+  const command = {
+    command_id: 'c',
+    reason: '新策略',
+    source,
+    definition_json: '{}',
+    prompt: source,
+    generation_route: source
+  }
   api.registerProfile(command)
   api.getProfileReceipt('command/id')
   expect(post).toHaveBeenCalledWith('/interpretation/ai-workflow/profiles/register', command)
   expect(get).toHaveBeenCalledWith('/interpretation/ai-workflow/profiles/commands/command%2Fid')
+})
+
+it('registers Suite through the no-replay proxy and queries the original command', () => {
+  const asset = { identity: 'p', version: 'v1', fingerprint: 'sha256:f', content_sha256: 'c' }
+  const command = {
+    command_id: 'c',
+    reason: '新套件',
+    source: { id: 's', version: 'v1', fingerprint: 'sha256:f' },
+    suite_id: 's',
+    suite_version: 'v2',
+    profile: asset,
+    prompt: asset,
+    generation_route: asset
+  }
+  api.registerSuite(command)
+  api.getSuiteReceipt('command/id')
+  expect(post).toHaveBeenCalledWith('/interpretation/ai-workflow/suites/register', command)
+  expect(get).toHaveBeenCalledWith('/interpretation/ai-workflow/suites/commands/command%2Fid')
 })

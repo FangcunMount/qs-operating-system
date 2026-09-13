@@ -77,3 +77,19 @@ it('passes only a loaded matching asset detail to Profile registration', async (
   expect(register).toHaveBeenCalledWith(detail)
   expect(draft).not.toHaveBeenCalled()
 })
+it('passes the displayed suite detail without triggering another registration flow', async () => {
+  const suiteItem = { ...item('v2'), kind: 'suite' as const }
+  const detail = { item: suiteItem, definition_json: '{"cases":[]}' }
+  ;(listAssets as jest.Mock).mockReturnValue(ok({ items: [suiteItem], next_cursor: '' }))
+  ;(getAsset as jest.Mock).mockReturnValue(ok(detail))
+  const draft = jest.fn()
+  const register = jest.fn()
+  const suite = jest.fn()
+  render(<AssetCatalogWorkspace onDraft={draft} onRegisterAsset={register} onSuiteAsset={suite} />)
+  expect(screen.queryByText('用于绑定评测套件')).not.toBeInTheDocument()
+  fireEvent.click(await screen.findByText('查看正文'))
+  fireEvent.click(await screen.findByText('用于绑定评测套件'))
+  expect(suite).toHaveBeenCalledWith(detail)
+  expect(register).not.toHaveBeenCalled()
+  expect(draft).not.toHaveBeenCalled()
+})

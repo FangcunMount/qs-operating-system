@@ -12,6 +12,7 @@ import type {
   FrozenPromptReceipt
 } from './types'
 import type { RegisterProfile, ProfileRegistrationReceipt } from './types'
+import type { RegisterSuite, SuiteRegistrationReceipt } from './types'
 export * from './types'
 
 type Result<T> = Promise<[unknown, QSResponse<T> | undefined]>
@@ -46,3 +47,7 @@ export const registerProfile = (command: RegisterProfile): Result<ProfileRegistr
   internalV2PostOnce<ProfileRegistrationReceipt>(`${BASE}/profiles/register`, command)
 export const getProfileReceipt = (commandID: string): Result<ProfileRegistrationReceipt> =>
   internalV2Get<ProfileRegistrationReceipt>(`${BASE}/profiles/commands/${encode(commandID)}`)
+export const registerSuite = (command: RegisterSuite): Result<SuiteRegistrationReceipt> =>
+  internalV2PostOnce<SuiteRegistrationReceipt>(`${BASE}/suites/register`, command)
+export const getSuiteReceipt = (commandID: string): Result<SuiteRegistrationReceipt> =>
+  internalV2Get<SuiteRegistrationReceipt>(`${BASE}/suites/commands/${encode(commandID)}`)
