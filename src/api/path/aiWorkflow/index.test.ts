@@ -214,3 +214,9 @@ it.each([false, true])('sends explicit discard=%s cancellation once', (discard) 
   expect(post.mock.calls).toEqual([['/interpretation/ai-workflow/evaluations/run%2Fid/cancel', command]])
   expect(get).not.toHaveBeenCalled()
 })
+
+it('queries participant capacity with subject and assessment filters without sending caller scope', () => {
+  api.getNativeParticipantCapacity('user:42', '42')
+  expect(get).toHaveBeenCalledWith('/interpretation/ai-workflow/participant-capacity', { subject_id: 'user:42', assessment_id: '42' })
+  expect(post).not.toHaveBeenCalled()
+})

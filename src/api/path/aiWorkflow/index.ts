@@ -54,3 +54,4 @@ export const registerSuite = (command: RegisterSuite): Result<SuiteRegistrationR
   internalV2PostOnce<SuiteRegistrationReceipt>(`${BASE}/suites/register`, command)
 export const getSuiteReceipt = (commandID: string): Result<SuiteRegistrationReceipt> =>
   internalV2Get<SuiteRegistrationReceipt>(`${BASE}/suites/commands/${encode(commandID)}`)
+export * from './participant'
