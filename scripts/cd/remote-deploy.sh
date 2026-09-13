@@ -4,6 +4,8 @@ set -Eeuo pipefail
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 # shellcheck source=/dev/null
 . "$SCRIPT_DIR/image-metadata.sh"
+# shellcheck source=/dev/null
+. "$SCRIPT_DIR/image-retention.sh"
 
 : "${DEPLOY_SHA:?DEPLOY_SHA is required}"
 
@@ -133,12 +135,14 @@ echo "Image tag: ${IMAGE_TAG}"
 echo "=========================================="
 
 setup_sudo
+acquire_image_deploy_lock
 resolve_image_ref
 load_image_from_tarball
 ensure_network
 record_previous_image
 replace_container
 verify_health
+retain_successful_image "$USE_IMAGE"
 
 echo "=========================================="
 echo "${CONTAINER_NAME} deployment completed"
