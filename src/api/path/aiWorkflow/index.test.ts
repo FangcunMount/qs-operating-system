@@ -53,3 +53,9 @@ it('sends fixed command identities and revisions through the no-replay transport
     ['/interpretation/ai-workflow/prompt-drafts/d/freeze', { ...command, expected_revision: 8 }]
   ])
 })
+
+it('uses the lifecycle endpoint separately from historical revision reads', () => {
+  api.getPromptDraftLifecycle('draft/id')
+  expect(get).toHaveBeenCalledWith('/interpretation/ai-workflow/prompt-drafts/draft%2Fid/lifecycle')
+  expect(post).not.toHaveBeenCalled()
+})

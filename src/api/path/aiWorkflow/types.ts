@@ -38,6 +38,17 @@ export interface DraftCommand {
   command_id: string
   reason: string
 }
+export interface FrozenPromptVersion {
+  asset: AssetReference
+  revision: number
+  frozen_at: string
+}
+export interface PromptDraftLifecycle {
+  schema_version: 'qs-ai-prompt-lifecycle/v1'
+  draft: PromptDraft
+  status: 'editable' | 'frozen'
+  frozen?: FrozenPromptVersion
+}
 export interface CreateDraft extends DraftCommand {
   source: AssetReference
   template_id: string

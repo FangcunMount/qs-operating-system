@@ -8,6 +8,7 @@ import type {
   ReviseDraft,
   FreezeDraft,
   PromptDraft,
+  PromptDraftLifecycle,
   FrozenPromptReceipt
 } from './types'
 export * from './types'
@@ -26,6 +27,8 @@ export const revisePromptDraft = (draftID: string, command: ReviseDraft): Result
   internalV2PostOnce<PromptDraft>(`${BASE}/prompt-drafts/${encode(draftID)}/revisions`, command)
 export const getPromptDraft = (draftID: string): Result<PromptDraft> =>
   internalV2Get<PromptDraft>(`${BASE}/prompt-drafts/${encode(draftID)}`)
+export const getPromptDraftLifecycle = (draftID: string): Result<PromptDraftLifecycle> =>
+  internalV2Get<PromptDraftLifecycle>(`${BASE}/prompt-drafts/${encode(draftID)}/lifecycle`)
 export const getDraftReceipt = (commandID: string): Result<PromptDraft> =>
   internalV2Get<PromptDraft>(`${BASE}/prompt-drafts/commands/${encode(commandID)}`)
 export const freezePromptDraft = (
