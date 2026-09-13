@@ -4,8 +4,10 @@ import type {
   AssetReference,
   DraftContent,
   FrozenPromptReceipt,
+  FrozenPromptVersion,
   PromptDraft
 } from '@/api/path/aiWorkflow'
+import { checkedLifecycle } from './lifecycle'
 import {
   definitelyRejected,
   newCommandID,
@@ -19,7 +21,7 @@ import {
 // owner is a browser cache partition, never a permission or organization claim.
 interface PromptDraftEditor {
   draft: PromptDraft | null
-  frozen: FrozenPromptReceipt | null
+  frozen: FrozenPromptVersion | null
   pending: PendingCommand | null
   busy: boolean
   error: string
@@ -44,7 +46,7 @@ export function usePromptDraft(owner: string): PromptDraftEditor {
     }
   })
   const [draft, setDraft] = useState<PromptDraft | null>(null)
-  const [frozen, setFrozen] = useState<FrozenPromptReceipt | null>(null)
+  const [frozen, setFrozen] = useState<FrozenPromptVersion | null>(null)
   const [pending, setPending] = useState<PendingCommand | null>(journal.pending)
   const [error, setError] = useState(
     journal.failed ? '无法恢复待核对记录，请联系管理员核对原命令。' : ''
@@ -68,7 +70,12 @@ export function usePromptDraft(owner: string): PromptDraftEditor {
     pendingRef.current = null
     setPending(null)
   }
-  const accept = (record: PendingCommand, value: PromptDraft | FrozenPromptReceipt) => {
+  const readLifecycle = async (id: string) => {
+    const [failure, response] = await api.getPromptDraftLifecycle(id)
+    if (failure || !response) throw new Error('无法读取当前草稿状态')
+    return checkedLifecycle(response.data, id)
+  }
+  const accept = async (record: PendingCommand, value: PromptDraft | FrozenPromptReceipt, refresh = false) => {
     if (record.kind === 'freeze') {
       const receipt = value as FrozenPromptReceipt
       if (
@@ -77,7 +84,7 @@ export function usePromptDraft(owner: string): PromptDraftEditor {
         !receipt.asset
       )
         throw new Error('回执身份不一致')
-      setFrozen(receipt)
+      setFrozen({ asset: receipt.asset, revision: receipt.command.expected_revision, frozen_at: receipt.frozen_at })
     } else {
       const saved = value as PromptDraft
       if (
@@ -88,8 +95,15 @@ export function usePromptDraft(owner: string): PromptDraftEditor {
         !saved.content
       )
         throw new Error('回执身份或修订不一致')
-      setDraft(saved)
-      setFrozen(null)
+      if (refresh) {
+        const current = await readLifecycle(saved.draft_id)
+        if (!active.current) return
+        setDraft(current.draft)
+        setFrozen(current.frozen || null)
+      } else {
+        setDraft(saved)
+        setFrozen(null)
+      }
     }
     clearPending()
     setError('')
@@ -122,7 +136,7 @@ export function usePromptDraft(owner: string): PromptDraftEditor {
           clearPending()
           setError('操作被拒绝，请检查权限、版本和输入后再提交。')
         } else setError('结果尚未确认，请查询原命令回执；不要重复提交。')
-      } else accept(record, response.data)
+      } else await accept(record, response.data)
     } catch {
       if (active.current) setError('结果尚未确认，请查询原命令回执；不要重复提交。')
     } finally {
@@ -143,7 +157,7 @@ export function usePromptDraft(owner: string): PromptDraftEditor {
       if (!active.current) return
       if (failure || !response)
         setError('尚未取得原回执，请稍后再查或确认原操作账号；暂不重新提交。')
-      else accept(record, response.data)
+      else await accept(record, response.data, true)
     } catch {
       if (active.current) setError('回执查询失败，原命令仍待核对。')
     } finally {
@@ -159,19 +173,12 @@ export function usePromptDraft(owner: string): PromptDraftEditor {
     setDraft(null)
     setFrozen(null)
     try {
-      const [failure, response] = await api.getPromptDraft(id)
+      const current = await readLifecycle(id)
       if (!active.current || request !== sequence.current) return
-      if (
-        failure ||
-        !response ||
-        response.data?.draft_id !== id ||
-        !Number.isSafeInteger(response.data.revision) ||
-        response.data.revision < 1
-      )
-        setError('无法读取草稿，请确认标识和权限。')
-      else setDraft(response.data)
+      setDraft(current.draft)
+      setFrozen(current.frozen || null)
     } catch {
-      if (active.current && request === sequence.current) setError('草稿读取失败。')
+      if (active.current && request === sequence.current) setError('无法确认草稿当前状态，请检查权限与服务后重新打开。')
     } finally {
       if (active.current && request === sequence.current) setBusy(false)
     }
