@@ -4,6 +4,7 @@ import OperationsPanel, { operationsDateRange } from './OperationsPanel'
 import moment from 'moment'
 import { getOperationsOverview, getOperationsStores } from '@/api/path/statistics'
 import { rootStore } from '@/store'
+jest.mock('./StoreAnalysis', () => function Analysis({ history }: any) { return <div>{history}</div> })
 jest.mock('mobx-react-lite', () => ({ observer: (component: unknown) => component }))
 jest.mock('@/store', () => ({ rootStore: { userStore: { hasPermission: jest.fn(), currentUser: { permissions: [] } } } }))
 jest.mock('@/api/path/statistics', () => ({ getOperationsOverview: jest.fn(), getOperationsStores: jest.fn() }))
