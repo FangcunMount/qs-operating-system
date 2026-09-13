@@ -8,10 +8,11 @@ jest.mock('@/api/path/aiWorkflow', () => ({
   revisePromptDraft: jest.fn(),
   freezePromptDraft: jest.fn(),
   getPromptDraft: jest.fn(),
+  getPromptDraftLifecycle: jest.fn(),
   getDraftReceipt: jest.fn(),
   getFreezeReceipt: jest.fn()
 }))
-const source = { identity: 'prompt', version: 'v1', fingerprint: 'sha256:f', content_sha256: 'c' }
+const source = { identity: 'prompt', version: 'v1', fingerprint: 'sha256:' + 'a'.repeat(64), content_sha256: 'b'.repeat(64) }
 const content = {
   system_message: '系统说明',
   task_template: '原任务模板',
@@ -41,7 +42,7 @@ beforeEach(() => {
   sessionStorage.clear()
   jest.spyOn(commands, 'newCommandID').mockReturnValue(commandID).mockReturnValueOnce(draftID)
   ;(api.createPromptDraft as jest.Mock).mockReturnValue(ok(saved))
-  ;(api.getPromptDraft as jest.Mock).mockReturnValue(ok(saved))
+  ;(api.getPromptDraftLifecycle as jest.Mock).mockReturnValue(ok({ schema_version: 'qs-ai-prompt-lifecycle/v1', draft: saved, status: 'editable' }))
   ;(api.getDraftReceipt as jest.Mock).mockReturnValue(ok(saved))
 })
 afterEach(() => jest.restoreAllMocks())
@@ -178,4 +179,67 @@ it('uses the UTF-8 reason limit and keeps malformed journals locked', () => {
   render(<PromptDraftWorkspace owner="user-1" source={source} />)
   setupCreate()
   expect(screen.getByRole('button', { name: '创建草稿' })).toBeDisabled()
+})
+
+const frozenLifecycle = () => ({
+  schema_version: 'qs-ai-prompt-lifecycle/v1',
+  draft: saved,
+  status: 'frozen',
+  frozen: { asset: { ...source, version: 'v2' }, revision: 1, frozen_at: saved.saved_at }
+})
+it('reopens a frozen draft read-only using lifecycle, without replaying any write', async () => {
+  (api.getPromptDraftLifecycle as jest.Mock).mockReturnValue(ok(frozenLifecycle()))
+  render(<PromptDraftWorkspace owner="user-1" source={null} />)
+  fireEvent.change(screen.getByLabelText('草稿标识'), { target: { value: draftID } })
+  fireEvent.click(screen.getByText('打开草稿'))
+  await screen.findByText('已冻结的模板版本')
+  expect(screen.getByLabelText('任务模板')).toBeDisabled()
+  fireEvent.change(screen.getByLabelText('操作理由'), { target: { value: '不能覆盖冻结版本' } })
+  expect(screen.getByRole('button', { name: '保存新修订' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: '校验并冻结当前修订' })).toBeDisabled()
+  expect(api.getPromptDraftLifecycle).toHaveBeenCalledWith(draftID)
+  expect(api.getPromptDraft).not.toHaveBeenCalled()
+  expect(api.revisePromptDraft).not.toHaveBeenCalled()
+  expect(api.freezePromptDraft).not.toHaveBeenCalled()
+})
+it.each(['missing', 'unknown', 'revision', 'target', 'time', 'unavailable'])(
+  'does not expose an editor for %s lifecycle', async (bad) => {
+    const value: any = frozenLifecycle()
+    if (bad === 'missing') delete value.frozen
+    if (bad === 'unknown') value.status = 'other'
+    if (bad === 'revision') value.frozen.revision = 2
+    if (bad === 'target') value.frozen.asset.version = 'v3'
+    if (bad === 'time') value.frozen.frozen_at = '2020-01-01T00:00:00Z'
+    ;(api.getPromptDraftLifecycle as jest.Mock).mockReturnValue(
+      bad === 'unavailable' ? Promise.resolve([{ status: 503 }, undefined]) : ok(value)
+    )
+    render(<PromptDraftWorkspace owner="user-1" source={null} />)
+    fireEvent.change(screen.getByLabelText('草稿标识'), { target: { value: draftID } })
+    fireEvent.click(screen.getByText('打开草稿'))
+    await screen.findByText('无法确认草稿当前状态，请检查权限与服务后重新打开。')
+    expect(screen.queryByLabelText('任务模板')).not.toBeInTheDocument()
+    expect(api.getPromptDraft).not.toHaveBeenCalled()
+  }
+)
+it('reconciles an older save receipt against current freeze state before unlocking', async () => {
+  sessionStorage.setItem(commands.pendingKey('user-1'), JSON.stringify({ kind: 'revise', draftID, commandID }))
+  ;(api.getPromptDraftLifecycle as jest.Mock).mockReturnValue(ok(frozenLifecycle()))
+  render(<PromptDraftWorkspace owner="user-1" source={null} />)
+  fireEvent.click(screen.getByText('查询原命令回执'))
+  await screen.findByText('已冻结的模板版本')
+  expect(screen.getByLabelText('任务模板')).toBeDisabled()
+  expect(api.getDraftReceipt).toHaveBeenCalledWith(commandID)
+  expect(api.getPromptDraftLifecycle).toHaveBeenCalledWith(draftID)
+  expect(api.revisePromptDraft).not.toHaveBeenCalled()
+  expect(sessionStorage.getItem(commands.pendingKey('user-1'))).toBeNull()
+})
+it('retains the original command lock when lifecycle refresh after a receipt fails', async () => {
+  sessionStorage.setItem(commands.pendingKey('user-1'), JSON.stringify({ kind: 'revise', draftID, commandID }))
+  ;(api.getPromptDraftLifecycle as jest.Mock).mockReturnValue(Promise.resolve([{ status: 503 }, undefined]))
+  render(<PromptDraftWorkspace owner="user-1" source={null} />)
+  fireEvent.click(screen.getByText('查询原命令回执'))
+  await screen.findByText('回执查询失败，原命令仍待核对。')
+  expect(screen.queryByLabelText('任务模板')).not.toBeInTheDocument()
+  expect(sessionStorage.getItem(commands.pendingKey('user-1'))).not.toBeNull()
+  expect(api.revisePromptDraft).not.toHaveBeenCalled()
 })

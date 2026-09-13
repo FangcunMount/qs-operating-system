@@ -54,6 +54,12 @@ it('sends fixed command identities and revisions through the no-replay transport
   ])
 })
 
+it('uses the lifecycle endpoint separately from historical revision reads', () => {
+  api.getPromptDraftLifecycle('draft/id')
+  expect(get).toHaveBeenCalledWith('/interpretation/ai-workflow/prompt-drafts/draft%2Fid/lifecycle')
+  expect(post).not.toHaveBeenCalled()
+})
+
 it('registers native Profile through the no-replay proxy and reads only the original receipt', () => {
   const source = { identity: 'p', version: 'v1', fingerprint: 'sha256:f', content_sha256: 'c' }
   const command = {
