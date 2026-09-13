@@ -11,6 +11,7 @@ import type {
   PromptDraftLifecycle,
   FrozenPromptReceipt
 } from './types'
+import type { RegisterProfile, ProfileRegistrationReceipt } from './types'
 export * from './types'
 
 type Result<T> = Promise<[unknown, QSResponse<T> | undefined]>
@@ -41,3 +42,7 @@ export const freezePromptDraft = (
   )
 export const getFreezeReceipt = (commandID: string): Result<FrozenPromptReceipt> =>
   internalV2Get<FrozenPromptReceipt>(`${BASE}/prompt-drafts/freeze-commands/${encode(commandID)}`)
+export const registerProfile = (command: RegisterProfile): Result<ProfileRegistrationReceipt> =>
+  internalV2PostOnce<ProfileRegistrationReceipt>(`${BASE}/profiles/register`, command)
+export const getProfileReceipt = (commandID: string): Result<ProfileRegistrationReceipt> =>
+  internalV2Get<ProfileRegistrationReceipt>(`${BASE}/profiles/commands/${encode(commandID)}`)

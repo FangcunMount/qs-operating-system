@@ -68,3 +68,21 @@ export interface FrozenPromptReceipt {
   validator_version: string
   frozen_at: string
 }
+export interface RegisterProfile extends DraftCommand {
+  source: AssetReference
+  definition_json: string
+  prompt: AssetReference
+  generation_route: AssetReference
+}
+export interface RegisteredManifest {
+  profile: AssetReference
+  prompt: AssetReference
+  generation_route: AssetReference
+  input_schema: AssetReference
+  output_schema: AssetReference
+}
+export interface ProfileRegistrationReceipt {
+  command: RegisterProfile
+  manifest: RegisteredManifest
+  registered_at: string
+}
