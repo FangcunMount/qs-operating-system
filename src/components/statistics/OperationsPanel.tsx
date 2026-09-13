@@ -121,7 +121,7 @@ const OperationsPanel: React.FC<{ compact?: boolean }> = observer(({ compact = f
           <span className="operations-filter-label">服务门店</span>
           <Select mode="multiple" aria-label="选择门店" className="operations-store-select" value={selected} allowClear
             loading={catalogLoading} disabled={!catalog} optionFilterProp="label"
-            placeholder={catalog?.scope === 'all_stores' ? '公司全部门店（含未知归属）' : '全部授权门店'} onChange={setSelected}
+            placeholder={catalog?.scope === 'all_stores' ? '公司全部门店' : '全部授权门店'} onChange={setSelected}
             options={options.map(store => ({ value: store.id, label: `${store.name} · ${store.code}${store.is_active ? '' : '（已停用）'}` }))} />
           {selected.length > 0 && <Button type="link" onClick={() => setSelected([])}>恢复全部授权门店</Button>}
         </div>

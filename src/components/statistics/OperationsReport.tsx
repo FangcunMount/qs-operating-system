@@ -113,6 +113,7 @@ export function OperationsGuide({ data }: { data?: IOperationsOverview }): JSX.E
       <div className="operations-definitions operations-definitions--two">
         <div><h4>开展量与明细访问分别判断</h4><p>A 店开始作答，转至 B 店后提交，开展量仍属于 A 店。
           B 店的历史明细访问按现有角色与当前归属检查，统计计数不授予明细访问权。</p></div>
+        <div><h4>当前服务专题随归属交接</h4><p>服务概览、临床人员和计划执行按当前门店归属统计。人工初配只影响当前服务分析，不能把既往测评算作新门店的历史开展量。</p></div>
         <div><h4>完整日统计，不是实时待办</h4><p>统计统一使用上海自然日，展示范围截至已发布日期。
           今天的业务操作可在业务页面查看；尚未发布与真实零值会分别显示。</p></div>
         <div><h4>提交与完成不能相除作为完成率</h4><p>提交和首次成功可能跨月，独立问卷只贡献提交量，两者不代表同一批对象。</p></div>
