@@ -3,6 +3,7 @@ import type {
   NativeReviewReopening
 } from '@/api/path/aiWorkflow'
 import { validReason } from './commands'
+import { sourceBeforeCancellation } from './cancellationValidation'
 import { safeCount } from './evaluationValidation'
 
 function stable(value: unknown): string {
@@ -20,7 +21,8 @@ function retains(reviews: unknown[], expected: unknown[]): boolean {
   const actual = new Set(reviews.map(stable))
   return expected.every((r) => actual.has(stable(r)))
 }
-export function reopeningHistory(run: NativeEvaluationState): NativeReviewReopening[] {
+export function reopeningHistory(current: NativeEvaluationState): NativeReviewReopening[] {
+  const run = sourceBeforeCancellation(current)
   const history = run.review_reopenings as NativeReviewReopening[]
   if (!Array.isArray(history) || JSON.stringify(history).length > 2 * 1024 * 1024)
     throw new Error('复审历史不完整。')

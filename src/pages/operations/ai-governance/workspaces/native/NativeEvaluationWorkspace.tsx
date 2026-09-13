@@ -8,9 +8,10 @@ import { useNativeEvaluation } from './useNativeEvaluation'
 import { NativeGateWorkspace } from './NativeGateWorkspace'
 import { NativeCandidateWorkspace } from './NativeCandidateWorkspace'
 import { NativeUnknownWorkspace } from './NativeUnknownWorkspace'
+import { NativeCancellationWorkspace } from './NativeCancellationWorkspace'
 import { NativeReopeningWorkspace } from './NativeReopeningWorkspace'
 
-const pendingLabels = { create: '创建', start: '启动', review: '审核', finalize: '最终审核', reopen: '复审', resolve: '处置' }
+const pendingLabels = { create: '创建', start: '启动', review: '审核', finalize: '最终审核', reopen: '复审', resolve: '处置', cancel: '取消/废弃' }
 const label = (ref?: EvaluationReference) =>
   ref ? `${ref.id} · ${ref.version}` : '请从配置目录选择'
 export function NativeEvaluationWorkspace({
@@ -223,6 +224,8 @@ export function NativeEvaluationWorkspace({
               preview={c.gates} locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)}
               load={c.previewGates} finalize={c.finalize} />
           )}
+          <NativeCancellationWorkspace key={`cancel:${c.run.run_id}:${c.run.version}`} run={c.run}
+            locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)} cancel={c.cancel} />
           <NativeReopeningWorkspace key={`reopening:${c.run.run_id}:${c.run.version}`} run={c.run}
             locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)} reopen={c.reopen} />
           {c.run.status === 'approved' && onPublish && (

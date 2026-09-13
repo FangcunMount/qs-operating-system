@@ -191,3 +191,10 @@ it('reads version-bound native gates and preserves explicit false finalization t
   expect(get).toHaveBeenCalledWith('/interpretation/ai-workflow/evaluations/run%2Fid/gates', { expected_version: 8 })
   expect(post).toHaveBeenCalledWith('/interpretation/ai-workflow/evaluations/run%2Fid/finalize', command)
 })
+
+it.each([false, true])('sends explicit discard=%s cancellation once', (discard) => {
+  const command: api.NativeCancelCommand = { expected_version: 7, reason: '结束任务', confirm: true, discard }
+  api.cancelNativeEvaluation('run/id', command)
+  expect(post.mock.calls).toEqual([['/interpretation/ai-workflow/evaluations/run%2Fid/cancel', command]])
+  expect(get).not.toHaveBeenCalled()
+})

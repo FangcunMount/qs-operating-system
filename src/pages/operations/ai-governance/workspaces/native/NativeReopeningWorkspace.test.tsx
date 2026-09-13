@@ -272,3 +272,19 @@ it('supports three ordered rounds and requires preserved earlier signatures and 
   ;(value.review_reopenings[1] as api.NativeReviewReopening).transition_count = 1
   expect(() => reopeningHistory(value)).toThrow()
 })
+
+it('retains prior review history after an explicitly audited discard', () => {
+  const previous = reopened()
+  const run: api.NativeEvaluationState = { ...previous, version: previous.version + 1, status: 'canceled', cancellation: {
+    schema_version: 'qs-ai-evaluation-cancellation/v1', run_id: id,
+    source_version: previous.version, version: previous.version + 1, source_status: 'awaiting_review', status: 'canceled',
+    release_fingerprint: fp, actor: 'user:42', reason: '废弃此轮评审', discard: true,
+    canceled_at: at(4), execution_id: '', invocation_id: ''
+  } }
+  expect(reopeningHistory(run)).toEqual(previous.review_reopenings)
+  expect(canRequestReopening(run)).toBe(false)
+  render(<NativeReopeningWorkspace run={run} locked={false} reopen={jest.fn()} />)
+  expect(screen.getByText(/第 1 轮复审/)).toBeInTheDocument()
+  expect(screen.queryByText('确认重开语义复审')).not.toBeInTheDocument()
+  expect(() => reopeningHistory({ ...run, cancellation: undefined })).toThrow()
+})
