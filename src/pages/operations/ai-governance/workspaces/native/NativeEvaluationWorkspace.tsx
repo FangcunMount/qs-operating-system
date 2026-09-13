@@ -7,9 +7,10 @@ import { statusLabels, validRef } from './evaluationValidation'
 import { useNativeEvaluation } from './useNativeEvaluation'
 import { NativeGateWorkspace } from './NativeGateWorkspace'
 import { NativeCandidateWorkspace } from './NativeCandidateWorkspace'
+import { NativeUnknownWorkspace } from './NativeUnknownWorkspace'
 import { NativeReopeningWorkspace } from './NativeReopeningWorkspace'
 
-const pendingLabels = { create: '创建', start: '启动', review: '审核', finalize: '最终审核', reopen: '复审' }
+const pendingLabels = { create: '创建', start: '启动', review: '审核', finalize: '最终审核', reopen: '复审', resolve: '处置' }
 const label = (ref?: EvaluationReference) =>
   ref ? `${ref.id} · ${ref.version}` : '请从配置目录选择'
 export function NativeEvaluationWorkspace({
@@ -215,6 +216,8 @@ export function NativeEvaluationWorkspace({
             <summary>查看固定版本与任务审计记录</summary>
             <JsonEvidence value={c.run} />
           </details>
+          <NativeUnknownWorkspace key={`unknown:${c.run.run_id}:${c.run.version}`} run={c.run} view={c.unknowns}
+            locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)} load={c.loadUnknowns} resolve={c.resolveUnknown} />
           {['awaiting_review', 'approved', 'rejected'].includes(c.run.status) && (
             <NativeGateWorkspace key={`gates:${c.run.run_id}:${c.run.version}`} run={c.run}
               preview={c.gates} locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)}

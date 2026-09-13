@@ -161,3 +161,41 @@ export interface NativeReviewReopening {
   reason: string
   reopened_at: string
 }
+
+export type NativeResolutionDecision = 'cancel_run' | 'authorize_replacement'
+export interface NativeUnknownExecution {
+  execution_id: string
+  invocation_id: string
+  kind: 'generation' | 'semantic'
+  case_id: string
+  slot_ordinal: number
+  candidate_id: string
+  execution_ordinal: number
+  started_at: string
+  finished_at: string
+  provider_call_count: number
+  failure_stage: string
+  failure_code: string
+  target_execution_count: number
+  target_execution_limit: number
+  stage_execution_count: number
+  stage_execution_limit: number
+  replacement_allowed: boolean
+}
+export interface NativeUnknownIndex {
+  run_id: string
+  version: number
+  release_fingerprint: string
+  status: EvaluationStatus
+  unresolved_result_unknown_count: number
+  can_resolve: boolean
+  executions: NativeUnknownExecution[]
+}
+export interface NativeResolutionCommand {
+  expected_version: number
+  execution_id: string
+  decision: NativeResolutionDecision
+  reason: string
+  confirm: true
+  acknowledged_duplicate_call_and_cost_risk: true
+}
