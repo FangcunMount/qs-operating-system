@@ -60,6 +60,7 @@ export interface NativeEvaluationState {
   review_reopenings: unknown[]
   can_reopen_review?: boolean
   finalization?: unknown
+  cancellation?: unknown
 }
 export interface NativeEvaluationCreate {
   release: EvaluationRelease
@@ -199,4 +200,26 @@ export interface NativeResolutionCommand {
   reason: string
   confirm: true
   acknowledged_duplicate_call_and_cost_risk: true
+}
+
+export interface NativeCancelCommand {
+  expected_version: number
+  reason: string
+  confirm: true
+  discard: boolean
+}
+export interface NativeCancellationReceipt {
+  schema_version: 'qs-ai-evaluation-cancellation/v1'
+  run_id: string
+  source_version: number
+  version: number
+  source_status: 'requested' | 'collecting' | 'blocked' | 'awaiting_review'
+  status: 'canceled'
+  release_fingerprint: string
+  actor: string
+  reason: string
+  discard: boolean
+  canceled_at: string
+  execution_id: string
+  invocation_id: string
 }

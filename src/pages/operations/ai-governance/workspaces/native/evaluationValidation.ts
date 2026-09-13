@@ -7,6 +7,7 @@ import type {
   EvaluationStatus
 } from '@/api/path/aiWorkflow'
 import { validReason, validUUID } from './commands'
+import { cancellationReceipt } from './cancellationValidation'
 
 export const releaseKeys: Array<keyof EvaluationRelease> = [
   'suite',
@@ -90,6 +91,7 @@ export function checkEvaluation(
   ) {
     throw new Error('任务状态不完整，请重新读取。')
   }
+  if (value.cancellation !== undefined) cancellationReceipt(value)
   const c = value.creation
   if (
     c &&
