@@ -26,6 +26,10 @@ export function reopeningHistory(current: NativeEvaluationState): NativeReviewRe
   const history = run.review_reopenings as NativeReviewReopening[]
   if (!Array.isArray(history) || JSON.stringify(history).length > 2 * 1024 * 1024)
     throw new Error('复审历史不完整。')
+  // A canceled archive needs its original cancellation receipt before display.
+  // sourceBeforeCancellation binds that receipt to its source version above.
+  if (history.length && run.status === 'canceled')
+    throw new Error('尚未取得取消回执，请重新查询任务。')
   history.forEach((r, i) => {
     const previous = history[i - 1]
     if (
