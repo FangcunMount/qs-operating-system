@@ -85,3 +85,15 @@ test('old identity responses cannot replace a new scope or remain visible', asyn
   expect(screen.queryByText('1,234')).not.toBeInTheDocument()
   await screen.findByText('无权访问')
 })
+
+test('entry filtering selects a doctor by name and sends only the identifier', async () => {
+  (getAnalysisClinicians as jest.Mock).mockResolvedValue([null, { data: { ...metadata,
+    items: [{ id: '42', name: '验收医生甲' }], total: 1, page: 1, page_size: 20,
+    summary: { clinician_count: 1, active_clinician_count: 1, clinicians_with_intake: 0,
+      intake_confirmed_count: 0, report_generated_count: 0 } } }])
+  render(mount()); fireEvent.click(screen.getByRole('tab', { name: '临床人员' }))
+  await screen.findByText('验收医生甲')
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: '筛选入口医生' }))
+  fireEvent.click(screen.getByText('验收医生甲', { selector: '.ant-select-item-option-content' }))
+  await waitFor(() => expect(getAnalysisEntries).toHaveBeenLastCalledWith({ ...query, page: 1, page_size: 20, clinician_id: '42' }))
+})

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Alert, Button, Card, Col, Empty, Input, Row, Select, Space, Statistic, Table, Tabs, Typography } from 'antd'
+import { Alert, Button, Card, Col, Empty, Row, Select, Space, Statistic, Table, Tabs, Typography } from 'antd'
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, BarChart, Bar } from 'recharts'
 import type { AnalysisMetadata, AnalysisOverview, AnalysisClinician, AnalysisEntry, AnalysisQuery } from '@/api/path/statisticsAnalysis'
 import { getAnalysisOverview, getAnalysisClinicians, getAnalysisEntries, mergeAnalysisTrend } from '@/api/path/statisticsAnalysis'
@@ -141,11 +141,10 @@ export default function StoreAnalysis({ identity, query, revision, history }: {
   const filterKey = JSON.stringify([identity, query])
   const [doctorPaging, setDoctorPaging] = useState({ key: filterKey, page: 1, size: 20 })
   const [entryPaging, setEntryPaging] = useState({ key: filterKey, page: 1, size: 20 })
-  const [entryFilter, setEntryFilter] = useState<{ key: string; clinician?: string; active?: boolean }>({ key: filterKey })
-  const [filterError, setFilterError] = useState('')
+  const [entryFilter, setEntryFilter] = useState<{ key: string; clinician?: string; clinicianName?: string; active?: boolean }>({ key: filterKey })
   const dp = doctorPaging.key === filterKey ? doctorPaging : { page: 1, size: 20 }
   const ep = entryPaging.key === filterKey ? entryPaging : { page: 1, size: 20 }
-  const ef: { clinician?: string; active?: boolean } = entryFilter.key === filterKey ? entryFilter : {}
+  const ef: { clinician?: string; clinicianName?: string; active?: boolean } = entryFilter.key === filterKey ? entryFilter : {}
   const [overviewRefresh, setOverviewRefresh] = useState(0)
   const [clinicianRefresh, setClinicianRefresh] = useState(0)
   const [entryRefresh, setEntryRefresh] = useState(0)
@@ -205,15 +204,14 @@ export default function StoreAnalysis({ identity, query, revision, history }: {
       </>}
       <Card title="测评入口统计">
         <Space wrap style={{ marginBottom: 16 }}>
-          <Input.Search key={filterKey} placeholder="按医生 ID 筛选入口" allowClear onSearch={raw => {
-            const id = raw.trim()
-            if (id && !/^[1-9][0-9]*$/.test(id)) { setFilterError('请输入有效的医生 ID'); return }
-            setFilterError(''); setEntryFilter({ ...ef,
-              key: filterKey,
-              clinician: id || undefined }); setEntryPaging({ key: filterKey,
-              page: 1,
-              size: ep.size })
-          }} />
+          <Select<{ value: string; label: string }> labelInValue allowClear showSearch style={{ width: 280 }}
+            aria-label="筛选入口医生" placeholder="选择当前页医生" optionFilterProp="label" disabled={!clinicians.data}
+            value={ef.clinician ? { value: ef.clinician, label: ef.clinicianName || '已选择医生' } : undefined}
+            options={clinicians.data?.items.map(doctor => ({ value: doctor.id, label: doctor.name }))}
+            onChange={value => {
+              setEntryFilter({ ...ef, key: filterKey, clinician: value?.value, clinicianName: value?.label })
+              setEntryPaging({ key: filterKey, page: 1, size: ep.size })
+            }} />
           <Select aria-label="入口状态" value={ef.active === undefined ? undefined : String(ef.active)} allowClear
             placeholder="全部状态" style={{ width: 140 }}
             options={[{ value: 'true', label: '启用' },
@@ -225,7 +223,7 @@ export default function StoreAnalysis({ identity, query, revision, history }: {
                 size: ep.size })
             }} />
         </Space>
-        {filterError && <Alert type="warning" message={filterError} />}
+        <Typography.Paragraph type="secondary">医生选项来自上方当前页，可翻页后选择；清除选择可查看范围内全部入口。</Typography.Paragraph>
         <Status {...entries} retry={() => setEntryRefresh(v => v + 1)} />
         {entries.data && <>
           <Table<AnalysisEntry> rowKey="id" columns={entryColumns} dataSource={entries.data.items} scroll={{ x: 1000 }}
