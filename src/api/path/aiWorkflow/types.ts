@@ -75,3 +75,22 @@ export interface ProfileRegistrationReceipt {
   manifest: RegisteredManifest
   registered_at: string
 }
+export interface FrozenSuiteReference {
+  id: string
+  version: string
+  fingerprint: string
+}
+export interface RegisterSuite extends DraftCommand {
+  source: FrozenSuiteReference
+  suite_id: string
+  suite_version: string
+  profile: AssetReference
+  prompt: AssetReference
+  generation_route: AssetReference
+}
+export interface SuiteRegistrationReceipt {
+  command: RegisterSuite
+  suite: FrozenSuiteReference
+  manifest: RegisteredManifest
+  registered_at: string
+}

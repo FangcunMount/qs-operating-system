@@ -14,9 +14,8 @@ const kinds: Array<{ value: AssetKind; label: string }> = [
 export const AssetCatalogWorkspace: React.FC<{
   onDraft: (source: AssetReference) => void
   onRegisterAsset?: (source: AssetDetail) => void
-}> = ({
-  onDraft, onRegisterAsset
-}) => {
+  onSuiteAsset?: (source: AssetDetail) => void
+}> = ({ onDraft, onRegisterAsset, onSuiteAsset }) => {
   const [kind, setKind] = useState<AssetKind>('prompt')
   const [input, setInput] = useState('')
   const [filter, setFilter] = useState('')
@@ -153,6 +152,9 @@ export const AssetCatalogWorkspace: React.FC<{
           <JsonEvidence value={detail.definition_json} />
           {onRegisterAsset && ['profile', 'prompt', 'route'].includes(detail.item.kind) && (
             <Button onClick={() => onRegisterAsset(detail)}>用于注册策略版本</Button>
+          )}
+          {onSuiteAsset && ['suite', 'profile', 'prompt', 'route'].includes(detail.item.kind) && (
+            <Button onClick={() => onSuiteAsset(detail)}>用于绑定评测套件</Button>
           )}
           {detail.item.kind === 'prompt' && (
             <Button type="primary" onClick={() => onDraft(detail.item.reference)}>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Alert, Button, Card, Descriptions, Form, Input, Space, Typography } from 'antd'
-import type { AssetDetail, AssetReference } from '@/api/path/aiWorkflow'
+import type { AssetDetail, AssetReference, RegisteredManifest } from '@/api/path/aiWorkflow'
 import { JsonEvidence } from '../../components/JsonEvidence'
 import { validReason } from './commands'
 import { profileDefinition } from './profileRegistration'
@@ -17,7 +17,8 @@ const label = (value?: AssetReference) =>
 export const ProfileRegistrationWorkspace: React.FC<{
   owner: string
   selection: ProfileSelection
-}> = ({ owner, selection }) => {
+  onSuite?: (manifest: RegisteredManifest) => void
+}> = ({ owner, selection, onSuite }) => {
   const [version, setVersion] = useState('')
   const [reason, setReason] = useState('')
   const command = useProfileRegistration(owner)
@@ -122,6 +123,11 @@ export const ProfileRegistrationWorkspace: React.FC<{
           <Typography.Paragraph>
             版本已保存。下一步需绑定评测套件并通过完整审核，当前尚未发布。
           </Typography.Paragraph>
+          {onSuite && (
+            <Button onClick={() => command.receipt && onSuite(command.receipt.manifest)}>
+              用于绑定评测套件
+            </Button>
+          )}
           <Descriptions column={1} size="small">
             <Descriptions.Item label="策略版本">
               {label(command.receipt.manifest.profile)}
