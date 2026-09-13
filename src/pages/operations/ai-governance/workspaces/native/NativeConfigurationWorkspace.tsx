@@ -9,6 +9,7 @@ import { ProfileRegistrationWorkspace, ProfileSelection } from './ProfileRegistr
 import { SuiteRegistrationWorkspace, SuiteSelection } from './SuiteRegistrationWorkspace'
 import { NativeEvaluationWorkspace } from './NativeEvaluationWorkspace'
 import { NativeParticipantWorkspace } from './NativeParticipantWorkspace'
+import { NativeParticipantRetryWorkspace } from './NativeParticipantRetryWorkspace'
 import { NativePublicationWorkspace } from './NativePublicationWorkspace'
 
 function NativeConfigurationContent({ owner }: { owner: string }) {
@@ -51,6 +52,7 @@ function NativeConfigurationContent({ owner }: { owner: string }) {
       <Tabs activeKey={view} onChange={setView}>
         <Tabs.TabPane tab="参与者生成" key="participant">
           <NativeParticipantWorkspace key={owner} />
+          <NativeParticipantRetryWorkspace key={`retry:${owner}`} owner={owner} />
         </Tabs.TabPane>
         <Tabs.TabPane tab="Prompt 草稿" key="prompt">
           <PromptDraftWorkspace key={owner} owner={owner} source={source} />

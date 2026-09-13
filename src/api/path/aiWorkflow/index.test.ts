@@ -220,3 +220,16 @@ it('queries participant capacity with subject and assessment filters without sen
   expect(get).toHaveBeenCalledWith('/interpretation/ai-workflow/participant-capacity', { subject_id: 'user:42', assessment_id: '42' })
   expect(post).not.toHaveBeenCalled()
 })
+
+it('sends participant retry through the no-replay transport and reads the original command separately', () => {
+  const command: api.ParticipantRetryCommand = { command_id: 'original-id', expected_run_id: 'old-run', expected_version: 4,
+    reason: '已核对', confirm: true, expected_provider_invocations: 1, accept_result_unknown_risk: true }
+  api.getParticipantExecution('session/id')
+  api.retryParticipant('session/id', command)
+  api.getParticipantRetryReceipt('command/id')
+  expect(post.mock.calls).toEqual([['/interpretation/ai-workflow/participants/session%2Fid/retry', command]])
+  expect(get.mock.calls).toEqual([
+    ['/interpretation/ai-workflow/participants/session%2Fid'],
+    ['/interpretation/ai-workflow/participants/retry-commands/command%2Fid']
+  ])
+})
