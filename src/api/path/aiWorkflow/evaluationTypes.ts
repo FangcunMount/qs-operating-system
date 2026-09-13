@@ -110,3 +110,37 @@ export interface NativeReviewRecord extends NativeReviewItem {
   reviewer: string
   reviewed_at: string
 }
+
+export type NativeGateID = 'G1' | 'G2' | 'G3' | 'G4' | 'G5'
+export interface NativeGateResult {
+  evaluated_at: string
+  gate_passes: Record<NativeGateID, boolean>
+  metrics: Array<{ name: string; numerator: number; denominator: number; value: number; threshold: number }>
+  reasons: Array<{ gate: NativeGateID; code: string; evidence_refs: string[] }>
+  semantic_adjudications: unknown[]
+}
+export interface NativeGatePreview {
+  run_id: string
+  version: number
+  release_fingerprint: string
+  gate_result: NativeGateResult & { schema_version: 'qs-ai-evaluation-gate-preview/v1' }
+}
+export interface NativeFinalizeCommand {
+  expected_version: number
+  expected_passed: boolean
+  reason: string
+  confirm: true
+}
+export interface NativeFinalization {
+  schema_version: 'qs-ai-evaluation-finalization/v1'
+  run_id: string
+  source_version: number
+  version: number
+  release_fingerprint: string
+  actor: string
+  reason: string
+  finalized_at: string
+  passed: boolean
+  status: 'approved' | 'rejected'
+  gate_result: NativeGateResult
+}
