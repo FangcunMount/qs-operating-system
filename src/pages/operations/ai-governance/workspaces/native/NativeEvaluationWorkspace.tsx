@@ -11,6 +11,8 @@ import { NativeUnknownWorkspace } from './NativeUnknownWorkspace'
 import { NativeCancellationWorkspace } from './NativeCancellationWorkspace'
 import { NativeReopeningWorkspace } from './NativeReopeningWorkspace'
 import { NativeEvaluationCatalog } from './NativeEvaluationCatalog'
+import { NativeExecutionWorkspace } from './NativeExecutionWorkspace'
+import { NativeCapacityWorkspace } from './NativeCapacityWorkspace'
 
 const pendingLabels = { create: '创建', start: '启动', review: '审核', finalize: '最终审核', reopen: '复审', resolve: '处置', cancel: '取消/废弃' }
 const label = (ref?: EvaluationReference) =>
@@ -51,6 +53,7 @@ export function NativeEvaluationWorkspace({
         message="先确认配置与预算，再创建和启动任务。创建只保存固定版本，启动后才进入执行队列。"
       />
       {c.error && <Alert showIcon type="error" message={c.error} style={{ marginTop: 12 }} />}
+      <NativeCapacityWorkspace key={`capacity:${owner}`} disabled={c.busy} />
       <NativeEvaluationCatalog
         key={owner}
         disabled={c.busy || Boolean(c.journal?.pending)}
@@ -154,6 +157,7 @@ export function NativeEvaluationWorkspace({
       )}
       {c.run && (
         <Card title="当前评测任务" size="small">
+          <NativeExecutionWorkspace key={`executions:${c.run.run_id}:${c.run.version}`} run={c.run} locked={c.busy} />
           <Descriptions column={1} size="small">
             <Descriptions.Item label="任务标识">
               <Typography.Text copyable>{c.run.run_id}</Typography.Text>

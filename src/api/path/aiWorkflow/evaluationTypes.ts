@@ -248,3 +248,45 @@ export interface NativeEvaluationPage {
   items: NativeEvaluationSummary[]
   next_cursor: string
 }
+export interface NativeExecutionSummary {
+  execution_id: string
+  invocation_id: string
+  kind: 'generation' | 'semantic'
+  case_id: string
+  slot_ordinal: number
+  execution_ordinal: number
+  status: 'prepared' | 'dispatching' | 'succeeded' | 'failed' | 'result_unknown'
+  raw_output_bytes: number
+  normalized_output_bytes: number
+  evidence: Record<string, unknown>
+}
+export interface NativeExecutionPage {
+  run_id: string
+  version: number
+  executions: NativeExecutionSummary[]
+  next_cursor: string
+}
+export interface NativeExecutionOutput {
+  run_id: string
+  version: number
+  execution: NativeExecutionSummary
+  raw_output: string
+  normalized_output: string
+  raw_sha256: string
+  normalized_sha256: string
+}
+
+export interface NativeEvaluationCapacity {
+  organization_id: number
+  budget_day: string
+  daily_provider_calls: number
+  reserved_provider_calls: number
+  remaining_provider_calls: number
+  full_run_provider_calls: number
+  remaining_full_runs: number
+  max_active_runs: number
+  active_runs: number
+  reservation_count: number
+  reservations: Array<{ run_id: string; provider_calls: number; requested_by: string; reserved_at: string }>
+  reservations_truncated: boolean
+}

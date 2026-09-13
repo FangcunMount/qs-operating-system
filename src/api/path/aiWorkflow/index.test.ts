@@ -4,6 +4,15 @@ jest.mock('@/api/qsServer', () => ({ internalV2Get: jest.fn(), internalV2PostOnc
 const get = internalV2Get as jest.Mock
 const post = internalV2PostOnce as jest.Mock
 beforeEach(() => jest.clearAllMocks())
+it('reads execution evidence with the current version and encoded identifiers without writes', () => {
+  api.listNativeExecutions('run/id', 7, 'execution:1')
+  api.getNativeExecutionOutput('run/id', 7, 'execution/id')
+  expect(get.mock.calls).toEqual([
+    ['/interpretation/ai-workflow/evaluations/run%2Fid/executions', { expected_version: 7, cursor: 'execution:1', limit: 20 }],
+    ['/interpretation/ai-workflow/evaluations/run%2Fid/executions/execution%2Fid/output', { expected_version: 7 }]
+  ])
+  expect(post).not.toHaveBeenCalled()
+})
 it('queries native tasks through the audit-scoped list without client-supplied identity or writes', () => {
   api.listNativeEvaluations('awaiting_review', 'cursor')
   expect(get.mock.calls).toEqual([
