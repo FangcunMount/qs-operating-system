@@ -105,3 +105,20 @@ export interface SuiteRegistrationReceipt {
   manifest: RegisteredManifest
   registered_at: string
 }
+
+export type ProfileStatus = 'draft' | 'published' | 'disabled'
+export interface ProfileLifecycle {
+  reference: AssetReference
+  status: ProfileStatus
+  source_ref: string
+  imported_at: string
+  active_publication_id: string
+  active_run_id: string
+  selector_version: number
+  selector_changed_at: string
+  inactive_reason: '' | 'disabled' | 'replaced'
+}
+export interface ProfileLifecyclePage {
+  items: ProfileLifecycle[]
+  next_cursor: string
+}

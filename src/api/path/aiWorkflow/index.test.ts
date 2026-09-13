@@ -233,3 +233,14 @@ it('sends participant retry through the no-replay transport and reads the origin
     ['/interpretation/ai-workflow/participants/retry-commands/command%2Fid']
   ])
 })
+
+it('queries Profile lifecycle with exact version and server-side status filter', () => {
+  api.listProfileLifecycles('profile/中文', 'published', 'cursor')
+  api.getProfileLifecycle('profile/中文', 'v6')
+  expect(internalV2Get).toHaveBeenCalledWith('/interpretation/ai-workflow/profiles', {
+    identity: 'profile/中文', status: 'published', cursor: 'cursor', limit: 20
+  })
+  expect(internalV2Get).toHaveBeenCalledWith('/interpretation/ai-workflow/profiles/lifecycle', {
+    identity: 'profile/中文', version: 'v6'
+  })
+})

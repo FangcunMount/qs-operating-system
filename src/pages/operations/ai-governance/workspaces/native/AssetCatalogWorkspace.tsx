@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Empty, Input, Select, Space, Table, Typography } from 'antd'
-import { getAsset, listAssets } from '@/api/path/aiWorkflow'
+import { getAsset, listAssets, getProfileLifecycle, listProfileLifecycles } from '@/api/path/aiWorkflow'
 import type {
+  ProfileLifecycle,
+  ProfileStatus,
   AssetDetail,
   AssetItem,
   AssetKind,
@@ -10,6 +12,10 @@ import type {
 } from '@/api/path/aiWorkflow'
 import { JsonEvidence } from '../../components/JsonEvidence'
 
+type CatalogItem = AssetItem & { lifecycle?: ProfileLifecycle }
+const profileStatusLabels: Record<ProfileStatus, string> = {
+  draft: '未在 qs-ai 发布', published: '当前已发布', disabled: '已停用或被替换'
+}
 const kinds: Array<{ value: AssetKind; label: string }> = [
   { value: 'prompt', label: 'Prompt 模板' },
   { value: 'profile', label: '解读策略' },
@@ -24,9 +30,11 @@ export const AssetCatalogWorkspace: React.FC<{
   onEvaluationAsset?: (purpose: keyof EvaluationSelection, source: AssetReference) => void
 }> = ({ onDraft, onRegisterAsset, onSuiteAsset, onEvaluationAsset }) => {
   const [kind, setKind] = useState<AssetKind>('prompt')
+  const [status, setStatus] = useState<ProfileStatus | ''>('')
+  const [profileDetail, setProfileDetail] = useState<ProfileLifecycle | null>(null)
   const [input, setInput] = useState('')
   const [filter, setFilter] = useState('')
-  const [items, setItems] = useState<AssetItem[]>([])
+  const [items, setItems] = useState<CatalogItem[]>([])
   const [cursor, setCursor] = useState('')
   const [detail, setDetail] = useState<AssetDetail | null>(null)
   const [loading, setLoading] = useState(false)
@@ -34,13 +42,14 @@ export const AssetCatalogWorkspace: React.FC<{
   const [error, setError] = useState('')
   const epoch = useRef(0)
   const detailEpoch = useRef(0)
-  const queryKey = `${kind}:${filter}`
+  const queryKey = JSON.stringify([kind, filter, status])
   const currentQuery = useRef(queryKey)
   currentQuery.current = queryKey
   const load = async (after = '') => {
     const request = ++epoch.current
     detailEpoch.current++
     setDetail(null)
+    setProfileDetail(null)
     setReading(false)
     setLoading(true)
     setError('')
@@ -49,19 +58,31 @@ export const AssetCatalogWorkspace: React.FC<{
       setCursor('')
     }
     try {
-      const [failure, response] = await listAssets(kind, filter, after)
+      const [failure, response] = kind === 'profile'
+        ? await listProfileLifecycles(filter, status, after).then(([failure, response]) => [
+          failure,
+          response && { ...response, data: { ...response.data, items: response.data.items.map(
+            (lifecycle): CatalogItem => ({ kind: 'profile', reference: lifecycle.reference, lifecycle })
+          ) } }
+        ] as const)
+        : await listAssets(kind, filter, after)
       if (request !== epoch.current || queryKey !== currentQuery.current) return
-      if (failure || !response || !Array.isArray(response.data?.items))
+      if (failure || !response || !Array.isArray(response.data?.items)) {
+        setItems([])
+        setCursor('')
         setError('配置目录暂不可用，请确认服务已启用且当前账号有审计权限。')
-      else {
+      } else {
         setItems((previous) =>
           after ? [...previous, ...response.data.items] : response.data.items
         )
         setCursor(response.data.next_cursor || '')
       }
     } catch {
-      if (request === epoch.current && queryKey === currentQuery.current)
+      if (request === epoch.current && queryKey === currentQuery.current) {
+        setItems([])
+        setCursor('')
         setError('配置目录读取失败。')
+      }
     } finally {
       if (request === epoch.current && queryKey === currentQuery.current) setLoading(false)
     }
@@ -73,28 +94,34 @@ export const AssetCatalogWorkspace: React.FC<{
       detailEpoch.current++
     }
     // Queries change only after an explicit search or kind selection.
-  }, [kind, filter])
-  const read = async (item: AssetItem) => {
+  }, [kind, filter, status])
+  const read = async (item: CatalogItem) => {
     const request = ++detailEpoch.current
     setReading(true)
     setDetail(null)
+    setProfileDetail(null)
     setError('')
     try {
-      const [failure, response] = await getAsset(
-        item.kind,
-        item.reference.identity,
-        item.reference.version
-      )
+      const [[failure, response], lifecycleResult] = await Promise.all([
+        getAsset(item.kind, item.reference.identity, item.reference.version),
+        item.kind === 'profile'
+          ? getProfileLifecycle(item.reference.identity, item.reference.version)
+          : Promise.resolve(null)
+      ])
       if (request !== detailEpoch.current || queryKey !== currentQuery.current) return
-      if (failure || !response) setError('版本正文读取失败。')
+      if (failure || !response || (item.kind === 'profile' && (!lifecycleResult?.[1] || lifecycleResult[0]))) setError('版本正文或发布状态读取失败。')
       else if (
         response.data.item.kind !== item.kind ||
         (['identity', 'version', 'fingerprint', 'content_sha256'] as const).some(
-          (key) => response.data.item.reference[key] !== item.reference[key]
+          (key) => response.data.item.reference[key] !== item.reference[key] ||
+            (lifecycleResult?.[1] && lifecycleResult[1].data.reference[key] !== item.reference[key])
         )
       )
         setError('版本引用已变化，请刷新目录后重试。')
-      else setDetail(response.data)
+      else {
+        setDetail(response.data)
+        setProfileDetail(lifecycleResult?.[1]?.data || null)
+      }
     } catch {
       if (request === detailEpoch.current && queryKey === currentQuery.current)
         setError('版本正文读取失败。')
@@ -112,6 +139,15 @@ export const AssetCatalogWorkspace: React.FC<{
           onChange={(value) => setKind(value)}
           style={{ width: 160 }}
         />
+        {kind === 'profile' && <Select
+          aria-label="Profile 发布状态"
+          value={status}
+          onChange={(value) => setStatus(value)}
+          style={{ width: 190 }}
+          options={[{ value: '', label: '全部发布状态' }, ...Object.entries(profileStatusLabels).map(
+            ([value, label]) => ({ value, label })
+          )]}
+        />}
         <Input.Search
           aria-label="精确配置标识"
           placeholder="按完整标识筛选"
@@ -125,7 +161,10 @@ export const AssetCatalogWorkspace: React.FC<{
         </Button>
       </Space>
       {error && <Alert showIcon type="error" message={error} />}
-      <Table<AssetItem>
+      {kind === 'profile' && <Typography.Paragraph type="secondary">
+        状态来自 qs-ai 的发布记录；迁入来源仅用于追溯，旧系统曾发布不代表当前已在 qs-ai 生效。
+      </Typography.Paragraph>}
+      <Table<CatalogItem>
         dataSource={items}
         loading={loading}
         pagination={false}
@@ -134,6 +173,10 @@ export const AssetCatalogWorkspace: React.FC<{
         columns={[
           { title: '标识', render: (_, item) => item.reference.identity },
           { title: '版本', render: (_, item) => item.reference.version },
+          ...(kind === 'profile' ? [
+            { title: '发布状态', render: (_: unknown, item: CatalogItem) => item.lifecycle && profileStatusLabels[item.lifecycle.status] },
+            { title: '来源', render: (_: unknown, item: CatalogItem) => item.lifecycle?.source_ref }
+          ] : []),
           {
             title: '操作',
             render: function renderAssetActions(_, item) {
@@ -156,6 +199,14 @@ export const AssetCatalogWorkspace: React.FC<{
           <Typography.Paragraph type="secondary">
             配置版本的存在不代表评测通过或已发布。
           </Typography.Paragraph>
+          {profileDetail && <Space direction="vertical" style={{ marginBottom: 16 }}>
+            <Typography.Text>当前状态：{profileStatusLabels[profileDetail.status]}</Typography.Text>
+            <Typography.Text>来源：{profileDetail.source_ref}</Typography.Text>
+            <Typography.Text>登记时间：{profileDetail.imported_at}</Typography.Text>
+            {profileDetail.active_publication_id && <Typography.Text>
+              生效发布：{profileDetail.active_publication_id}
+            </Typography.Text>}
+          </Space>}
           <JsonEvidence value={detail.definition_json} />
           {onRegisterAsset && ['profile', 'prompt', 'route'].includes(detail.item.kind) && (
             <Button onClick={() => onRegisterAsset(detail)}>用于注册策略版本</Button>

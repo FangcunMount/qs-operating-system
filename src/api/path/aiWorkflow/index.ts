@@ -1,6 +1,9 @@
 import type { QSResponse } from '@/types/qs'
 import { internalV2Get, internalV2PostOnce } from '@/api/qsServer'
 import type {
+  ProfileLifecycle,
+  ProfileLifecyclePage,
+  ProfileStatus,
   AssetKind,
   AssetPage,
   AssetDetail,
@@ -55,3 +58,10 @@ export const registerSuite = (command: RegisterSuite): Result<SuiteRegistrationR
 export const getSuiteReceipt = (commandID: string): Result<SuiteRegistrationReceipt> =>
   internalV2Get<SuiteRegistrationReceipt>(`${BASE}/suites/commands/${encode(commandID)}`)
 export * from './participant'
+
+export const listProfileLifecycles = (
+  identity = '', status: ProfileStatus | '' = '', cursor = ''
+): Result<ProfileLifecyclePage> =>
+  internalV2Get<ProfileLifecyclePage>(`${BASE}/profiles`, { identity, status, cursor, limit: 20 })
+export const getProfileLifecycle = (identity: string, version: string): Result<ProfileLifecycle> =>
+  internalV2Get<ProfileLifecycle>(`${BASE}/profiles/lifecycle`, { identity, version })
