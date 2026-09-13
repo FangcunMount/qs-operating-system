@@ -3,14 +3,17 @@ import {
   createNativeEvaluation,
   getNativeEvaluation,
   prepareNativeEvaluation,
-  startNativeEvaluation
+  startNativeEvaluation,
+  reviewNativeEvaluation
 } from '@/api/path/aiWorkflow'
 import type {
   EvaluationPlan,
   EvaluationPlanQuery,
   EvaluationSelection,
-  NativeEvaluationState
+  NativeEvaluationState,
+  NativeReviewCommand
 } from '@/api/path/aiWorkflow'
+import { checkReviewCommand, confirmsReview } from './reviewValidation'
 import { definitelyRejected, newCommandID, validReason, validUUID } from './commands'
 import {
   checkEvaluation,
@@ -24,7 +27,7 @@ import {
 interface Journal {
   runID: string
   releaseFingerprint: string
-  pending: 'create' | 'start' | null
+  pending: 'create' | 'start' | 'review' | null
   expectedVersion?: number
   lastVersion?: number
 }
@@ -38,8 +41,8 @@ const readJournal = (owner: string): Journal | null => {
     !j ||
     !validUUID(j.runID || '') ||
     !fingerprint(j.releaseFingerprint) ||
-    ![null, 'create', 'start'].includes(j.pending) ||
-    (j.pending === 'start' && !safeCount(j.expectedVersion)) ||
+    ![null, 'create', 'start', 'review'].includes(j.pending) ||
+    (['start', 'review'].includes(j.pending) && !safeCount(j.expectedVersion)) ||
     (j.lastVersion !== undefined && !safeCount(j.lastVersion))
   ) {
     throw new Error('Invalid journal')
@@ -58,6 +61,7 @@ interface EvaluationController {
   create(reason: string, confirm: boolean): Promise<void>
   read(id?: string): Promise<void>
   start(reason: string, confirm: boolean): Promise<void>
+  review(command: NativeReviewCommand, confirm: boolean): Promise<void>
   reset(): void
 }
 
@@ -116,8 +120,8 @@ export function useNativeEvaluation(
     checkEvaluation(value, original.runID, original.releaseFingerprint)
     if (original.lastVersion && value.version < original.lastVersion)
       throw new Error('任务版本倒退，请重新读取。')
-    if (original.pending === 'start' && value.version <= (original.expectedVersion || 0)) {
-      throw new Error('启动结果尚未确认，请保留原任务并稍后查询。')
+    if (['start', 'review'].includes(original.pending || '') && value.version <= (original.expectedVersion || 0)) {
+      throw new Error(original.pending === 'review' ? '审核结果尚未确认，请保留原任务并稍后查询。' : '启动结果尚未确认，请保留原任务并稍后查询。')
     }
     remember({
       runID: original.runID,
@@ -285,6 +289,41 @@ export function useNativeEvaluation(
       end()
     }
   }
+  const review = async (command: NativeReviewCommand, confirm: boolean) => {
+    const original = journalRef.current
+    if (!owner || !run?.creation || run.status !== 'awaiting_review' ||
+      !original || original.pending || original.runID !== run.run_id ||
+      storageFailed || !confirm || command.expected_version !== run.version) return
+    try { checkReviewCommand(command) } catch { return }
+    if (!begin()) return
+    const pending: Journal = { ...original, pending: 'review', expectedVersion: run.version }
+    try {
+      remember(pending)
+    } catch {
+      setStorageFailed(true)
+      setError('无法保存审核记录，本次未发送。')
+      end()
+      return
+    }
+    try {
+      const [failure, response] = await reviewNativeEvaluation(run.run_id, command)
+      if (!active.current) return
+      if (failure || !response) {
+        if (definitelyRejected(failure)) {
+          remember(original)
+          setRun(null)
+          setError('审核被拒绝，请重新查询任务并检查管理权限。')
+        } else setError('审核结果尚未确认，请查询原任务，暂不重复提交。')
+      } else {
+        checkEvaluation(response.data, run.run_id, original.releaseFingerprint)
+        if (response.data.version !== command.expected_version + 1 ||
+          !confirmsReview(response.data.reviews, command)) throw new Error('Review mismatch')
+        complete(response.data, pending)
+      }
+    } catch {
+      if (active.current) setError('审核结果尚未确认，请查询原任务，暂不重复提交。')
+    } finally { end() }
+  }
   const reset = () => {
     if (lock.current || journalRef.current?.pending || storageFailed) return
     try {
@@ -297,5 +336,5 @@ export function useNativeEvaluation(
       setError('无法更新任务记录，请保留原任务标识。')
     }
   }
-  return { plan, run, journal, error, busy, storageFailed, prepare, create, read, start, reset }
+  return { plan, run, journal, error, busy, storageFailed, prepare, create, read, start, review, reset }
 }

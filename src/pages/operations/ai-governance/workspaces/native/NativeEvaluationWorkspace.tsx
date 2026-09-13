@@ -48,8 +48,8 @@ export function NativeEvaluationWorkspace({
           showIcon
           type="warning"
           style={{ marginTop: 12 }}
-          message={c.journal.pending === 'create' ? '创建结果待核对' : '启动结果待核对'}
-          description="保留原任务标识，通过下方查询恢复。暂不重复创建或启动。"
+          message={c.journal.pending === 'create' ? '创建结果待核对' : c.journal.pending === 'review' ? '审核结果待核对' : '启动结果待核对'}
+          description="保留原任务标识，通过下方查询恢复。暂不重复提交任务操作。"
         />
       )}
       <Space wrap style={{ marginTop: 16, marginBottom: 16 }}>
@@ -211,7 +211,8 @@ export function NativeEvaluationWorkspace({
             <JsonEvidence value={c.run} />
           </details>
           {c.run.status !== 'requested' && (
-            <NativeCandidateWorkspace key={`${c.run.run_id}:${c.run.version}`} run={c.run} />
+            <NativeCandidateWorkspace key={`${c.run.run_id}:${c.run.version}`} run={c.run}
+              locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)} review={c.review} />
           )}
         </Card>
       )}

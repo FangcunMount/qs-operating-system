@@ -122,3 +122,11 @@ it('registers Suite through the no-replay proxy and queries the original command
   expect(post).toHaveBeenCalledWith('/interpretation/ai-workflow/suites/register', command)
   expect(get).toHaveBeenCalledWith('/interpretation/ai-workflow/suites/commands/command%2Fid')
 })
+
+it('sends native candidate review once with version and encoded Run identity', () => {
+  const command: api.NativeReviewCommand = { expected_version: 8, role: 'assessment_semantics',
+    reviews: [{ candidate_id: 'candidate:1', decision: 'approve', reason: '已核对' }] }
+  api.reviewNativeEvaluation('run/id', command)
+  expect(post).toHaveBeenCalledWith('/interpretation/ai-workflow/evaluations/run%2Fid/reviews', command)
+  expect(get).not.toHaveBeenCalled()
+})

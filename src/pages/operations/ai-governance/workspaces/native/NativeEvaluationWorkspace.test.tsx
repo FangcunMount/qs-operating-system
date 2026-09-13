@@ -12,7 +12,8 @@ jest.mock('@/api/path/aiWorkflow', () => ({
   startNativeEvaluation: jest.fn(),
   getNativeEvaluation: jest.fn(),
   listNativeCandidates: jest.fn(),
-  getNativeCandidate: jest.fn()
+  getNativeCandidate: jest.fn(),
+  reviewNativeEvaluation: jest.fn()
 }))
 const id = '44444444-4444-4444-8444-444444444444'
 const ref = (id: string): api.EvaluationReference => ({
@@ -309,4 +310,83 @@ it('rejects candidate lists from a different task version', async () => {
   fireEvent.click(screen.getByText('读取候选结果'))
   await screen.findByText('结果暂不可读或任务版本已变化，请先刷新任务状态。')
   expect(screen.queryByText('当前版本尚无候选结果')).not.toBeInTheDocument()
+})
+
+const openReview = async () => {
+  journal(null)
+  ;(api.getNativeEvaluation as jest.Mock).mockResolvedValue(ok(state(8, 'awaiting_review')))
+  ;(api.listNativeCandidates as jest.Mock).mockResolvedValue(ok({ run_id: id, version: 8,
+    candidates: [{ candidate_id: 'candidate:1', case_id: 'case:1', slot_ordinal: 1 }] }))
+  ;(api.getNativeCandidate as jest.Mock).mockResolvedValue(ok({ run_id: id, version: 8,
+    candidate_id: 'candidate:1', normalized_output: '待审核内容', semantic_output: '{}', evidence: {} }))
+  const view = render(<NativeEvaluationWorkspace owner="u1" selection={{}} />)
+  fireEvent.click(screen.getByText('查询任务状态'))
+  await screen.findByText('等待人工审核')
+  fireEvent.click(screen.getByText('读取候选结果'))
+  fireEvent.click(await screen.findByText('查看候选详情'))
+  await screen.findByText('候选人工审核')
+  return view
+}
+const submitReview = () => {
+  fireEvent.change(screen.getByLabelText('候选审核理由'), { target: { value: '核对原文及来源' } })
+  fireEvent.click(screen.getByLabelText('我已核对当前候选及证据，确认提交审核决定'))
+  fireEvent.click(screen.getByText('提交候选审核'))
+}
+const reviewed = () => ({ ...state(9, 'awaiting_review'), reviews: [{ candidate_id: 'candidate:1',
+  role: 'assessment_semantics', reviewer: 'user:42', decision: 'approve', reason: '核对原文及来源',
+  reviewed_at: '2026-09-13T01:00:00Z' }] })
+it('submits an explicitly confirmed version-bound review once without starting or publishing', async () => {
+  (api.reviewNativeEvaluation as jest.Mock).mockResolvedValue(ok(reviewed()))
+  await openReview()
+  expect(screen.getByText('提交候选审核').closest('button')).toBeDisabled()
+  submitReview()
+  await screen.findByText('9')
+  expect(api.reviewNativeEvaluation).toHaveBeenCalledTimes(1)
+  expect(api.reviewNativeEvaluation).toHaveBeenCalledWith(id, { expected_version: 8,
+    role: 'assessment_semantics', reviews: [{ candidate_id: 'candidate:1', decision: 'approve', reason: '核对原文及来源' }] })
+  expect(api.startNativeEvaluation).not.toHaveBeenCalled()
+  expect(sessionStorage.getItem(evaluationJournalKey('u1'))).not.toContain('核对原文及来源')
+})
+it.each([409, 504])('locks an unknown review %s across reload and requires an advanced read', async (status) => {
+  (api.reviewNativeEvaluation as jest.Mock).mockResolvedValue([{ status }, undefined])
+  const view = await openReview()
+  submitReview()
+  await screen.findByText('审核结果尚未确认，请查询原任务，暂不重复提交。')
+  expect(screen.getByText('提交候选审核').closest('button')).toBeDisabled()
+  view.unmount()
+  render(<NativeEvaluationWorkspace owner="u1" selection={{}} />)
+  fireEvent.click(screen.getByText('查询任务状态'))
+  await screen.findByText('审核结果尚未确认，请保留原任务并稍后查询。')
+  expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('u1')) || '{}').pending).toBe('review')
+  ;(api.getNativeEvaluation as jest.Mock).mockResolvedValue(ok(reviewed()))
+  fireEvent.click(screen.getByText('查询任务状态'))
+  await screen.findByText('9')
+  expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('u1')) || '{}').pending).toBeNull()
+  expect(api.reviewNativeEvaluation).toHaveBeenCalledTimes(1)
+})
+it.each(['no_record', 'wrong_decision', 'old_version'])('does not acknowledge a mismatched review response: %s', async (kind) => {
+  const value = reviewed()
+  if (kind === 'no_record') value.reviews = []
+  if (kind === 'wrong_decision') value.reviews[0].decision = 'reject'
+  if (kind === 'old_version') value.version = 8
+  ;(api.reviewNativeEvaluation as jest.Mock).mockResolvedValue(ok(value))
+  await openReview()
+  submitReview()
+  await screen.findByText('审核结果尚未确认，请查询原任务，暂不重复提交。')
+  expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('u1')) || '{}').pending).toBe('review')
+})
+it('clears a definite forbidden review and requires rereading state', async () => {
+  (api.reviewNativeEvaluation as jest.Mock).mockResolvedValue([{ status: 403 }, undefined])
+  await openReview()
+  submitReview()
+  await screen.findByText('审核被拒绝，请重新查询任务并检查管理权限。')
+  expect(screen.queryByText('提交候选审核')).not.toBeInTheDocument()
+  expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('u1')) || '{}').pending).toBeNull()
+})
+it('does not send a review when its recovery record cannot be saved', async () => {
+  await openReview()
+  jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota') })
+  submitReview()
+  await screen.findByText('无法保存审核记录，本次未发送。')
+  expect(api.reviewNativeEvaluation).not.toHaveBeenCalled()
 })
