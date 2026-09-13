@@ -26,7 +26,7 @@ export const statusLabels: Record<EvaluationStatus, string> = {
   collecting: '正在评测',
   blocked: '执行受阻，需核对',
   awaiting_review: '等待人工审核',
-  approved: '审核通过，尚需发布',
+  approved: '审核通过',
   rejected: '审核未通过',
   canceled: '已取消'
 }
