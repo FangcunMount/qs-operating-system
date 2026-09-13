@@ -6,7 +6,8 @@ import {
   startNativeEvaluation,
   reviewNativeEvaluation,
   previewNativeGates,
-  finalizeNativeEvaluation
+  finalizeNativeEvaluation,
+  reopenNativeReview
 } from '@/api/path/aiWorkflow'
 import type {
   EvaluationPlan,
@@ -18,6 +19,7 @@ import type {
 } from '@/api/path/aiWorkflow'
 import { checkGatePreview, finalizationReceipt, gatePassed, reviewIncomplete } from './finalizationValidation'
 import { checkReviewCommand, confirmsReview } from './reviewValidation'
+import { canRequestReopening, confirmsReopening } from './reopeningValidation'
 import { definitelyRejected, newCommandID, validReason, validUUID } from './commands'
 import {
   checkEvaluation,
@@ -31,7 +33,7 @@ import {
 interface Journal {
   runID: string
   releaseFingerprint: string
-  pending: 'create' | 'start' | 'review' | 'finalize' | null
+  pending: 'create' | 'start' | 'review' | 'finalize' | 'reopen' | null
   expectedVersion?: number
   lastVersion?: number
 }
@@ -45,8 +47,8 @@ const readJournal = (owner: string): Journal | null => {
     !j ||
     !validUUID(j.runID || '') ||
     !fingerprint(j.releaseFingerprint) ||
-    ![null, 'create', 'start', 'review', 'finalize'].includes(j.pending) ||
-    (['start', 'review', 'finalize'].includes(j.pending) && !safeCount(j.expectedVersion)) ||
+    ![null, 'create', 'start', 'review', 'finalize', 'reopen'].includes(j.pending) ||
+    (['start', 'review', 'finalize', 'reopen'].includes(j.pending) && !safeCount(j.expectedVersion)) ||
     (j.lastVersion !== undefined && !safeCount(j.lastVersion))
   ) {
     throw new Error('Invalid journal')
@@ -69,6 +71,7 @@ interface EvaluationController {
   review(command: NativeReviewCommand, confirm: boolean): Promise<void>
   previewGates(): Promise<void>
   finalize(reason: string, confirm: boolean): Promise<void>
+  reopen(reason: string, confirm: boolean): Promise<void>
   reset(): void
 }
 
@@ -128,12 +131,13 @@ export function useNativeEvaluation(
     checkEvaluation(value, original.runID, original.releaseFingerprint)
     if (original.lastVersion && value.version < original.lastVersion)
       throw new Error('任务版本倒退，请重新读取。')
-    if (['start', 'review', 'finalize'].includes(original.pending || '') && value.version <= (original.expectedVersion || 0)) {
-      const action = original.pending === 'finalize' ? '最终审核' : original.pending === 'review' ? '审核' : '启动'
+    if (['start', 'review', 'finalize', 'reopen'].includes(original.pending || '') && value.version <= (original.expectedVersion || 0)) {
+      const action = original.pending === 'reopen' ? '复审' : original.pending === 'finalize' ? '最终审核' : original.pending === 'review' ? '审核' : '启动'
       throw new Error(`${action}结果尚未确认，请保留原任务并稍后查询。`)
     }
     if (original.pending === 'finalize' && ['approved', 'rejected'].includes(value.status))
       finalizationReceipt(value)
+    if (original.pending === 'reopen') confirmsReopening(value, original.expectedVersion || 0)
     remember({
       runID: original.runID,
       releaseFingerprint: original.releaseFingerprint,
@@ -387,6 +391,37 @@ export function useNativeEvaluation(
       if (active.current) setError('最终审核结果尚未确认，请查询原任务，暂不重复确认。')
     } finally { end() }
   }
+  const reopen = async (reason: string, confirm: boolean) => {
+    const original = journalRef.current
+    if (!owner || !run?.creation || !original || original.pending || original.runID !== run.run_id ||
+      storageFailed || !confirm || !validReason(reason) || !canRequestReopening(run) || !begin()) return
+    const command = { expected_version: run.version, reason: reason.trim(), confirm: true as const }
+    setGates(null)
+    const pending: Journal = { ...original, pending: 'reopen', expectedVersion: run.version }
+    try { remember(pending) } catch {
+      setStorageFailed(true)
+      setError('无法保存复审记录，本次未发送。')
+      end()
+      return
+    }
+    try {
+      const [failure, response] = await reopenNativeReview(run.run_id, command)
+      if (!active.current) return
+      if (failure || !response) {
+        if (definitelyRejected(failure)) {
+          remember(original)
+          setRun(null)
+          setError('复审被拒绝，请重新查询任务并核对原审核依据。')
+        } else setError('复审结果尚未确认，请查询原任务，暂不重复提交。')
+      } else {
+        checkEvaluation(response.data, run.run_id, original.releaseFingerprint)
+        confirmsReopening(response.data, command.expected_version, run, command.reason)
+        complete(response.data, pending)
+      }
+    } catch {
+      if (active.current) setError('复审结果尚未确认，请查询原任务，暂不重复提交。')
+    } finally { end() }
+  }
   const reset = () => {
     if (lock.current || journalRef.current?.pending || storageFailed) return
     try {
@@ -400,5 +435,5 @@ export function useNativeEvaluation(
       setError('无法更新任务记录，请保留原任务标识。')
     }
   }
-  return { plan, gates, run, journal, error, busy, storageFailed, prepare, create, read, start, review, previewGates, finalize, reset }
+  return { plan, gates, run, journal, error, busy, storageFailed, prepare, create, read, start, review, previewGates, finalize, reopen, reset }
 }

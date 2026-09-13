@@ -7,8 +7,9 @@ import { statusLabels, validRef } from './evaluationValidation'
 import { useNativeEvaluation } from './useNativeEvaluation'
 import { NativeGateWorkspace } from './NativeGateWorkspace'
 import { NativeCandidateWorkspace } from './NativeCandidateWorkspace'
+import { NativeReopeningWorkspace } from './NativeReopeningWorkspace'
 
-const pendingLabels = { create: '创建', start: '启动', review: '审核', finalize: '最终审核' }
+const pendingLabels = { create: '创建', start: '启动', review: '审核', finalize: '最终审核', reopen: '复审' }
 const label = (ref?: EvaluationReference) =>
   ref ? `${ref.id} · ${ref.version}` : '请从配置目录选择'
 export function NativeEvaluationWorkspace({
@@ -219,6 +220,8 @@ export function NativeEvaluationWorkspace({
               preview={c.gates} locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)}
               load={c.previewGates} finalize={c.finalize} />
           )}
+          <NativeReopeningWorkspace key={`reopening:${c.run.run_id}:${c.run.version}`} run={c.run}
+            locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)} reopen={c.reopen} />
           {c.run.status === 'approved' && onPublish && (
             <Button style={{ marginTop: 12 }}
               disabled={c.busy || c.storageFailed || Boolean(c.journal?.pending)}

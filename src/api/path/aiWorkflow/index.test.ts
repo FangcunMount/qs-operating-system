@@ -4,6 +4,14 @@ jest.mock('@/api/qsServer', () => ({ internalV2Get: jest.fn(), internalV2PostOnc
 const get = internalV2Get as jest.Mock
 const post = internalV2PostOnce as jest.Mock
 beforeEach(() => jest.clearAllMocks())
+it('submits version-bound review reopening only once through the new proxy', () => {
+  const command: api.NativeReopenCommand = { expected_version: 9, reason: '复核语义判定', confirm: true }
+  api.reopenNativeReview('run/id', command)
+  expect(post.mock.calls).toEqual([
+    ['/interpretation/ai-workflow/evaluations/run%2Fid/reopen-review', command]
+  ])
+  expect(get).not.toHaveBeenCalled()
+})
 it('keeps publication reads scoped and mutations explicit without transport replay', () => {
   const selector: api.PublicationSelector = {
     audience: 'participant', model_kind: 'scale', decision_kind: 'score_range',
