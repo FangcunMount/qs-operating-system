@@ -4,6 +4,35 @@ jest.mock('@/api/qsServer', () => ({ internalV2Get: jest.fn(), internalV2PostOnc
 const get = internalV2Get as jest.Mock
 const post = internalV2PostOnce as jest.Mock
 beforeEach(() => jest.clearAllMocks())
+it('routes native evaluation prepare/create/start and versioned result reads only to the new proxy', () => {
+  const ref = { id: 'suite', version: 'v1', fingerprint: 'sha256:' + 'a'.repeat(64) }
+  const query = { suite: ref, generation_route: ref, semantic_route: ref }
+  const create: api.NativeEvaluationCreate = {
+    release: {} as api.EvaluationRelease,
+    reason: '创建',
+    confirm: true
+  }
+  const start: api.NativeEvaluationStart = { expected_version: 7, reason: '启动', confirm: true }
+  api.prepareNativeEvaluation(query)
+  api.createNativeEvaluation('run/id', create)
+  api.startNativeEvaluation('run/id', start)
+  api.getNativeEvaluation('run/id')
+  api.listNativeCandidates('run/id')
+  api.getNativeCandidate('run/id', 'candidate/id', 7)
+  expect(post.mock.calls).toEqual([
+    ['/interpretation/ai-workflow/evaluations/prepare', query],
+    ['/interpretation/ai-workflow/evaluations/run%2Fid/create', create],
+    ['/interpretation/ai-workflow/evaluations/run%2Fid/start', start]
+  ])
+  expect(get.mock.calls).toEqual([
+    ['/interpretation/ai-workflow/evaluations/run%2Fid'],
+    ['/interpretation/ai-workflow/evaluations/run%2Fid/candidates'],
+    [
+      '/interpretation/ai-workflow/evaluations/run%2Fid/candidates/candidate%2Fid',
+      { expected_version: 7 }
+    ]
+  ])
+})
 it('reads only the new QS proxy with slash-bearing identity in query parameters', () => {
   api.listAssets('prompt', '中文/id', 'cursor')
   api.getAsset('schema', 'schema/input', 'v1/sub')

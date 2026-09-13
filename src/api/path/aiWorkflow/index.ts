@@ -14,6 +14,8 @@ import type {
 import type { RegisterProfile, ProfileRegistrationReceipt } from './types'
 import type { RegisterSuite, SuiteRegistrationReceipt } from './types'
 export * from './types'
+export * from './evaluationTypes'
+export * from './evaluation'
 
 type Result<T> = Promise<[unknown, QSResponse<T> | undefined]>
 

@@ -1,20 +1,20 @@
 import { useState } from 'react'
 import { observer } from 'mobx-react-lite'
 import { Alert, Tabs } from 'antd'
-import type { AssetDetail, AssetReference } from '@/api/path/aiWorkflow'
+import type { AssetDetail, AssetReference, EvaluationSelection } from '@/api/path/aiWorkflow'
 import { rootStore } from '@/store'
 import { AssetCatalogWorkspace } from './AssetCatalogWorkspace'
 import { PromptDraftWorkspace } from './PromptDraftWorkspace'
 import { ProfileRegistrationWorkspace, ProfileSelection } from './ProfileRegistrationWorkspace'
 import { SuiteRegistrationWorkspace, SuiteSelection } from './SuiteRegistrationWorkspace'
+import { NativeEvaluationWorkspace } from './NativeEvaluationWorkspace'
 
-export const NativeConfigurationWorkspace = observer(() => {
+function NativeConfigurationContent({ owner }: { owner: string }) {
   const [source, setSource] = useState<AssetReference | null>(null)
   const [selection, setSelection] = useState<ProfileSelection>({})
   const [suiteSelection, setSuiteSelection] = useState<SuiteSelection>({})
+  const [evaluationSelection, setEvaluationSelection] = useState<EvaluationSelection>({})
   const [view, setView] = useState('prompt')
-  const owner = rootStore.userStore.currentUser?.id || ''
-  if (!owner) return <Alert type="warning" message="请先恢复登录身份。" />
   const selectAsset = (detail: AssetDetail) => {
     if (detail.item.kind === 'profile')
       setSelection((previous) => ({ ...previous, profile: detail }))
@@ -38,6 +38,13 @@ export const NativeConfigurationWorkspace = observer(() => {
             setSuiteSelection((previous) => ({ ...previous, [key]: detail.item.reference }))
           setView('suite')
         }}
+        onEvaluationAsset={(purpose, ref) => {
+          setEvaluationSelection((previous) => ({
+            ...previous,
+            [purpose]: { id: ref.identity, version: ref.version, fingerprint: ref.fingerprint }
+          }))
+          setView('evaluation')
+        }}
       />
       <Tabs activeKey={view} onChange={setView}>
         <Tabs.TabPane tab="Prompt 草稿" key="prompt">
@@ -60,9 +67,37 @@ export const NativeConfigurationWorkspace = observer(() => {
           />
         </Tabs.TabPane>
         <Tabs.TabPane tab="评测套件" key="suite">
-          <SuiteRegistrationWorkspace key={owner} owner={owner} selection={suiteSelection} />
+          <SuiteRegistrationWorkspace
+            key={owner}
+            owner={owner}
+            selection={suiteSelection}
+            onEvaluate={(receipt) => {
+              const route = receipt.manifest.generation_route
+              setEvaluationSelection({
+                suite: receipt.suite,
+                generation_route: {
+                  id: route.identity,
+                  version: route.version,
+                  fingerprint: route.fingerprint
+                }
+              })
+              setView('evaluation')
+            }}
+          />
+        </Tabs.TabPane>
+        <Tabs.TabPane tab="原生评测" key="evaluation">
+          <NativeEvaluationWorkspace key={owner} owner={owner} selection={evaluationSelection} />
         </Tabs.TabPane>
       </Tabs>
     </>
+  )
+}
+
+export const NativeConfigurationWorkspace = observer(() => {
+  const owner = rootStore.userStore.currentUser?.id || ''
+  return owner ? (
+    <NativeConfigurationContent key={owner} owner={owner} />
+  ) : (
+    <Alert type="warning" message="请先恢复登录身份。" />
   )
 })

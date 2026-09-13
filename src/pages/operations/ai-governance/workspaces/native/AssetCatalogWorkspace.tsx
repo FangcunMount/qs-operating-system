@@ -1,7 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Empty, Input, Select, Space, Table, Typography } from 'antd'
 import { getAsset, listAssets } from '@/api/path/aiWorkflow'
-import type { AssetDetail, AssetItem, AssetKind, AssetReference } from '@/api/path/aiWorkflow'
+import type {
+  AssetDetail,
+  AssetItem,
+  AssetKind,
+  AssetReference,
+  EvaluationSelection
+} from '@/api/path/aiWorkflow'
 import { JsonEvidence } from '../../components/JsonEvidence'
 
 const kinds: Array<{ value: AssetKind; label: string }> = [
@@ -15,7 +21,8 @@ export const AssetCatalogWorkspace: React.FC<{
   onDraft: (source: AssetReference) => void
   onRegisterAsset?: (source: AssetDetail) => void
   onSuiteAsset?: (source: AssetDetail) => void
-}> = ({ onDraft, onRegisterAsset, onSuiteAsset }) => {
+  onEvaluationAsset?: (purpose: keyof EvaluationSelection, source: AssetReference) => void
+}> = ({ onDraft, onRegisterAsset, onSuiteAsset, onEvaluationAsset }) => {
   const [kind, setKind] = useState<AssetKind>('prompt')
   const [input, setInput] = useState('')
   const [filter, setFilter] = useState('')
@@ -155,6 +162,21 @@ export const AssetCatalogWorkspace: React.FC<{
           )}
           {onSuiteAsset && ['suite', 'profile', 'prompt', 'route'].includes(detail.item.kind) && (
             <Button onClick={() => onSuiteAsset(detail)}>用于绑定评测套件</Button>
+          )}
+          {onEvaluationAsset && detail.item.kind === 'suite' && (
+            <Button onClick={() => onEvaluationAsset('suite', detail.item.reference)}>
+              使用此套件准备评测
+            </Button>
+          )}
+          {onEvaluationAsset && detail.item.kind === 'route' && (
+            <Space wrap>
+              <Button onClick={() => onEvaluationAsset('generation_route', detail.item.reference)}>
+                用于评测生成
+              </Button>
+              <Button onClick={() => onEvaluationAsset('semantic_route', detail.item.reference)}>
+                用于语义评测
+              </Button>
+            </Space>
           )}
           {detail.item.kind === 'prompt' && (
             <Button type="primary" onClick={() => onDraft(detail.item.reference)}>

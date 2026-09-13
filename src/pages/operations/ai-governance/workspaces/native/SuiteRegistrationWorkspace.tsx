@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Alert, Button, Card, Descriptions, Form, Input, Space, Typography } from 'antd'
-import type { AssetReference } from '@/api/path/aiWorkflow'
+import type { AssetReference, SuiteRegistrationReceipt } from '@/api/path/aiWorkflow'
 import { JsonEvidence } from '../../components/JsonEvidence'
 import { validReason } from './commands'
 import { publishedCaseSource, sameSuite, suiteSource, validSuiteTarget } from './suiteRegistration'
@@ -15,10 +15,11 @@ export interface SuiteSelection {
 const label = (value?: AssetReference) =>
   value ? `${value.identity} · ${value.version}` : '请从上方目录选择'
 
-export const SuiteRegistrationWorkspace: React.FC<{ owner: string; selection: SuiteSelection }> = ({
-  owner,
-  selection
-}) => {
+export const SuiteRegistrationWorkspace: React.FC<{
+  owner: string
+  selection: SuiteSelection
+  onEvaluate?: (receipt: SuiteRegistrationReceipt) => void
+}> = ({ owner, selection, onEvaluate }) => {
   const [suiteID, setSuiteID] = useState('')
   const [version, setVersion] = useState('')
   const [reason, setReason] = useState('')
@@ -150,6 +151,11 @@ export const SuiteRegistrationWorkspace: React.FC<{ owner: string; selection: Su
           <Typography.Paragraph copyable={{ text: command.receipt.suite.id }}>
             套件标识：{command.receipt.suite.id}
           </Typography.Paragraph>
+          {onEvaluate && (
+            <Button onClick={() => command.receipt && onEvaluate(command.receipt)}>
+              用此套件准备评测
+            </Button>
+          )}
           <details>
             <summary>查看套件与配置版本清单</summary>
             <JsonEvidence
