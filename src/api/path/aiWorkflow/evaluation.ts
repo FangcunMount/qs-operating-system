@@ -11,7 +11,9 @@ import type {
   NativeReviewCommand,
   NativeGatePreview,
   NativeFinalizeCommand,
-  NativeReopenCommand
+  NativeReopenCommand,
+  NativeUnknownIndex,
+  NativeResolutionCommand
 } from './evaluationTypes'
 
 type Result<T> = Promise<[unknown, QSResponse<T> | undefined]>
@@ -62,3 +64,8 @@ export const reopenNativeReview = (
   command: NativeReopenCommand
 ): Result<NativeEvaluationState> =>
   internalV2PostOnce<NativeEvaluationState>(`${path(id)}/reopen-review`, command)
+
+export const listNativeUnknowns = (id: string, version: number): Result<NativeUnknownIndex> =>
+  internalV2Get<NativeUnknownIndex>(`${path(id)}/result-unknown`, { expected_version: version })
+export const resolveNativeUnknown = (id: string, command: NativeResolutionCommand): Result<NativeEvaluationState> =>
+  internalV2PostOnce<NativeEvaluationState>(`${path(id)}/result-unknown/resolve`, command)

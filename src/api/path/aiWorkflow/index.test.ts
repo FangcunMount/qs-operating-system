@@ -4,6 +4,24 @@ jest.mock('@/api/qsServer', () => ({ internalV2Get: jest.fn(), internalV2PostOnc
 const get = internalV2Get as jest.Mock
 const post = internalV2PostOnce as jest.Mock
 beforeEach(() => jest.clearAllMocks())
+it('reads version-bound unknown calls and sends an original-call resolution without replay', () => {
+  const command: api.NativeResolutionCommand = {
+    expected_version: 7,
+    execution_id: 'execution:1',
+    decision: 'cancel_run',
+    reason: '已核对供应商记录',
+    confirm: true,
+    acknowledged_duplicate_call_and_cost_risk: true
+  }
+  api.listNativeUnknowns('run/id', 7)
+  api.resolveNativeUnknown('run/id', command)
+  expect(get.mock.calls).toEqual([
+    ['/interpretation/ai-workflow/evaluations/run%2Fid/result-unknown', { expected_version: 7 }]
+  ])
+  expect(post.mock.calls).toEqual([
+    ['/interpretation/ai-workflow/evaluations/run%2Fid/result-unknown/resolve', command]
+  ])
+})
 it('submits version-bound review reopening only once through the new proxy', () => {
   const command: api.NativeReopenCommand = { expected_version: 9, reason: '复核语义判定', confirm: true }
   api.reopenNativeReview('run/id', command)

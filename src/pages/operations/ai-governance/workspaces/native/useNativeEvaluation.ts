@@ -7,7 +7,9 @@ import {
   reviewNativeEvaluation,
   previewNativeGates,
   finalizeNativeEvaluation,
-  reopenNativeReview
+  reopenNativeReview,
+  listNativeUnknowns,
+  resolveNativeUnknown
 } from '@/api/path/aiWorkflow'
 import type {
   EvaluationPlan,
@@ -15,8 +17,12 @@ import type {
   EvaluationSelection,
   NativeEvaluationState,
   NativeReviewCommand,
-  NativeGatePreview
+  NativeGatePreview,
+  NativeUnknownIndex,
+  NativeResolutionCommand
 } from '@/api/path/aiWorkflow'
+import { checkUnknownIndex, confirmsResolution, validPendingResolution } from './unknownValidation'
+import type { PendingResolution } from './unknownValidation'
 import { checkGatePreview, finalizationReceipt, gatePassed, reviewIncomplete } from './finalizationValidation'
 import { checkReviewCommand, confirmsReview } from './reviewValidation'
 import { canRequestReopening, confirmsReopening } from './reopeningValidation'
@@ -33,9 +39,10 @@ import {
 interface Journal {
   runID: string
   releaseFingerprint: string
-  pending: 'create' | 'start' | 'review' | 'finalize' | 'reopen' | null
+  pending: 'create' | 'start' | 'review' | 'finalize' | 'reopen' | 'resolve' | null
   expectedVersion?: number
   lastVersion?: number
+  resolution?: PendingResolution
 }
 export const evaluationJournalKey = (owner: string): string =>
   `qs-ai:evaluation:v1:${encodeURIComponent(owner)}`
@@ -47,8 +54,9 @@ const readJournal = (owner: string): Journal | null => {
     !j ||
     !validUUID(j.runID || '') ||
     !fingerprint(j.releaseFingerprint) ||
-    ![null, 'create', 'start', 'review', 'finalize', 'reopen'].includes(j.pending) ||
-    (['start', 'review', 'finalize', 'reopen'].includes(j.pending) && !safeCount(j.expectedVersion)) ||
+    ![null, 'create', 'start', 'review', 'finalize', 'reopen', 'resolve'].includes(j.pending) ||
+    (['start', 'review', 'finalize', 'reopen', 'resolve'].includes(j.pending) && !safeCount(j.expectedVersion)) ||
+    (j.pending === 'resolve' && (!validPendingResolution(j.resolution) || j.resolution.actor !== `user:${owner}`)) ||
     (j.lastVersion !== undefined && !safeCount(j.lastVersion))
   ) {
     throw new Error('Invalid journal')
@@ -59,6 +67,7 @@ const readJournal = (owner: string): Journal | null => {
 interface EvaluationController {
   journal: Journal | null
   gates: NativeGatePreview | null
+  unknowns: NativeUnknownIndex | null
   plan: EvaluationPlan | null
   run: NativeEvaluationState | null
   error: string
@@ -72,6 +81,8 @@ interface EvaluationController {
   previewGates(): Promise<void>
   finalize(reason: string, confirm: boolean): Promise<void>
   reopen(reason: string, confirm: boolean): Promise<void>
+  loadUnknowns(): Promise<void>
+  resolveUnknown(command: NativeResolutionCommand): Promise<void>
   reset(): void
 }
 
@@ -90,6 +101,7 @@ export function useNativeEvaluation(
   const journalRef = useRef(initial.journal)
   const [storageFailed, setStorageFailed] = useState(initial.failed)
   const [plan, setPlan] = useState<EvaluationPlan | null>(null)
+  const [unknowns, setUnknowns] = useState<NativeUnknownIndex | null>(null)
   const [gates, setGates] = useState<NativeGatePreview | null>(null)
   const [run, setRun] = useState<NativeEvaluationState | null>(null)
   const [error, setError] = useState(
@@ -131,19 +143,23 @@ export function useNativeEvaluation(
     checkEvaluation(value, original.runID, original.releaseFingerprint)
     if (original.lastVersion && value.version < original.lastVersion)
       throw new Error('任务版本倒退，请重新读取。')
-    if (['start', 'review', 'finalize', 'reopen'].includes(original.pending || '') && value.version <= (original.expectedVersion || 0)) {
-      const action = original.pending === 'reopen' ? '复审' : original.pending === 'finalize' ? '最终审核' : original.pending === 'review' ? '审核' : '启动'
+    if (['start', 'review', 'finalize', 'reopen', 'resolve'].includes(original.pending || '') && value.version <= (original.expectedVersion || 0)) {
+      const action = original.pending === 'resolve' ? '处置'
+        : original.pending === 'reopen' ? '复审'
+          : original.pending === 'finalize' ? '最终审核' : original.pending === 'review' ? '审核' : '启动'
       throw new Error(`${action}结果尚未确认，请保留原任务并稍后查询。`)
     }
     if (original.pending === 'finalize' && ['approved', 'rejected'].includes(value.status))
       finalizationReceipt(value)
     if (original.pending === 'reopen') confirmsReopening(value, original.expectedVersion || 0)
+    if (original.pending === 'resolve' && original.resolution) confirmsResolution(value, original.resolution, original.expectedVersion || 0)
     remember({
       runID: original.runID,
       releaseFingerprint: original.releaseFingerprint,
       pending: null,
       lastVersion: value.version
     })
+    setUnknowns(null)
     setRun(value)
   }
   const prepare = async () => {
@@ -231,6 +247,7 @@ export function useNativeEvaluation(
     const id = (rawID || original?.runID || run?.run_id || '').trim()
     if (!validUUID(id) || (original?.pending && original.runID !== id) || !begin()) return
     const previous = run
+    setUnknowns(null)
     setGates(null)
     setRun(null)
     try {
@@ -422,6 +439,56 @@ export function useNativeEvaluation(
       if (active.current) setError('复审结果尚未确认，请查询原任务，暂不重复提交。')
     } finally { end() }
   }
+  const loadUnknowns = async () => {
+    if (!run?.creation || journalRef.current?.pending || !begin()) return
+    setUnknowns(null)
+    try {
+      const [failure, response] = await listNativeUnknowns(run.run_id, run.version)
+      if (!active.current) return
+      if (failure || !response) throw new Error('调用明细读取失败，请重新查询任务并检查审计权限。')
+      checkUnknownIndex(response.data, run)
+      setUnknowns(response.data)
+    } catch (e) {
+      if (active.current) setError(e instanceof Error ? e.message : '调用明细读取失败。')
+    } finally { end() }
+  }
+  const resolveUnknown = async (command: NativeResolutionCommand) => {
+    const original = journalRef.current
+    if (!owner || !run?.creation || !unknowns || !original || original.pending || original.runID !== run.run_id ||
+      storageFailed || !command.confirm || !command.acknowledged_duplicate_call_and_cost_risk ||
+      command.expected_version !== run.version || !validReason(command.reason)) return
+    const resolution: PendingResolution = { executionID: command.execution_id, decision: command.decision, actor: `user:${owner}` }
+    if (!validPendingResolution(resolution)) return
+    try { checkUnknownIndex(unknowns, run) } catch { return }
+    const target = unknowns.executions.find((item) => item.execution_id === command.execution_id)
+    if (!unknowns.can_resolve || !target || (command.decision === 'authorize_replacement' && !target.replacement_allowed) || !begin()) return
+    const pending: Journal = { ...original, pending: 'resolve', expectedVersion: run.version, resolution }
+    try { remember(pending) } catch {
+      setStorageFailed(true)
+      setError('无法保存处置记录，本次未发送。')
+      end()
+      return
+    }
+    setUnknowns(null)
+    try {
+      const [failure, response] = await resolveNativeUnknown(run.run_id, { ...command, reason: command.reason.trim() })
+      if (!active.current) return
+      if (failure || !response) {
+        if (definitelyRejected(failure)) {
+          remember(original)
+          setRun(null)
+          setError('处置被拒绝，请重新查询任务并检查管理权限。')
+        } else setError('处置结果尚未确认，请查询原任务，暂不重复提交。')
+      } else {
+        checkEvaluation(response.data, run.run_id, original.releaseFingerprint)
+        if (response.data.version !== command.expected_version + 1) throw new Error('Resolution version mismatch')
+        confirmsResolution(response.data, resolution, command.expected_version, command.reason.trim())
+        complete(response.data, pending)
+      }
+    } catch {
+      if (active.current) setError('处置结果尚未确认，请查询原任务，暂不重复提交。')
+    } finally { end() }
+  }
   const reset = () => {
     if (lock.current || journalRef.current?.pending || storageFailed) return
     try {
@@ -429,11 +496,30 @@ export function useNativeEvaluation(
       setRun(null)
       setPlan(null)
       setGates(null)
+      setUnknowns(null)
       setError('')
     } catch {
       setStorageFailed(true)
       setError('无法更新任务记录，请保留原任务标识。')
     }
   }
-  return { plan, gates, run, journal, error, busy, storageFailed, prepare, create, read, start, review, previewGates, finalize, reopen, reset }
+  return { plan,
+    gates,
+    unknowns,
+    loadUnknowns,
+    resolveUnknown,
+    run,
+    journal,
+    error,
+    busy,
+    storageFailed,
+    prepare,
+    create,
+    read,
+    start,
+    review,
+    previewGates,
+    finalize,
+    reopen,
+    reset }
 }
