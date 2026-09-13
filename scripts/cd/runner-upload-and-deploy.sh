@@ -31,6 +31,8 @@ echo "Uploading image and deploy scripts..."
 "${SCP[@]}" "$IMAGE_FILE" \
   "${SCRIPT_DIR}/remote-deploy.sh" \
   "${SCRIPT_DIR}/image-metadata.sh" \
+  "${SCRIPT_DIR}/image-retention.py" \
+  "${SCRIPT_DIR}/image-retention.sh" \
   "${RUNNER_SSH_ALIAS}:${REMOTE_DIR}/"
 
 echo "Running remote-deploy.sh on ${RUNNER_SSH_ALIAS}..."
