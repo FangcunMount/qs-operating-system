@@ -83,3 +83,30 @@ export interface NativeCandidateEvidence {
   semantic_output: string
   evidence: unknown
 }
+
+export type NativeReviewRole = 'assessment_semantics' | 'safety_product'
+export interface NativeSemanticReview {
+  policy_version: 'semantic-contradiction-dual-review/v1'
+  execution_id: string
+  output_fingerprint: string
+  assertion_ordinal: number
+  original_detail: string
+  candidate_excerpt: string
+  reason: string
+}
+export interface NativeReviewItem {
+  candidate_id: string
+  decision: 'approve' | 'reject'
+  reason: string
+  semantic_review?: NativeSemanticReview
+}
+export interface NativeReviewCommand {
+  expected_version: number
+  role: NativeReviewRole
+  reviews: NativeReviewItem[]
+}
+export interface NativeReviewRecord extends NativeReviewItem {
+  role: NativeReviewRole
+  reviewer: string
+  reviewed_at: string
+}

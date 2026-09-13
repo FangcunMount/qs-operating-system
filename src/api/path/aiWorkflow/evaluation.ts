@@ -7,7 +7,8 @@ import type {
   NativeEvaluationStart,
   NativeEvaluationState,
   NativeCandidateIndex,
-  NativeCandidateEvidence
+  NativeCandidateEvidence,
+  NativeReviewCommand
 } from './evaluationTypes'
 
 type Result<T> = Promise<[unknown, QSResponse<T> | undefined]>
@@ -38,3 +39,9 @@ export const getNativeCandidate = (
     `${path(id)}/candidates/${encodeURIComponent(candidate)}`,
     { expected_version: version }
   )
+
+export const reviewNativeEvaluation = (
+  id: string,
+  command: NativeReviewCommand
+): Result<NativeEvaluationState> =>
+  internalV2PostOnce<NativeEvaluationState>(`${path(id)}/reviews`, command)

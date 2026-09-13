@@ -4,11 +4,17 @@ import { getNativeCandidate, listNativeCandidates } from '@/api/path/aiWorkflow'
 import type {
   NativeCandidateEvidence,
   NativeCandidateIndex,
-  NativeEvaluationState
+  NativeEvaluationState,
+  NativeReviewCommand
 } from '@/api/path/aiWorkflow'
+import { NativeReviewWorkspace } from './NativeReviewWorkspace'
 import { JsonEvidence } from '../../components/JsonEvidence'
 
-export function NativeCandidateWorkspace({ run }: { run: NativeEvaluationState }): JSX.Element {
+export function NativeCandidateWorkspace({ run, locked = false, review }: {
+  run: NativeEvaluationState
+  locked?: boolean
+  review?(command: NativeReviewCommand, confirm: boolean): Promise<void>
+}): JSX.Element {
   const [index, setIndex] = useState<NativeCandidateIndex | null>(null)
   const [detail, setDetail] = useState<NativeCandidateEvidence | null>(null)
   const [busy, setBusy] = useState(false)
@@ -119,6 +125,10 @@ export function NativeCandidateWorkspace({ run }: { run: NativeEvaluationState }
             <summary>来源、调用及审核证据</summary>
             <JsonEvidence value={detail.evidence} />
           </details>
+          {review && (
+            <NativeReviewWorkspace key={`${detail.candidate_id}:${detail.version}`} run={run}
+              detail={detail} locked={locked || busy} submit={review} />
+          )}
         </Space>
       )}
     </Card>
