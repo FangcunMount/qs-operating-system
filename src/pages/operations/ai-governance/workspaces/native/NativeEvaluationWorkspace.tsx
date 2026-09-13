@@ -10,6 +10,7 @@ import { NativeCandidateWorkspace } from './NativeCandidateWorkspace'
 import { NativeUnknownWorkspace } from './NativeUnknownWorkspace'
 import { NativeCancellationWorkspace } from './NativeCancellationWorkspace'
 import { NativeReopeningWorkspace } from './NativeReopeningWorkspace'
+import { NativeEvaluationCatalog } from './NativeEvaluationCatalog'
 
 const pendingLabels = { create: '创建', start: '启动', review: '审核', finalize: '最终审核', reopen: '复审', resolve: '处置', cancel: '取消/废弃' }
 const label = (ref?: EvaluationReference) =>
@@ -50,6 +51,11 @@ export function NativeEvaluationWorkspace({
         message="先确认配置与预算，再创建和启动任务。创建只保存固定版本，启动后才进入执行队列。"
       />
       {c.error && <Alert showIcon type="error" message={c.error} style={{ marginTop: 12 }} />}
+      <NativeEvaluationCatalog
+        key={owner}
+        disabled={c.busy || Boolean(c.journal?.pending)}
+        onSelect={(id) => { setRunID(id); c.read(id) }}
+      />
       {c.journal?.pending && (
         <Alert
           showIcon

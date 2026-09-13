@@ -14,11 +14,15 @@ import type {
   NativeReopenCommand,
   NativeUnknownIndex,
   NativeResolutionCommand,
-  NativeCancelCommand
+  NativeCancelCommand,
+  NativeEvaluationPage,
+  EvaluationStatus
 } from './evaluationTypes'
 
 type Result<T> = Promise<[unknown, QSResponse<T> | undefined]>
 const BASE = '/interpretation/ai-workflow/evaluations'
+export const listNativeEvaluations = (status: EvaluationStatus | '' = '', cursor = ''): Result<NativeEvaluationPage> =>
+  internalV2Get<NativeEvaluationPage>(BASE, { status, cursor, limit: 20 })
 const path = (id: string) => `${BASE}/${encodeURIComponent(id)}`
 export const prepareNativeEvaluation = (query: EvaluationPlanQuery): Result<EvaluationPlan> =>
   internalV2PostOnce<EvaluationPlan>(`${BASE}/prepare`, query)

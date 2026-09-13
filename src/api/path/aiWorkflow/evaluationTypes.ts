@@ -223,3 +223,28 @@ export interface NativeCancellationReceipt {
   execution_id: string
   invocation_id: string
 }
+export interface NativeEvaluationSummary {
+  run_id: string
+  organization_id: number
+  version: number
+  status: EvaluationStatus
+  created_at: string
+  requested_by: string
+  profile_id: string
+  profile_version: string
+  prompt_id: string
+  prompt_version: string
+  release_fingerprint: string
+  unresolved_result_unknown_count: number
+  review_count: number
+  required_candidates: number
+  accepted_candidates: number
+  review_ready_candidates: number
+  last_cause: string
+  last_reason: string
+}
+
+export interface NativeEvaluationPage {
+  items: NativeEvaluationSummary[]
+  next_cursor: string
+}

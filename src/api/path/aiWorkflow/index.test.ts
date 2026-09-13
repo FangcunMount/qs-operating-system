@@ -4,6 +4,13 @@ jest.mock('@/api/qsServer', () => ({ internalV2Get: jest.fn(), internalV2PostOnc
 const get = internalV2Get as jest.Mock
 const post = internalV2PostOnce as jest.Mock
 beforeEach(() => jest.clearAllMocks())
+it('queries native tasks through the audit-scoped list without client-supplied identity or writes', () => {
+  api.listNativeEvaluations('awaiting_review', 'cursor')
+  expect(get.mock.calls).toEqual([
+    ['/interpretation/ai-workflow/evaluations', { status: 'awaiting_review', cursor: 'cursor', limit: 20 }]
+  ])
+  expect(post).not.toHaveBeenCalled()
+})
 it('reads version-bound unknown calls and sends an original-call resolution without replay', () => {
   const command: api.NativeResolutionCommand = {
     expected_version: 7,
