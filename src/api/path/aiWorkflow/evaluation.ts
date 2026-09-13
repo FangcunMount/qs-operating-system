@@ -8,7 +8,9 @@ import type {
   NativeEvaluationState,
   NativeCandidateIndex,
   NativeCandidateEvidence,
-  NativeReviewCommand
+  NativeReviewCommand,
+  NativeGatePreview,
+  NativeFinalizeCommand
 } from './evaluationTypes'
 
 type Result<T> = Promise<[unknown, QSResponse<T> | undefined]>
@@ -45,3 +47,11 @@ export const reviewNativeEvaluation = (
   command: NativeReviewCommand
 ): Result<NativeEvaluationState> =>
   internalV2PostOnce<NativeEvaluationState>(`${path(id)}/reviews`, command)
+
+export const previewNativeGates = (id: string, version: number): Result<NativeGatePreview> =>
+  internalV2Get<NativeGatePreview>(`${path(id)}/gates`, { expected_version: version })
+export const finalizeNativeEvaluation = (
+  id: string,
+  command: NativeFinalizeCommand
+): Result<NativeEvaluationState> =>
+  internalV2PostOnce<NativeEvaluationState>(`${path(id)}/finalize`, command)

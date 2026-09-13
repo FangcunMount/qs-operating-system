@@ -130,3 +130,11 @@ it('sends native candidate review once with version and encoded Run identity', (
   expect(post).toHaveBeenCalledWith('/interpretation/ai-workflow/evaluations/run%2Fid/reviews', command)
   expect(get).not.toHaveBeenCalled()
 })
+
+it('reads version-bound native gates and preserves explicit false finalization through the no-replay proxy', () => {
+  api.previewNativeGates('run/id', 8)
+  const command = { expected_version: 8, expected_passed: false, reason: '门槛未通过', confirm: true as const }
+  api.finalizeNativeEvaluation('run/id', command)
+  expect(get).toHaveBeenCalledWith('/interpretation/ai-workflow/evaluations/run%2Fid/gates', { expected_version: 8 })
+  expect(post).toHaveBeenCalledWith('/interpretation/ai-workflow/evaluations/run%2Fid/finalize', command)
+})

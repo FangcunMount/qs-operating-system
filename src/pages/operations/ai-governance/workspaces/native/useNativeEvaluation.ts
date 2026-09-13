@@ -4,15 +4,19 @@ import {
   getNativeEvaluation,
   prepareNativeEvaluation,
   startNativeEvaluation,
-  reviewNativeEvaluation
+  reviewNativeEvaluation,
+  previewNativeGates,
+  finalizeNativeEvaluation
 } from '@/api/path/aiWorkflow'
 import type {
   EvaluationPlan,
   EvaluationPlanQuery,
   EvaluationSelection,
   NativeEvaluationState,
-  NativeReviewCommand
+  NativeReviewCommand,
+  NativeGatePreview
 } from '@/api/path/aiWorkflow'
+import { checkGatePreview, finalizationReceipt, gatePassed, reviewIncomplete } from './finalizationValidation'
 import { checkReviewCommand, confirmsReview } from './reviewValidation'
 import { definitelyRejected, newCommandID, validReason, validUUID } from './commands'
 import {
@@ -27,7 +31,7 @@ import {
 interface Journal {
   runID: string
   releaseFingerprint: string
-  pending: 'create' | 'start' | 'review' | null
+  pending: 'create' | 'start' | 'review' | 'finalize' | null
   expectedVersion?: number
   lastVersion?: number
 }
@@ -41,8 +45,8 @@ const readJournal = (owner: string): Journal | null => {
     !j ||
     !validUUID(j.runID || '') ||
     !fingerprint(j.releaseFingerprint) ||
-    ![null, 'create', 'start', 'review'].includes(j.pending) ||
-    (['start', 'review'].includes(j.pending) && !safeCount(j.expectedVersion)) ||
+    ![null, 'create', 'start', 'review', 'finalize'].includes(j.pending) ||
+    (['start', 'review', 'finalize'].includes(j.pending) && !safeCount(j.expectedVersion)) ||
     (j.lastVersion !== undefined && !safeCount(j.lastVersion))
   ) {
     throw new Error('Invalid journal')
@@ -52,6 +56,7 @@ const readJournal = (owner: string): Journal | null => {
 
 interface EvaluationController {
   journal: Journal | null
+  gates: NativeGatePreview | null
   plan: EvaluationPlan | null
   run: NativeEvaluationState | null
   error: string
@@ -62,6 +67,8 @@ interface EvaluationController {
   read(id?: string): Promise<void>
   start(reason: string, confirm: boolean): Promise<void>
   review(command: NativeReviewCommand, confirm: boolean): Promise<void>
+  previewGates(): Promise<void>
+  finalize(reason: string, confirm: boolean): Promise<void>
   reset(): void
 }
 
@@ -80,6 +87,7 @@ export function useNativeEvaluation(
   const journalRef = useRef(initial.journal)
   const [storageFailed, setStorageFailed] = useState(initial.failed)
   const [plan, setPlan] = useState<EvaluationPlan | null>(null)
+  const [gates, setGates] = useState<NativeGatePreview | null>(null)
   const [run, setRun] = useState<NativeEvaluationState | null>(null)
   const [error, setError] = useState(
     initial.failed ? '无法恢复任务记录，请联系管理员核对原任务。' : ''
@@ -120,9 +128,12 @@ export function useNativeEvaluation(
     checkEvaluation(value, original.runID, original.releaseFingerprint)
     if (original.lastVersion && value.version < original.lastVersion)
       throw new Error('任务版本倒退，请重新读取。')
-    if (['start', 'review'].includes(original.pending || '') && value.version <= (original.expectedVersion || 0)) {
-      throw new Error(original.pending === 'review' ? '审核结果尚未确认，请保留原任务并稍后查询。' : '启动结果尚未确认，请保留原任务并稍后查询。')
+    if (['start', 'review', 'finalize'].includes(original.pending || '') && value.version <= (original.expectedVersion || 0)) {
+      const action = original.pending === 'finalize' ? '最终审核' : original.pending === 'review' ? '审核' : '启动'
+      throw new Error(`${action}结果尚未确认，请保留原任务并稍后查询。`)
     }
+    if (original.pending === 'finalize' && ['approved', 'rejected'].includes(value.status))
+      finalizationReceipt(value)
     remember({
       runID: original.runID,
       releaseFingerprint: original.releaseFingerprint,
@@ -216,6 +227,7 @@ export function useNativeEvaluation(
     const id = (rawID || original?.runID || run?.run_id || '').trim()
     if (!validUUID(id) || (original?.pending && original.runID !== id) || !begin()) return
     const previous = run
+    setGates(null)
     setRun(null)
     try {
       const expected = original?.runID === id ? original.releaseFingerprint : undefined
@@ -296,6 +308,7 @@ export function useNativeEvaluation(
       storageFailed || !confirm || command.expected_version !== run.version) return
     try { checkReviewCommand(command) } catch { return }
     if (!begin()) return
+    setGates(null)
     const pending: Journal = { ...original, pending: 'review', expectedVersion: run.version }
     try {
       remember(pending)
@@ -324,17 +337,68 @@ export function useNativeEvaluation(
       if (active.current) setError('审核结果尚未确认，请查询原任务，暂不重复提交。')
     } finally { end() }
   }
+  const previewGates = async () => {
+    if (!run?.creation || run.status !== 'awaiting_review' || journalRef.current?.pending || !begin()) return
+    setGates(null)
+    try {
+      const [failure, response] = await previewNativeGates(run.run_id, run.version)
+      if (!active.current) return
+      if (failure || !response) throw new Error('门槛读取失败，请重新查询任务并检查审计权限。')
+      checkGatePreview(response.data, run)
+      setGates(response.data)
+    } catch (e) {
+      if (active.current) setError(e instanceof Error ? e.message : '门槛读取失败。')
+    } finally { end() }
+  }
+  const finalize = async (reason: string, confirm: boolean) => {
+    const original = journalRef.current
+    if (!owner || !run?.creation || !gates || run.status !== 'awaiting_review' ||
+      !original || original.pending || original.runID !== run.run_id ||
+      storageFailed || !confirm || !validReason(reason)) return
+    try { checkGatePreview(gates, run) } catch { return }
+    if (reviewIncomplete(gates.gate_result) || !begin()) return
+    const command = { expected_version: run.version, expected_passed: gatePassed(gates.gate_result),
+      reason: reason.trim(), confirm: true as const }
+    setGates(null)
+    const pending: Journal = { ...original, pending: 'finalize', expectedVersion: run.version }
+    try { remember(pending) } catch {
+      setStorageFailed(true)
+      setError('无法保存最终审核记录，本次未发送。')
+      end()
+      return
+    }
+    try {
+      const [failure, response] = await finalizeNativeEvaluation(run.run_id, command)
+      if (!active.current) return
+      if (failure || !response) {
+        if (definitelyRejected(failure)) {
+          remember(original)
+          setRun(null)
+          setError('最终审核被拒绝，请重新查询任务并读取门槛。')
+        } else setError('最终审核结果尚未确认，请查询原任务，暂不重复确认。')
+      } else {
+        checkEvaluation(response.data, run.run_id, original.releaseFingerprint)
+        const receipt = finalizationReceipt(response.data)
+        if (receipt.source_version !== command.expected_version || receipt.passed !== command.expected_passed ||
+          receipt.reason !== command.reason) throw new Error('Finalization mismatch')
+        complete(response.data, pending)
+      }
+    } catch {
+      if (active.current) setError('最终审核结果尚未确认，请查询原任务，暂不重复确认。')
+    } finally { end() }
+  }
   const reset = () => {
     if (lock.current || journalRef.current?.pending || storageFailed) return
     try {
       remember(null)
       setRun(null)
       setPlan(null)
+      setGates(null)
       setError('')
     } catch {
       setStorageFailed(true)
       setError('无法更新任务记录，请保留原任务标识。')
     }
   }
-  return { plan, run, journal, error, busy, storageFailed, prepare, create, read, start, review, reset }
+  return { plan, gates, run, journal, error, busy, storageFailed, prepare, create, read, start, review, previewGates, finalize, reset }
 }

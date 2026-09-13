@@ -13,7 +13,9 @@ jest.mock('@/api/path/aiWorkflow', () => ({
   getNativeEvaluation: jest.fn(),
   listNativeCandidates: jest.fn(),
   getNativeCandidate: jest.fn(),
-  reviewNativeEvaluation: jest.fn()
+  reviewNativeEvaluation: jest.fn(),
+  previewNativeGates: jest.fn(),
+  finalizeNativeEvaluation: jest.fn()
 }))
 const id = '44444444-4444-4444-8444-444444444444'
 const ref = (id: string): api.EvaluationReference => ({
@@ -389,4 +391,123 @@ it('does not send a review when its recovery record cannot be saved', async () =
   submitReview()
   await screen.findByText('无法保存审核记录，本次未发送。')
   expect(api.reviewNativeEvaluation).not.toHaveBeenCalled()
+})
+
+const gates = (passed = true): api.NativeGatePreview => ({
+  run_id: id, version: 8, release_fingerprint: plan.release_fingerprint,
+  gate_result: { schema_version: 'qs-ai-evaluation-gate-preview/v1', evaluated_at: '2026-09-13T01:00:00Z',
+    gate_passes: { G1: true, G2: true, G3: true, G4: passed, G5: true }, metrics: [],
+    reasons: passed ? [] : [{ gate: 'G4', code: 'candidate_hard_assertion_failed', evidence_refs: ['candidate:1'] }],
+    semantic_adjudications: [] }
+})
+const finalized = (passed = true): api.NativeEvaluationState => ({
+  ...state(9, passed ? 'approved' : 'rejected'),
+  finalization: { schema_version: 'qs-ai-evaluation-finalization/v1', run_id: id, source_version: 8,
+    version: 9, release_fingerprint: plan.release_fingerprint, actor: 'user:42', reason: '核对最终门槛',
+    finalized_at: '2026-09-13T01:00:00Z', passed, status: passed ? 'approved' : 'rejected', gate_result: gates(passed).gate_result }
+})
+const openGates = async (value = gates()) => {
+  journal(null)
+  ;(api.getNativeEvaluation as jest.Mock).mockResolvedValue(ok(state(8, 'awaiting_review')))
+  ;(api.previewNativeGates as jest.Mock).mockResolvedValue(ok(value))
+  const view = render(<NativeEvaluationWorkspace owner="u1" selection={{}} />)
+  fireEvent.click(screen.getByText('查询任务状态'))
+  await screen.findByText('等待人工审核')
+  fireEvent.click(screen.getByText('读取最终审核门槛'))
+  return view
+}
+const confirmFinalization = async (passed = true) => {
+  await screen.findByLabelText('最终审核理由')
+  fireEvent.change(screen.getByLabelText('最终审核理由'), { target: { value: '核对最终门槛' } })
+  fireEvent.click(screen.getByLabelText(`我已核对当前门槛，确认本轮最终审核${passed ? '通过' : '拒绝'}`))
+  fireEvent.click(screen.getByText(`确认最终审核${passed ? '通过' : '拒绝'}`))
+}
+it.each([true, false])('explicitly finalizes the exact server gate decision %s once', async (passed) => {
+  (api.finalizeNativeEvaluation as jest.Mock).mockResolvedValue(ok(finalized(passed)))
+  await openGates(gates(passed))
+  await screen.findByLabelText('最终审核理由')
+  expect(api.previewNativeGates).toHaveBeenCalledWith(id, 8)
+  expect(api.finalizeNativeEvaluation).not.toHaveBeenCalled()
+  expect(screen.getByText(`确认最终审核${passed ? '通过' : '拒绝'}`).closest('button')).toBeDisabled()
+  await confirmFinalization(passed)
+  await screen.findByText(passed ? '本轮最终审核已通过；配置是否生效需查询发布状态' : '本轮最终审核已拒绝，不能发布配置')
+  expect(api.finalizeNativeEvaluation).toHaveBeenCalledWith(id, { expected_version: 8,
+    expected_passed: passed, reason: '核对最终门槛', confirm: true })
+  expect(api.finalizeNativeEvaluation).toHaveBeenCalledTimes(1)
+  expect(sessionStorage.getItem(evaluationJournalKey('u1'))).not.toContain('核对最终门槛')
+})
+it('does not offer finalization while server evidence reports incomplete human review', async () => {
+  const value = gates(false)
+  value.gate_result.reasons.push({ gate: 'G5', code: 'human_review_incomplete', evidence_refs: ['candidate:1'] })
+  value.gate_result.gate_passes.G5 = false
+  await openGates(value)
+  await screen.findByText('人工审核尚未完成，请先补齐候选审核。')
+  expect(screen.queryByLabelText('最终审核理由')).not.toBeInTheDocument()
+  expect(api.finalizeNativeEvaluation).not.toHaveBeenCalled()
+})
+it.each(['version', 'release', 'missing_gate', 'invalid_metric'])('rejects unbound or incomplete gate preview: %s', async (kind) => {
+  const value = gates()
+  if (kind === 'version') value.version = 7
+  if (kind === 'release') value.release_fingerprint = 'sha256:' + 'f'.repeat(64)
+  if (kind === 'missing_gate') delete (value.gate_result.gate_passes as Partial<Record<api.NativeGateID, boolean>>).G5
+  if (kind === 'invalid_metric') value.gate_result.metrics = [{ name: 'success', numerator: 1, denominator: 1, value: NaN, threshold: 0.9 }]
+  await openGates(value)
+  await screen.findByText(kind === 'version' || kind === 'release' ? '门槛结果与当前任务版本不一致，请重新查询任务。' : '门槛结果不完整，请重新读取。')
+  expect(screen.queryByLabelText('最终审核理由')).not.toBeInTheDocument()
+})
+it.each([409, 504])('recovers unknown finalization %s only by reading the original task after reload', async (status) => {
+  (api.finalizeNativeEvaluation as jest.Mock).mockResolvedValue([{ status }, undefined])
+  const view = await openGates()
+  await confirmFinalization()
+  await screen.findByText('最终审核结果尚未确认，请查询原任务，暂不重复确认。')
+  view.unmount()
+  render(<NativeEvaluationWorkspace owner="u1" selection={{}} />)
+  fireEvent.click(screen.getByText('查询任务状态'))
+  await screen.findByText('最终审核结果尚未确认，请保留原任务并稍后查询。')
+  expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('u1')) || '{}').pending).toBe('finalize')
+  ;(api.getNativeEvaluation as jest.Mock).mockResolvedValue(ok(finalized()))
+  fireEvent.click(screen.getByText('查询任务状态'))
+  await screen.findByText('本轮最终审核已通过；配置是否生效需查询发布状态')
+  expect(api.finalizeNativeEvaluation).toHaveBeenCalledTimes(1)
+})
+it.each(['missing', 'version', 'decision', 'reason', 'time'])('locks a mismatched finalization receipt: %s', async (kind) => {
+  const value = finalized()
+  const receipt = value.finalization as api.NativeFinalization
+  if (kind === 'missing') delete value.finalization
+  if (kind === 'version') receipt.source_version = 7
+  if (kind === 'decision') receipt.passed = false
+  if (kind === 'reason') receipt.reason = '其他操作'
+  if (kind === 'time') receipt.finalized_at = '2026-09-13T02:00:00Z'
+  ;(api.finalizeNativeEvaluation as jest.Mock).mockResolvedValue(ok(value))
+  await openGates()
+  await confirmFinalization()
+  await screen.findByText('最终审核结果尚未确认，请查询原任务，暂不重复确认。')
+  expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('u1')) || '{}').pending).toBe('finalize')
+})
+it('requires fresh gates after definite finalization rejection', async () => {
+  (api.finalizeNativeEvaluation as jest.Mock).mockResolvedValue([{ status: 403 }, undefined])
+  await openGates()
+  await confirmFinalization()
+  await screen.findByText('最终审核被拒绝，请重新查询任务并读取门槛。')
+  expect(screen.queryByLabelText('最终审核理由')).not.toBeInTheDocument()
+  expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('u1')) || '{}').pending).toBeNull()
+})
+it('does not finalize when the pending operation cannot be persisted', async () => {
+  await openGates()
+  await screen.findByLabelText('最终审核理由')
+  jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota') })
+  await confirmFinalization()
+  await screen.findByText('无法保存最终审核记录，本次未发送。')
+  expect(api.finalizeNativeEvaluation).not.toHaveBeenCalled()
+})
+it('discards old preview and confirmation when the task is reread', async () => {
+  await openGates()
+  await screen.findByLabelText('最终审核理由')
+  fireEvent.change(screen.getByLabelText('最终审核理由'), { target: { value: '核对' } })
+  fireEvent.click(screen.getByLabelText('我已核对当前门槛，确认本轮最终审核通过'))
+  ;(api.getNativeEvaluation as jest.Mock).mockResolvedValue(ok(state(9, 'awaiting_review')))
+  fireEvent.click(screen.getByText('查询任务状态'))
+  await screen.findByText('9')
+  expect(screen.queryByLabelText('最终审核理由')).not.toBeInTheDocument()
+  expect(api.finalizeNativeEvaluation).not.toHaveBeenCalled()
 })
