@@ -21,6 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Test deployment lock bootstrap
+        run: python3 scripts/cd/test_image_deploy_lock.py
+
       - uses: actions/setup-node@v4
         with:
           node-version: "18.x"

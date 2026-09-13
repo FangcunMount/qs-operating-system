@@ -7,6 +7,7 @@ import { evaluationJournalKey } from './useNativeEvaluation'
 import { releaseKeys } from './evaluationValidation'
 
 jest.mock('@/api/path/aiWorkflow', () => ({
+  listNativeEvaluations: jest.fn(),
   prepareNativeEvaluation: jest.fn(),
   createNativeEvaluation: jest.fn(),
   startNativeEvaluation: jest.fn(),
@@ -101,6 +102,23 @@ beforeEach(() => {
   ;(api.getNativeEvaluation as jest.Mock).mockResolvedValue(ok(state()))
 })
 afterEach(() => jest.restoreAllMocks())
+
+it('opens a catalog task through the existing current detail query without starting it', async () => {
+  (api.listNativeEvaluations as jest.Mock).mockResolvedValue(ok({ items: [{
+    run_id: id, status: 'requested', profile_id: '策略目录', profile_version: 'v6',
+    prompt_id: '跨维度', prompt_version: 'v6', created_at: '2026-09-13T00:00:00Z'
+  }], next_cursor: '' }))
+  render(<NativeEvaluationWorkspace owner="u1" selection={{}} />)
+  fireEvent.click(screen.getByRole('button', { name: '查询任务列表' }))
+  await screen.findByText('策略目录 · v6')
+  fireEvent.click(screen.getByRole('button', { name: '查看任务' }))
+  await screen.findByText('当前评测任务')
+  expect(api.getNativeEvaluation).toHaveBeenCalledWith(id)
+  expect(screen.getByLabelText('评测任务标识')).toHaveValue(id)
+  expect(api.createNativeEvaluation).not.toHaveBeenCalled()
+  expect(api.startNativeEvaluation).not.toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: '启动评测任务' })).toBeDisabled()
+})
 
 it('prepares, explicitly creates and separately starts the exact frozen task once', async () => {
   render(<NativeEvaluationWorkspace owner="u1" selection={selection} />)

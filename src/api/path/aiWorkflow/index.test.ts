@@ -4,6 +4,22 @@ jest.mock('@/api/qsServer', () => ({ internalV2Get: jest.fn(), internalV2PostOnc
 const get = internalV2Get as jest.Mock
 const post = internalV2PostOnce as jest.Mock
 beforeEach(() => jest.clearAllMocks())
+it('reads execution evidence with the current version and encoded identifiers without writes', () => {
+  api.listNativeExecutions('run/id', 7, 'execution:1')
+  api.getNativeExecutionOutput('run/id', 7, 'execution/id')
+  expect(get.mock.calls).toEqual([
+    ['/interpretation/ai-workflow/evaluations/run%2Fid/executions', { expected_version: 7, cursor: 'execution:1', limit: 20 }],
+    ['/interpretation/ai-workflow/evaluations/run%2Fid/executions/execution%2Fid/output', { expected_version: 7 }]
+  ])
+  expect(post).not.toHaveBeenCalled()
+})
+it('queries native tasks through the audit-scoped list without client-supplied identity or writes', () => {
+  api.listNativeEvaluations('awaiting_review', 'cursor')
+  expect(get.mock.calls).toEqual([
+    ['/interpretation/ai-workflow/evaluations', { status: 'awaiting_review', cursor: 'cursor', limit: 20 }]
+  ])
+  expect(post).not.toHaveBeenCalled()
+})
 it('reads version-bound unknown calls and sends an original-call resolution without replay', () => {
   const command: api.NativeResolutionCommand = {
     expected_version: 7,
@@ -190,4 +206,41 @@ it('reads version-bound native gates and preserves explicit false finalization t
   api.finalizeNativeEvaluation('run/id', command)
   expect(get).toHaveBeenCalledWith('/interpretation/ai-workflow/evaluations/run%2Fid/gates', { expected_version: 8 })
   expect(post).toHaveBeenCalledWith('/interpretation/ai-workflow/evaluations/run%2Fid/finalize', command)
+})
+
+it.each([false, true])('sends explicit discard=%s cancellation once', (discard) => {
+  const command: api.NativeCancelCommand = { expected_version: 7, reason: '结束任务', confirm: true, discard }
+  api.cancelNativeEvaluation('run/id', command)
+  expect(post.mock.calls).toEqual([['/interpretation/ai-workflow/evaluations/run%2Fid/cancel', command]])
+  expect(get).not.toHaveBeenCalled()
+})
+
+it('queries participant capacity with subject and assessment filters without sending caller scope', () => {
+  api.getNativeParticipantCapacity('user:42', '42')
+  expect(get).toHaveBeenCalledWith('/interpretation/ai-workflow/participant-capacity', { subject_id: 'user:42', assessment_id: '42' })
+  expect(post).not.toHaveBeenCalled()
+})
+
+it('sends participant retry through the no-replay transport and reads the original command separately', () => {
+  const command: api.ParticipantRetryCommand = { command_id: 'original-id', expected_run_id: 'old-run', expected_version: 4,
+    reason: '已核对', confirm: true, expected_provider_invocations: 1, accept_result_unknown_risk: true }
+  api.getParticipantExecution('session/id')
+  api.retryParticipant('session/id', command)
+  api.getParticipantRetryReceipt('command/id')
+  expect(post.mock.calls).toEqual([['/interpretation/ai-workflow/participants/session%2Fid/retry', command]])
+  expect(get.mock.calls).toEqual([
+    ['/interpretation/ai-workflow/participants/session%2Fid'],
+    ['/interpretation/ai-workflow/participants/retry-commands/command%2Fid']
+  ])
+})
+
+it('queries Profile lifecycle with exact version and server-side status filter', () => {
+  api.listProfileLifecycles('profile/中文', 'published', 'cursor')
+  api.getProfileLifecycle('profile/中文', 'v6')
+  expect(internalV2Get).toHaveBeenCalledWith('/interpretation/ai-workflow/profiles', {
+    identity: 'profile/中文', status: 'published', cursor: 'cursor', limit: 20
+  })
+  expect(internalV2Get).toHaveBeenCalledWith('/interpretation/ai-workflow/profiles/lifecycle', {
+    identity: 'profile/中文', version: 'v6'
+  })
 })

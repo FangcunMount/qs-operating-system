@@ -13,12 +13,24 @@ import type {
   NativeFinalizeCommand,
   NativeReopenCommand,
   NativeUnknownIndex,
-  NativeResolutionCommand
+  NativeResolutionCommand,
+  NativeCancelCommand,
+  NativeEvaluationPage,
+  EvaluationStatus,
+  NativeExecutionPage,
+  NativeExecutionOutput,
+  NativeEvaluationCapacity
 } from './evaluationTypes'
 
 type Result<T> = Promise<[unknown, QSResponse<T> | undefined]>
 const BASE = '/interpretation/ai-workflow/evaluations'
+export const listNativeEvaluations = (status: EvaluationStatus | '' = '', cursor = ''): Result<NativeEvaluationPage> =>
+  internalV2Get<NativeEvaluationPage>(BASE, { status, cursor, limit: 20 })
 const path = (id: string) => `${BASE}/${encodeURIComponent(id)}`
+export const listNativeExecutions = (id: string, version: number, cursor = ''): Result<NativeExecutionPage> =>
+  internalV2Get<NativeExecutionPage>(`${path(id)}/executions`, { expected_version: version, cursor, limit: 20 })
+export const getNativeExecutionOutput = (id: string, version: number, execution: string): Result<NativeExecutionOutput> =>
+  internalV2Get<NativeExecutionOutput>(`${path(id)}/executions/${encodeURIComponent(execution)}/output`, { expected_version: version })
 export const prepareNativeEvaluation = (query: EvaluationPlanQuery): Result<EvaluationPlan> =>
   internalV2PostOnce<EvaluationPlan>(`${BASE}/prepare`, query)
 export const createNativeEvaluation = (
@@ -69,3 +81,9 @@ export const listNativeUnknowns = (id: string, version: number): Result<NativeUn
   internalV2Get<NativeUnknownIndex>(`${path(id)}/result-unknown`, { expected_version: version })
 export const resolveNativeUnknown = (id: string, command: NativeResolutionCommand): Result<NativeEvaluationState> =>
   internalV2PostOnce<NativeEvaluationState>(`${path(id)}/result-unknown/resolve`, command)
+
+export const cancelNativeEvaluation = (id: string, command: NativeCancelCommand): Result<NativeEvaluationState> =>
+  internalV2PostOnce<NativeEvaluationState>(`${path(id)}/cancel`, command)
+
+export const getNativeEvaluationCapacity = (): Result<NativeEvaluationCapacity> =>
+  internalV2Get<NativeEvaluationCapacity>('/interpretation/ai-workflow/evaluation-capacity')

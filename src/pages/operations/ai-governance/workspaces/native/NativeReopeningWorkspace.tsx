@@ -31,7 +31,7 @@ export function NativeReopeningWorkspace({
   return (
     <Card title="语义复审" style={{ marginTop: 16 }}>
       <Typography.Paragraph>
-        对符合条件的语义判定争议，可重开指定候选的人工审核。原模型结果、历史门槛和签名会保留，不重新调用模型；最多重开三轮。
+        对符合条件的语义判定争议，可重开指定候选的人工审核。原模型结果、历史门槛和签名会保留，不重新调用模型。是否可以申请，以当前任务的服务端判定为准。
       </Typography.Paragraph>
       {error && <Alert type="error" showIcon message={error} />}
       {history.length > 0 && (
@@ -59,7 +59,9 @@ export function NativeReopeningWorkspace({
         <Alert
           type="info"
           showIcon
-          message="当前结果不在可申请复审范围内，或已达到三轮上限。请核对原审核依据。"
+          message={run.can_reopen_review === undefined
+            ? '暂未取得服务端复审资格，请重新查询任务。'
+            : '当前结果不在可申请复审范围内。请核对原审核依据。'}
         />
       )}
       {eligible && (

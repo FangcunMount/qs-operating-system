@@ -9,7 +9,8 @@ import {
   finalizeNativeEvaluation,
   reopenNativeReview,
   listNativeUnknowns,
-  resolveNativeUnknown
+  resolveNativeUnknown,
+  cancelNativeEvaluation
 } from '@/api/path/aiWorkflow'
 import type {
   EvaluationPlan,
@@ -26,6 +27,8 @@ import type { PendingResolution } from './unknownValidation'
 import { checkGatePreview, finalizationReceipt, gatePassed, reviewIncomplete } from './finalizationValidation'
 import { checkReviewCommand, confirmsReview } from './reviewValidation'
 import { canRequestReopening, confirmsReopening } from './reopeningValidation'
+import { canRequestCancellation, confirmsCancellation, validPendingCancellation } from './cancellationValidation'
+import type { PendingCancellation } from './cancellationValidation'
 import { definitelyRejected, newCommandID, validReason, validUUID } from './commands'
 import {
   checkEvaluation,
@@ -39,9 +42,10 @@ import {
 interface Journal {
   runID: string
   releaseFingerprint: string
-  pending: 'create' | 'start' | 'review' | 'finalize' | 'reopen' | 'resolve' | null
+  pending: 'create' | 'start' | 'review' | 'finalize' | 'reopen' | 'resolve' | 'cancel' | null
   expectedVersion?: number
   lastVersion?: number
+  cancellation?: PendingCancellation
   resolution?: PendingResolution
 }
 export const evaluationJournalKey = (owner: string): string =>
@@ -54,8 +58,9 @@ const readJournal = (owner: string): Journal | null => {
     !j ||
     !validUUID(j.runID || '') ||
     !fingerprint(j.releaseFingerprint) ||
-    ![null, 'create', 'start', 'review', 'finalize', 'reopen', 'resolve'].includes(j.pending) ||
-    (['start', 'review', 'finalize', 'reopen', 'resolve'].includes(j.pending) && !safeCount(j.expectedVersion)) ||
+    ![null, 'create', 'start', 'review', 'finalize', 'reopen', 'resolve', 'cancel'].includes(j.pending) ||
+    (['start', 'review', 'finalize', 'reopen', 'resolve', 'cancel'].includes(j.pending) && !safeCount(j.expectedVersion)) ||
+    (j.pending === 'cancel' && (!validPendingCancellation(j.cancellation) || j.cancellation.actor !== `user:${owner}`)) ||
     (j.pending === 'resolve' && (!validPendingResolution(j.resolution) || j.resolution.actor !== `user:${owner}`)) ||
     (j.lastVersion !== undefined && !safeCount(j.lastVersion))
   ) {
@@ -83,6 +88,7 @@ interface EvaluationController {
   reopen(reason: string, confirm: boolean): Promise<void>
   loadUnknowns(): Promise<void>
   resolveUnknown(command: NativeResolutionCommand): Promise<void>
+  cancel(reason: string, confirm: boolean, discard: boolean): Promise<void>
   reset(): void
 }
 
@@ -143,16 +149,22 @@ export function useNativeEvaluation(
     checkEvaluation(value, original.runID, original.releaseFingerprint)
     if (original.lastVersion && value.version < original.lastVersion)
       throw new Error('任务版本倒退，请重新读取。')
-    if (['start', 'review', 'finalize', 'reopen', 'resolve'].includes(original.pending || '') && value.version <= (original.expectedVersion || 0)) {
-      const action = original.pending === 'resolve' ? '处置'
+    if (['start', 'review', 'finalize', 'reopen', 'resolve', 'cancel'].includes(original.pending || '') &&
+      value.version <= (original.expectedVersion || 0)) {
+      const action = original.pending === 'cancel' ? '取消' : original.pending === 'resolve' ? '处置'
         : original.pending === 'reopen' ? '复审'
           : original.pending === 'finalize' ? '最终审核' : original.pending === 'review' ? '审核' : '启动'
       throw new Error(`${action}结果尚未确认，请保留原任务并稍后查询。`)
     }
+    if (original.pending === 'cancel') {
+      if (!original.cancellation) throw new Error('缺少原取消记录。')
+      confirmsCancellation(value, original.cancellation, original.expectedVersion || 0)
+    }
     if (original.pending === 'finalize' && ['approved', 'rejected'].includes(value.status))
       finalizationReceipt(value)
     if (original.pending === 'reopen') confirmsReopening(value, original.expectedVersion || 0)
-    if (original.pending === 'resolve' && original.resolution) confirmsResolution(value, original.resolution, original.expectedVersion || 0)
+    if (original.pending === 'resolve' && original.resolution)
+      confirmsResolution(value, original.resolution, original.expectedVersion || 0)
     remember({
       runID: original.runID,
       releaseFingerprint: original.releaseFingerprint,
@@ -259,7 +271,13 @@ export function useNativeEvaluation(
       checkEvaluation(value, id, expected)
       if (previous?.run_id === id && value.version < previous.version)
         throw new Error('任务版本倒退，请重新读取。')
-      if (original?.runID === id) complete(value, original)
+      // A later noncanceled version proves this CAS can no longer cancel the run.
+      // Only an explicit read may establish this; a malformed mutation response may not.
+      if (original?.runID === id && original.pending === 'cancel' && value.status !== 'canceled' &&
+        value.version > (original.expectedVersion || 0)) {
+        complete(value, { ...original, pending: null })
+        setError('任务已推进，此次取消未生效；请按最新状态重新操作。')
+      } else if (original?.runID === id) complete(value, original)
       else {
         // A legacy response is readable, but cannot enable Start without its frozen creation.
         if (value.creation && !storageFailed)
@@ -489,6 +507,44 @@ export function useNativeEvaluation(
       if (active.current) setError('处置结果尚未确认，请查询原任务，暂不重复提交。')
     } finally { end() }
   }
+  const cancel = async (reason: string, confirm: boolean, discard: boolean) => {
+    const original = journalRef.current
+    if (!owner || !run || !original || original.pending || original.runID !== run.run_id ||
+      storageFailed || !confirm || !validReason(reason) || !canRequestCancellation(run) ||
+      discard !== (run.status === 'awaiting_review')) return
+    const cancellation: PendingCancellation = { actor: `user:${owner}`, discard,
+      sourceStatus: run.status as PendingCancellation['sourceStatus'] }
+    if (!validPendingCancellation(cancellation) || !begin()) return
+    const pending: Journal = { ...original, pending: 'cancel', expectedVersion: run.version, cancellation }
+    try { remember(pending) } catch {
+      setStorageFailed(true)
+      setError('无法保存取消记录，本次未发送。')
+      end()
+      return
+    }
+    setGates(null)
+    setUnknowns(null)
+    try {
+      const [failure, response] = await cancelNativeEvaluation(run.run_id, {
+        expected_version: run.version, reason: reason.trim(), confirm: true, discard
+      })
+      if (!active.current) return
+      if (failure || !response) {
+        if (definitelyRejected(failure)) {
+          remember(original)
+          setRun(null)
+          setError('取消被拒绝，请重新查询任务并检查管理权限。')
+        } else setError('取消结果尚未确认，请查询原任务，暂不重复提交。')
+      } else {
+        checkEvaluation(response.data, run.run_id, original.releaseFingerprint)
+        const receipt = confirmsCancellation(response.data, cancellation, run.version)
+        if (receipt.reason !== reason.trim()) throw new Error('Cancellation reason mismatch')
+        complete(response.data, pending)
+      }
+    } catch {
+      if (active.current) setError('取消结果尚未确认，请查询原任务，暂不重复提交。')
+    } finally { end() }
+  }
   const reset = () => {
     if (lock.current || journalRef.current?.pending || storageFailed) return
     try {
@@ -521,5 +577,6 @@ export function useNativeEvaluation(
     previewGates,
     finalize,
     reopen,
+    cancel,
     reset }
 }

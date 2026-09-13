@@ -58,7 +58,9 @@ export interface NativeEvaluationState {
   resolutions: unknown[]
   reviews: unknown[]
   review_reopenings: unknown[]
+  can_reopen_review?: boolean
   finalization?: unknown
+  cancellation?: unknown
 }
 export interface NativeEvaluationCreate {
   release: EvaluationRelease
@@ -198,4 +200,93 @@ export interface NativeResolutionCommand {
   reason: string
   confirm: true
   acknowledged_duplicate_call_and_cost_risk: true
+}
+
+export interface NativeCancelCommand {
+  expected_version: number
+  reason: string
+  confirm: true
+  discard: boolean
+}
+export interface NativeCancellationReceipt {
+  schema_version: 'qs-ai-evaluation-cancellation/v1'
+  run_id: string
+  source_version: number
+  version: number
+  source_status: 'requested' | 'collecting' | 'blocked' | 'awaiting_review'
+  status: 'canceled'
+  release_fingerprint: string
+  actor: string
+  reason: string
+  discard: boolean
+  canceled_at: string
+  execution_id: string
+  invocation_id: string
+}
+export interface NativeEvaluationSummary {
+  run_id: string
+  organization_id: number
+  version: number
+  status: EvaluationStatus
+  created_at: string
+  requested_by: string
+  profile_id: string
+  profile_version: string
+  prompt_id: string
+  prompt_version: string
+  release_fingerprint: string
+  unresolved_result_unknown_count: number
+  review_count: number
+  required_candidates: number
+  accepted_candidates: number
+  review_ready_candidates: number
+  last_cause: string
+  last_reason: string
+}
+
+export interface NativeEvaluationPage {
+  items: NativeEvaluationSummary[]
+  next_cursor: string
+}
+export interface NativeExecutionSummary {
+  execution_id: string
+  invocation_id: string
+  kind: 'generation' | 'semantic'
+  case_id: string
+  slot_ordinal: number
+  execution_ordinal: number
+  status: 'prepared' | 'dispatching' | 'succeeded' | 'failed' | 'result_unknown'
+  raw_output_bytes: number
+  normalized_output_bytes: number
+  evidence: Record<string, unknown>
+}
+export interface NativeExecutionPage {
+  run_id: string
+  version: number
+  executions: NativeExecutionSummary[]
+  next_cursor: string
+}
+export interface NativeExecutionOutput {
+  run_id: string
+  version: number
+  execution: NativeExecutionSummary
+  raw_output: string
+  normalized_output: string
+  raw_sha256: string
+  normalized_sha256: string
+}
+
+export interface NativeEvaluationCapacity {
+  organization_id: number
+  budget_day: string
+  daily_provider_calls: number
+  reserved_provider_calls: number
+  remaining_provider_calls: number
+  full_run_provider_calls: number
+  remaining_full_runs: number
+  max_active_runs: number
+  active_runs: number
+  reservation_count: number
+  reservations: Array<{ run_id: string; provider_calls: number; requested_by: string; reserved_at: string }>
+  reservations_truncated: boolean
 }
