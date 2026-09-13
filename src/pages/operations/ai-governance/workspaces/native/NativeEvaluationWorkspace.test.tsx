@@ -511,3 +511,17 @@ it('discards old preview and confirmation when the task is reread', async () => 
   expect(screen.queryByLabelText('最终审核理由')).not.toBeInTheDocument()
   expect(api.finalizeNativeEvaluation).not.toHaveBeenCalled()
 })
+
+it('hands an approved task to publication preparation even with a retained completed journal', async () => {
+  journal(null)
+  ;(api.getNativeEvaluation as jest.Mock).mockResolvedValue(ok(finalized()))
+  const handoff = jest.fn()
+  render(<NativeEvaluationWorkspace owner="u1" selection={{}} onPublish={handoff} />)
+  fireEvent.click(screen.getByText('查询任务状态'))
+  const button = await screen.findByRole('button', { name: '前往核对并发布配置' })
+  expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('u1')) || '{}').pending).toBeNull()
+  expect(button).not.toBeDisabled()
+  fireEvent.click(button)
+  expect(handoff).toHaveBeenCalledWith(id)
+  expect(api.finalizeNativeEvaluation).not.toHaveBeenCalled()
+})

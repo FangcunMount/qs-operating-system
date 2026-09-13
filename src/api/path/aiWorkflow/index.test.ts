@@ -4,6 +4,33 @@ jest.mock('@/api/qsServer', () => ({ internalV2Get: jest.fn(), internalV2PostOnc
 const get = internalV2Get as jest.Mock
 const post = internalV2PostOnce as jest.Mock
 beforeEach(() => jest.clearAllMocks())
+it('keeps publication reads scoped and mutations explicit without transport replay', () => {
+  const selector: api.PublicationSelector = {
+    audience: 'participant', model_kind: 'scale', decision_kind: 'score_range',
+    model_code: '量表/a', model_version: 'v1/a'
+  }
+  const command: api.PublicationCommand = {
+    command_id: 'command', expected: { selector, version: 0, active_publication_id: '' }, reason: '发布', confirm: true
+  }
+  api.getPublication(selector)
+  api.listPublicationHistory(selector, 8)
+  api.getPublicationHistory(selector, 3)
+  api.getPublicationReceipt('command/id')
+  api.publishConfiguration({ ...command, run_id: 'run', run_version: 9, release_fingerprint: 'sha256:ref' })
+  api.rollbackPublication({ ...command, target_publication_id: 'target' })
+  api.disablePublication(command)
+  expect(get.mock.calls).toEqual([
+    ['/interpretation/ai-workflow/publications', selector],
+    ['/interpretation/ai-workflow/publications/history', { ...selector, limit: 20, before_version: 8 }],
+    ['/interpretation/ai-workflow/publications/history/3', selector],
+    ['/interpretation/ai-workflow/publications/commands/command%2Fid']
+  ])
+  expect(post.mock.calls).toEqual([
+    ['/interpretation/ai-workflow/publications/publish', { ...command, run_id: 'run', run_version: 9, release_fingerprint: 'sha256:ref' }],
+    ['/interpretation/ai-workflow/publications/rollback', { ...command, target_publication_id: 'target' }],
+    ['/interpretation/ai-workflow/publications/disable', command]
+  ])
+})
 it('routes native evaluation prepare/create/start and versioned result reads only to the new proxy', () => {
   const ref = { id: 'suite', version: 'v1', fingerprint: 'sha256:' + 'a'.repeat(64) }
   const query = { suite: ref, generation_route: ref, semantic_route: ref }

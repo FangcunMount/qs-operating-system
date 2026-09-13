@@ -8,16 +8,17 @@ import { PromptDraftWorkspace } from './PromptDraftWorkspace'
 import { ProfileRegistrationWorkspace, ProfileSelection } from './ProfileRegistrationWorkspace'
 import { SuiteRegistrationWorkspace, SuiteSelection } from './SuiteRegistrationWorkspace'
 import { NativeEvaluationWorkspace } from './NativeEvaluationWorkspace'
+import { NativePublicationWorkspace } from './NativePublicationWorkspace'
 
 function NativeConfigurationContent({ owner }: { owner: string }) {
   const [source, setSource] = useState<AssetReference | null>(null)
   const [selection, setSelection] = useState<ProfileSelection>({})
   const [suiteSelection, setSuiteSelection] = useState<SuiteSelection>({})
   const [evaluationSelection, setEvaluationSelection] = useState<EvaluationSelection>({})
+  const [publicationRunID, setPublicationRunID] = useState('')
   const [view, setView] = useState('prompt')
   const selectAsset = (detail: AssetDetail) => {
-    if (detail.item.kind === 'profile')
-      setSelection((previous) => ({ ...previous, profile: detail }))
+    if (detail.item.kind === 'profile') setSelection((previous) => ({ ...previous, profile: detail }))
     if (detail.item.kind === 'prompt')
       setSelection((previous) => ({ ...previous, prompt: detail.item.reference }))
     if (detail.item.kind === 'route')
@@ -86,7 +87,18 @@ function NativeConfigurationContent({ owner }: { owner: string }) {
           />
         </Tabs.TabPane>
         <Tabs.TabPane tab="原生评测" key="evaluation">
-          <NativeEvaluationWorkspace key={owner} owner={owner} selection={evaluationSelection} />
+          <NativeEvaluationWorkspace
+            key={owner}
+            owner={owner}
+            selection={evaluationSelection}
+            onPublish={(id) => {
+              setPublicationRunID(id)
+              setView('publication')
+            }}
+          />
+        </Tabs.TabPane>
+        <Tabs.TabPane tab="发布与回退" key="publication">
+          <NativePublicationWorkspace key={owner} owner={owner} initialRunID={publicationRunID} />
         </Tabs.TabPane>
       </Tabs>
     </>

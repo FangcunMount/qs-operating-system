@@ -13,10 +13,12 @@ const label = (ref?: EvaluationReference) =>
   ref ? `${ref.id} · ${ref.version}` : '请从配置目录选择'
 export function NativeEvaluationWorkspace({
   owner,
-  selection
+  selection,
+  onPublish
 }: {
   owner: string
   selection: EvaluationSelection
+  onPublish?: (runID: string) => void
 }): JSX.Element {
   const c = useNativeEvaluation(owner, selection)
   const [runID, setRunID] = useState(c.journal?.runID || '')
@@ -216,6 +218,13 @@ export function NativeEvaluationWorkspace({
             <NativeGateWorkspace key={`gates:${c.run.run_id}:${c.run.version}`} run={c.run}
               preview={c.gates} locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)}
               load={c.previewGates} finalize={c.finalize} />
+          )}
+          {c.run.status === 'approved' && onPublish && (
+            <Button style={{ marginTop: 12 }}
+              disabled={c.busy || c.storageFailed || Boolean(c.journal?.pending)}
+              onClick={() => c.run && onPublish(c.run.run_id)}>
+              前往核对并发布配置
+            </Button>
           )}
           {c.run.status !== 'requested' && (
             <NativeCandidateWorkspace key={`${c.run.run_id}:${c.run.version}`} run={c.run}
