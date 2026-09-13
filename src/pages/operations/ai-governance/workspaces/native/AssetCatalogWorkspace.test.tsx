@@ -64,3 +64,16 @@ it('discards an earlier page when a new exact search finishes first', async () =
   })
   await waitFor(() => expect(screen.queryByText('v1')).not.toBeInTheDocument())
 })
+it('passes only a loaded matching asset detail to Profile registration', async () => {
+  const detail = { item: item('v2'), definition_json: '模板正文' }
+  ;(listAssets as jest.Mock).mockReturnValue(ok({ items: [item('v2')], next_cursor: '' }))
+  ;(getAsset as jest.Mock).mockReturnValue(ok(detail))
+  const draft = jest.fn()
+  const register = jest.fn()
+  render(<AssetCatalogWorkspace onDraft={draft} onRegisterAsset={register} />)
+  expect(screen.queryByText('用于注册策略版本')).not.toBeInTheDocument()
+  fireEvent.click(await screen.findByText('查看正文'))
+  fireEvent.click(await screen.findByText('用于注册策略版本'))
+  expect(register).toHaveBeenCalledWith(detail)
+  expect(draft).not.toHaveBeenCalled()
+})

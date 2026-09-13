@@ -11,8 +11,11 @@ const kinds: Array<{ value: AssetKind; label: string }> = [
   { value: 'schema', label: '输入输出规范' },
   { value: 'suite', label: '评测套件' }
 ]
-export const AssetCatalogWorkspace: React.FC<{ onDraft: (source: AssetReference) => void }> = ({
-  onDraft
+export const AssetCatalogWorkspace: React.FC<{
+  onDraft: (source: AssetReference) => void
+  onRegisterAsset?: (source: AssetDetail) => void
+}> = ({
+  onDraft, onRegisterAsset
 }) => {
   const [kind, setKind] = useState<AssetKind>('prompt')
   const [input, setInput] = useState('')
@@ -148,6 +151,9 @@ export const AssetCatalogWorkspace: React.FC<{ onDraft: (source: AssetReference)
             配置版本的存在不代表评测通过或已发布。
           </Typography.Paragraph>
           <JsonEvidence value={detail.definition_json} />
+          {onRegisterAsset && ['profile', 'prompt', 'route'].includes(detail.item.kind) && (
+            <Button onClick={() => onRegisterAsset(detail)}>用于注册策略版本</Button>
+          )}
           {detail.item.kind === 'prompt' && (
             <Button type="primary" onClick={() => onDraft(detail.item.reference)}>
               从此版本新建草稿

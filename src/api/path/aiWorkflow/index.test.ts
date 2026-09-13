@@ -53,3 +53,12 @@ it('sends fixed command identities and revisions through the no-replay transport
     ['/interpretation/ai-workflow/prompt-drafts/d/freeze', { ...command, expected_revision: 8 }]
   ])
 })
+
+it('registers native Profile through the no-replay proxy and reads only the original receipt', () => {
+  const source = { identity: 'p', version: 'v1', fingerprint: 'sha256:f', content_sha256: 'c' }
+  const command = { command_id: 'c', reason: '新策略', source, definition_json: '{}', prompt: source, generation_route: source }
+  api.registerProfile(command)
+  api.getProfileReceipt('command/id')
+  expect(post).toHaveBeenCalledWith('/interpretation/ai-workflow/profiles/register', command)
+  expect(get).toHaveBeenCalledWith('/interpretation/ai-workflow/profiles/commands/command%2Fid')
+})
