@@ -144,3 +144,20 @@ export interface NativeFinalization {
   status: 'approved' | 'rejected'
   gate_result: NativeGateResult
 }
+
+export interface NativeReopenCommand {
+  expected_version: number
+  reason: string
+  confirm: true
+}
+export interface NativeReviewReopening {
+  source_version: number
+  version: number
+  transition_count: number
+  previous_finalization: NativeFinalization
+  previous_reviews: NativeReviewRecord[]
+  candidate_ids: string[]
+  actor: string
+  reason: string
+  reopened_at: string
+}
