@@ -58,6 +58,7 @@ export interface NativeEvaluationState {
   resolutions: unknown[]
   reviews: unknown[]
   review_reopenings: unknown[]
+  can_reopen_review?: boolean
   finalization?: unknown
 }
 export interface NativeEvaluationCreate {

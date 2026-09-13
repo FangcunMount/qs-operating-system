@@ -85,7 +85,8 @@ export function checkEvaluation(
     value.unresolved_result_unknown_count < 0 ||
     !Array.isArray(value.resolutions) ||
     !Array.isArray(value.reviews) ||
-    !Array.isArray(value.review_reopenings)
+    !Array.isArray(value.review_reopenings) ||
+    (value.can_reopen_review !== undefined && typeof value.can_reopen_review !== 'boolean')
   ) {
     throw new Error('任务状态不完整，请重新读取。')
   }

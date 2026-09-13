@@ -31,6 +31,7 @@ function rejected(): api.NativeEvaluationState {
     run_id: id,
     version: 9,
     status: 'rejected',
+    can_reopen_review: true,
     unresolved_result_unknown_count: 0,
     resolutions: [],
     review_reopenings: [],
@@ -83,6 +84,7 @@ function reopened(previous = rejected(), hour = 3): api.NativeEvaluationState {
     ...previous,
     version: previous.version + 1,
     status: 'awaiting_review',
+    can_reopen_review: false,
     finalization: undefined,
     reviews: reviews.filter((r) => r.candidate_id !== 'candidate:1'),
     review_reopenings: [
@@ -173,8 +175,8 @@ it.each(['missing', 'reason', 'archive', 'signature', 'target', 'time'])(
     if (kind === 'missing') value.review_reopenings = []
     if (kind === 'reason') entry.reason = '其他目的'
     if (kind === 'archive') entry.previous_finalization.reason = '被替换的审核'
-    if (kind === 'signature') value.reviews.pop()
-    if (kind === 'target') entry.candidate_ids = ['candidate:36']
+    if (kind === 'signature') entry.previous_reviews.pop()
+    if (kind === 'target') entry.candidate_ids = ['invalid<>id']
     if (kind === 'time') entry.reopened_at = at(1)
     ;(api.reopenNativeReview as jest.Mock).mockResolvedValue(ok(value))
     await open()
@@ -212,29 +214,27 @@ it('keeps another account isolated from an uncertain operation', async () => {
   expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('u1')) || '{}').pending).toBe('reopen')
 })
 
-it.each(['v1', 'gate', 'incomplete', 'approved'])(
-  'does not offer reopening outside eligible final states: %s',
-  (kind) => {
-    const value = rejected()
-    if (kind === 'v1' && value.creation)
-      value.creation = {
-        ...value.creation,
-        release: { ...release, gate_policy: { ...release.gate_policy, version: 'v1' } }
-      }
-    if (kind === 'gate')
-      (value.finalization as api.NativeFinalization).gate_result.gate_passes.G3 = false
-    if (kind === 'incomplete')
-      (value.finalization as api.NativeFinalization).gate_result.reasons.push({
-        gate: 'G5',
-        code: 'human_review_incomplete',
-        evidence_refs: []
-      })
-    if (kind === 'approved') value.status = 'approved'
-    render(<NativeReopeningWorkspace run={value} locked={false} reopen={jest.fn()} />)
-    expect(screen.queryByText('确认重开语义复审')).not.toBeInTheDocument()
-    expect(canRequestReopening(value)).toBe(false)
-  }
-)
+it.each([undefined, false])('uses server eligibility %s without reconstructing gates', (eligibility) => {
+  const value = { ...rejected(), can_reopen_review: eligibility }
+  render(<NativeReopeningWorkspace run={value} locked={false} reopen={jest.fn()} />)
+  expect(screen.queryByText('确认重开语义复审')).not.toBeInTheDocument()
+  expect(canRequestReopening(value)).toBe(false)
+  if (eligibility === undefined)
+    expect(screen.getByText('暂未取得服务端复审资格，请重新查询任务。')).toBeInTheDocument()
+})
+
+it('does not reinterpret the server decision using local gate policy', () => {
+  const value = rejected()
+  value.finalization = { policy: 'future-policy' }
+  expect(canRequestReopening(value)).toBe(true)
+})
+
+it('displays archived reviews without enforcing domain review counts', () => {
+  const value = reopened()
+  const entry = value.review_reopenings[0] as api.NativeReviewReopening
+  entry.previous_reviews.pop()
+  expect(reopeningHistory(value)[0].previous_reviews).toHaveLength(69)
+})
 
 it('supports three ordered rounds and requires preserved earlier signatures and history', () => {
   let value = rejected()
@@ -248,6 +248,7 @@ it('supports three ordered rounds and requires preserved earlier signatures and 
       ...next,
       version: next.version + 3,
       status: 'rejected',
+      can_reopen_review: round < 2,
       reviews: [
         ...next.reviews,
         ...(rejected().reviews as api.NativeReviewRecord[])
@@ -268,6 +269,6 @@ it('supports three ordered rounds and requires preserved earlier signatures and 
   // Recovery may observe a later completed round, but still requires the original transition.
   expect(() => confirmsReopening(value, 9)).not.toThrow()
   expect(() => confirmsReopening(value, 10)).toThrow('尚未取得原版本的复审记录')
-  ;(value.review_reopenings[1] as api.NativeReviewReopening).transition_count++
+  ;(value.review_reopenings[1] as api.NativeReviewReopening).transition_count = 1
   expect(() => reopeningHistory(value)).toThrow()
 })
