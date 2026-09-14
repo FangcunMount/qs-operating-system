@@ -8,7 +8,9 @@ export function checkGateResult(value: NativeGateResult): void {
     !Array.isArray(value.metrics) || !Array.isArray(value.reasons) || !Array.isArray(value.semantic_adjudications) ||
     value.metrics.some((m) => !m || typeof m.name !== 'string' || !m.name ||
       ![m.numerator, m.denominator].every((n) => Number.isSafeInteger(n) && n >= 0) ||
-      ![m.value, m.threshold].every((n) => typeof n === 'number' && Number.isFinite(n))) ||
+      typeof m.value !== 'number' || !Number.isFinite(m.value) ||
+      !(m.threshold === null && m.name.startsWith('observed_')) &&
+        !(typeof m.threshold === 'number' && Number.isFinite(m.threshold))) ||
     value.reasons.some((r) => !r || !gateIDs.includes(r.gate) || typeof r.code !== 'string' || !r.code ||
       !Array.isArray(r.evidence_refs) || r.evidence_refs.some((ref) => typeof ref !== 'string' || !ref)))
     throw new Error('门槛结果不完整，请重新读取。')
