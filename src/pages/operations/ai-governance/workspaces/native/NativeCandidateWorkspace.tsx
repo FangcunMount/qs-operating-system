@@ -8,6 +8,7 @@ import type {
   NativeReviewCommand
 } from '@/api/path/aiWorkflow'
 import { NativeReviewWorkspace } from './NativeReviewWorkspace'
+import { NativeBatchReviewWorkspace } from './NativeBatchReviewWorkspace'
 import { JsonEvidence } from '../../components/JsonEvidence'
 
 export function NativeCandidateWorkspace({ run, locked = false, review }: {
@@ -19,6 +20,7 @@ export function NativeCandidateWorkspace({ run, locked = false, review }: {
   const [detail, setDetail] = useState<NativeCandidateEvidence | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [queued, setQueued] = useState<NativeReviewCommand | null>(null)
   const epoch = useRef(0)
   useEffect(
     () => () => {
@@ -50,7 +52,6 @@ export function NativeCandidateWorkspace({ run, locked = false, review }: {
           throw new Error('Candidate mismatch')
         setDetail(value)
       } else {
-        setIndex(null)
         const [failure, response] = await listNativeCandidates(run.run_id)
         if (request !== epoch.current) return
         const value = response?.data
@@ -111,6 +112,8 @@ export function NativeCandidateWorkspace({ run, locked = false, review }: {
           ]}
         />
       )}
+      {index && review && <NativeBatchReviewWorkspace key={`${run.run_id}:${run.version}`} run={run}
+        index={index} locked={locked || busy} submit={review} queued={queued} onConsumed={setQueued} />}
       {detail && (
         <Space direction="vertical" style={{ width: '100%', marginTop: 16 }}>
           <Typography.Title level={5}>生成结果</Typography.Title>
@@ -127,7 +130,7 @@ export function NativeCandidateWorkspace({ run, locked = false, review }: {
           </details>
           {review && (
             <NativeReviewWorkspace key={`${detail.candidate_id}:${detail.version}`} run={run}
-              detail={detail} locked={locked || busy} submit={review} />
+              detail={detail} locked={locked || busy} submit={review} enqueue={setQueued} />
           )}
         </Space>
       )}

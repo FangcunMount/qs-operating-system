@@ -543,3 +543,37 @@ it('hands an approved task to publication preparation even with a retained compl
   expect(handoff).toHaveBeenCalledWith(id)
   expect(api.finalizeNativeEvaluation).not.toHaveBeenCalled()
 })
+
+it.each(['complete', 'partial', 'unknown'])('submits a 35-item batch through native recovery handling: %s', async (outcome) => {
+  journal(null)
+  const items = Array.from({ length: 35 }, (_, i) => ({ candidate_id: `candidate:${i + 1}`,
+    decision: 'approve' as const, reason: `已核对第 ${i + 1} 条事实及引用` }))
+  ;(api.getNativeEvaluation as jest.Mock).mockResolvedValue(ok(state(8, 'awaiting_review')))
+  ;(api.listNativeCandidates as jest.Mock).mockResolvedValue(ok({ run_id: id, version: 8,
+    candidates: items.map((r, i) => ({ candidate_id: r.candidate_id, case_id: 'case:1', slot_ordinal: i + 1 })) }))
+  const response = { ...state(9, 'awaiting_review'), reviews: items.map((r) => ({ ...r,
+    role: 'assessment_semantics', reviewer: 'user:42', reviewed_at: '2026-09-13T01:00:00Z' })) }
+  if (outcome === 'partial') response.reviews.pop()
+  ;(api.reviewNativeEvaluation as jest.Mock).mockResolvedValue(outcome === 'unknown' ? [{ status: 504 }, undefined] : ok(response))
+  render(<NativeEvaluationWorkspace owner="u1" selection={{}} />)
+  fireEvent.click(screen.getByText('查询任务状态'))
+  await screen.findByText('等待人工审核')
+  fireEvent.click(screen.getByText('读取候选结果'))
+  await screen.findByText('批量候选审核')
+  const command = { expected_version: 8, role: 'assessment_semantics', reviews: items }
+  fireEvent.change(screen.getByLabelText('批量审核计划 JSON'), { target: { value: JSON.stringify({ run_id: id, ...command }) } })
+  fireEvent.click(screen.getByText('校验并载入审核计划'))
+  fireEvent.click(screen.getByLabelText('我已逐条核对本批候选、决定及理由，确认按当前角色一次提交'))
+  fireEvent.click(screen.getByText('批量提交审核（35）'))
+  if (outcome === 'complete') {
+    await screen.findByText('9')
+    expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('u1')) || '{}').pending).toBeNull()
+  } else {
+    await screen.findByText('审核结果尚未确认，请查询原任务，暂不重复提交。')
+    expect(screen.getByText('批量提交审核（35）').closest('button')).toBeDisabled()
+    expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('u1')) || '{}').pending).toBe('review')
+  }
+  expect(api.reviewNativeEvaluation).toHaveBeenCalledTimes(1)
+  expect(api.reviewNativeEvaluation).toHaveBeenCalledWith(id, command)
+  expect(api.startNativeEvaluation).not.toHaveBeenCalled()
+})

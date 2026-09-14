@@ -84,3 +84,14 @@ it('rejects duplicate roles or the same actor signing both roles', () => {
   expect(() => reviewRecords([r, r])).toThrow()
   expect(() => reviewRecords([r, { ...r, role: 'safety_product' }])).toThrow()
 })
+
+it('queues an explicitly reviewed candidate without sending the single-review request', () => {
+  const submit = jest.fn(); const enqueue = jest.fn()
+  render(<NativeReviewWorkspace run={run} detail={detail()} locked={false} submit={submit} enqueue={enqueue} />)
+  expect(screen.getByText('加入批量审核计划').closest('button')).toBeDisabled()
+  confirm()
+  fireEvent.click(screen.getByText('加入批量审核计划'))
+  expect(enqueue).toHaveBeenCalledWith({ expected_version: 8, role: 'assessment_semantics',
+    reviews: [{ candidate_id: 'candidate:1', decision: 'approve', reason: '已核对事实' }] })
+  expect(submit).not.toHaveBeenCalled()
+})

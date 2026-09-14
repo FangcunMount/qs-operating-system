@@ -4,10 +4,11 @@ import type { NativeCandidateEvidence, NativeEvaluationState, NativeReviewComman
 import { validReason } from './commands'
 import { contradictionTargets, reviewRecords, validSemanticReview } from './reviewValidation'
 
-export function NativeReviewWorkspace({ run, detail, locked, submit }: {
+export function NativeReviewWorkspace({ run, detail, locked, submit, enqueue }: {
   run: NativeEvaluationState
   detail: NativeCandidateEvidence
   locked: boolean
+  enqueue?(command: NativeReviewCommand): void
   submit(command: NativeReviewCommand, confirm: boolean): Promise<void>
 }): JSX.Element {
   const [role, setRole] = useState<NativeReviewRole>('assessment_semantics')
@@ -36,6 +37,11 @@ export function NativeReviewWorkspace({ run, detail, locked, submit }: {
     detail.run_id !== run.run_id || detail.version !== run.version || history.some((r) => r.role === role)
   const ready = !disabled && confirmed && validReason(reason) && (!exception ||
     (decision === 'approve' && semantic && validSemanticReview(semantic) && detail.normalized_output.includes(excerpt)))
+  const command = (): NativeReviewCommand => ({
+    expected_version: run.version, role,
+    reviews: [{ candidate_id: detail.candidate_id, decision, reason: reason.trim(),
+      ...(semantic ? { semantic_review: semantic } : {}) }]
+  })
   return (
     <Card title="候选人工审核" style={{ width: '100%' }}>
       <Typography.Paragraph type="secondary">
@@ -78,11 +84,10 @@ export function NativeReviewWorkspace({ run, detail, locked, submit }: {
         <Checkbox checked={confirmed} disabled={disabled} onChange={(e) => setConfirmed(e.target.checked)}>
           我已核对当前候选及证据，确认提交审核决定
         </Checkbox>
-        <Button type="primary" disabled={!ready} onClick={() => submit({
-          expected_version: run.version, role,
-          reviews: [{ candidate_id: detail.candidate_id, decision, reason: reason.trim(),
-            ...(semantic ? { semantic_review: semantic } : {}) }]
-        }, confirmed)}>提交候选审核</Button>
+        <Space wrap>
+          {enqueue && <Button disabled={!ready} onClick={() => enqueue(command())}>加入批量审核计划</Button>}
+          <Button type="primary" disabled={!ready} onClick={() => submit(command(), confirmed)}>提交候选审核</Button>
+        </Space>
       </Space>
     </Card>
   )
