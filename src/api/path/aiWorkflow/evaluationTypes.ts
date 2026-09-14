@@ -117,7 +117,7 @@ export type NativeGateID = 'G1' | 'G2' | 'G3' | 'G4' | 'G5'
 export interface NativeGateResult {
   evaluated_at: string
   gate_passes: Record<NativeGateID, boolean>
-  metrics: Array<{ name: string; numerator: number; denominator: number; value: number; threshold: number }>
+  metrics: Array<{ name: string; numerator: number; denominator: number; value: number; threshold: number | null }>
   reasons: Array<{ gate: NativeGateID; code: string; evidence_refs: string[] }>
   semantic_adjudications: unknown[]
 }
