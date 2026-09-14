@@ -13,14 +13,26 @@ const reasonLabels: Record<string, string> = {
   human_review_rejected: '人工审核存在拒绝', infrastructure_success_rate_below_threshold: '基础执行成功率未达标',
   generation_contract_conformance_rate_below_threshold: '生成结构符合率未达标',
   semantic_execution_success_rate_below_threshold: '语义评测成功率未达标',
+  candidate_completion_incomplete: '候选最终评测尚未全部完成',
   candidate_case_assertion_failed: '候选案例断言未通过', candidate_hard_assertion_failed: '候选必要断言未通过',
   candidate_semantic_score_below_minimum: '候选语义评分未达标', case_assertion_stability_failed: '案例稳定性未达标',
   case_assertion_overall_failed: '整体案例通过数未达标', semantic_average_below_threshold: '语义平均分未达标'
 }
+const metricLabels: Record<string, string> = {
+  candidate_completion_rate: '候选最终完成率',
+  observed_infrastructure_success_rate: '模型调用响应成功率',
+  observed_generation_contract_conformance_rate: '生成结构符合率',
+  observed_semantic_execution_success_rate: '全部语义调用成功率',
+  observed_generation_first_attempt_success_rate: '首次生成成功率',
+  observed_semantic_first_attempt_success_rate: '首次语义评判成功率',
+  observed_generation_retry_count: '生成重试次数',
+  observed_semantic_retry_count: '语义评判重试次数'
+}
 function GateEvidence({ value }: { value: NativeGateResult }): JSX.Element {
   return <>
     <Space wrap>{gateIDs.map((g) => <Tag key={g} color={value.gate_passes[g] ? 'green' : 'red'}>
-      {g} {gateLabels[g]}：{value.gate_passes[g] ? '通过' : '未通过'}
+      {g} {g === 'G3' && value.metrics.some((m) => m.name === 'candidate_completion_rate')
+        ? '候选完成与执行校验' : gateLabels[g]}：{value.gate_passes[g] ? '通过' : '未通过'}
     </Tag>)}</Space>
     {value.reasons.length > 0 && <Table size="small" pagination={false} style={{ marginTop: 12 }}
       rowKey="key" dataSource={value.reasons.map((r, key) => ({ ...r, key }))} columns={[
@@ -28,6 +40,20 @@ function GateEvidence({ value }: { value: NativeGateResult }): JSX.Element {
         { title: '原因', dataIndex: 'code', render: (code) => reasonLabels[code] || code },
         { title: '相关证据', dataIndex: 'evidence_refs', render: (refs: string[]) => refs.join('、') || '整体任务' }
       ]} />}
+    {value.metrics.some((m) => m.name === 'candidate_completion_rate') && <>
+      <Typography.Paragraph type="secondary" style={{ marginTop: 12 }}>
+        发布要求全部候选完成有效评判，内容质量和人工审核仍须通过。调用成功率与重试次数仅用于观测，原始失败记录继续保留。
+      </Typography.Paragraph>
+      <Table size="small" pagination={false} rowKey="name" dataSource={value.metrics} columns={[
+        { title: '指标', dataIndex: 'name', render: (name: string) => metricLabels[name] || name },
+        { title: '结果', render: (_, metric) => Number.isFinite(metric.value)
+          ? (metric.name.endsWith('_rate') ? `${metric.numerator}/${metric.denominator}（${(metric.value * 100).toFixed(2)}%）` : metric.value)
+          : '—' },
+        { title: '用途', dataIndex: 'threshold', render: function renderPurpose(threshold: number | null) {
+          return threshold === null ? <Tag>观测指标</Tag> : <Tag color="blue">发布门槛：{(threshold * 100).toFixed(0)}%</Tag>
+        } }
+      ]} />
+    </>}
     <details style={{ marginTop: 12 }}><summary>查看指标、阈值和证据复核记录</summary><JsonEvidence value={value} /></details>
   </>
 }
