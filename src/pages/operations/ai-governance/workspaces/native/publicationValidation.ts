@@ -42,12 +42,12 @@ export function validSelector(s: PublicationSelector): boolean {
         s.audience === 'participant' &&
         s.model_kind === 'scale' &&
         s.decision_kind === 'score_range' &&
-        (s.model_code === undefined ||
+        (s.model_code === undefined || s.model_code === null ||
           (typeof s.model_code === 'string' &&
             s.model_code.trim() &&
             unescape(encodeURIComponent(s.model_code)).length <= 255)) &&
-        (s.model_version === undefined ||
-          (s.model_code !== undefined &&
+        (s.model_version === undefined || s.model_version === null ||
+          (typeof s.model_code === 'string' &&
             typeof s.model_version === 'string' &&
             versionPattern.test(s.model_version)))
     )
@@ -59,7 +59,7 @@ export const sameSelector = (a: PublicationSelector, b: PublicationSelector): bo
   validSelector(a) &&
   validSelector(b) &&
   (['audience', 'model_kind', 'decision_kind', 'model_code', 'model_version'] as const).every(
-    (k) => a[k] === b[k]
+    (k) => (a[k] ?? undefined) === (b[k] ?? undefined)
   )
 
 export function checkPublication(value: PublicationState, selector: PublicationSelector): void {
@@ -295,5 +295,13 @@ export function approvedPublicationSelector(
     !validSelector(definition.selector)
   )
     throw new Error('评测策略缺少有效的发布范围。')
-  return definition.selector
+  const selector: PublicationSelector = definition.selector
+  // Imported Profile bytes remain immutable; omit null optional query fields on the wire.
+  return {
+    audience: selector.audience,
+    model_kind: selector.model_kind,
+    decision_kind: selector.decision_kind,
+    ...(selector.model_code == null ? {} : { model_code: selector.model_code }),
+    ...(selector.model_version == null ? {} : { model_version: selector.model_version })
+  }
 }

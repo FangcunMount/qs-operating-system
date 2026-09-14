@@ -454,6 +454,24 @@ it.each([true, false])('explicitly finalizes the exact server gate decision %s o
   expect(api.finalizeNativeEvaluation).toHaveBeenCalledTimes(1)
   expect(sessionStorage.getItem(evaluationJournalKey('u1'))).not.toContain('核对最终门槛')
 })
+it('accepts observation metrics through preview validation and the finalization receipt', async () => {
+  const value = gates()
+  value.gate_result.metrics = [
+    { name: 'candidate_completion_rate', numerator: 35, denominator: 35, value: 1, threshold: 1 },
+    { name: 'observed_semantic_execution_success_rate', numerator: 35, denominator: 36, value: 35 / 36, threshold: null },
+    { name: 'observed_semantic_retry_count', numerator: 1, denominator: 1, value: 1, threshold: null }
+  ]
+  const completed = finalized()
+  ;(completed.finalization as api.NativeFinalization).gate_result.metrics = value.gate_result.metrics
+  ;(api.finalizeNativeEvaluation as jest.Mock).mockResolvedValue(ok(completed))
+  await openGates(value)
+  await screen.findByLabelText('最终审核理由')
+  expect(screen.getAllByText('观测指标')).toHaveLength(2)
+  expect(api.finalizeNativeEvaluation).not.toHaveBeenCalled()
+  await confirmFinalization()
+  await screen.findByText('本轮最终审核已通过；配置是否生效需查询发布状态')
+  expect(screen.queryByText('最终审核回执暂不可核对，请重新查询任务；不能据此发布配置。')).not.toBeInTheDocument()
+})
 it('does not offer finalization while server evidence reports incomplete human review', async () => {
   const value = gates(false)
   value.gate_result.reasons.push({ gate: 'G5', code: 'human_review_incomplete', evidence_refs: ['candidate:1'] })
@@ -463,12 +481,24 @@ it('does not offer finalization while server evidence reports incomplete human r
   expect(screen.queryByLabelText('最终审核理由')).not.toBeInTheDocument()
   expect(api.finalizeNativeEvaluation).not.toHaveBeenCalled()
 })
-it.each(['version', 'release', 'missing_gate', 'invalid_metric'])('rejects unbound or incomplete gate preview: %s', async (kind) => {
+it.each([
+  'version', 'release', 'missing_gate', 'invalid_metric',
+  'null_gate_threshold', 'missing_observation_threshold', 'invalid_observation_value'
+])('rejects unbound or incomplete gate preview: %s', async (kind) => {
   const value = gates()
   if (kind === 'version') value.version = 7
   if (kind === 'release') value.release_fingerprint = 'sha256:' + 'f'.repeat(64)
   if (kind === 'missing_gate') delete (value.gate_result.gate_passes as Partial<Record<api.NativeGateID, boolean>>).G5
   if (kind === 'invalid_metric') value.gate_result.metrics = [{ name: 'success', numerator: 1, denominator: 1, value: NaN, threshold: 0.9 }]
+  if (kind === 'null_gate_threshold') value.gate_result.metrics = [
+    { name: 'candidate_completion_rate', numerator: 35, denominator: 35, value: 1, threshold: null }
+  ]
+  if (kind === 'missing_observation_threshold') value.gate_result.metrics = [
+    JSON.parse('{"name":"observed_semantic_retry_count","numerator":1,"denominator":1,"value":1}')
+  ]
+  if (kind === 'invalid_observation_value') value.gate_result.metrics = [
+    { name: 'observed_semantic_retry_count', numerator: 1, denominator: 1, value: NaN, threshold: null }
+  ]
   await openGates(value)
   await screen.findByText(kind === 'version' || kind === 'release' ? '门槛结果与当前任务版本不一致，请重新查询任务。' : '门槛结果不完整，请重新读取。')
   expect(screen.queryByLabelText('最终审核理由')).not.toBeInTheDocument()
@@ -542,4 +572,38 @@ it('hands an approved task to publication preparation even with a retained compl
   fireEvent.click(button)
   expect(handoff).toHaveBeenCalledWith(id)
   expect(api.finalizeNativeEvaluation).not.toHaveBeenCalled()
+})
+
+it.each(['complete', 'partial', 'unknown'])('submits a 35-item batch through native recovery handling: %s', async (outcome) => {
+  journal(null)
+  const items = Array.from({ length: 35 }, (_, i) => ({ candidate_id: `candidate:${i + 1}`,
+    decision: 'approve' as const, reason: `已核对第 ${i + 1} 条事实及引用` }))
+  ;(api.getNativeEvaluation as jest.Mock).mockResolvedValue(ok(state(8, 'awaiting_review')))
+  ;(api.listNativeCandidates as jest.Mock).mockResolvedValue(ok({ run_id: id, version: 8,
+    candidates: items.map((r, i) => ({ candidate_id: r.candidate_id, case_id: 'case:1', slot_ordinal: i + 1 })) }))
+  const response = { ...state(9, 'awaiting_review'), reviews: items.map((r) => ({ ...r,
+    role: 'assessment_semantics', reviewer: 'user:42', reviewed_at: '2026-09-13T01:00:00Z' })) }
+  if (outcome === 'partial') response.reviews.pop()
+  ;(api.reviewNativeEvaluation as jest.Mock).mockResolvedValue(outcome === 'unknown' ? [{ status: 504 }, undefined] : ok(response))
+  render(<NativeEvaluationWorkspace owner="u1" selection={{}} />)
+  fireEvent.click(screen.getByText('查询任务状态'))
+  await screen.findByText('等待人工审核')
+  fireEvent.click(screen.getByText('读取候选结果'))
+  await screen.findByText('批量候选审核')
+  const command = { expected_version: 8, role: 'assessment_semantics', reviews: items }
+  fireEvent.change(screen.getByLabelText('批量审核计划 JSON'), { target: { value: JSON.stringify({ run_id: id, ...command }) } })
+  fireEvent.click(screen.getByText('校验并载入审核计划'))
+  fireEvent.click(screen.getByLabelText('我已逐条核对本批候选、决定及理由，确认按当前角色一次提交'))
+  fireEvent.click(screen.getByText('批量提交审核（35）'))
+  if (outcome === 'complete') {
+    await screen.findByText('9')
+    expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('u1')) || '{}').pending).toBeNull()
+  } else {
+    await screen.findByText('审核结果尚未确认，请查询原任务，暂不重复提交。')
+    expect(screen.getByText('批量提交审核（35）').closest('button')).toBeDisabled()
+    expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('u1')) || '{}').pending).toBe('review')
+  }
+  expect(api.reviewNativeEvaluation).toHaveBeenCalledTimes(1)
+  expect(api.reviewNativeEvaluation).toHaveBeenCalledWith(id, command)
+  expect(api.startNativeEvaluation).not.toHaveBeenCalled()
 })
