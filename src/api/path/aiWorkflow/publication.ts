@@ -7,8 +7,8 @@ export interface PublicationSelector {
   audience: 'participant'
   model_kind: 'scale'
   decision_kind: 'score_range'
-  model_code?: string
-  model_version?: string
+  model_code?: string | null
+  model_version?: string | null
 }
 export interface PublicationProof {
   schema_version: 'qs-ai-publication/v1'
