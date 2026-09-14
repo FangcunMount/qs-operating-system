@@ -7,6 +7,8 @@ import {
   checkHistory,
   checkPublicationReceipt,
   defaultPublicationSelector,
+  sameSelector,
+  validSelector,
   PendingPublication
 } from './publicationValidation'
 import { releaseKeys } from './evaluationValidation'
@@ -167,7 +169,18 @@ beforeEach(() => {
   ;(api.getPublicationHistory as jest.Mock).mockImplementation(() => ok(receipt()))
 })
 
-it('publishes only after fresh approved evidence and explicit confirmation, then requires fresh current state', async () => {
+it.each([false, true])('publishes approved evidence with nullable Profile scope %s and reads the receipt', async (nullable) => {
+  const profileDefinition = nullable
+    ? JSON.stringify({ profile_id: 'profile', version: 'v1',
+      selector: { ...selector, model_code: null, model_version: null } })
+    : definition
+  ;(api.getAsset as jest.Mock).mockImplementation(() =>
+    ok({ item: { kind: 'profile', reference: manifest.profile }, definition_json: profileDefinition })
+  )
+  const result = receipt()
+  if (!result.current.publication) throw new Error('Published fixture requires evidence')
+  result.current.publication.publication.evidence.profile.definition_json = profileDefinition
+  ;(api.publishConfiguration as jest.Mock).mockImplementation(() => ok(result))
   render(<NativePublicationWorkspace owner="42" initialRunID={runID} />)
   expect(api.getNativeEvaluation).not.toHaveBeenCalled()
   click('核对审核记录与发布范围')
@@ -196,6 +209,19 @@ it('publishes only after fresh approved evidence and explicit confirmation, then
   await screen.findByText('最近读取的发布状态')
   expect(api.getPublication).toHaveBeenCalledTimes(2)
   expect(screen.getByRole('button', { name: '确认发布已审核配置' })).toBeDisabled()
+})
+
+it('treats absent optional scope fields as equivalent without widening a specific scope', () => {
+  const nullable = JSON.parse('{"audience":"participant","model_kind":"scale","decision_kind":"score_range",' +
+    '"model_code":null,"model_version":null}')
+  expect(validSelector(nullable)).toBe(true)
+  expect(sameSelector(nullable, selector)).toBe(true)
+  expect(sameSelector(nullable, { ...selector, model_code: 'SCL90' })).toBe(false)
+  expect(validSelector({ ...nullable, model_code: 'SCL90' })).toBe(true)
+  expect(validSelector({ ...nullable, model_version: 'v1' })).toBe(false)
+  expect(validSelector({ ...nullable, model_code: '' })).toBe(false)
+  expect(validSelector({ ...nullable, model_code: 123 })).toBe(false)
+  expect(validSelector({ ...nullable, model_code: 'SCL90', model_version: '' })).toBe(false)
 })
 
 it.each(['unapproved', 'missing-finalization', 'wrong-profile', 'wrong-selector'])(
