@@ -6,8 +6,7 @@ import './index.scss'
 
 const { Paragraph, Text, Title } = Typography
 
-// All existing governance bookmarks enter the new workspace. Legacy pages are
-// deliberately not mounted: the retired QS AI switch also disables their reads.
+// Existing governance bookmarks share the qs-ai management workspace.
 const AIGovernancePage: React.FC = () => (
   <div className="ai-governance-page governance-page">
     <div className="ai-governance-hero">
