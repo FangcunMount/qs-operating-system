@@ -242,7 +242,7 @@ export function RuntimeRequestDetail({ owner }: { owner: string }): JSX.Element 
         getRuntimeTimeline(requestID)
       ])
       const denied = timelineFailure as { status?: number; response?: { status?: number } } | null
-      if (denied?.status === 403 || denied?.response?.status === 403) throw timelineFailure
+      if ([401, 403].includes(denied?.status || denied?.response?.status || 0)) throw timelineFailure
       if (current !== epoch.current) return
       if (failure || !result?.data || result.data.request.request_id !== requestID)
         throw failure || new Error()
@@ -360,9 +360,9 @@ export function RuntimeRequestDetail({ owner }: { owner: string }): JSX.Element 
               </>
             )}
           </Card>
+          <RuntimeTimeline value={timeline} />
           {ai && (
             <>
-              <RuntimeTimeline value={timeline} />
               <Card title="执行尝试与模型回执" style={{ marginTop: 16 }}>
                 {!ai.history_complete && (
                   <Alert
