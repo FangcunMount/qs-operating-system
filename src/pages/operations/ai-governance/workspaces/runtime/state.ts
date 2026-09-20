@@ -1,4 +1,4 @@
-import type { RuntimeRequest } from '@/api/path/aiWorkflow/runtime'
+import type { RuntimeAttempt, RuntimeRequest } from '@/api/path/aiWorkflow/runtime'
 export const statusNames: Record<string, string> = {
   pending: 'QS 已接单',
   queued: '等待执行',
@@ -10,6 +10,15 @@ export const statusNames: Record<string, string> = {
 }
 export const formatTime = (value: string | null | undefined): string =>
   value ? new Date(value).toLocaleString('zh-CN') : '未记录'
+export function modelCallTime(row: RuntimeAttempt): string {
+  if (row.model_call_time_basis === 'utc') return formatTime(row.model_call_created_at)
+  if (row.model_call_time_basis === 'legacy_timezone_unrecorded') {
+    return `${row.model_call_created_at_recorded || '未记录'}（历史原始时间，时区未记录，不用于跨服务排序）`
+  }
+  // Older backends did not distinguish local DATETIME from UTC. Do not repeat
+  // their ambiguous timestamp as a confirmed instant during a rolling upgrade.
+  return row.model_call_time_basis === 'not_recorded' ? '未记录' : '时间来源待服务端确认'
+}
 export function stage(row: RuntimeRequest): string {
   if (!row.session_id) return 'QS 已接单，等待 AI 接收'
   if (!row.ai) return 'AI 状态暂未确认'

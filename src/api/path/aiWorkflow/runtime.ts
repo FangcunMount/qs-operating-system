@@ -12,8 +12,8 @@ export interface RuntimeSummary {
   invocation_id: string | null
   publication_id: string | null
   publication_sha256: string | null
-  created_at: string
-  updated_at: string
+  created_at: string | null
+  updated_at: string | null
 }
 export interface RuntimeRequest {
   request_id: string
@@ -56,6 +56,8 @@ export interface RuntimeAttempt {
   invocation_id: string | null
   model_call_status: string | null
   model_call_created_at: string | null
+  model_call_time_basis?: 'utc' | 'legacy_timezone_unrecorded' | 'not_recorded'
+  model_call_created_at_recorded?: string | null
 }
 export interface RuntimeDelivery {
   event_id: string
