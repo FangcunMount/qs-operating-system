@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Checkbox, Descriptions, Input, Space, Typography } from 'antd'
-import type { EvaluationReference, EvaluationSelection, NativeEvaluationState } from '@/api/path/aiWorkflow'
+import type {
+  EvaluationReference,
+  EvaluationSelection,
+  NativeEvaluationState,
+  NativeReviewRole
+} from '@/api/path/aiWorkflow'
 import { JsonEvidence } from '../../components/JsonEvidence'
 import { validReason, validUUID } from './commands'
 import { statusLabels, validRef } from './evaluationValidation'
@@ -14,34 +19,63 @@ import { NativeEvaluationCatalog } from './NativeEvaluationCatalog'
 import { NativeExecutionWorkspace } from './NativeExecutionWorkspace'
 import { NativeCapacityWorkspace } from './NativeCapacityWorkspace'
 
-const pendingLabels = { create: '创建', start: '启动', review: '审核', finalize: '最终审核', reopen: '复审', resolve: '处置', cancel: '取消/废弃' }
-const label = (ref?: EvaluationReference) =>
-  ref ? `${ref.id} · ${ref.version}` : '请从配置目录选择'
+const pendingLabels = {
+  create: '创建',
+  start: '启动',
+  review: '审核',
+  finalize: '最终审核',
+  reopen: '复审',
+  resolve: '处置',
+  cancel: '取消/废弃'
+}
+const label = (ref?: EvaluationReference) => (ref ? `${ref.id} · ${ref.version}` : '请从配置目录选择')
 export function NativeEvaluationWorkspace({
   owner,
   selection,
   onPublish,
   onState,
   onRevise,
-  initialRunID = ''
+  initialRunID = '',
+  guided = false,
+  plan,
+  initialRole
 }: {
   owner: string
   selection: EvaluationSelection
   onPublish?: (runID: string) => void
   onState?: (run: NativeEvaluationState | null) => void
   onRevise?: (run: NativeEvaluationState) => Promise<boolean>
+  initialRole?: NativeReviewRole
+  guided?: boolean
+  plan?: {
+    generation_case_count: number
+    candidates_per_case: number
+    candidate_count: number
+    preflight_case_count: number
+    max_generation_invocations: number
+    max_semantic_invocations: number
+  }
   initialRunID?: string
 }): JSX.Element {
   const c = useNativeEvaluation(owner, selection)
-  useEffect(() => { onState?.(c.run) }, [c.run, onState])
+  useEffect(() => {
+    onState?.(c.run)
+  }, [c.run, onState])
   const [runID, setRunID] = useState(c.journal?.runID || '')
   const opened = useRef('')
   useEffect(() => {
-    if (!initialRunID || opened.current === initialRunID || c.busy || c.journal?.pending || c.storageFailed) return
+    if (!initialRunID || opened.current === initialRunID || c.busy || c.journal?.pending || c.storageFailed)
+      return
     opened.current = initialRunID
     setRunID(initialRunID)
     c.read(initialRunID)
   }, [initialRunID, c.busy, c.journal?.pending, c.storageFailed, c.read])
+  useEffect(() => {
+    if (!guided || c.busy || c.journal?.pending || c.storageFailed || c.run?.status !== 'collecting') return
+    const id = c.run.run_id
+    const timer = window.setTimeout(() => c.read(id), 5000)
+    return () => window.clearTimeout(timer)
+  }, [guided, c.busy, c.journal?.pending, c.storageFailed, c.run?.run_id, c.run?.status, c.read])
   const [revising, setRevising] = useState(false)
   const [reason, setReason] = useState('')
   const [confirmed, setConfirmed] = useState(false)
@@ -57,23 +91,42 @@ export function NativeEvaluationWorkspace({
     if (c.journal) setRunID(c.journal.runID)
   }, [c.journal?.runID])
   const locked = c.busy || Boolean(c.journal) || Boolean(c.run) || c.storageFailed
-  const canPrepare = [selection.suite, selection.generation_route, selection.semantic_route].every(
-    validRef
-  )
+  const canPrepare = [selection.suite, selection.generation_route, selection.semantic_route].every(validRef)
   return (
-    <Card title="原生评测任务" style={{ marginTop: 20 }}>
+    <Card title={guided ? '测试效果与人工审核' : '原生评测任务'} style={{ marginTop: 20 }}>
       <Alert
         showIcon
         type="info"
         message="先确认配置与预算，再创建和启动任务。创建只保存固定版本，启动后才进入执行队列。"
       />
       {c.error && <Alert showIcon type="error" message={c.error} style={{ marginTop: 12 }} />}
+      {guided && plan && (
+        <Card size="small" title="本版本的完整测试计划">
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="案例">
+              {plan.generation_case_count} 组 × {plan.candidates_per_case} 个候选
+            </Descriptions.Item>
+            <Descriptions.Item label="候选总数">{plan.candidate_count}</Descriptions.Item>
+            <Descriptions.Item label="预检">{plan.preflight_case_count}</Descriptions.Item>
+            <Descriptions.Item label="生成调用上限">{plan.max_generation_invocations}</Descriptions.Item>
+            <Descriptions.Item label="语义调用上限">{plan.max_semantic_invocations}</Descriptions.Item>
+          </Descriptions>
+          <Typography.Paragraph type="secondary">
+            上限包含策略允许的重试，不是已用次数。没有可信单价，暂不估算费用。
+          </Typography.Paragraph>
+        </Card>
+      )}
       <NativeCapacityWorkspace key={`capacity:${owner}`} disabled={c.busy} />
-      <NativeEvaluationCatalog
-        key={owner}
-        disabled={c.busy || Boolean(c.journal?.pending)}
-        onSelect={(id) => { setRunID(id); c.read(id) }}
-      />
+      {!guided && (
+        <NativeEvaluationCatalog
+          key={owner}
+          disabled={c.busy || Boolean(c.journal?.pending)}
+          onSelect={(id) => {
+            setRunID(id)
+            c.read(id)
+          }}
+        />
+      )}
       {c.journal?.pending && (
         <Alert
           showIcon
@@ -83,33 +136,36 @@ export function NativeEvaluationWorkspace({
           description="保留原任务标识，通过下方查询恢复。暂不重复提交任务操作。"
         />
       )}
-      <Space wrap style={{ marginTop: 16, marginBottom: 16 }}>
-        <Input
-          aria-label="评测任务标识"
-          placeholder="输入任务标识，恢复查看"
-          value={runID}
-          disabled={c.busy || Boolean(c.journal?.pending)}
-          onChange={(e) => setRunID(e.target.value)}
-          style={{ width: 360 }}
-        />
-        <Button
-          loading={c.busy}
-          disabled={!validUUID(runID.trim()) || c.busy}
-          onClick={() => c.read(runID)}
-        >
-          查询任务状态
+      {!guided && (
+        <Space wrap style={{ marginTop: 16, marginBottom: 16 }}>
+          <Input
+            aria-label="评测任务标识"
+            placeholder="输入任务标识，恢复查看"
+            value={runID}
+            disabled={c.busy || Boolean(c.journal?.pending)}
+            onChange={(e) => setRunID(e.target.value)}
+            style={{ width: 360 }}
+          />
+          <Button
+            loading={c.busy}
+            disabled={!validUUID(runID.trim()) || c.busy}
+            onClick={() => c.read(runID)}
+          >
+            查询任务状态
+          </Button>
+        </Space>
+      )}
+      {guided && (
+        <Button loading={c.busy} disabled={c.busy || !initialRunID} onClick={() => c.read(initialRunID)}>
+          刷新测试与审核状态
         </Button>
-      </Space>
-      {!c.run && !c.journal && (
+      )}
+      {!guided && !c.run && !c.journal && (
         <>
           <Descriptions column={1} size="small">
             <Descriptions.Item label="评测套件">{label(selection.suite)}</Descriptions.Item>
-            <Descriptions.Item label="生成模型路线">
-              {label(selection.generation_route)}
-            </Descriptions.Item>
-            <Descriptions.Item label="语义评测路线">
-              {label(selection.semantic_route)}
-            </Descriptions.Item>
+            <Descriptions.Item label="生成模型路线">{label(selection.generation_route)}</Descriptions.Item>
+            <Descriptions.Item label="语义评测路线">{label(selection.semantic_route)}</Descriptions.Item>
           </Descriptions>
           <Button disabled={locked || !canPrepare} loading={c.busy} onClick={c.prepare}>
             读取评测计划
@@ -117,22 +173,14 @@ export function NativeEvaluationWorkspace({
           {c.plan && (
             <Card title="待确认的评测计划" size="small" style={{ marginTop: 16 }}>
               <Descriptions column={2} size="small">
-                <Descriptions.Item label="生成案例">
-                  {c.plan.generation_case_count}
-                </Descriptions.Item>
-                <Descriptions.Item label="每案例候选">
-                  {c.plan.candidates_per_case}
-                </Descriptions.Item>
+                <Descriptions.Item label="生成案例">{c.plan.generation_case_count}</Descriptions.Item>
+                <Descriptions.Item label="每案例候选">{c.plan.candidates_per_case}</Descriptions.Item>
                 <Descriptions.Item label="候选总数">{c.plan.candidate_count}</Descriptions.Item>
-                <Descriptions.Item label="预检案例">
-                  {c.plan.preflight_case_count}
-                </Descriptions.Item>
+                <Descriptions.Item label="预检案例">{c.plan.preflight_case_count}</Descriptions.Item>
                 <Descriptions.Item label="生成调用上限">
                   {c.plan.max_generation_invocations}
                 </Descriptions.Item>
-                <Descriptions.Item label="语义调用上限">
-                  {c.plan.max_semantic_invocations}
-                </Descriptions.Item>
+                <Descriptions.Item label="语义调用上限">{c.plan.max_semantic_invocations}</Descriptions.Item>
               </Descriptions>
               <Typography.Paragraph type="secondary">
                 以上为此版本策略的调用上限，不代表当前机构剩余额度，也不是本次实际调用量。
@@ -172,36 +220,67 @@ export function NativeEvaluationWorkspace({
       )}
       {c.run && (
         <Card title="当前评测任务" size="small">
-          {c.run.status === 'rejected' && <Alert type="warning" showIcon message="本轮审核已结束，未上线。当前线上版本不受影响。"
-            description={onRevise && <Button loading={revising} disabled={revising || c.busy || Boolean(c.journal?.pending)}
-              onClick={async () => {
-                if (!c.run) return
-                setRevising(true)
-                try { if (await onRevise(c.run)) c.reset() } finally { setRevising(false) }
-              }}>基于本轮创建修改版本</Button>} />}
-          {c.run.reviews.length > 0 && <details open><summary>已有审核意见（{c.run.reviews.length} 条）</summary>
-            <ul>{c.run.reviews.map((raw, i) => {
-              const item = raw as { candidate_id?: string; decision?: string; reason?: string; role?: string }
-              return <li key={i}>
-                {item.role === 'safety_product' ? '安全与产品' : '测评语义'} · {item.decision === 'reject' ? '拒绝' : '通过'}
-                · {item.candidate_id}：{item.reason}
-              </li>
-            })}</ul>
-          </details>}
-          <NativeExecutionWorkspace key={`executions:${c.run.run_id}:${c.run.version}`} run={c.run} locked={c.busy} />
+          {c.run.status === 'rejected' && (
+            <Alert
+              type="warning"
+              showIcon
+              message="本轮审核已结束，未上线。当前线上版本不受影响。"
+              description={
+                onRevise && (
+                  <Button
+                    loading={revising}
+                    disabled={revising || c.busy || Boolean(c.journal?.pending)}
+                    onClick={async () => {
+                      if (!c.run) return
+                      setRevising(true)
+                      try {
+                        if (await onRevise(c.run)) c.reset()
+                      } finally {
+                        setRevising(false)
+                      }
+                    }}
+                  >
+                    基于本轮创建修改版本
+                  </Button>
+                )
+              }
+            />
+          )}
+          {c.run.reviews.length > 0 && (
+            <details open>
+              <summary>已有审核意见（{c.run.reviews.length} 条）</summary>
+              <ul>
+                {c.run.reviews.map((raw, i) => {
+                  const item = raw as {
+                    candidate_id?: string
+                    decision?: string
+                    reason?: string
+                    role?: string
+                  }
+                  return (
+                    <li key={i}>
+                      {item.role === 'safety_product' ? '安全与产品' : '测评语义'} ·{' '}
+                      {item.decision === 'reject' ? '拒绝' : '通过'}· {item.candidate_id}：{item.reason}
+                    </li>
+                  )
+                })}
+              </ul>
+            </details>
+          )}
+          <NativeExecutionWorkspace
+            key={`executions:${c.run.run_id}:${c.run.version}`}
+            run={c.run}
+            locked={c.busy}
+          />
           <Descriptions column={1} size="small">
             <Descriptions.Item label="任务标识">
               <Typography.Text copyable>{c.run.run_id}</Typography.Text>
             </Descriptions.Item>
             <Descriptions.Item label="状态">{statusLabels[c.run.status]}</Descriptions.Item>
             <Descriptions.Item label="任务版本">{c.run.version}</Descriptions.Item>
-            <Descriptions.Item label="待核对调用">
-              {c.run.unresolved_result_unknown_count}
-            </Descriptions.Item>
+            <Descriptions.Item label="待核对调用">{c.run.unresolved_result_unknown_count}</Descriptions.Item>
             {c.run.creation && (
-              <Descriptions.Item label="冻结套件">
-                {label(c.run.creation.release.suite)}
-              </Descriptions.Item>
+              <Descriptions.Item label="冻结套件">{label(c.run.creation.release.suite)}</Descriptions.Item>
             )}
             {c.run.creation && (
               <Descriptions.Item label="创建人">{c.run.creation.requested_by}</Descriptions.Item>
@@ -210,16 +289,11 @@ export function NativeEvaluationWorkspace({
               <Descriptions.Item label="创建时间">{c.run.creation.created_at}</Descriptions.Item>
             )}
             {c.run.creation && (
-              <Descriptions.Item label="创建理由">
-                {c.run.creation.request_reason}
-              </Descriptions.Item>
+              <Descriptions.Item label="创建理由">{c.run.creation.request_reason}</Descriptions.Item>
             )}
           </Descriptions>
           {!c.run.creation && (
-            <Alert
-              type="warning"
-              message="当前响应缺少原始创建记录，仅可查看状态；暂不能从此处启动。"
-            />
+            <Alert type="warning" message="当前响应缺少原始创建记录，仅可查看状态；暂不能从此处启动。" />
           )}
           {c.run.status === 'requested' && c.run.creation && (
             <Space direction="vertical" style={{ width: '100%', marginTop: 12 }}>
@@ -258,31 +332,58 @@ export function NativeEvaluationWorkspace({
             <summary>查看固定版本与任务审计记录</summary>
             <JsonEvidence value={c.run} />
           </details>
-          <NativeUnknownWorkspace key={`unknown:${c.run.run_id}:${c.run.version}`} run={c.run} view={c.unknowns}
-            locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)} load={c.loadUnknowns} resolve={c.resolveUnknown} />
+          <NativeUnknownWorkspace
+            key={`unknown:${c.run.run_id}:${c.run.version}`}
+            run={c.run}
+            view={c.unknowns}
+            locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)}
+            load={c.loadUnknowns}
+            resolve={c.resolveUnknown}
+          />
           {['awaiting_review', 'approved', 'rejected'].includes(c.run.status) && (
-            <NativeGateWorkspace key={`gates:${c.run.run_id}:${c.run.version}`} run={c.run}
-              preview={c.gates} locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)}
-              load={c.previewGates} finalize={c.finalize} />
+            <NativeGateWorkspace
+              key={`gates:${c.run.run_id}:${c.run.version}`}
+              run={c.run}
+              preview={c.gates}
+              locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)}
+              load={c.previewGates}
+              finalize={c.finalize}
+            />
           )}
-          <NativeCancellationWorkspace key={`cancel:${c.run.run_id}:${c.run.version}`} run={c.run}
-            locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)} cancel={c.cancel} />
-          <NativeReopeningWorkspace key={`reopening:${c.run.run_id}:${c.run.version}`} run={c.run}
-            locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)} reopen={c.reopen} />
+          <NativeCancellationWorkspace
+            key={`cancel:${c.run.run_id}:${c.run.version}`}
+            run={c.run}
+            locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)}
+            cancel={c.cancel}
+          />
+          <NativeReopeningWorkspace
+            key={`reopening:${c.run.run_id}:${c.run.version}`}
+            run={c.run}
+            locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)}
+            reopen={c.reopen}
+          />
           {c.run.status === 'approved' && onPublish && (
-            <Button style={{ marginTop: 12 }}
+            <Button
+              style={{ marginTop: 12 }}
               disabled={c.busy || c.storageFailed || Boolean(c.journal?.pending)}
-              onClick={() => c.run && onPublish(c.run.run_id)}>
+              onClick={() => c.run && onPublish(c.run.run_id)}
+            >
               前往核对并发布配置
             </Button>
           )}
           {c.run.status !== 'requested' && (
-            <NativeCandidateWorkspace key={`${c.run.run_id}:${c.run.version}`} run={c.run}
-              locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)} review={c.review} />
+            <NativeCandidateWorkspace
+              autoLoad={guided}
+              initialRole={initialRole}
+              key={`${c.run.run_id}:${c.run.version}`}
+              run={c.run}
+              locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)}
+              review={c.review}
+            />
           )}
         </Card>
       )}
-      {(c.run || c.journal) && (
+      {!guided && (c.run || c.journal) && (
         <Button
           style={{ marginTop: 16 }}
           disabled={c.busy || c.storageFailed || Boolean(c.journal?.pending)}

@@ -101,3 +101,11 @@
     padding: 16px;
   }
 }
+
+.solution-toolbar { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.solution-editor-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 20px; align-items: start; }
+.solution-editor-layout .ant-input, .solution-editor-layout textarea { line-height: 1.8; }
+@media (max-width: 1050px) { .solution-editor-layout { grid-template-columns: 1fr; } }
+
+.solution-evidence-layout { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(300px, 1.5fr); gap: 24px; width: 100%; }
+@media (max-width: 1000px) { .solution-evidence-layout { grid-template-columns: 1fr; } }
