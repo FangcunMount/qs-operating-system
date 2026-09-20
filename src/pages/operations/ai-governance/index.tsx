@@ -17,8 +17,8 @@ const AIGovernancePage: React.FC = () => (
             <Text className="ai-governance-hero__eyebrow" strong>AI 解读管理</Text>
             <Tag icon={<SafetyCertificateOutlined />}>标准报告保持唯一权威</Tag>
           </Space>
-          <Title level={2}>AI 配置、评测与发布</Title>
-          <Paragraph>管理解读配置和发布版本，审核评测结果，查看任务状态并处理执行失败。</Paragraph>
+          <Title level={2}>管理你的 AI 解读方案</Title>
+          <Paragraph>从线上方案创建修改版本，测试解读效果，完成审核后发布。每一步都能查看结果与下一步操作。</Paragraph>
         </div>
       </div>
       <Alert

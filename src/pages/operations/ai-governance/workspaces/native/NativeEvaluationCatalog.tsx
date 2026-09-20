@@ -6,8 +6,8 @@ import { validUUID } from './commands'
 import { statusLabels } from './evaluationValidation'
 
 export function NativeEvaluationCatalog({
-  disabled, onSelect
-}: { disabled: boolean; onSelect: (runID: string) => void }): JSX.Element {
+  disabled, onSelect, autoLoad = false
+}: { disabled: boolean; onSelect: (runID: string) => void; autoLoad?: boolean }): JSX.Element {
   const [status, setStatus] = useState<EvaluationStatus | ''>('')
   const [items, setItems] = useState<NativeEvaluationSummary[]>([])
   const [cursor, setCursor] = useState('')
@@ -48,6 +48,8 @@ export function NativeEvaluationCatalog({
       if (request === epoch.current) setLoading(false)
     }
   }
+
+  useEffect(() => { if (autoLoad) load('', '') }, [autoLoad])
 
   return (
     <Card size="small" title="查找已有评测" style={{ marginTop: 16 }}>
