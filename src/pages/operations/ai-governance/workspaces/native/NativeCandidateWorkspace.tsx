@@ -5,15 +5,25 @@ import type {
   NativeCandidateEvidence,
   NativeCandidateIndex,
   NativeEvaluationState,
-  NativeReviewCommand
+  NativeReviewCommand,
+  NativeReviewRole
 } from '@/api/path/aiWorkflow'
 import { NativeReviewWorkspace } from './NativeReviewWorkspace'
 import { NativeBatchReviewWorkspace } from './NativeBatchReviewWorkspace'
+import { FrozenInputReading } from '../product/FrozenInputReading'
 import { CandidateReading } from '../product/CandidateReading'
 import { JsonEvidence } from '../../components/JsonEvidence'
 
-export function NativeCandidateWorkspace({ run, locked = false, review }: {
+export function NativeCandidateWorkspace({
+  run,
+  locked = false,
+  review,
+  initialRole,
+  autoLoad = false
+}: {
   run: NativeEvaluationState
+  autoLoad?: boolean
+  initialRole?: NativeReviewRole
   locked?: boolean
   review?(command: NativeReviewCommand, confirm: boolean): Promise<void>
 }): JSX.Element {
@@ -81,6 +91,9 @@ export function NativeCandidateWorkspace({ run, locked = false, review }: {
       if (request === epoch.current) setBusy(false)
     }
   }
+  useEffect(() => {
+    if (autoLoad && ['awaiting_review', 'approved', 'rejected'].includes(run.status)) load()
+  }, [])
   return (
     <Card title="评测结果" style={{ marginTop: 16 }}>
       <Typography.Paragraph type="secondary">
@@ -113,12 +126,24 @@ export function NativeCandidateWorkspace({ run, locked = false, review }: {
           ]}
         />
       )}
-      {index && review && <NativeBatchReviewWorkspace key={`${run.run_id}:${run.version}`} run={run}
-        index={index} locked={locked || busy} submit={review} queued={queued} onConsumed={setQueued} />}
+      {index && review && (
+        <NativeBatchReviewWorkspace
+          initialRole={initialRole}
+          key={`${run.run_id}:${run.version}`}
+          run={run}
+          index={index}
+          locked={locked || busy}
+          submit={review}
+          queued={queued}
+          onConsumed={setQueued}
+        />
+      )}
       {detail && (
         <Space direction="vertical" style={{ width: '100%', marginTop: 16 }}>
-          <Typography.Title level={5}>生成结果</Typography.Title>
-          <CandidateReading raw={detail.normalized_output} />
+          <div className="solution-evidence-layout">
+            <FrozenInputReading evidence={detail.evidence} />
+            <CandidateReading raw={detail.normalized_output} />
+          </div>
           <details>
             <summary>语义检查原文</summary>
             <JsonEvidence value={detail.semantic_output} />
@@ -128,8 +153,15 @@ export function NativeCandidateWorkspace({ run, locked = false, review }: {
             <JsonEvidence value={detail.evidence} />
           </details>
           {review && (
-            <NativeReviewWorkspace key={`${detail.candidate_id}:${detail.version}`} run={run}
-              detail={detail} locked={locked || busy} submit={review} enqueue={setQueued} />
+            <NativeReviewWorkspace
+              initialRole={initialRole}
+              key={`${detail.candidate_id}:${detail.version}`}
+              run={run}
+              detail={detail}
+              locked={locked || busy}
+              submit={review}
+              enqueue={setQueued}
+            />
           )}
         </Space>
       )}

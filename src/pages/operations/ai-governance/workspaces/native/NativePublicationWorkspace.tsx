@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Checkbox, Descriptions, Form, Input, Space, Table, Typography } from 'antd'
 import type { PublicationHistoryEntry, PublicationState } from '@/api/path/aiWorkflow'
 import { JsonEvidence } from '../../components/JsonEvidence'
@@ -46,14 +46,25 @@ function StateEvidence({ value }: { value: PublicationState }): JSX.Element {
 export function NativePublicationWorkspace({
   owner,
   initialRunID = '',
-  onState
+  onState,
+  guided = false
 }: {
+  guided?: boolean
   owner: string
   initialRunID?: string
   onState?: (value: PublicationState | null) => void
 }): JSX.Element {
   const c = usePublication(owner)
-  useEffect(() => { onState?.(c.current) }, [c.current, onState])
+  const opened = useRef(false)
+  useEffect(() => {
+    if (!guided || opened.current || c.locked) return
+    opened.current = true
+    if (validUUID(initialRunID)) c.prepare(initialRunID)
+    else c.inspect(defaultPublicationSelector)
+  }, [guided, initialRunID, c.locked])
+  useEffect(() => {
+    onState?.(c.current)
+  }, [c.current, onState])
   const [runID, setRunID] = useState(initialRunID)
   const [modelCode, setModelCode] = useState('')
   const [modelVersion, setModelVersion] = useState('')
@@ -110,65 +121,71 @@ export function NativePublicationWorkspace({
           }
         />
       )}
-      <Card size="small" title="准备发布已审核的评测配置" style={{ marginTop: 16 }}>
-        <Space wrap>
-          <Input
-            aria-label="待发布评测任务"
-            value={runID}
-            disabled={c.locked}
-            placeholder="评测任务标识"
-            style={{ width: 330, maxWidth: '100%' }}
-            onChange={(e) => {
-              setRunID(e.target.value)
-              setConfirmed(false)
-            }}
-          />
-          <Button disabled={c.locked || !validUUID(runID)} onClick={() => c.prepare(runID)}>
-            核对审核记录与发布范围
-          </Button>
-        </Space>
-        {c.candidate && c.candidate.run.run_id === runID && (
-          <Typography.Paragraph style={{ marginTop: 12 }}>
-            任务 {runID} 的版本 {c.candidate.run.version} 已通过最终审核。发布范围：
-            {c.candidate.selector.model_code || '通用量表'} ·{' '}
-            {c.candidate.selector.model_version || '不限测评版本'}。
-          </Typography.Paragraph>
-        )}
-      </Card>
-      <Card size="small" title="按配置范围查询" style={{ marginTop: 16 }}>
-        <Form layout="inline">
-          <Form.Item label="测评编码（可选）">
+      {(!guided || !!initialRunID) && (
+        <Card size="small" title="准备发布已审核的评测配置" style={{ marginTop: 16 }}>
+          <Space wrap>
             <Input
-              aria-label="发布测评编码"
-              value={modelCode}
+              hidden={guided}
+              aria-label="待发布评测任务"
+              value={runID}
               disabled={c.locked}
+              placeholder="评测任务标识"
+              style={{ width: 330, maxWidth: '100%' }}
               onChange={(e) => {
-                setModelCode(e.target.value)
+                setRunID(e.target.value)
                 setConfirmed(false)
               }}
             />
-          </Form.Item>
-          <Form.Item label="测评版本（可选）">
-            <Input
-              aria-label="发布测评版本"
-              value={modelVersion}
-              disabled={c.locked}
-              onChange={(e) => {
-                setModelVersion(e.target.value)
-                setConfirmed(false)
-              }}
-            />
-          </Form.Item>
-          <Form.Item>
-            <Button disabled={c.locked || !validSelector(selector)} onClick={() => c.inspect(selector)}>
-              查询当前发布
+            <Button disabled={c.locked || !validUUID(runID)} onClick={() => c.prepare(runID)}>
+              核对审核记录与发布范围
             </Button>
-          </Form.Item>
-        </Form>
-        <Typography.Paragraph type="secondary" style={{ marginTop: 10, marginBottom: 0 }}>
-          这里查询精确配置范围；具体测评运行时的配置选择仍由服务端决定。
-        </Typography.Paragraph>
-      </Card>
+          </Space>
+          {c.candidate && c.candidate.run.run_id === runID && (
+            <Typography.Paragraph style={{ marginTop: 12 }}>
+              任务 {runID} 的版本 {c.candidate.run.version} 已通过最终审核。发布范围：
+              {c.candidate.selector.model_code || '通用量表'} ·{' '}
+              {c.candidate.selector.model_version || '不限测评版本'}。
+            </Typography.Paragraph>
+          )}
+        </Card>
+      )}
+      <details open={!guided}>
+        <summary>高级：按测评范围查询</summary>
+        <Card size="small" title="按配置范围查询" style={{ marginTop: 16 }}>
+          <Form layout="inline">
+            <Form.Item label="测评编码（可选）">
+              <Input
+                aria-label="发布测评编码"
+                value={modelCode}
+                disabled={c.locked}
+                onChange={(e) => {
+                  setModelCode(e.target.value)
+                  setConfirmed(false)
+                }}
+              />
+            </Form.Item>
+            <Form.Item label="测评版本（可选）">
+              <Input
+                aria-label="发布测评版本"
+                value={modelVersion}
+                disabled={c.locked}
+                onChange={(e) => {
+                  setModelVersion(e.target.value)
+                  setConfirmed(false)
+                }}
+              />
+            </Form.Item>
+            <Form.Item>
+              <Button disabled={c.locked || !validSelector(selector)} onClick={() => c.inspect(selector)}>
+                查询当前发布
+              </Button>
+            </Form.Item>
+          </Form>
+          <Typography.Paragraph type="secondary" style={{ marginTop: 10, marginBottom: 0 }}>
+            这里查询精确配置范围；具体测评运行时的配置选择仍由服务端决定。
+          </Typography.Paragraph>
+        </Card>
+      </details>
       {c.current && (
         <Card size="small" title="最近读取的发布状态" style={{ marginTop: 16 }}>
           <StateEvidence value={c.current} />
@@ -290,7 +307,9 @@ export function NativePublicationWorkspace({
           <Alert
             type="success"
             showIcon
-            message={`${publicationLabels[c.receipt.action]}命令已确认，变更版本 ${c.receipt.previous.version} → ${c.receipt.current.version}`}
+            message={`${publicationLabels[c.receipt.action]}命令已确认，变更版本 ${
+              c.receipt.previous.version
+            } → ${c.receipt.current.version}`}
             description="这是原命令的结果；继续操作前，请重新查询当前发布状态。"
           />
           <Typography.Paragraph style={{ marginTop: 12 }}>

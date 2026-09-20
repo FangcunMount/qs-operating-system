@@ -1,7 +1,7 @@
 import React from 'react'
 import { Alert, Card, Space, Tag, Typography } from 'antd'
 import { RobotOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
-import { NativeConfigurationWorkspace } from './workspaces/native/NativeConfigurationWorkspace'
+import { SolutionWorkspace } from './workspaces/product/SolutionWorkspace'
 import './index.scss'
 
 const { Paragraph, Text, Title } = Typography
@@ -29,7 +29,7 @@ const AIGovernancePage: React.FC = () => (
       />
     </div>
     <Card className="ai-governance-page__workspace">
-      <NativeConfigurationWorkspace />
+      <SolutionWorkspace />
     </Card>
   </div>
 )

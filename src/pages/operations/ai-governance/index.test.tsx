@@ -2,8 +2,8 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import AIGovernancePage from './index'
 
-jest.mock('./workspaces/native/NativeConfigurationWorkspace', () => ({
-  NativeConfigurationWorkspace: function NativeConfigurationWorkspace() { return <div>新配置评测审核发布闭环</div> }
+jest.mock('./workspaces/product/SolutionWorkspace', () => ({
+  SolutionWorkspace: function SolutionWorkspace() { return <div>新配置评测审核发布闭环</div> }
 }))
 
 it.each(['', '/configuration', '/evaluations', '/reviews', '/profiles', '/runtime'])(

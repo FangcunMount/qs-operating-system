@@ -4,14 +4,15 @@ import type { NativeCandidateEvidence, NativeEvaluationState, NativeReviewComman
 import { validReason } from './commands'
 import { contradictionTargets, reviewRecords, validSemanticReview } from './reviewValidation'
 
-export function NativeReviewWorkspace({ run, detail, locked, submit, enqueue }: {
+export function NativeReviewWorkspace({ run, detail, locked, submit, enqueue, initialRole }: {
+  initialRole?: NativeReviewRole
   run: NativeEvaluationState
   detail: NativeCandidateEvidence
   locked: boolean
   enqueue?(command: NativeReviewCommand): void
   submit(command: NativeReviewCommand, confirm: boolean): Promise<void>
 }): JSX.Element {
-  const [role, setRole] = useState<NativeReviewRole>('assessment_semantics')
+  const [role, setRole] = useState<NativeReviewRole>(initialRole || 'assessment_semantics')
   const [decision, setDecision] = useState<'approve' | 'reject'>('approve')
   const [reason, setReason] = useState('')
   const [confirmed, setConfirmed] = useState(false)

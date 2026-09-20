@@ -4,7 +4,8 @@ import type { NativeCandidateIndex, NativeEvaluationState, NativeReviewCommand, 
 import { importBatch, validateBatch } from './batchReview'
 import { validReason } from './commands'
 
-export function NativeBatchReviewWorkspace({ run, index, locked, submit, queued, onConsumed }: {
+export function NativeBatchReviewWorkspace({ run, index, locked, submit, queued, onConsumed, initialRole }: {
+  initialRole?: NativeReviewRole
   run: NativeEvaluationState
   index: NativeCandidateIndex
   locked: boolean
@@ -13,7 +14,7 @@ export function NativeBatchReviewWorkspace({ run, index, locked, submit, queued,
   onConsumed(value: NativeReviewCommand | null): void
 }): JSX.Element {
   const [plan, setPlan] = useState<NativeReviewCommand | null>(null)
-  const [role, setRole] = useState<NativeReviewRole>('assessment_semantics')
+  const [role, setRole] = useState<NativeReviewRole>(initialRole || 'assessment_semantics')
   const [selected, setSelected] = useState<React.Key[]>([])
   const [decision, setDecision] = useState<'approve' | 'reject'>('approve')
   const [reason, setReason] = useState('')
