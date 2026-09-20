@@ -134,6 +134,8 @@ export function FlowPanel({
     }
   }, [owner, kind, id, compareID, expectedDigest, sourceRevision, revision])
   const node = flow?.nodes.find((n) => n.id === selected)
+  const priorNode = comparison?.nodes.find((n) => n.id === selected)
+  const editTarget = node?.edit_target
   return (
     <Card
       title="解读流程"
@@ -272,17 +274,17 @@ export function FlowPanel({
               <Descriptions.Item label="输出">{node.outputs.join('、')}</Descriptions.Item>
             </Descriptions>
             <Details node={node} />
-            {comparison?.nodes.find((n) => n.id === node.id) && (
+            {priorNode && (
               <details>
                 <summary>来源版本正文与参数</summary>
-                <Details node={comparison.nodes.find((n) => n.id === node.id)!} />
+                <Details node={priorNode} />
               </details>
             )}
-            {onEdit && node.editable && node.edit_target && (
+            {onEdit && node.editable && editTarget && (
               <Button
                 type="primary"
                 onClick={() => {
-                  onEdit(node.edit_target!)
+                  onEdit(editTarget)
                   setSelected('')
                 }}
               >
