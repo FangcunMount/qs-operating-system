@@ -16,3 +16,12 @@ it.each(['', '/configuration', '/evaluations', '/reviews', '/profiles', '/runtim
     expect(screen.queryByText('用户能力默认关闭')).not.toBeInTheDocument()
   }
 )
+
+
+it('has three distinct product entries and preserves legacy solution context', () => {
+  render(<MemoryRouter initialEntries={['/operations/ai-governance?aiSolution=old&aiStep=test']}><AIGovernancePage /></MemoryRouter>)
+  expect(screen.getByRole('link', { name: '解读方案' })).toHaveAttribute('href', '/operations/ai-governance/solutions')
+  expect(screen.getByRole('link', { name: '审核待办' })).toHaveAttribute('href', '/operations/ai-governance/reviews')
+  expect(screen.getByRole('link', { name: '运行中心' })).toHaveAttribute('href', '/operations/ai-governance/runtime')
+  expect(screen.queryByText('高级配置')).not.toBeInTheDocument()
+})

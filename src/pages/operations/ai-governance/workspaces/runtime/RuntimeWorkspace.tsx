@@ -1,3 +1,5 @@
+import { NativeParticipantWorkspace } from '../native/NativeParticipantWorkspace'
+import { FlowPanel } from '../flow/FlowPanel'
 import { RuntimeHealth } from './RuntimeHealth'
 import { RuntimeTimeline } from './RuntimeTimeline'
 import type { RuntimeTimeline as TimelineEvidence } from '@/api/path/aiWorkflow/runtime'
@@ -360,6 +362,9 @@ export function RuntimeRequestDetail({ owner }: { owner: string }): JSX.Element 
               </>
             )}
           </Card>
+          {ai?.execution.publication_id && ai.execution.publication_sha256 && ai.execution.workflow_version === 'qs-published-snapshot-v1' ? (
+            <FlowPanel owner={owner} kind="publication" id={ai.execution.publication_id} expectedDigest={ai.execution.publication_sha256} />
+          ) : <Alert type="info" message="此任务缺少可验证的流程定义，以下保留原执行证据。" />}
           <RuntimeTimeline value={timeline} />
           {ai && (
             <>
@@ -430,7 +435,9 @@ export const RuntimeWorkspace = observer(({ detail = false }: { detail?: boolean
     <RuntimeRequestDetail key={user.id} owner={user.id} />
   ) : (
     <>
+      <Space style={{ marginBottom: 16 }}><Link to="/operations/ai-governance/runtime/evaluations">配置评测记录</Link></Space>
       <RuntimeHealth key={`health:${user.id}`} />
+      <details><summary>容量与用量</summary><NativeParticipantWorkspace key={`capacity:${user.id}`} /></details>
       <RuntimeList key={user.id} />
     </>
   )

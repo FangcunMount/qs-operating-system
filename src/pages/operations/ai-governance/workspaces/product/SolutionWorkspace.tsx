@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Prompt } from 'react-router-dom'
+import { Prompt, useHistory, useLocation } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
-import { Alert, Button, Card, Input, Space, Steps, Table, Tabs, Tag, Typography } from 'antd'
+import { Alert, Button, Card, Input, Space, Steps, Table, Tag, Typography } from 'antd'
 import { rootStore } from '@/store'
 import { getPublication } from '@/api/path/aiWorkflow'
 import type { NativeEvaluationState, PublicationState, NativeReviewRole } from '@/api/path/aiWorkflow'
@@ -9,17 +9,21 @@ import { getSolutionModels, listSolutions } from '@/api/path/aiWorkflow/solution
 import type { SolutionModels, SolutionSummary } from '@/api/path/aiWorkflow/solutions'
 import { checkPublication, defaultPublicationSelector } from '../native/publicationValidation'
 import { newCommandID, validReason, validUUID } from '../native/commands'
-import { NativeConfigurationWorkspace } from '../native/NativeConfigurationWorkspace'
+import { ConfigurationAssets } from './ConfigurationAssets'
+import type { EvaluationSelection } from '@/api/path/aiWorkflow'
 import { NativeEvaluationWorkspace } from '../native/NativeEvaluationWorkspace'
 import { NativePublicationWorkspace } from '../native/NativePublicationWorkspace'
 import { NativeEvaluationCatalog } from '../native/NativeEvaluationCatalog'
-import { NativeParticipantWorkspace } from '../native/NativeParticipantWorkspace'
-import { NativeParticipantRetryWorkspace } from '../native/NativeParticipantRetryWorkspace'
 import { SolutionChanges, SolutionEditor } from './SolutionEditor'
 import { ReviewInbox } from './ReviewInbox'
+import { FlowPanel } from '../flow/FlowPanel'
+import type { EditTarget } from '@/api/path/aiWorkflow/flow'
 import { useSolution } from './useSolution'
 
 function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX.Element {
+  const history = useHistory()
+  const location = useLocation()
+  const section = location.pathname.includes('/reviews') ? 'reviews' : location.pathname.includes('/runtime/evaluations') ? 'runs' : 'solutions'
   const controller = useSolution(owner)
   const [items, setItems] = useState<SolutionSummary[]>([])
   const [cursor, setCursor] = useState('')
@@ -28,10 +32,12 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [reviewRole, setReviewRole] = useState<NativeReviewRole>('assessment_semantics')
-  const [tab, setTab] = useState('solutions')
-  const [advanced, setAdvanced] = useState(false)
+  const tab = section
+  const assetsOpen = location.pathname.endsWith('/assets')
+  const [evaluationSelection, setEvaluationSelection] = useState<EvaluationSelection>({})
   const [dirty, setDirty] = useState(false)
   const [step, setStep] = useState('edit')
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null)
   const [externalRun, setExternalRun] = useState('')
   const [run, setRun] = useState<NativeEvaluationState | null>(null)
   const [title, setTitle] = useState('解读方案改进')
@@ -44,13 +50,16 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
   const activeRun = solution?.prepared?.run_id || externalRun
   const working = Boolean(solution || externalRun)
   const locked = controller.busy || Boolean(controller.pending) || controller.storageFailed
-  const navigate = (id: string, stage: string, runID = '') => {
+  const navigate = (id: string, stage: string, runID = '', role?: NativeReviewRole) => {
     const url = new URL(window.location.href)
+    url.search = location.search
     for (const key of ['aiSolution', 'aiStep', 'aiRun']) url.searchParams.delete(key)
     if (id) url.searchParams.set('aiSolution', id)
     if (runID) url.searchParams.set('aiRun', runID)
-    if (id || runID) url.searchParams.set('aiStep', stage)
-    window.history.replaceState(window.history.state, '', url.toString())
+    if (role) url.searchParams.set('aiReviewRole', role)
+    if (!id && !runID) url.searchParams.delete('aiReviewRole')
+    if (id || runID || stage === 'publish') url.searchParams.set('aiStep', stage)
+    history.push(`/operations/ai-governance/${stage === 'test' && !id ? 'reviews' : 'solutions'}${url.search}`)
     setStep(stage)
   }
   const refresh = async (after = '') => {
@@ -92,20 +101,29 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
   }
   useEffect(() => {
     refresh()
-    const url = new URL(window.location.href),
-      id = url.searchParams.get('aiSolution') || '',
-      runID = url.searchParams.get('aiRun') || ''
-    const requested = url.searchParams.get('aiStep') || 'edit'
+    const params = new URLSearchParams(location.search),
+      id = params.get('aiSolution') || '',
+      runID = params.get('aiRun') || ''
+    const requested = params.get('aiStep') || 'edit'
+    setReviewRole(params.get('aiReviewRole') === 'safety_product' ? 'safety_product' : 'assessment_semantics')
     setStep(['edit', 'test', 'publish'].includes(requested) ? requested : 'edit')
-    if (validUUID(id)) controller.read(id)
+    if (runID === 'new') { controller.clearView(); setExternalRun('new'); setStep('test') }
+    else if (validUUID(id)) { setExternalRun(''); controller.read(id) }
     else if (validUUID(runID)) {
       setExternalRun(runID)
+      controller.clearView()
       setStep(requested === 'publish' ? 'publish' : 'test')
+    } else if (requested === 'publish') {
+      controller.clearView()
+      setExternalRun('publication')
+    } else {
+      controller.clearView()
+      setExternalRun('')
     }
     return () => {
       epoch.current++
     }
-  }, [])
+  }, [location.pathname, location.search])
   const open = async (id: string) => {
     if (locked || dirty) return
     const value = await controller.read(id)
@@ -129,8 +147,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
     controller.clearView()
     setExternalRun(id)
     setRun(null)
-    setTab('solutions')
-    navigate('', 'test', id)
+    navigate('', 'test', id, role)
   }
   const create = async (sourceRun?: string) => {
     if (!allowed || locked || dirty) return false
@@ -152,7 +169,6 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
     setExternalRun('')
     setRun(null)
     navigate(id, 'edit')
-    setTab('solutions')
     return true
   }
   const isPublished = Boolean(
@@ -172,9 +188,10 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
             已保存内容可跨刷新继续；启动、审核和发布分别确认。
           </Typography.Text>
         </Space>
-        <Button disabled={locked || dirty} onClick={() => setAdvanced(!advanced)}>
-          {advanced ? '返回常规管理' : '高级配置'}
-        </Button>
+        {section === 'solutions' && <Button disabled={locked || dirty}
+          onClick={() => history.push(assetsOpen ? '/operations/ai-governance/solutions' : '/operations/ai-governance/solutions/assets')}>
+          {assetsOpen ? '返回解读方案' : '配置资产'}
+        </Button>}
       </div>
       {controller.error && <Alert type="error" showIcon message={controller.error} />}
       {controller.error.startsWith('版本冲突') && solution && (
@@ -214,13 +231,17 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
           }
         />
       )}
-      {advanced ? (
-        <NativeConfigurationWorkspace />
+      {assetsOpen ? (
+        <ConfigurationAssets owner={owner} onEvaluate={(selection) => {
+          if (locked || dirty) return
+          setEvaluationSelection(selection)
+          navigate('', 'test', 'new')
+        }} />
       ) : (
         <>
           {!working && (
-            <Tabs activeKey={tab} onChange={setTab}>
-              <Tabs.TabPane tab="方案" key="solutions">
+            <>
+              {tab === 'solutions' && <>
                 <Card
                   title="单次测评补充解读"
                   extra={
@@ -277,8 +298,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                       <Button
                         disabled={locked}
                         onClick={() => {
-                          setExternalRun('publication')
-                          setStep('publish')
+                          navigate('', 'publish')
                         }}
                       >
                         查看发布与回退
@@ -286,6 +306,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                     </Space>
                   </Space>
                 </Card>
+                {publication?.active_publication_id && <FlowPanel owner={owner} kind="publication" id={publication.active_publication_id} />}
                 <Card title="修改版本" style={{ marginTop: 16 }}>
                   <Table<SolutionSummary>
                     rowKey="solution_id"
@@ -323,19 +344,15 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                     </Button>
                   )}
                 </Card>
-              </Tabs.TabPane>
-              <Tabs.TabPane tab="待我审核" key="reviews">
+              </>}
+              {tab === 'reviews' && <>
                 <ReviewInbox userID={owner} allowed={allowed} onSelect={selectRun} />
-              </Tabs.TabPane>
-              <Tabs.TabPane tab="运行记录" key="runs">
+              </>}
+              {tab === 'runs' && <>
                 <NativeEvaluationCatalog disabled={locked} autoLoad onSelect={selectRun} />
-                <details>
-                  <summary>用户解读任务与异常处置</summary>
-                  <NativeParticipantWorkspace />
-                  <NativeParticipantRetryWorkspace owner={owner} />
-                </details>
-              </Tabs.TabPane>
-            </Tabs>
+
+              </>}
+            </>
           )}
           {working && (
             <>
@@ -379,12 +396,21 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                   />
                 ))}
               </Steps>
+              {solution && <FlowPanel owner={owner} kind="solution" id={solution.solution_id}
+                sourceRevision={solution.revision} compareID={solution.source.publication_id || undefined}
+                onEdit={!locked && !dirty && allowed ? (target) => {
+                  navigate(solution.solution_id, 'edit')
+                  setEditTarget(target)
+                } : undefined}
+                onCreate={solution.prepared && !locked && !dirty && allowed ? () => { create(solution.prepared?.run_id) } : undefined}
+              />}
               {step === 'edit' &&
                 solution &&
                 (!solution.prepared ? (
                   <SolutionEditor
                     key={solution.solution_id}
                     solution={solution}
+                    focusTarget={editTarget}
                     capabilities={models}
                     busy={controller.busy}
                     locked={locked || !allowed}
@@ -415,17 +441,17 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                 ))}
               {step === 'test' && activeRun && activeRun !== 'publication' && (
                 <NativeEvaluationWorkspace
-                  guided
+                  guided={activeRun !== 'new'}
                   key={`${owner}:${activeRun}`}
                   owner={owner}
-                  selection={{}}
+                  selection={evaluationSelection}
                   plan={solution?.prepared?.plan}
                   initialRole={reviewRole}
-                  initialRunID={activeRun}
+                  initialRunID={activeRun === 'new' ? '' : activeRun}
                   onState={reportRun}
                   onRevise={(value) => create(value.run_id)}
-                  onPublish={() =>
-                    navigate(solution?.solution_id || '', 'publish', solution ? '' : activeRun)
+                  onPublish={(id) =>
+                    navigate(solution?.solution_id || '', 'publish', solution ? '' : id)
                   }
                 />
               )}

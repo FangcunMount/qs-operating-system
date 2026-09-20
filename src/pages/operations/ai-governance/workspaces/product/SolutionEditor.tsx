@@ -15,6 +15,7 @@ import {
 import type { ModelSelection, Solution, SolutionEdits, SolutionModels } from '@/api/path/aiWorkflow/solutions'
 import { SolutionConflict } from './SolutionConflict'
 import { JsonEvidence } from '../../components/JsonEvidence'
+import type { EditTarget } from '@/api/path/aiWorkflow/flow'
 import { validReason } from '../native/commands'
 
 export const editsOf = (s: Solution): SolutionEdits => ({
@@ -143,6 +144,7 @@ function ModelForm({
 }
 export function SolutionEditor({
   solution,
+  focusTarget,
   capabilities,
   busy,
   locked,
@@ -152,6 +154,7 @@ export function SolutionEditor({
   onDirty
 }: {
   solution: Solution
+  focusTarget?: EditTarget | null
   capabilities: SolutionModels | null
   busy: boolean
   locked: boolean
@@ -162,6 +165,17 @@ export function SolutionEditor({
 }): JSX.Element {
   const [values, setValues] = useState(() => editsOf(solution))
   const [saving, setSaving] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!focusTarget) return
+    const label = focusTarget === 'prompt' ? '系统指令' : focusTarget === 'generation' ? '生成解读模型' : '语义评审模型'
+    const timer = window.setTimeout(() => {
+      const element = root.current?.querySelector<HTMLElement>(`[aria-label="${label}"]`)
+      element?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+      element?.focus()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [focusTarget])
   const serial = useRef(false)
   const live = useRef(true)
   useEffect(
@@ -223,7 +237,7 @@ export function SolutionEditor({
   const changeContent = (key: 'system_message' | 'task_template' | 'data_preamble', value: string) =>
     setValues((old) => ({ ...old, content: { ...old.content, [key]: value } }))
   return (
-    <div className="solution-editor-layout">
+    <div className="solution-editor-layout" ref={root}>
       <div>
         <Card
           title="编辑方案"
