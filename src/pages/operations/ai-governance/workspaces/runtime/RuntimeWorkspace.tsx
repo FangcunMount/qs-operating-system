@@ -1,3 +1,4 @@
+import { NativeParticipantWorkspace } from '../native/NativeParticipantWorkspace'
 import { FlowPanel } from '../flow/FlowPanel'
 import { RuntimeHealth } from './RuntimeHealth'
 import { RuntimeTimeline } from './RuntimeTimeline'
@@ -434,7 +435,9 @@ export const RuntimeWorkspace = observer(({ detail = false }: { detail?: boolean
     <RuntimeRequestDetail key={user.id} owner={user.id} />
   ) : (
     <>
+      <Space style={{ marginBottom: 16 }}><Link to="/operations/ai-governance/runtime/evaluations">配置评测记录</Link></Space>
       <RuntimeHealth key={`health:${user.id}`} />
+      <details><summary>容量与用量</summary><NativeParticipantWorkspace key={`capacity:${user.id}`} /></details>
       <RuntimeList key={user.id} />
     </>
   )

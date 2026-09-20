@@ -1,5 +1,5 @@
 import React from 'react'
-import { Link, Route, Switch } from 'react-router-dom'
+import { NavLink, Redirect, Route, Switch, useLocation } from 'react-router-dom'
 import { RuntimeWorkspace } from './workspaces/runtime/RuntimeWorkspace'
 import { Alert, Card, Space, Tag, Typography } from 'antd'
 import { RobotOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
@@ -8,7 +8,14 @@ import './index.scss'
 
 const { Paragraph, Text, Title } = Typography
 
-// Existing governance bookmarks share the qs-ai management workspace.
+function LegacyEntry(): JSX.Element {
+  const location = useLocation()
+  const suffix = location.pathname.split('/').pop()
+  const destination = suffix === 'configuration' || suffix === 'profiles' ? 'solutions/assets'
+    : suffix === 'evaluations' ? 'runtime/evaluations' : 'solutions'
+  return <Redirect to={`/operations/ai-governance/${destination}${location.search}`} />
+}
+// Old bookmarks translate navigation only; all operations use the same workspace.
 const AIGovernancePage: React.FC = () => (
   <div className="ai-governance-page governance-page">
     <div className="ai-governance-hero">
@@ -38,19 +45,24 @@ const AIGovernancePage: React.FC = () => (
     </div>
     <Card className="ai-governance-page__workspace">
       <Space style={{ marginBottom: 16 }}>
-        <Link to="/operations/ai-governance">解读方案与审核</Link>
-        <Link to="/operations/ai-governance/runtime">运行中心</Link>
+        <NavLink to="/operations/ai-governance/solutions" activeClassName="governance-nav-active">解读方案</NavLink>
+        <NavLink to="/operations/ai-governance/reviews" activeClassName="governance-nav-active">审核待办</NavLink>
+        <NavLink to="/operations/ai-governance/runtime" activeClassName="governance-nav-active">运行中心</NavLink>
       </Space>
       <Switch>
+        <Route path="/operations/ai-governance/runtime/evaluations">
+          <SolutionWorkspace />
+        </Route>
         <Route path="/operations/ai-governance/runtime/requests/:requestID">
           <RuntimeWorkspace detail />
         </Route>
         <Route path="/operations/ai-governance/runtime">
           <RuntimeWorkspace />
         </Route>
-        <Route>
+        <Route path={['/operations/ai-governance/solutions', '/operations/ai-governance/reviews']}>
           <SolutionWorkspace />
         </Route>
+        <Route><LegacyEntry /></Route>
       </Switch>
     </Card>
   </div>
