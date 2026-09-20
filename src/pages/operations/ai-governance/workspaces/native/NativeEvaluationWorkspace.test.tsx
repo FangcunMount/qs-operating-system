@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import * as api from '@/api/path/aiWorkflow'
 import * as commands from './commands'
 import { NativeEvaluationWorkspace } from './NativeEvaluationWorkspace'
@@ -606,4 +606,52 @@ it.each(['complete', 'partial', 'unknown'])('submits a 35-item batch through nat
   expect(api.reviewNativeEvaluation).toHaveBeenCalledTimes(1)
   expect(api.reviewNativeEvaluation).toHaveBeenCalledWith(id, command)
   expect(api.startNativeEvaluation).not.toHaveBeenCalled()
+})
+
+it('navigates candidates in place and protects unsaved review text before switching', async () => {
+  (api.listNativeCandidates as jest.Mock).mockResolvedValue(ok({ run_id: id, version: 7,
+    candidates: [1, 2].map((n) => ({ candidate_id: `candidate:${n}`, case_id: `CASE-${n}`, slot_ordinal: n })) }))
+  ;(api.getNativeCandidate as jest.Mock).mockImplementation(async (_run, candidate) => ok({
+    run_id: id, version: 7, candidate_id: candidate, normalized_output: `正文 ${candidate}`,
+    semantic_output: '{}', evidence: {} }))
+  const submit = jest.fn()
+  render(<NativeCandidateWorkspace run={state(7, 'awaiting_review')} review={submit} />)
+  fireEvent.click(screen.getByText('读取候选结果'))
+  fireEvent.click(await screen.findByRole('button', { name: 'CASE-1 候选 1' }))
+  await screen.findByText('正文 candidate:1')
+  expect(screen.getByText('上一候选').closest('button')).toBeDisabled()
+  fireEvent.change(screen.getByLabelText('候选审核理由'), { target: { value: '尚未保存的核对意见' } })
+  fireEvent.click(screen.getByText('下一候选'))
+  await screen.findByText('当前审核意见尚未保存')
+  expect(api.getNativeCandidate).toHaveBeenCalledTimes(1)
+  fireEvent.click(screen.getByText('继续审核'))
+  await waitFor(() => expect(screen.queryByText('当前审核意见尚未保存')).not.toBeInTheDocument())
+  expect(screen.getByLabelText('候选审核理由')).toHaveValue('尚未保存的核对意见')
+  fireEvent.click(screen.getByText('下一候选'))
+  fireEvent.click(await screen.findByText('放弃意见并切换'))
+  await screen.findByText('正文 candidate:2')
+  expect(screen.getByLabelText('候选审核理由')).toHaveValue('')
+  expect(screen.getByText('下一候选').closest('button')).toBeDisabled()
+  expect(submit).not.toHaveBeenCalled()
+})
+
+it('keeps the batch plan when the drawer closes and never submits on enqueue', async () => {
+  (api.listNativeCandidates as jest.Mock).mockResolvedValue(ok({ run_id: id, version: 7,
+    candidates: [{ candidate_id: 'candidate:1', case_id: 'CASE-1', slot_ordinal: 1 }] }))
+  ;(api.getNativeCandidate as jest.Mock).mockResolvedValue(ok({run_id: id, version: 7,
+    candidate_id: 'candidate:1', normalized_output: '候选正文', semantic_output: '{}', evidence: {} }))
+  const submit = jest.fn()
+  render(<NativeCandidateWorkspace run={state(7, 'awaiting_review')} review={submit} />)
+  fireEvent.click(screen.getByText('读取候选结果'))
+  fireEvent.click(await screen.findByRole('button', { name: 'CASE-1 候选 1' }))
+  await screen.findByText('候选正文')
+  fireEvent.change(screen.getByLabelText('候选审核理由'), { target: { value: '已核对候选事实及用语' } })
+  fireEvent.click(screen.getByLabelText('我已核对当前候选及证据，确认提交审核决定'))
+  fireEvent.click(screen.getByText('加入批量审核计划'))
+  await screen.findByText('批量审核计划（1）')
+  expect(screen.getByText('批量提交审核（1）').closest('button')).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+  fireEvent.click(screen.getByText('批量审核计划（1）'))
+  expect(screen.getByText(/已选 1 条，通过 1 条，拒绝 0 条/)).toBeInTheDocument()
+  expect(submit).not.toHaveBeenCalled()
 })

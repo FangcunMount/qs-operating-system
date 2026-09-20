@@ -4,7 +4,8 @@ import type { NativeCandidateIndex, NativeEvaluationState, NativeReviewCommand, 
 import { importBatch, validateBatch } from './batchReview'
 import { validReason } from './commands'
 
-export function NativeBatchReviewWorkspace({ run, index, locked, submit, queued, onConsumed, initialRole }: {
+export function NativeBatchReviewWorkspace({ run, index, locked, submit, queued, onConsumed, initialRole, onPlanCount }: {
+  onPlanCount?(count: number): void
   initialRole?: NativeReviewRole
   run: NativeEvaluationState
   index: NativeCandidateIndex
@@ -64,6 +65,7 @@ export function NativeBatchReviewWorkspace({ run, index, locked, submit, queued,
       if (mounted.current) setError('提交结果待核对，请查询原任务，勿重复提交。')
     } finally { inFlight.current = false; if (mounted.current) setSending(false) }
   }
+  useEffect(() => { onPlanCount?.(plan?.reviews.length || 0) }, [plan, onPlanCount])
   const rejected = plan?.reviews.filter((r) => r.decision === 'reject').length || 0
   return <Card title="批量候选审核" size="small" style={{ marginTop: 16 }}>
     <Typography.Paragraph>
@@ -79,9 +81,9 @@ export function NativeBatchReviewWorkspace({ run, index, locked, submit, queued,
         <Select aria-label="本批审核决定" value={decision} disabled={disabled} onChange={setDecision}
           options={[{ value: 'approve', label: '通过' }, { value: 'reject', label: '拒绝' }]} />
       </Space>
-      <Table rowKey="candidate_id" size="small" pagination={false} dataSource={index.candidates}
+      <Table rowKey="candidate_id" size="small" pagination={false} scroll={{ y: 220 }} dataSource={index.candidates}
         rowSelection={{ selectedRowKeys: selected, onChange: setSelected,
-          getCheckboxProps: () => ({ disabled }) }}
+          getCheckboxProps: (item) => ({ disabled, 'aria-label': `选择 ${item.case_id} 候选 ${item.slot_ordinal}` }) }}
         columns={[{ title: '案例', dataIndex: 'case_id' }, { title: '候选', dataIndex: 'slot_ordinal' }]} />
       <Input.TextArea aria-label="批量审核意见" placeholder="仅对已经实际查看且理由相同的候选批量填写；不同意见请分批加入。"
         value={reason} disabled={disabled} onChange={(e) => { setReason(e.target.value); setConfirmed(false) }} />
@@ -110,7 +112,7 @@ export function NativeBatchReviewWorkspace({ run, index, locked, submit, queued,
       当前角色：{plan ? (plan.role === 'assessment_semantics' ? '测评语义' : '安全与产品') : '尚未选择'}；
       已选 {plan?.reviews.length || 0} 条，通过 {(plan?.reviews.length || 0) - rejected} 条，拒绝 {rejected} 条。
     </Typography.Paragraph>
-    <Table<NativeReviewItem> rowKey="candidate_id" pagination={false} dataSource={plan?.reviews || []}
+    <Table<NativeReviewItem> rowKey="candidate_id" pagination={false} scroll={{ y: 260, x: 600 }} dataSource={plan?.reviews || []}
       locale={{ emptyText: '尚未加入候选审核决定' }} columns={[
         { title: '案例 / 候选', render: (_, r) => { const c = index.candidates.find((v) => v.candidate_id === r.candidate_id)
           return `${c?.case_id} / ${c?.slot_ordinal}` } },
@@ -122,7 +124,7 @@ export function NativeBatchReviewWorkspace({ run, index, locked, submit, queued,
           setPlan(plan && reviews.length ? { ...plan, reviews } : null); setConfirmed(false)
         }}>移出计划</Button> } }
       ]} />
-    <Space direction="vertical" style={{ width: '100%', marginTop: 12 }}>
+    <Space className="candidate-batch-footer" direction="vertical" style={{ width: '100%', marginTop: 12 }}>
       {plan && <Typography.Paragraph copyable={{ text: JSON.stringify({ run_id: run.run_id, ...plan }, null, 2) }}>复制当前审核计划</Typography.Paragraph>}
       <Checkbox checked={confirmed} disabled={disabled || !plan} onChange={(e) => setConfirmed(e.target.checked)}>
         我已逐条核对本批候选、决定及理由，确认按当前角色一次提交
