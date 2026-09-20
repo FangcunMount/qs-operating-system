@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Checkbox, Descriptions, Input, Space, Typography } from 'antd'
-import type { EvaluationReference, EvaluationSelection } from '@/api/path/aiWorkflow'
+import type { EvaluationReference, EvaluationSelection, NativeEvaluationState } from '@/api/path/aiWorkflow'
 import { JsonEvidence } from '../../components/JsonEvidence'
 import { validReason, validUUID } from './commands'
 import { statusLabels, validRef } from './evaluationValidation'
@@ -20,14 +20,29 @@ const label = (ref?: EvaluationReference) =>
 export function NativeEvaluationWorkspace({
   owner,
   selection,
-  onPublish
+  onPublish,
+  onState,
+  onRevise,
+  initialRunID = ''
 }: {
   owner: string
   selection: EvaluationSelection
   onPublish?: (runID: string) => void
+  onState?: (run: NativeEvaluationState | null) => void
+  onRevise?: (run: NativeEvaluationState) => Promise<boolean>
+  initialRunID?: string
 }): JSX.Element {
   const c = useNativeEvaluation(owner, selection)
+  useEffect(() => { onState?.(c.run) }, [c.run, onState])
   const [runID, setRunID] = useState(c.journal?.runID || '')
+  const opened = useRef('')
+  useEffect(() => {
+    if (!initialRunID || opened.current === initialRunID || c.busy || c.journal?.pending || c.storageFailed) return
+    opened.current = initialRunID
+    setRunID(initialRunID)
+    c.read(initialRunID)
+  }, [initialRunID, c.busy, c.journal?.pending, c.storageFailed, c.read])
+  const [revising, setRevising] = useState(false)
   const [reason, setReason] = useState('')
   const [confirmed, setConfirmed] = useState(false)
   const [startReason, setStartReason] = useState('')
@@ -157,6 +172,22 @@ export function NativeEvaluationWorkspace({
       )}
       {c.run && (
         <Card title="当前评测任务" size="small">
+          {c.run.status === 'rejected' && <Alert type="warning" showIcon message="本轮审核已结束，未上线。当前线上版本不受影响。"
+            description={onRevise && <Button loading={revising} disabled={revising || c.busy || Boolean(c.journal?.pending)}
+              onClick={async () => {
+                if (!c.run) return
+                setRevising(true)
+                try { if (await onRevise(c.run)) c.reset() } finally { setRevising(false) }
+              }}>基于本轮创建修改版本</Button>} />}
+          {c.run.reviews.length > 0 && <details open><summary>已有审核意见（{c.run.reviews.length} 条）</summary>
+            <ul>{c.run.reviews.map((raw, i) => {
+              const item = raw as { candidate_id?: string; decision?: string; reason?: string; role?: string }
+              return <li key={i}>
+                {item.role === 'safety_product' ? '安全与产品' : '测评语义'} · {item.decision === 'reject' ? '拒绝' : '通过'}
+                · {item.candidate_id}：{item.reason}
+              </li>
+            })}</ul>
+          </details>}
           <NativeExecutionWorkspace key={`executions:${c.run.run_id}:${c.run.version}`} run={c.run} locked={c.busy} />
           <Descriptions column={1} size="small">
             <Descriptions.Item label="任务标识">

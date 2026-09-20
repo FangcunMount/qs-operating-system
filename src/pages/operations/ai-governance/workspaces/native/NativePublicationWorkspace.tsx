@@ -45,12 +45,15 @@ function StateEvidence({ value }: { value: PublicationState }): JSX.Element {
 
 export function NativePublicationWorkspace({
   owner,
-  initialRunID = ''
+  initialRunID = '',
+  onState
 }: {
   owner: string
   initialRunID?: string
+  onState?: (value: PublicationState | null) => void
 }): JSX.Element {
   const c = usePublication(owner)
+  useEffect(() => { onState?.(c.current) }, [c.current, onState])
   const [runID, setRunID] = useState(initialRunID)
   const [modelCode, setModelCode] = useState('')
   const [modelVersion, setModelVersion] = useState('')

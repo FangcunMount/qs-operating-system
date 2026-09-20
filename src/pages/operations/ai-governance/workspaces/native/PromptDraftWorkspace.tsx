@@ -12,9 +12,10 @@ const emptyContent: DraftContent = {
   allowed_placeholders: []
 }
 const targetPattern = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/
-export const PromptDraftWorkspace: React.FC<{ owner: string; source: AssetReference | null }> = ({
+export const PromptDraftWorkspace: React.FC<{ owner: string; source: AssetReference | null; onContinue?: (asset: AssetReference) => void }> = ({
   owner,
-  source
+  source,
+  onContinue
 }) => {
   const editor = usePromptDraft(owner)
   const [template, setTemplate] = useState('')
@@ -25,7 +26,7 @@ export const PromptDraftWorkspace: React.FC<{ owner: string; source: AssetRefere
   useEffect(() => {
     if (source) {
       setTemplate(source.identity)
-      setVersion('')
+      setVersion(`draft-${new Date().toISOString().replace(/[-:.TZ]/g, '')}`)
     }
   }, [source])
   useEffect(() => {
@@ -44,7 +45,7 @@ export const PromptDraftWorkspace: React.FC<{ owner: string; source: AssetRefere
     (template !== source.identity || version !== source.version) &&
     validReason(reason)
   return (
-    <Card title="Prompt 草稿" style={{ marginTop: 20 }}>
+    <Card title="编辑解读内容" style={{ marginTop: 20 }}>
       <Alert
         type="info"
         showIcon
@@ -88,7 +89,7 @@ export const PromptDraftWorkspace: React.FC<{ owner: string; source: AssetRefere
           style={{ marginTop: 16 }}
         >
           <Form layout="vertical">
-            <Form.Item label="模板标识">
+            <details><summary>高级：模板标识</summary><Form.Item label="模板标识">
               <Input
                 aria-label="新模板标识"
                 value={template}
@@ -96,7 +97,7 @@ export const PromptDraftWorkspace: React.FC<{ owner: string; source: AssetRefere
                 onChange={(event) => setTemplate(event.target.value)}
               />
             </Form.Item>
-            <Form.Item label="新版本">
+            </details><Form.Item label="修改版本名称">
               <Input
                 aria-label="新模板版本"
                 placeholder="例如 v7"
@@ -179,7 +180,8 @@ export const PromptDraftWorkspace: React.FC<{ owner: string; source: AssetRefere
           <Typography.Paragraph>
             该版本已不可修改。下一步需绑定解读策略并进行独立评测。
           </Typography.Paragraph>
-          <JsonEvidence value={editor.frozen.asset} />
+          {onContinue && <Button type="primary" onClick={() => editor.frozen && onContinue(editor.frozen.asset)}>继续：准备测试配置</Button>}
+          <details><summary>查看版本技术信息</summary><JsonEvidence value={editor.frozen.asset} /></details>
         </Card>
       )}
     </Card>

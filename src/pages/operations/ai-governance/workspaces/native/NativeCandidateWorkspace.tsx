@@ -9,6 +9,7 @@ import type {
 } from '@/api/path/aiWorkflow'
 import { NativeReviewWorkspace } from './NativeReviewWorkspace'
 import { NativeBatchReviewWorkspace } from './NativeBatchReviewWorkspace'
+import { CandidateReading } from '../product/CandidateReading'
 import { JsonEvidence } from '../../components/JsonEvidence'
 
 export function NativeCandidateWorkspace({ run, locked = false, review }: {
@@ -117,9 +118,7 @@ export function NativeCandidateWorkspace({ run, locked = false, review }: {
       {detail && (
         <Space direction="vertical" style={{ width: '100%', marginTop: 16 }}>
           <Typography.Title level={5}>生成结果</Typography.Title>
-          <Typography.Paragraph style={{ whiteSpace: 'pre-wrap' }}>
-            {detail.normalized_output}
-          </Typography.Paragraph>
+          <CandidateReading raw={detail.normalized_output} />
           <details>
             <summary>语义检查原文</summary>
             <JsonEvidence value={detail.semantic_output} />

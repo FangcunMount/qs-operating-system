@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Alert, Button, Card, Checkbox, Input, Space, Table, Typography } from 'antd'
-import type { NativeCandidateIndex, NativeEvaluationState, NativeReviewCommand, NativeReviewItem } from '@/api/path/aiWorkflow'
+import { Alert, Button, Card, Checkbox, Input, Select, Space, Table, Typography } from 'antd'
+import type { NativeCandidateIndex, NativeEvaluationState, NativeReviewCommand, NativeReviewItem, NativeReviewRole } from '@/api/path/aiWorkflow'
 import { importBatch, validateBatch } from './batchReview'
+import { validReason } from './commands'
 
 export function NativeBatchReviewWorkspace({ run, index, locked, submit, queued, onConsumed }: {
   run: NativeEvaluationState
@@ -12,6 +13,10 @@ export function NativeBatchReviewWorkspace({ run, index, locked, submit, queued,
   onConsumed(value: NativeReviewCommand | null): void
 }): JSX.Element {
   const [plan, setPlan] = useState<NativeReviewCommand | null>(null)
+  const [role, setRole] = useState<NativeReviewRole>('assessment_semantics')
+  const [selected, setSelected] = useState<React.Key[]>([])
+  const [decision, setDecision] = useState<'approve' | 'reject'>('approve')
+  const [reason, setReason] = useState('')
   const [raw, setRaw] = useState('')
   const [error, setError] = useState('')
   const [confirmed, setConfirmed] = useState(false)
@@ -32,6 +37,7 @@ export function NativeBatchReviewWorkspace({ run, index, locked, submit, queued,
         !queued.reviews.some((v) => v.candidate_id === r.candidate_id)), ...queued.reviews] }
       validateBatch(run, index, next)
       setPlan(next)
+      setRole(next.role)
       setError('')
     } catch (e) { setError(e instanceof Error ? e.message : '无法加入审核计划。') }
     onConsumed(null)
@@ -41,6 +47,7 @@ export function NativeBatchReviewWorkspace({ run, index, locked, submit, queued,
     try {
       const next = importBatch(raw, run, index)
       setPlan(next)
+      setRole(next.role)
       setError('')
     } catch (e) { setError(e instanceof Error ? e.message : '审核计划格式无效。') }
   }
@@ -64,6 +71,28 @@ export function NativeBatchReviewWorkspace({ run, index, locked, submit, queued,
     </Typography.Paragraph>
     {error && <Alert type="warning" showIcon message={error} />}
     {run.status !== 'awaiting_review' && <Alert type="info" message="完整评测完成后开放批量审核，目前可继续查看候选。" />}
+    <Card size="small" title="选择候选并填写审核意见">
+      <Space wrap>
+        <Select aria-label="批量审核角色" value={role} disabled={disabled || !!plan} onChange={setRole}
+          options={[{ value: 'assessment_semantics', label: '测评语义' }, { value: 'safety_product', label: '安全与产品' }]} />
+        <Select aria-label="本批审核决定" value={decision} disabled={disabled} onChange={setDecision}
+          options={[{ value: 'approve', label: '通过' }, { value: 'reject', label: '拒绝' }]} />
+      </Space>
+      <Table rowKey="candidate_id" size="small" pagination={false} dataSource={index.candidates}
+        rowSelection={{ selectedRowKeys: selected, onChange: setSelected,
+          getCheckboxProps: () => ({ disabled }) }}
+        columns={[{ title: '案例', dataIndex: 'case_id' }, { title: '候选', dataIndex: 'slot_ordinal' }]} />
+      <Input.TextArea aria-label="批量审核意见" placeholder="仅对已经实际查看且理由相同的候选批量填写；不同意见请分批加入。"
+        value={reason} disabled={disabled} onChange={(e) => { setReason(e.target.value); setConfirmed(false) }} />
+      <Button disabled={disabled || !selected.length || !validReason(reason)} onClick={() => {
+        const additions = selected.map((id) => ({ candidate_id: String(id), decision, reason }))
+        const next: NativeReviewCommand = { expected_version: run.version, role: plan?.role || role,
+          reviews: [...(plan?.reviews || []).filter((r) => !selected.includes(r.candidate_id)), ...additions] }
+        try { validateBatch(run, index, next); setPlan(next); setSelected([]); setReason(''); setError('') }
+        catch (e) { setError(e instanceof Error ? e.message : '无法加入审核计划') }
+        setConfirmed(false)
+      }}>加入本批审核（{selected.length}）</Button>
+    </Card>
     <details>
       <summary>导入批量审核计划</summary>
       <Typography.Paragraph>填写当前任务编号、版本、审核角色及逐条决定。导入只替换页面草稿，不提交审核。</Typography.Paragraph>
