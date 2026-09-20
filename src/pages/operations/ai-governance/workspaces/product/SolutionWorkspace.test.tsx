@@ -36,6 +36,7 @@ it('opens review using the single detail and retains the selected reviewer role'
   fireEvent.click(screen.getByText('打开审核待办'))
   await screen.findByText(`统一评测详情 ${run} safety_product`)
   expect(screen.getByTestId('location')).toHaveTextContent(`aiRun=${run}`)
+  expect(screen.getByTestId('location')).toHaveTextContent('aiReviewRole=safety_product')
   expect(screen.queryByText('高级配置')).not.toBeInTheDocument()
 })
 it('restores a legacy run query on refresh', async () => {
@@ -49,4 +50,10 @@ it('moves low frequency assets into solution context without mounting parallel r
   expect(screen.getByTestId('location')).toHaveTextContent('/solutions/assets')
   expect(screen.queryByText('打开审核待办')).not.toBeInTheDocument()
   await waitFor(() => expect(listSolutions).toHaveBeenCalled())
+})
+
+it('restores the chosen review role after a refresh without submitting a review', async () => {
+  page(`/operations/ai-governance/reviews?aiRun=${run}&aiStep=test&aiReviewRole=safety_product`)
+  await screen.findByText(`统一评测详情 ${run} safety_product`)
+  expect((useSolution as jest.Mock).mock.results[0].value.submit).not.toHaveBeenCalled()
 })

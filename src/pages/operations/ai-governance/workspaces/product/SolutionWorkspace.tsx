@@ -50,12 +50,14 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
   const activeRun = solution?.prepared?.run_id || externalRun
   const working = Boolean(solution || externalRun)
   const locked = controller.busy || Boolean(controller.pending) || controller.storageFailed
-  const navigate = (id: string, stage: string, runID = '') => {
+  const navigate = (id: string, stage: string, runID = '', role?: NativeReviewRole) => {
     const url = new URL(window.location.href)
     url.search = location.search
     for (const key of ['aiSolution', 'aiStep', 'aiRun']) url.searchParams.delete(key)
     if (id) url.searchParams.set('aiSolution', id)
     if (runID) url.searchParams.set('aiRun', runID)
+    if (role) url.searchParams.set('aiReviewRole', role)
+    if (!id && !runID) url.searchParams.delete('aiReviewRole')
     if (id || runID || stage === 'publish') url.searchParams.set('aiStep', stage)
     history.push(`/operations/ai-governance/${stage === 'test' && !id ? 'reviews' : 'solutions'}${url.search}`)
     setStep(stage)
@@ -103,6 +105,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
       id = params.get('aiSolution') || '',
       runID = params.get('aiRun') || ''
     const requested = params.get('aiStep') || 'edit'
+    setReviewRole(params.get('aiReviewRole') === 'safety_product' ? 'safety_product' : 'assessment_semantics')
     setStep(['edit', 'test', 'publish'].includes(requested) ? requested : 'edit')
     if (runID === 'new') { controller.clearView(); setExternalRun('new'); setStep('test') }
     else if (validUUID(id)) { setExternalRun(''); controller.read(id) }
@@ -144,7 +147,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
     controller.clearView()
     setExternalRun(id)
     setRun(null)
-    navigate('', 'test', id)
+    navigate('', 'test', id, role)
   }
   const create = async (sourceRun?: string) => {
     if (!allowed || locked || dirty) return false
