@@ -13,9 +13,16 @@ function checked(value: FlowDescription | undefined, kind: FlowSource, id: strin
     value.source_kind !== kind ||
     value.definition_version !== 'qs-published-snapshot-v1' ||
     !Array.isArray(value.nodes) ||
+    !Array.isArray(value.edges) ||
+    !Array.isArray(value.gaps) ||
+    value.availability !== 'available' ||
     (digest && value.version !== digest)
   )
     throw new Error('fixed_flow_unavailable')
+  const ids = new Set(value.nodes.map((node) => node.id))
+  if (ids.size !== value.nodes.length || value.edges.some((edge) =>
+    !ids.has(edge.source) || !ids.has(edge.target) ||
+    !['sequence', 'reuses_configuration'].includes(edge.relation))) throw new Error('fixed_flow_unavailable')
   return value
 }
 const forbidden = (e: unknown) => {
@@ -63,6 +70,7 @@ export function FlowPanel({
   id,
   compareID,
   expectedDigest,
+  sourceRevision,
   onEdit,
   onCreate
 }: {
@@ -71,6 +79,7 @@ export function FlowPanel({
   id: string
   compareID?: string
   expectedDigest?: string
+  sourceRevision?: number
   onEdit?: (target: EditTarget) => void
   onCreate?: () => void
 }): JSX.Element {
@@ -102,7 +111,9 @@ export function FlowPanel({
         if (current !== epoch.current) return
         if (forbidden(failure) || forbidden(compareFailure)) throw failure || compareFailure
         if (failure) throw failure
-        setFlow(checked(response?.data, kind, id, expectedDigest))
+        const loaded = checked(response?.data, kind, id, expectedDigest)
+        if (sourceRevision !== undefined && loaded.version !== sourceRevision) throw new Error('fixed_flow_unavailable')
+        setFlow(loaded)
         if (compareID) {
           if (compareFailure) setComparisonError(true)
           else setComparison(checked(compareResponse?.data, 'publication', compareID))
@@ -121,7 +132,7 @@ export function FlowPanel({
     return () => {
       epoch.current++
     }
-  }, [owner, kind, id, compareID, expectedDigest, revision])
+  }, [owner, kind, id, compareID, expectedDigest, sourceRevision, revision])
   const node = flow?.nodes.find((n) => n.id === selected)
   return (
     <Card
@@ -194,11 +205,19 @@ export function FlowPanel({
                           {n.kind === 'model_call'
                             ? '模型调用'
                             : n.kind === 'composition'
-                            ? '消息组成'
-                            : '业务步骤'}
+                              ? '消息组成'
+                              : '业务步骤'}
                         </small>
                       </Button>
                       {view === 'list' && <Typography.Paragraph>{n.purpose}</Typography.Paragraph>}
+                      {flow.edges.filter((edge) => edge.source === n.id).map((edge) => (
+                        <Typography.Paragraph key={`${edge.source}:${edge.target}`} className="flow-connection">
+                          {edge.relation === 'sequence' ? '下一步 → ' : '配置复用于 → '}
+                          <Button type="link" onClick={() => setSelected(edge.target)}>
+                            {flow.nodes.find((target) => target.id === edge.target)?.title}
+                          </Button>
+                        </Typography.Paragraph>
+                      ))}
                     </div>
                   ))}
               </div>
@@ -221,8 +240,8 @@ export function FlowPanel({
                         ? '新增步骤'
                         : JSON.stringify([n.assets, n.details]) ===
                           JSON.stringify([prior.assets, prior.details])
-                        ? '内容相同'
-                        : '配置或正文已变化（点节点查看）'
+                          ? '内容相同'
+                          : '配置或正文已变化（点节点查看）'
                     }
                   }
                 ]}

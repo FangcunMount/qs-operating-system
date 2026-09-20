@@ -17,6 +17,8 @@ import { NativeParticipantWorkspace } from '../native/NativeParticipantWorkspace
 import { NativeParticipantRetryWorkspace } from '../native/NativeParticipantRetryWorkspace'
 import { SolutionChanges, SolutionEditor } from './SolutionEditor'
 import { ReviewInbox } from './ReviewInbox'
+import { FlowPanel } from '../flow/FlowPanel'
+import type { EditTarget } from '@/api/path/aiWorkflow/flow'
 import { useSolution } from './useSolution'
 
 function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX.Element {
@@ -32,6 +34,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
   const [advanced, setAdvanced] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [step, setStep] = useState('edit')
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null)
   const [externalRun, setExternalRun] = useState('')
   const [run, setRun] = useState<NativeEvaluationState | null>(null)
   const [title, setTitle] = useState('解读方案改进')
@@ -286,6 +289,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                     </Space>
                   </Space>
                 </Card>
+                {publication?.active_publication_id && <FlowPanel owner={owner} kind="publication" id={publication.active_publication_id} />}
                 <Card title="修改版本" style={{ marginTop: 16 }}>
                   <Table<SolutionSummary>
                     rowKey="solution_id"
@@ -379,12 +383,21 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                   />
                 ))}
               </Steps>
+              {solution && <FlowPanel owner={owner} kind="solution" id={solution.solution_id}
+                sourceRevision={solution.revision} compareID={solution.source.publication_id || undefined}
+                onEdit={!locked && !dirty && allowed ? (target) => {
+                  navigate(solution.solution_id, 'edit')
+                  setEditTarget(target)
+                } : undefined}
+                onCreate={solution.prepared && !locked && !dirty && allowed ? () => { create(solution.prepared?.run_id) } : undefined}
+              />}
               {step === 'edit' &&
                 solution &&
                 (!solution.prepared ? (
                   <SolutionEditor
                     key={solution.solution_id}
                     solution={solution}
+                    focusTarget={editTarget}
                     capabilities={models}
                     busy={controller.busy}
                     locked={locked || !allowed}

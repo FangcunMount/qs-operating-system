@@ -1,7 +1,6 @@
 .flow-lane { margin-top: 24px; }
 .flow-nodes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 22px; }
 .flow-node { position: relative; min-width: 0; }
-.flow-node:not(:last-child)::after { content: '→'; position: absolute; right: -18px; top: 22px; color: #697586; }
 .flow-node-button.ant-btn { width: 100%; height: auto; min-height: 76px; padding: 12px 8px; white-space: normal; border-radius: 8px; text-align: left; }
 .flow-node-button span, .flow-node-button small { display: block; }
 .flow-node-button small { margin-top: 8px; color: #697586; }
@@ -11,5 +10,6 @@
 .flow-nodes--list .flow-node::after { display: none; }
 @media (max-width: 900px) {
   .flow-nodes { grid-template-columns: 1fr; gap: 26px; }
-  .flow-node:not(:last-child)::after { content: '↓'; top: auto; bottom: -24px; right: 50%; }
 }
+.flow-connection { font-size: 12px; margin-top: 8px; }
+.flow-connection .ant-btn { padding: 0; height: auto; white-space: normal; text-align: left; }
