@@ -27,8 +27,8 @@ function rejected(error: unknown): boolean {
 const statuses: Record<string, string> = {
   queued: '排队中', running: '执行中', awaiting_answer: '等待回答', blocked: '已阻塞', cancelled: '已取消', completed: '已完成'
 }
-export function NativeParticipantRetryWorkspace({ owner }: { owner: string }): JSX.Element {
-  const [sessionID, setSessionID] = useState('')
+export function NativeParticipantRetryWorkspace({ owner, initialSessionID = '' }: { owner: string; initialSessionID?: string }): JSX.Element {
+  const [sessionID, setSessionID] = useState(initialSessionID)
   const [current, setCurrent] = useState<ParticipantExecution | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
   const [receipt, setReceipt] = useState<ParticipantRetryReceipt | null>(null)

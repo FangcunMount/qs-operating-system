@@ -1,4 +1,6 @@
 import React from 'react'
+import { Link, Route, Switch } from 'react-router-dom'
+import { RuntimeWorkspace } from './workspaces/runtime/RuntimeWorkspace'
 import { Alert, Card, Space, Tag, Typography } from 'antd'
 import { RobotOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import { SolutionWorkspace } from './workspaces/product/SolutionWorkspace'
@@ -11,14 +13,20 @@ const AIGovernancePage: React.FC = () => (
   <div className="ai-governance-page governance-page">
     <div className="ai-governance-hero">
       <div className="ai-governance-hero__content">
-        <span className="ai-governance-hero__icon"><RobotOutlined /></span>
+        <span className="ai-governance-hero__icon">
+          <RobotOutlined />
+        </span>
         <div>
           <Space size={8} wrap>
-            <Text className="ai-governance-hero__eyebrow" strong>AI 解读管理</Text>
+            <Text className="ai-governance-hero__eyebrow" strong>
+              AI 解读管理
+            </Text>
             <Tag icon={<SafetyCertificateOutlined />}>标准报告保持唯一权威</Tag>
           </Space>
           <Title level={2}>管理你的 AI 解读方案</Title>
-          <Paragraph>从线上方案创建修改版本，测试解读效果，完成审核后发布。每一步都能查看结果与下一步操作。</Paragraph>
+          <Paragraph>
+            从线上方案创建修改版本，测试解读效果，完成审核后发布。每一步都能查看结果与下一步操作。
+          </Paragraph>
         </div>
       </div>
       <Alert
@@ -29,7 +37,21 @@ const AIGovernancePage: React.FC = () => (
       />
     </div>
     <Card className="ai-governance-page__workspace">
-      <SolutionWorkspace />
+      <Space style={{ marginBottom: 16 }}>
+        <Link to="/operations/ai-governance">解读方案与审核</Link>
+        <Link to="/operations/ai-governance/runtime">运行中心</Link>
+      </Space>
+      <Switch>
+        <Route path="/operations/ai-governance/runtime/requests/:requestID">
+          <RuntimeWorkspace detail />
+        </Route>
+        <Route path="/operations/ai-governance/runtime">
+          <RuntimeWorkspace />
+        </Route>
+        <Route>
+          <SolutionWorkspace />
+        </Route>
+      </Switch>
     </Card>
   </div>
 )
