@@ -101,7 +101,7 @@ it('does not resend on double clicks and locks pending-result recovery', async (
 it('builds a batch through visible candidate selection without JSON and still requires attestation', async () => {
   const p = props()
   render(<NativeBatchReviewWorkspace {...p} />)
-  fireEvent.click(screen.getAllByRole('checkbox')[1])
+  fireEvent.click(screen.getByLabelText('选择 case:1 候选 1'))
   fireEvent.change(screen.getByLabelText('批量审核意见'), { target: { value: '已查看该候选，内容与事实一致。' } })
   fireEvent.click(screen.getByText('加入本批审核（1）'))
   expect(screen.getByText('批量提交审核（1）').closest('button')).toBeDisabled()

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Alert, Button, Card, Space, Table, Typography } from 'antd'
+import { Alert, Button, Card, Drawer, Empty, Input, Modal, Radio, Space, Tabs, Tag, Typography } from 'antd'
 import { getNativeCandidate, listNativeCandidates } from '@/api/path/aiWorkflow'
 import type {
   NativeCandidateEvidence,
@@ -32,6 +32,11 @@ export function NativeCandidateWorkspace({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [queued, setQueued] = useState<NativeReviewCommand | null>(null)
+  const [planCount, setPlanCount] = useState(0)
+  const [batchOpen, setBatchOpen] = useState(false)
+  const [filter, setFilter] = useState('')
+  const [panel, setPanel] = useState('reading')
+  const [reviewDirty, setReviewDirty] = useState(false)
   const epoch = useRef(0)
   useEffect(
     () => () => {
@@ -94,76 +99,191 @@ export function NativeCandidateWorkspace({
   useEffect(() => {
     if (autoLoad && ['awaiting_review', 'approved', 'rejected'].includes(run.status)) load()
   }, [])
+  const navigate = (candidate?: string) => {
+    const proceed = () => {
+      setReviewDirty(false)
+      setPanel('reading')
+      load(candidate)
+    }
+    if (reviewDirty) {
+      Modal.confirm({
+        title: '当前审核意见尚未保存',
+        content: '请先加入批量审核计划或提交。继续切换将丢弃当前候选尚未保存的意见。',
+        okText: '放弃意见并切换',
+        cancelText: '继续审核',
+        onOk: proceed
+      })
+    } else proceed()
+  }
+  const candidates = index?.candidates || []
+  const visible = candidates.filter((c) =>
+    `${c.case_id} ${c.slot_ordinal}`.toLowerCase().includes(filter.toLowerCase())
+  )
+  const position = candidates.findIndex((c) => c.candidate_id === detail?.candidate_id)
+  const current = candidates[position]
   return (
-    <Card title="评测结果" style={{ marginTop: 16 }}>
-      <Typography.Paragraph type="secondary">
-        候选内容、语义检查与审核记录均来自当前任务版本。结果存在不代表审核通过或已发布。
-      </Typography.Paragraph>
+    <Card title="评测结果" className="candidate-workspace" style={{ marginTop: 16 }}>
+      <div className="candidate-workspace__toolbar">
+        <Typography.Text type="secondary">
+          选择候选 → 对照原始事实 → 填写意见；审核通过不等于已发布。
+        </Typography.Text>
+        <Space wrap>
+          <Button loading={busy} onClick={() => navigate()}>
+            读取候选结果
+          </Button>
+          {index && review && <Button onClick={() => setBatchOpen(true)}>批量审核计划（{planCount}）</Button>}
+        </Space>
+      </div>
       {error && <Alert showIcon type="warning" message={error} />}
-      <Button loading={busy} onClick={() => load()}>
-        读取候选结果
-      </Button>
       {index && (
-        <Table
-          pagination={false}
-          dataSource={index.candidates}
-          rowKey="candidate_id"
-          style={{ marginTop: 12 }}
-          locale={{ emptyText: '当前版本尚无候选结果' }}
-          columns={[
-            { title: '案例', dataIndex: 'case_id' },
-            { title: '候选序号', dataIndex: 'slot_ordinal' },
-            {
-              title: '操作',
-              render: function renderCandidate(_, item) {
-                return (
-                  <Button disabled={busy} onClick={() => load(item.candidate_id)}>
-                    查看候选详情
-                  </Button>
-                )
-              }
-            }
-          ]}
-        />
+        <div className="candidate-review-layout" data-panel={panel}>
+          <nav className="candidate-review-nav" aria-label="候选导航">
+            <Typography.Title level={5}>
+              候选列表 <Tag>{candidates.length}</Tag>
+            </Typography.Title>
+            <Input.Search
+              aria-label="筛选案例"
+              placeholder="搜索案例或序号"
+              allowClear
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+            <div className="candidate-review-nav__list">
+              {visible.map((item) => (
+                <Button
+                  key={item.candidate_id}
+                  block
+                  className="candidate-review-nav__item"
+                  type={detail?.candidate_id === item.candidate_id ? 'primary' : 'default'}
+                  aria-current={detail?.candidate_id === item.candidate_id ? 'true' : undefined}
+                  aria-label={`${item.case_id} 候选 ${item.slot_ordinal}`}
+                  disabled={busy || locked}
+                  onClick={() => navigate(item.candidate_id)}
+                >
+                  <strong>{item.case_id}</strong>
+                  <span>
+                    候选 {item.slot_ordinal} · <span>查看候选详情</span>
+                  </span>
+                </Button>
+              ))}
+              {!visible.length && (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description={candidates.length ? '没有匹配的候选' : '当前版本尚无候选结果'}
+                />
+              )}
+            </div>
+          </nav>
+          <div className="candidate-review-main">
+            <div className="candidate-review-heading">
+              <Typography.Text strong>
+                {current
+                  ? `${current.case_id} · 候选 ${current.slot_ordinal}（${position + 1}/${
+                    candidates.length
+                  }）`
+                  : '选择一个候选开始阅读'}
+              </Typography.Text>
+              <Space>
+                <Button
+                  disabled={busy || locked || position <= 0}
+                  onClick={() => navigate(candidates[position - 1].candidate_id)}
+                >
+                  上一候选
+                </Button>
+                <Button
+                  disabled={busy || locked || position < 0 || position >= candidates.length - 1}
+                  onClick={() => navigate(candidates[position + 1].candidate_id)}
+                >
+                  下一候选
+                </Button>
+              </Space>
+            </div>
+            {detail && review && (
+              <Radio.Group
+                className="candidate-review-panel-switch"
+                value={panel}
+                onChange={(e) => setPanel(e.target.value)}
+                optionType="button"
+                options={[
+                  { label: '阅读内容', value: 'reading' },
+                  { label: '填写审核意见', value: 'review' }
+                ]}
+              />
+            )}
+            <div className={`candidate-review-body${review ? '' : ' candidate-review-body--readonly'}`}>
+              <section className="candidate-review-reading" aria-label="候选阅读区" aria-busy={busy}>
+                {!detail ? (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={busy ? '正在读取候选…' : '从左侧选择候选，正文会显示在这里'}
+                  />
+                ) : (
+                  <Tabs defaultActiveKey="output">
+                    <Tabs.TabPane tab="生成内容" key="output">
+                      <CandidateReading raw={detail.normalized_output} />
+                    </Tabs.TabPane>
+                    <Tabs.TabPane tab="原始事实" key="facts">
+                      <FrozenInputReading evidence={detail.evidence} />
+                    </Tabs.TabPane>
+                    <Tabs.TabPane tab="事实对照" key="comparison">
+                      <div className="candidate-review-comparison">
+                        <FrozenInputReading evidence={detail.evidence} />
+                        <CandidateReading raw={detail.normalized_output} />
+                      </div>
+                    </Tabs.TabPane>
+                    <Tabs.TabPane tab="检查与证据" key="evidence">
+                      <Typography.Title level={5}>语义检查原文</Typography.Title>
+                      <JsonEvidence value={detail.semantic_output} />
+                      <details>
+                        <summary>来源、调用及审核证据</summary>
+                        <JsonEvidence value={detail.evidence} />
+                      </details>
+                    </Tabs.TabPane>
+                  </Tabs>
+                )}
+              </section>
+              {detail && review && (
+                <aside className="candidate-review-actions" aria-label="审核操作区">
+                  <NativeReviewWorkspace
+                    initialRole={initialRole}
+                    key={`${detail.candidate_id}:${detail.version}`}
+                    run={run}
+                    detail={detail}
+                    locked={locked || busy}
+                    submit={review}
+                    onDirty={setReviewDirty}
+                    enqueue={(command) => {
+                      setQueued(command)
+                      setBatchOpen(true)
+                    }}
+                  />
+                </aside>
+              )}
+            </div>
+          </div>
+        </div>
       )}
       {index && review && (
-        <NativeBatchReviewWorkspace
-          initialRole={initialRole}
-          key={`${run.run_id}:${run.version}`}
-          run={run}
-          index={index}
-          locked={locked || busy}
-          submit={review}
-          queued={queued}
-          onConsumed={setQueued}
-        />
-      )}
-      {detail && (
-        <Space direction="vertical" style={{ width: '100%', marginTop: 16 }}>
-          <div className="solution-evidence-layout">
-            <FrozenInputReading evidence={detail.evidence} />
-            <CandidateReading raw={detail.normalized_output} />
-          </div>
-          <details>
-            <summary>语义检查原文</summary>
-            <JsonEvidence value={detail.semantic_output} />
-          </details>
-          <details>
-            <summary>来源、调用及审核证据</summary>
-            <JsonEvidence value={detail.evidence} />
-          </details>
-          {review && (
-            <NativeReviewWorkspace
-              initialRole={initialRole}
-              key={`${detail.candidate_id}:${detail.version}`}
-              run={run}
-              detail={detail}
-              locked={locked || busy}
-              submit={review}
-              enqueue={setQueued}
-            />
-          )}
-        </Space>
+        <Drawer
+          title="批量审核计划"
+          visible={batchOpen}
+          onClose={() => setBatchOpen(false)}
+          width="min(960px, 100vw)"
+          forceRender
+          destroyOnClose={false}
+        >
+          <NativeBatchReviewWorkspace
+            initialRole={initialRole}
+            key={`${run.run_id}:${run.version}`}
+            run={run}
+            index={index}
+            locked={locked || busy}
+            submit={review}
+            queued={queued}
+            onConsumed={setQueued}
+            onPlanCount={setPlanCount}
+          />
+        </Drawer>
       )}
     </Card>
   )

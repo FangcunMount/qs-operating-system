@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Alert, Button, Card, Checkbox, Input, Radio, Select, Space, Table, Typography } from 'antd'
 import type { NativeCandidateEvidence, NativeEvaluationState, NativeReviewCommand, NativeReviewRole } from '@/api/path/aiWorkflow'
 import { validReason } from './commands'
 import { contradictionTargets, reviewRecords, validSemanticReview } from './reviewValidation'
 
-export function NativeReviewWorkspace({ run, detail, locked, submit, enqueue, initialRole }: {
+export function NativeReviewWorkspace({ run, detail, locked, submit, enqueue, initialRole, onDirty }: {
+  onDirty?(dirty: boolean): void
   initialRole?: NativeReviewRole
   run: NativeEvaluationState
   detail: NativeCandidateEvidence
@@ -20,6 +21,7 @@ export function NativeReviewWorkspace({ run, detail, locked, submit, enqueue, in
   const [ordinal, setOrdinal] = useState<number>()
   const [excerpt, setExcerpt] = useState('')
   const [exceptionReason, setExceptionReason] = useState('')
+  useEffect(() => { onDirty?.(Boolean(reason || excerpt || exceptionReason || confirmed)) }, [reason, excerpt, exceptionReason, confirmed, onDirty])
   let history
   try { history = reviewRecords(run.reviews).filter((r) => r.candidate_id === detail.candidate_id) }
   catch { return <Alert type="warning" message="审核历史暂不可读，请重新查询任务。" /> }
@@ -48,13 +50,15 @@ export function NativeReviewWorkspace({ run, detail, locked, submit, enqueue, in
       <Typography.Paragraph type="secondary">
         每个候选需要两位不同操作者分别完成两类审核。审核记录不能覆盖，审核通过后仍需最终门槛确认和发布。
       </Typography.Paragraph>
-      <Table pagination={false} size="small" rowKey="role" dataSource={history}
-        locale={{ emptyText: '此候选尚无人工审核' }} columns={[
-          { title: '审核职责', dataIndex: 'role', render: (v) => v === 'assessment_semantics' ? '测评语义' : '安全与产品' },
-          { title: '操作者', dataIndex: 'reviewer' },
-          { title: '决定', dataIndex: 'decision', render: (v) => v === 'approve' ? '通过' : '拒绝' },
-          { title: '理由', dataIndex: 'reason' }, { title: '时间', dataIndex: 'reviewed_at' }
-        ]} />
+      <details><summary>已有审核记录（{history.length}）</summary>
+        <Table pagination={false} size="small" rowKey="role" dataSource={history}
+          locale={{ emptyText: '此候选尚无人工审核' }} columns={[
+            { title: '审核职责', dataIndex: 'role', render: (v) => v === 'assessment_semantics' ? '测评语义' : '安全与产品' },
+            { title: '操作者', dataIndex: 'reviewer' },
+            { title: '决定', dataIndex: 'decision', render: (v) => v === 'approve' ? '通过' : '拒绝' },
+            { title: '理由', dataIndex: 'reason' }, { title: '时间', dataIndex: 'reviewed_at' }
+          ]} />
+      </details>
       <Space direction="vertical" style={{ width: '100%', marginTop: 12 }}>
         <Radio.Group aria-label="审核职责" value={role} disabled={locked} onChange={(e) => { setRole(e.target.value); setConfirmed(false) }}>
           <Radio value="assessment_semantics">测评语义</Radio><Radio value="safety_product">安全与产品</Radio>
