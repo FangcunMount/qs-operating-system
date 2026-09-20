@@ -31,7 +31,7 @@ import type {
 } from '@/api/path/aiWorkflow/runtime'
 import { NativeParticipantRetryWorkspace } from '../native/NativeParticipantRetryWorkspace'
 import { validUUID } from '../native/commands'
-import { active, failureNames, formatTime, readError, stage, statusNames } from './state'
+import { active, failureNames, formatTime, modelCallTime, readError, stage, statusNames } from './state'
 
 const base = '/operations/ai-governance/runtime'
 function useRefresh(enabled: boolean, refresh: () => void) {
@@ -389,7 +389,7 @@ export function RuntimeRequestDetail({ owner }: { owner: string }): JSX.Element 
                       render: (v: string | null) => v || '未记录模型调用'
                     },
                     { title: '调用编号', dataIndex: 'invocation_id' },
-                    { title: '调用开始', render: (_, row) => formatTime(row.model_call_created_at) }
+                    { title: '调用记录时间', render: (_, row) => modelCallTime(row) }
                   ]}
                 />
               </Card>
