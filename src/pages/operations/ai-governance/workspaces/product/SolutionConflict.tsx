@@ -67,7 +67,7 @@ export function SolutionConflict({ id, local }: { id: string; local: SolutionEdi
           )}
           {(['generation', 'semantic'] as const).map((stage) => (
             <Descriptions key={stage} title={stage === 'generation' ? '生成模型' : '评审模型'} column={1}>
-              {(['model', 'max_output_tokens', 'timeout_milliseconds', 'reasoning_effort'] as const).map(
+              {(['model', 'model_key', 'catalog_revision', 'max_output_tokens', 'timeout_milliseconds', 'reasoning_effort', 'thinking'] as const).map(
                 (key) => (
                   <Descriptions.Item key={key} label={key}>
                     服务器：{latest[stage][key] || '默认'} / 你的修改：{local[stage][key] || '默认'}

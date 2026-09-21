@@ -56,3 +56,38 @@ it('keeps a prepared version read-only', () => {
   expect(screen.getByLabelText('系统指令')).toBeDisabled()
   expect(screen.getByRole('button', { name: '准备完整测试' })).toBeDisabled()
 })
+
+const zhipu = {
+  ...model, model: 'glm-5.3', model_key: 'zhipu/quality', catalog_revision: 'r1', thinking: 'enabled' as const
+}
+const multiCapabilities: SolutionModels = {
+  ...capabilities, v2_writes_enabled: true, catalog: [{
+    model_key: 'zhipu/quality', model_id: 'glm-5.3', catalog_revision: 'r1', provider: 'zhipu',
+    purposes: ['generation', 'semantic'], available: true, unavailable_reason: null,
+    max_output_tokens: 12000, max_timeout_milliseconds: 180000, reasoning_efforts: ['low'],
+    thinking_modes: ['enabled'], sampling_parameters: [], defaults: {
+      generation: { max_output_tokens: 12000, timeout_milliseconds: 120000, reasoning_effort: 'low', thinking: 'enabled' }
+    }
+  }]
+}
+it('applies explicit catalog defaults while preserving the selected capability revision', async () => {
+  const save = jest.fn().mockResolvedValue(null)
+  render(<SolutionEditor solution={{ ...solution, generation: zhipu }} capabilities={multiCapabilities}
+    busy={false} locked={false} error="" save={save} prepare={jest.fn()} onDirty={jest.fn()} />)
+  fireEvent.click(screen.getByRole('button', { name: '应用此模型推荐参数' }))
+  await act(async () => { jest.advanceTimersByTime(1600) })
+  expect(save).toHaveBeenCalledTimes(1)
+  expect(save.mock.calls[0][0].generation).toMatchObject({
+    model_key: 'zhipu/quality', catalog_revision: 'r1', thinking: 'enabled',
+    max_output_tokens: 12000, timeout_milliseconds: 120000, temperature: null, top_p: null
+  })
+})
+it('does not autosave a stale capability revision or silently upgrade it', async () => {
+  const save = jest.fn()
+  render(<SolutionEditor solution={{ ...solution, generation: { ...zhipu, catalog_revision: 'old' } }}
+    capabilities={multiCapabilities} busy={false} locked={false} error="" save={save}
+    prepare={jest.fn()} onDirty={jest.fn()} />)
+  fireEvent.change(screen.getByLabelText('生成解读输出上限'), { target: { value: '4000' } })
+  await act(async () => { jest.advanceTimersByTime(1600) })
+  expect(save).not.toHaveBeenCalled()
+})

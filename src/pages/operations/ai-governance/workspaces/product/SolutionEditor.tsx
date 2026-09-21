@@ -38,10 +38,13 @@ export function SolutionChanges({ solution }: { solution: Solution }): JSX.Eleme
         <div key={purpose} style={{ marginTop: 12 }}>
           <strong>{purpose === 'generation' ? '生成模型' : '语义评审模型'}</strong>
           <Descriptions column={1} size="small">
-            {(['model', 'max_output_tokens', 'timeout_milliseconds', 'reasoning_effort'] as const).map(
+            {(['model', 'model_key', 'catalog_revision', 'max_output_tokens', 'timeout_milliseconds', 'reasoning_effort', 'thinking'] as const).map(
               (key) => {
                 const names = {
                   model: '模型',
+                  model_key: '供应商模型身份',
+                  catalog_revision: '能力版本',
+                  thinking: '思考模式',
                   max_output_tokens: '输出上限',
                   timeout_milliseconds: '超时（毫秒）',
                   reasoning_effort: '推理强度'
@@ -77,37 +80,81 @@ export function SolutionChanges({ solution }: { solution: Solution }): JSX.Eleme
 }
 function ModelForm({
   title,
+  purpose,
   value,
   capabilities,
   disabled,
   onChange
 }: {
   title: string
+  purpose: 'generation' | 'semantic'
   value: ModelSelection
   capabilities: SolutionModels | null
   disabled: boolean
   onChange: (value: ModelSelection) => void
 }): JSX.Element {
+  const entry = capabilities?.catalog?.find((c) => c.model_key === value.model_key)
+  const catalog = capabilities?.catalog?.filter((c) => c.purposes.includes(purpose)) || []
+  const incompatible = !!entry && (
+    entry.catalog_revision !== value.catalog_revision || !entry.reasoning_efforts.includes(value.reasoning_effort) ||
+    value.max_output_tokens > entry.max_output_tokens || value.timeout_milliseconds > entry.max_timeout_milliseconds ||
+    (entry.provider === 'zhipu' ? !value.thinking || !entry.thinking_modes.includes(value.thinking) : value.thinking != null) ||
+    (value.temperature != null && !entry.sampling_parameters.includes('temperature')) ||
+    (value.top_p != null && !entry.sampling_parameters.includes('top_p'))
+  )
+  const [provider, setProvider] = useState(entry?.provider || 'deepseek')
+  useEffect(() => { if (entry) setProvider(entry.provider) }, [entry])
   return (
     <Card size="small" title={title}>
       <Form layout="vertical">
+        {catalog.length > 0 && <Form.Item label="供应商">
+          <Select aria-label={`${title}供应商`} value={provider} disabled={disabled}
+            options={Array.from(new Set(catalog.map((c) => c.provider))).map((p) => ({ value: p, label: p }))}
+            onChange={setProvider} />
+        </Form.Item>}
         <Form.Item label="模型">
           <Select
             aria-label={`${title}模型`}
-            value={value.model}
+            value={value.model_key || value.model}
             disabled={disabled || !capabilities}
-            options={(capabilities?.models || []).map((model) => ({ value: model, label: model }))}
-            onChange={(model) => onChange({ ...value, model })}
+            options={[
+              ...(provider === 'deepseek' && !value.model_key
+                ? (capabilities?.models || []).map((model) => ({ value: model, label: `${model}（原版本）` })) : []),
+              ...catalog.filter((c) => c.provider === provider).map((c) => ({
+                value: c.model_key, label: `${c.model_id}${c.available ? '' : `（${c.unavailable_reason}）`}`, disabled: !c.available
+              }))
+            ]}
+            onChange={(key) => {
+              const next = catalog.find((c) => c.model_key === key)
+              onChange(next ? {
+                ...value, model: next.model_id, model_key: next.model_key, catalog_revision: next.catalog_revision
+              } : { ...value, model: key })
+            }}
             style={{ width: '100%' }}
           />
         </Form.Item>
+        {value.model_key && <Alert type="info" showIcon message="切换模型保留当前参数；请检查并修正不兼容参数后保存。" />}
+        {incompatible && <Alert type="warning" showIcon
+          message="当前参数或能力版本不适用于此模型，请重新选择模型版本并调整参数。未修正前不会保存或启动评测。" />}
+        {entry?.defaults?.[purpose] && <Button disabled={disabled || !entry.available}
+          onClick={() => onChange({
+            ...value, ...entry.defaults?.[purpose], thinking: entry.defaults?.[purpose]?.thinking ?? null,
+            temperature: entry.defaults?.[purpose]?.temperature ?? null, top_p: entry.defaults?.[purpose]?.top_p ?? null
+          })}>应用此模型推荐参数</Button>}
+        {entry?.provider === 'zhipu' && <Form.Item label="思考模式">
+          <Select aria-label={`${title}思考模式`} value={value.thinking || undefined} disabled={disabled}
+            options={entry.thinking_modes.map((mode) => ({ value: mode, label: mode === 'enabled' ? '开启' : '关闭' }))}
+            onChange={(thinking) => onChange({ ...value, thinking })} />
+        </Form.Item>}
+        {entry?.provider === 'deepseek' && value.thinking != null && <Button disabled={disabled}
+          onClick={() => onChange({ ...value, thinking: null })}>移除不兼容的思考模式参数</Button>}
         <Space wrap align="start">
           <Form.Item label="最大输出 token">
             <InputNumber
               aria-label={`${title}输出上限`}
               value={value.max_output_tokens}
               min={capabilities?.max_output_tokens.min}
-              max={capabilities?.max_output_tokens.max}
+              max={entry?.max_output_tokens || capabilities?.max_output_tokens.max}
               disabled={disabled}
               onChange={(n) => typeof n === 'number' && onChange({ ...value, max_output_tokens: n })}
             />
@@ -117,7 +164,7 @@ function ModelForm({
               aria-label={`${title}超时`}
               value={value.timeout_milliseconds / 1000}
               min={(capabilities?.timeout_milliseconds.min || 1000) / 1000}
-              max={(capabilities?.timeout_milliseconds.max || 180000) / 1000}
+              max={(entry?.max_timeout_milliseconds || capabilities?.timeout_milliseconds.max || 180000) / 1000}
               disabled={disabled}
               onChange={(n) =>
                 typeof n === 'number' && onChange({ ...value, timeout_milliseconds: Math.round(n * 1000) })
@@ -130,7 +177,7 @@ function ModelForm({
               value={value.reasoning_effort}
               disabled={disabled || !capabilities}
               style={{ width: 145 }}
-              options={(capabilities?.reasoning_efforts || []).map((v) => ({
+              options={(entry?.reasoning_efforts || capabilities?.reasoning_efforts || []).map((v) => ({
                 value: v,
                 label: v || '模型默认'
               }))}
@@ -193,17 +240,20 @@ export function SolutionEditor({
     values.title.trim() &&
     validReason(values.reason) &&
     capabilities &&
-    [values.generation, values.semantic].every(
-      (v) =>
-        capabilities.models.includes(v.model) &&
-        Number.isInteger(v.max_output_tokens) &&
-        v.max_output_tokens >= capabilities.max_output_tokens.min &&
-        v.max_output_tokens <= capabilities.max_output_tokens.max &&
-        Number.isInteger(v.timeout_milliseconds) &&
-        v.timeout_milliseconds >= capabilities.timeout_milliseconds.min &&
-        v.timeout_milliseconds <= capabilities.timeout_milliseconds.max &&
-        capabilities.reasoning_efforts.includes(v.reasoning_effort)
-    )
+    [values.generation, values.semantic].every((v, index) => {
+      const entry = capabilities.catalog?.find((c) => c.model_key === v.model_key)
+      return (!v.model_key ? capabilities.models.includes(v.model) :
+        !!entry && entry.available && entry.catalog_revision === v.catalog_revision &&
+        entry.purposes.includes(index === 0 ? 'generation' : 'semantic') &&
+        (entry.provider === 'deepseek' ? v.thinking == null : !!v.thinking && entry.thinking_modes.includes(v.thinking)) &&
+        (v.temperature == null || entry.sampling_parameters.includes('temperature')) &&
+        (v.top_p == null || entry.sampling_parameters.includes('top_p'))) &&
+        Number.isInteger(v.max_output_tokens) && v.max_output_tokens >= 1 &&
+        v.max_output_tokens <= (entry?.max_output_tokens || capabilities.max_output_tokens.max) &&
+        Number.isInteger(v.timeout_milliseconds) && v.timeout_milliseconds >= 1000 &&
+        v.timeout_milliseconds <= (entry?.max_timeout_milliseconds || capabilities.timeout_milliseconds.max) &&
+        (entry?.reasoning_efforts || capabilities.reasoning_efforts).includes(v.reasoning_effort)
+    })
   useEffect(() => {
     onDirty(dirty)
     return () => onDirty(false)
@@ -307,6 +357,7 @@ export function SolutionEditor({
             </details>
           </Form>
           <ModelForm
+            purpose="generation"
             title="生成解读"
             value={values.generation}
             capabilities={capabilities}
@@ -324,6 +375,7 @@ export function SolutionEditor({
             </Typography.Paragraph>
           </details>
           <ModelForm
+            purpose="semantic"
             title="语义评审"
             value={values.semantic}
             capabilities={capabilities}
