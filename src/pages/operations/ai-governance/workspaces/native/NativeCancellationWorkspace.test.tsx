@@ -179,3 +179,19 @@ it('validates prepared references and cancellation after the last audit', () => 
   run.reviews = [{ reviewed_at: '2026-09-13T03:00:00Z' }]
   expect(() => cancellationReceipt(run)).toThrow(/时间/)
 })
+
+
+it('accepts stop intent without claiming cancellation finished or allowing a second command', async () => {
+  await open(state('collecting'))
+  const draining: api.NativeEvaluationState = { ...state('collecting'), version: 8,
+    execution_mode: 'candidate_v2', active_call_count: 3, parallel_call_limit: 3, cancel_draining: true,
+    cancel_request: { schema_version: 'qs-ai-evaluation-cancel-request/v1', run_id: id,
+      source_version: 7, version: 8, status: 'cancel_requested', actor: 'user:42', reason,
+      requested_at: '2026-09-13T02:00:00Z' } }
+  ;(api.cancelNativeEvaluation as jest.Mock).mockResolvedValue(ok(draining))
+  confirm()
+  await screen.findByText('停止请求已接受，正在排空')
+  expect(screen.queryByText('确认取消评测')).not.toBeInTheDocument()
+  expect(api.cancelNativeEvaluation).toHaveBeenCalledTimes(1)
+  expect(screen.getByText('3 / 3')).toBeInTheDocument()
+})

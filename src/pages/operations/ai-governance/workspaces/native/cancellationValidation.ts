@@ -15,7 +15,7 @@ export function validPendingCancellation(value: PendingCancellation): boolean {
 }
 export function canRequestCancellation(run: NativeEvaluationState): boolean {
   return Boolean(run.creation && sourceStatuses.includes(run.status) &&
-    run.unresolved_result_unknown_count === 0 && !run.cancellation && !run.finalization)
+    run.unresolved_result_unknown_count === 0 && !run.cancellation && !run.cancel_request && !run.finalization)
 }
 export function cancellationReceipt(run: NativeEvaluationState): NativeCancellationReceipt {
   const r = run.cancellation as NativeCancellationReceipt
@@ -41,7 +41,15 @@ export function cancellationReceipt(run: NativeEvaluationState): NativeCancellat
     throw new Error('取消时间早于原审核记录。')
   return r
 }
-export function confirmsCancellation(run: NativeEvaluationState, pending: PendingCancellation, version: number): NativeCancellationReceipt {
+export function confirmsCancellation(
+  run: NativeEvaluationState, pending: PendingCancellation, version: number
+): NativeCancellationReceipt | NonNullable<NativeEvaluationState['cancel_request']> {
+  if (run.cancel_request) {
+    const request = cancellationRequest(run)
+    if (request.source_version !== version || request.actor !== pending.actor || pending.discard)
+      throw new Error('停止请求回执与原命令不一致。')
+    return request
+  }
   const r = cancellationReceipt(run)
   if (r.source_version !== version || r.actor !== pending.actor || r.discard !== pending.discard || r.source_status !== pending.sourceStatus)
     throw new Error('尚未取得本次取消的原始回执，请保留原任务并查询。')
@@ -51,4 +59,18 @@ export function sourceBeforeCancellation(run: NativeEvaluationState): NativeEval
   if (!run.cancellation) return run
   const r = cancellationReceipt(run)
   return { ...run, version: r.source_version, status: r.source_status, cancellation: undefined }
+}
+
+
+export function cancellationRequest(run: NativeEvaluationState): NonNullable<NativeEvaluationState['cancel_request']> {
+  const r = run.cancel_request
+  if (!r || !run.creation || r.schema_version !== 'qs-ai-evaluation-cancel-request/v1' ||
+    r.run_id !== run.run_id || r.status !== 'cancel_requested' ||
+    !Number.isSafeInteger(r.source_version) || r.source_version < 1 ||
+    r.version !== r.source_version + 1 || r.version > run.version ||
+    !/^user:[1-9][0-9]*$/.test(r.actor) || !validReason(r.reason) || r.reason !== r.reason.trim() ||
+    !Number.isFinite(Date.parse(r.requested_at)) || Date.parse(r.requested_at) < Date.parse(run.creation.created_at) ||
+    run.cancel_draining !== (run.status !== 'canceled'))
+    throw new Error('停止请求回执与原任务不一致，请重新查询。')
+  return r
 }

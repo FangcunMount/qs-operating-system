@@ -278,6 +278,12 @@ export function NativeEvaluationWorkspace({
             </Descriptions.Item>
             <Descriptions.Item label="状态">{statusLabels[c.run.status]}</Descriptions.Item>
             <Descriptions.Item label="任务版本">{c.run.version}</Descriptions.Item>
+            {c.run.execution_mode && <Descriptions.Item label="执行方式">
+              {c.run.execution_mode === 'candidate_v2' ? '候选并发' : '串行'}
+            </Descriptions.Item>}
+            {c.run.parallel_call_limit ? <Descriptions.Item label="在途调用 / 并行上限">
+              {c.run.active_call_count ?? 0} / {c.run.parallel_call_limit}
+            </Descriptions.Item> : null}
             <Descriptions.Item label="待核对调用">{c.run.unresolved_result_unknown_count}</Descriptions.Item>
             {c.run.creation && (
               <Descriptions.Item label="冻结套件">{label(c.run.creation.release.suite)}</Descriptions.Item>
