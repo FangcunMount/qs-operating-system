@@ -136,6 +136,8 @@ function ModelForm({
         {value.model_key && <Alert type="info" showIcon message="切换模型保留当前参数；请检查并修正不兼容参数后保存。" />}
         {incompatible && <Alert type="warning" showIcon
           message="当前参数或能力版本不适用于此模型，请重新选择模型版本并调整参数。未修正前不会保存或启动评测。" />}
+        {entry && entry.catalog_revision !== value.catalog_revision && <Button disabled={disabled || !entry.available}
+          onClick={() => onChange({ ...value, catalog_revision: entry.catalog_revision })}>采用当前模型能力版本</Button>}
         {entry?.defaults?.[purpose] && <Button disabled={disabled || !entry.available}
           onClick={() => onChange({
             ...value, ...entry.defaults?.[purpose], thinking: entry.defaults?.[purpose]?.thinking ?? null,
