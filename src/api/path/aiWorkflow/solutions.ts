@@ -4,12 +4,34 @@ import type { DraftContent, RegisteredManifest } from './types'
 import type { EvaluationRelease } from './evaluationTypes'
 
 export interface ModelSelection {
+  model_key?: string | null
+  catalog_revision?: string | null
+  thinking?: 'enabled' | 'disabled' | null
+  temperature?: number | null
+  top_p?: number | null
   model: string
   max_output_tokens: number
   timeout_milliseconds: number
   reasoning_effort: string
 }
+export interface ModelCapability {
+  model_key: string
+  model_id: string
+  catalog_revision: string
+  provider: string
+  purposes: Array<'generation' | 'semantic'>
+  available: boolean
+  unavailable_reason: string | null
+  max_output_tokens: number
+  max_timeout_milliseconds: number
+  reasoning_efforts: string[]
+  thinking_modes: Array<'enabled' | 'disabled'>
+  defaults?: Partial<Record<'generation' | 'semantic', Omit<ModelSelection, 'model'>>>
+  sampling_parameters: Array<'temperature' | 'top_p'>
+}
 export interface SolutionModels {
+  v2_writes_enabled?: boolean
+  catalog?: ModelCapability[]
   models: string[]
   provider: string
   credential_configured: boolean
