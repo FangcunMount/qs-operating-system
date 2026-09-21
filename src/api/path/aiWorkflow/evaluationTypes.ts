@@ -58,6 +58,20 @@ export interface NativeEvaluationState {
   resolutions: unknown[]
   reviews: unknown[]
   review_reopenings: unknown[]
+  execution_mode?: 'serial_v1' | 'candidate_v2'
+  active_call_count?: number
+  parallel_call_limit?: number
+  cancel_draining?: boolean
+  cancel_request?: {
+    schema_version: 'qs-ai-evaluation-cancel-request/v1'
+    run_id: string
+    source_version: number
+    version: number
+    status: 'cancel_requested'
+    actor: string
+    reason: string
+    requested_at: string
+  }
   can_reopen_review?: boolean
   finalization?: unknown
   cancellation?: unknown

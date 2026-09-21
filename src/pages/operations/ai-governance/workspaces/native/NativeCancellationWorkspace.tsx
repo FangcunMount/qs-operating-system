@@ -12,6 +12,9 @@ export function NativeCancellationWorkspace({ run, locked, cancel }: {
   const [reason, setReason] = useState('')
   const [confirmed, setConfirmed] = useState(false)
   useEffect(() => { setConfirmed(false) }, [run.run_id, run.version])
+  if (run.cancel_draining) return <Alert style={{ marginTop: 16 }} type="info" showIcon
+    message="停止请求已接受，正在排空"
+    description={`已停止新增调用；当前在途 ${run.active_call_count ?? '未知'} 个，待核对 ${run.unresolved_result_unknown_count} 个。已发送调用会继续保存结果，未知结果需核对后才能完成取消。`} />
   if (run.cancellation) {
     try {
       const receipt = cancellationReceipt(run)
