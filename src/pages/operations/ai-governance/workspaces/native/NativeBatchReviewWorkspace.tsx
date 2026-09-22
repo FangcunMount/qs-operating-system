@@ -4,6 +4,16 @@ import type { NativeCandidateIndex, NativeEvaluationState, NativeReviewCommand, 
 import { importBatch, validateBatch } from './batchReview'
 import { validReason } from './commands'
 
+function CandidateSelectionCheckbox({ checked, disabled, label, onChange }: {
+  checked: boolean
+  disabled: boolean
+  label: string
+  onChange(checked: boolean): void
+}): JSX.Element {
+  return <Checkbox checked={checked} disabled={disabled} aria-label={label}
+    onChange={(event) => onChange(event.target.checked)} />
+}
+
 export function NativeBatchReviewWorkspace({ run, index, locked, submit, queued, onConsumed, initialRole, onPlanCount }: {
   onPlanCount?(count: number): void
   initialRole?: NativeReviewRole
@@ -82,9 +92,20 @@ export function NativeBatchReviewWorkspace({ run, index, locked, submit, queued,
           options={[{ value: 'approve', label: '通过' }, { value: 'reject', label: '拒绝' }]} />
       </Space>
       <Table rowKey="candidate_id" size="small" pagination={false} scroll={{ y: 220 }} dataSource={index.candidates}
-        rowSelection={{ selectedRowKeys: selected, onChange: setSelected,
-          getCheckboxProps: (item) => ({ disabled, 'aria-label': `选择 ${item.case_id} 候选 ${item.slot_ordinal}` }) }}
-        columns={[{ title: '案例', dataIndex: 'case_id' }, { title: '候选', dataIndex: 'slot_ordinal' }]} />
+        columns={[{
+          title: '选择',
+          width: 72,
+          render: function renderSelection(_, item) {
+            return <CandidateSelectionCheckbox
+              checked={selected.includes(item.candidate_id)}
+              disabled={disabled}
+              label={`选择 ${item.case_id} 候选 ${item.slot_ordinal}`}
+              onChange={(checked) => setSelected((current) => checked
+                ? [...current, item.candidate_id]
+                : current.filter((id) => id !== item.candidate_id))}
+            />
+          }
+        }, { title: '案例', dataIndex: 'case_id' }, { title: '候选', dataIndex: 'slot_ordinal' }]} />
       <Input.TextArea aria-label="批量审核意见" placeholder="仅对已经实际查看且理由相同的候选批量填写；不同意见请分批加入。"
         value={reason} disabled={disabled} onChange={(e) => { setReason(e.target.value); setConfirmed(false) }} />
       <Button disabled={disabled || !selected.length || !validReason(reason)} onClick={() => {
