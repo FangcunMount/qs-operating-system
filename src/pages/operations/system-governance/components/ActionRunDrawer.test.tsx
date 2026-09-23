@@ -125,4 +125,18 @@ describe('ActionRunDrawer', () => {
     })
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('submits a pending reconciliation with its original request ID and input', async () => {
+    const input = { store: 'assessment-mysql-outbox', reason: 'reviewed', targets: [{ event_id: 'event-1', expected_attempt_count: 30 }] }
+    render(<ActionRunDrawer action={replayAction} visible initialInput={input} initialRequestID="original-request" onClose={jest.fn()} />)
+
+    expect(screen.getByPlaceholderText('本次重放的操作编号')).toHaveAttribute('readonly')
+    expect(screen.getByDisplayValue(/"event_id": "event-1"/)).toHaveAttribute('readonly')
+    fireEvent.change(screen.getByPlaceholderText('确认执行 events.replay_pending'), { target: { value: '确认' } })
+    fireEvent.click(screen.getByText(/执\s*行/))
+
+    await waitFor(() => expect(postActionRunMock).toHaveBeenCalledWith('events.replay_pending', {
+      request_id: 'original-request', input, confirm: true
+    }))
+  })
 })

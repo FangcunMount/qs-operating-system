@@ -1,8 +1,10 @@
-import React, { useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Alert, Button, Card, Col, Row, Space, Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import type { ActionDescriptor, Signal } from '@/api/path/systemGovernance'
-import { renderActionStatusTags } from '../../shared/utils/formatters'
+import { getSystemGovernancePendingReplayAudits } from '@/api/path/systemGovernance'
+import type { ActionDescriptor, PendingReplayAudit, Signal } from '@/api/path/systemGovernance'
+import { extractErrorMessage } from '@/utils/apiError'
+import { formatDateTime, renderActionStatusTags } from '../../shared/utils/formatters'
 import { ActionRunDrawer } from '../components/ActionRunDrawer'
 import { actionPresentation, domainPresentation } from '../presentation'
 
@@ -46,14 +48,61 @@ function renderRiskLevel(value: string) {
   )
 }
 
+function renderPendingRequestID(value: string) {
+  return <Text code copyable>{value}</Text>
+}
+
 export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] }) => {
   const [selectedAction, setSelectedAction] = useState<ActionDescriptor | null>(null)
+  const [selectedAudit, setSelectedAudit] = useState<PendingReplayAudit | null>(null)
   const [drawerVisible, setDrawerVisible] = useState(false)
+  const [pendingAudits, setPendingAudits] = useState<PendingReplayAudit[]>([])
+  const [pendingCursor, setPendingCursor] = useState('')
+  const [pendingLoading, setPendingLoading] = useState(false)
+  const [pendingError, setPendingError] = useState('')
+  const replayAction = actions.find((action) => action.id === 'events.replay_pending')
 
-  const openDrawer = (action: ActionDescriptor) => {
+  const loadPending = useCallback(async (cursor?: string) => {
+    setPendingLoading(true)
+    const [requestError, response] = await getSystemGovernancePendingReplayAudits({
+      ...(cursor ? { cursor } : {}), limit: 50
+    })
+    if (requestError || !response?.data) {
+      setPendingError(extractErrorMessage(requestError, '获取待核对操作失败'))
+      setPendingLoading(false)
+      return
+    }
+    setPendingAudits((current) => cursor ? [...current, ...(response.data.items || [])] : response.data.items || [])
+    setPendingCursor(response.data.next_cursor || '')
+    setPendingError('')
+    setPendingLoading(false)
+  }, [])
+
+  useEffect(() => {
+    if (replayAction) void loadPending()
+  }, [loadPending, replayAction?.id])
+
+  const openDrawer = (action: ActionDescriptor, audit?: PendingReplayAudit) => {
     setSelectedAction(action)
+    setSelectedAudit(audit || null)
     setDrawerVisible(true)
   }
+
+  function renderReconcileButton(_value: unknown, record: PendingReplayAudit) {
+    return (
+      <Button type="link" disabled={!replayAction?.enabled} onClick={() => replayAction && openDrawer(replayAction, record)}>
+        按原编号核对
+      </Button>
+    )
+  }
+
+  const pendingColumns: ColumnsType<PendingReplayAudit> = [
+    { title: '操作编号', dataIndex: 'request_id', key: 'request_id', width: 220, render: renderPendingRequestID },
+    { title: '存储', dataIndex: 'store', key: 'store', width: 180 },
+    { title: '原操作者', dataIndex: 'actor_user_id', key: 'actor_user_id', width: 150 },
+    { title: '进入待核对时间', dataIndex: 'updated_at', key: 'updated_at', width: 190, render: formatDateTime },
+    { title: '操作', key: 'reconcile', width: 150, render: renderReconcileButton }
+  ]
 
   const columns: ColumnsType<ActionDescriptor> = [
     {
@@ -107,6 +156,30 @@ export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] })
         message="治理动作不是日常操作入口"
         description="请先从运行总览定位问题并核对证据。所有动作都要求明确输入，并由服务端执行确认、并发保护和审计记录。"
       />
+      {replayAction ? (
+        <section className="system-governance-pending-replay-audits">
+          <Typography.Title level={5}>待核对的重放操作</Typography.Title>
+          <Alert
+            type="warning"
+            showIcon
+            message="结果未知时只核对原操作"
+            description="请由原操作者沿用列表中的操作编号与原输入；不要新建操作编号或修改审批内容。"
+            style={{ marginBottom: 12 }}
+          />
+          {pendingError ? <Alert type="error" message={pendingError} style={{ marginBottom: 12 }} /> : null}
+          <Table
+            rowKey="request_id"
+            columns={pendingColumns}
+            dataSource={pendingAudits}
+            loading={pendingLoading && !pendingAudits.length}
+            pagination={false}
+            size="small"
+            scroll={{ x: 900 }}
+            locale={{ emptyText: '当前没有待核对的重放操作' }}
+          />
+          {pendingCursor ? <Button loading={pendingLoading} onClick={() => void loadPending(pendingCursor)}>加载更多待核对操作</Button> : null}
+        </section>
+      ) : null}
       {recommendedActions.length ? (
         <section className="system-governance-recommended-actions">
           <Typography.Title level={5}>根据当前问题建议</Typography.Title>
@@ -140,7 +213,10 @@ export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] })
       <ActionRunDrawer
         action={selectedAction}
         visible={drawerVisible}
+        initialInput={selectedAudit?.input}
+        initialRequestID={selectedAudit?.request_id}
         onClose={() => setDrawerVisible(false)}
+        onFinished={() => { if (selectedAction?.id === 'events.replay_pending') void loadPending() }}
       />
     </>
   )

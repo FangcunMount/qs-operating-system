@@ -11,6 +11,7 @@ interface ActionRunDrawerProps {
   action: ActionDescriptor | null
   visible: boolean
   initialInput?: Record<string, unknown>
+  initialRequestID?: string
   onClose: () => void
   onFinished?: (result: ActionRunResponse) => void
 }
@@ -25,6 +26,7 @@ export const ActionRunDrawer: React.FC<ActionRunDrawerProps> = ({
   action,
   visible,
   initialInput,
+  initialRequestID,
   onClose,
   onFinished
 }) => {
@@ -41,10 +43,10 @@ export const ActionRunDrawer: React.FC<ActionRunDrawerProps> = ({
     form.setFieldsValue({
       confirmation: '',
       input: initialInput ? JSON.stringify(initialInput, null, 2) : '',
-      request_id: action?.id === 'events.replay_pending' ? newReplayRequestID() : undefined
+      request_id: action?.id === 'events.replay_pending' ? initialRequestID || newReplayRequestID() : undefined
     })
     setError('')
-  }, [action?.id, form, initialInput, visible])
+  }, [action?.id, form, initialInput, initialRequestID, visible])
 
   if (!action) {
     return null
@@ -109,7 +111,7 @@ export const ActionRunDrawer: React.FC<ActionRunDrawerProps> = ({
               rules={[{ required: true, whitespace: true, message: '请输入操作编号' }]}
               extra="结果待核对时，保留此编号和原输入；再次提交相同编号核对结果。"
             >
-              <Input placeholder="本次重放的操作编号" />
+              <Input placeholder="本次重放的操作编号" readOnly={Boolean(initialRequestID)} />
             </Form.Item>
           ) : null}
           {action.requires_confirmation ? (
@@ -126,7 +128,7 @@ export const ActionRunDrawer: React.FC<ActionRunDrawerProps> = ({
             label="输入 JSON"
             extra="按 action input_schema 组织参数；例如 cache.manual_warmup 使用 targets 数组。"
           >
-            <Input.TextArea rows={8} placeholder='{"targets":[{"kind":"static.scale","scope":"scale:S-001"}]}' />
+            <Input.TextArea rows={8} readOnly={Boolean(initialRequestID)} placeholder='{"targets":[{"kind":"static.scale","scope":"scale:S-001"}]}' />
           </Form.Item>
         </Form>
         {action.input_schema ? (

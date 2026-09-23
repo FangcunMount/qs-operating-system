@@ -28,3 +28,22 @@ export interface ActionRunResponse {
   result?: Record<string, unknown>
   message?: string
 }
+
+export interface PendingReplayAudit {
+  request_id: string
+  actor_user_id: string
+  store: string
+  input: Record<string, unknown>
+  started_at: string
+  updated_at: string
+}
+
+export interface PendingReplayAuditPage {
+  items: PendingReplayAudit[]
+  next_cursor?: string
+}
+
+export interface PendingReplayAuditQuery {
+  cursor?: string
+  limit?: number
+}

@@ -15,6 +15,8 @@ import type {
   GovernanceOverviewResponse,
   GovernanceResilienceResponse,
   GovernanceWindow,
+  PendingReplayAuditPage,
+  PendingReplayAuditQuery,
   RawSystemGovernanceCacheResponse,
   RawSystemGovernanceEventsResponse,
   RawSystemGovernanceOverviewResponse,
@@ -92,6 +94,14 @@ export const getSystemGovernanceRetryCandidates = (
 
 export const getSystemGovernanceActions = (): Promise<[any, QSResponse<GovernanceActionsResponse> | undefined]> =>
   internalGet<GovernanceActionsResponse>('/system-governance/actions')
+
+export const getSystemGovernancePendingReplayAudits = (
+  query: PendingReplayAuditQuery = {}
+): Promise<[any, QSResponse<PendingReplayAuditPage> | undefined]> => {
+  const params: PendingReplayAuditQuery = { limit: query.limit || 50 }
+  if (query.cursor) params.cursor = query.cursor
+  return internalGet<PendingReplayAuditPage>('/system-governance/actions/pending-reconciliations', params)
+}
 
 export const postSystemGovernanceActionRun = (
   actionId: string,
