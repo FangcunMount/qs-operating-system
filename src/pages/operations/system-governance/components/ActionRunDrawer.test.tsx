@@ -25,8 +25,22 @@ const manualWarmupAction: ActionDescriptor = {
   }
 }
 
+const replayAction: ActionDescriptor = {
+  ...manualWarmupAction,
+  id: 'events.replay_pending',
+  domain: 'events',
+  label: '重放待处理事件'
+}
+
 describe('ActionRunDrawer', () => {
   beforeEach(() => {
+    Object.defineProperty(window, 'crypto', {
+      configurable: true,
+      value: { getRandomValues: (bytes: Uint8Array) => {
+        bytes.forEach((_, index) => { bytes[index] = index + 1 })
+        return bytes
+      } }
+    })
     postActionRunMock.mockReset()
     postActionRunMock.mockResolvedValue([null, {
       data: {
@@ -82,6 +96,32 @@ describe('ActionRunDrawer', () => {
         },
         confirm: true
       })
+    })
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('keeps the same replay request ID when the result needs another lookup', async () => {
+    postActionRunMock.mockResolvedValueOnce([new Error('结果待核对'), undefined])
+    const onClose = jest.fn()
+    const input = { store: 'assessment-mysql-outbox', reason: 'reviewed', targets: [{ event_id: 'event-1', expected_attempt_count: 30 }] }
+    render(<ActionRunDrawer action={replayAction} visible initialInput={input} onClose={onClose} />)
+
+    const idField = screen.getByPlaceholderText('本次重放的操作编号') as HTMLInputElement
+    const requestID = idField.value
+    expect(requestID).toMatch(/^[0-9a-f]{32}$/)
+    fireEvent.change(screen.getByPlaceholderText('确认执行 events.replay_pending'), { target: { value: '确认' } })
+    fireEvent.click(screen.getByText(/执\s*行/))
+    await waitFor(() => expect(postActionRunMock).toHaveBeenCalledTimes(1))
+    expect(postActionRunMock).toHaveBeenNthCalledWith(1, 'events.replay_pending', {
+      request_id: requestID, input, confirm: true
+    })
+    expect(onClose).not.toHaveBeenCalled()
+    expect(idField.value).toBe(requestID)
+
+    fireEvent.click(screen.getByText(/执\s*行/))
+    await waitFor(() => expect(postActionRunMock).toHaveBeenCalledTimes(2))
+    expect(postActionRunMock).toHaveBeenNthCalledWith(2, 'events.replay_pending', {
+      request_id: requestID, input, confirm: true
     })
     expect(onClose).toHaveBeenCalled()
   })

@@ -14,11 +14,13 @@ export interface GovernanceActionsResponse {
 }
 
 export interface ActionRunRequest {
+  request_id?: string
   input?: Record<string, unknown>
   confirm?: boolean
 }
 
 export interface ActionRunResponse {
+  request_id?: string
   action_id: string
   status: string
   started_at?: string

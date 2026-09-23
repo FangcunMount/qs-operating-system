@@ -15,6 +15,12 @@ interface ActionRunDrawerProps {
   onFinished?: (result: ActionRunResponse) => void
 }
 
+const newReplayRequestID = (): string => {
+  const bytes = new Uint8Array(16)
+  window.crypto.getRandomValues(bytes)
+  return Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')
+}
+
 export const ActionRunDrawer: React.FC<ActionRunDrawerProps> = ({
   action,
   visible,
@@ -34,7 +40,8 @@ export const ActionRunDrawer: React.FC<ActionRunDrawerProps> = ({
     }
     form.setFieldsValue({
       confirmation: '',
-      input: initialInput ? JSON.stringify(initialInput, null, 2) : ''
+      input: initialInput ? JSON.stringify(initialInput, null, 2) : '',
+      request_id: action?.id === 'events.replay_pending' ? newReplayRequestID() : undefined
     })
     setError('')
   }, [action?.id, form, initialInput, visible])
@@ -57,6 +64,7 @@ export const ActionRunDrawer: React.FC<ActionRunDrawerProps> = ({
     setSubmitting(true)
     setError('')
     const [requestError, response] = await postSystemGovernanceActionRun(action.id, {
+      ...(action.id === 'events.replay_pending' ? { request_id: values.request_id?.trim() } : {}),
       input,
       confirm: action.requires_confirmation ? Boolean(values.confirmation) : true
     })
@@ -94,6 +102,16 @@ export const ActionRunDrawer: React.FC<ActionRunDrawerProps> = ({
         />
         {error ? <Alert type="error" showIcon message={error} /> : null}
         <Form form={form} layout="vertical">
+          {action.id === 'events.replay_pending' ? (
+            <Form.Item
+              name="request_id"
+              label="操作编号"
+              rules={[{ required: true, whitespace: true, message: '请输入操作编号' }]}
+              extra="结果待核对时，保留此编号和原输入；再次提交相同编号核对结果。"
+            >
+              <Input placeholder="本次重放的操作编号" />
+            </Form.Item>
+          ) : null}
           {action.requires_confirmation ? (
             <Form.Item
               name="confirmation"
