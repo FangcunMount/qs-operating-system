@@ -14,15 +14,36 @@ export interface GovernanceActionsResponse {
 }
 
 export interface ActionRunRequest {
+  request_id?: string
   input?: Record<string, unknown>
   confirm?: boolean
 }
 
 export interface ActionRunResponse {
+  request_id?: string
   action_id: string
   status: string
   started_at?: string
   finished_at?: string
   result?: Record<string, unknown>
   message?: string
+}
+
+export interface PendingReplayAudit {
+  request_id: string
+  actor_user_id: string
+  store: string
+  input: Record<string, unknown>
+  started_at: string
+  updated_at: string
+}
+
+export interface PendingReplayAuditPage {
+  items: PendingReplayAudit[]
+  next_cursor?: string
+}
+
+export interface PendingReplayAuditQuery {
+  cursor?: string
+  limit?: number
 }
