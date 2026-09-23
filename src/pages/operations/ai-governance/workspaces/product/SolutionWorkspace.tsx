@@ -6,8 +6,8 @@ import { rootStore } from '@/store'
 import { getPublication } from '@/api/path/aiWorkflow'
 import type { NativeEvaluationState, PublicationState, NativeReviewRole } from '@/api/path/aiWorkflow'
 import { getSolutionModels, listSolutions } from '@/api/path/aiWorkflow/solutions'
-import type { SolutionModels, SolutionSummary } from '@/api/path/aiWorkflow/solutions'
-import { checkPublication, defaultPublicationSelector } from '../native/publicationValidation'
+import type { SolutionModels, SolutionSummary, SolutionTemplate } from '@/api/path/aiWorkflow/solutions'
+import { checkPublication, defaultPublicationSelector, mbtiPublicationSelector, sameSelector } from '../native/publicationValidation'
 import { newCommandID, validReason, validUUID } from '../native/commands'
 import { ConfigurationAssets } from './ConfigurationAssets'
 import type { EvaluationSelection } from '@/api/path/aiWorkflow'
@@ -24,8 +24,11 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
   const history = useHistory()
   const location = useLocation()
   const section = location.pathname.includes('/reviews') ? 'reviews' : location.pathname.includes('/runtime/evaluations') ? 'runs' : 'solutions'
+  const scene = new URLSearchParams(location.search).get('aiScene') === 'mbti' ? 'mbti' : 'scale'
+  const sceneSelector = scene === 'mbti' ? mbtiPublicationSelector : defaultPublicationSelector
   const controller = useSolution(owner)
   const [items, setItems] = useState<SolutionSummary[]>([])
+  const [templates, setTemplates] = useState<SolutionTemplate[]>([])
   const [cursor, setCursor] = useState('')
   const [publication, setPublication] = useState<PublicationState | null>(null)
   const [models, setModels] = useState<SolutionModels | null>(null)
@@ -69,7 +72,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
     try {
       const [[failure, page], [pubError, pub], [modelError, capabilities]] = await Promise.all([
         listSolutions(after),
-        getPublication(defaultPublicationSelector),
+        getPublication(sceneSelector),
         getSolutionModels()
       ])
       if (current !== epoch.current) return
@@ -81,12 +84,22 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
       )
         throw new Error('修改版本读取失败，请检查权限后刷新。')
       setItems((old) => (after ? [...old, ...page.data.items] : page.data.items))
+      if (!after) {
+        const catalog = page.data.templates || []
+        if (!Array.isArray(catalog) || catalog.some((entry) =>
+          entry.scene_contract_version !== 'mbti-single-assessment/v1' ||
+          !sameSelector(entry.selector, mbtiPublicationSelector) ||
+          !entry.template_ref?.id || !entry.template_ref?.version ||
+          !/^sha256:[a-f0-9]{64}$/.test(entry.template_ref.fingerprint)
+        )) throw new Error('首版模板目录不完整，请刷新后重试。')
+        setTemplates(catalog)
+      }
       setCursor(page.data.next_cursor)
       if (pubError || !pub) {
         setPublication(null)
         setError('线上发布状态读取失败，不能据此认为未发布。')
       } else {
-        checkPublication(pub.data, defaultPublicationSelector)
+        checkPublication(pub.data, sceneSelector)
         setPublication(pub.data)
       }
       if (modelError || !capabilities) {
@@ -151,7 +164,8 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
   }
   const create = async (sourceRun?: string) => {
     if (!allowed || locked || dirty) return false
-    if (!sourceRun && (!publication?.active_publication_id || !validReason(reason) || !title.trim()))
+    const template = scene === 'mbti' ? templates.find((entry) => sameSelector(entry.selector, sceneSelector)) : undefined
+    if (!sourceRun && (!publication || (!publication.active_publication_id && !template) || !validReason(reason) || !title.trim()))
       return false
     const id = newCommandID()
     const value = await controller.submit(
@@ -163,7 +177,9 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
           title: '根据评测意见继续改进',
           reason: '基于本轮评测创建修改版本，保留原审核记录'
         }
-        : { publication_id: publication?.active_publication_id, title, reason }
+        : publication?.active_publication_id
+          ? { publication_id: publication.active_publication_id, title, reason }
+          : { template_ref: template?.template_ref, title, reason }
     )
     if (!value) return false
     setExternalRun('')
@@ -178,6 +194,17 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
   )
   const reviewing = run && ['awaiting_review', 'approved', 'rejected'].includes(run.status)
   const phase = step === 'publish' ? (isPublished ? 4 : 3) : step === 'test' ? (reviewing ? 2 : 1) : 0
+  const switchScene = (next: 'scale' | 'mbti') => {
+    if (next === scene || locked || dirty) return
+    epoch.current++
+    controller.clearView()
+    setItems([]); setTemplates([]); setPublication(null); setRun(null); setExternalRun('')
+    setTitle(next === 'mbti' ? 'MBTI 首版解读' : '解读方案改进')
+    setReason('')
+    const url = new URLSearchParams()
+    if (next === 'mbti') url.set('aiScene', 'mbti')
+    history.push(`/operations/ai-governance/solutions${url.toString() ? `?${url}` : ''}`)
+  }
   return (
     <>
       <Prompt when={dirty} message="当前修改尚未保存，离开会丢失这些编辑内容。确定离开？" />
@@ -242,8 +269,14 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
           {!working && (
             <>
               {tab === 'solutions' && <>
+                <Space style={{ marginBottom: 16 }}>
+                  <Button type={scene === 'scale' ? 'primary' : 'default'} disabled={locked || dirty}
+                    onClick={() => switchScene('scale')}>量表单次解读</Button>
+                  <Button type={scene === 'mbti' ? 'primary' : 'default'} disabled={locked || dirty}
+                    onClick={() => switchScene('mbti')}>MBTI 单次解读</Button>
+                </Space>
                 <Card
-                  title="单次测评补充解读"
+                  title={scene === 'mbti' ? 'MBTI 单次解读' : '单次测评补充解读'}
                   extra={
                     <Button loading={loading} onClick={() => refresh()}>
                       刷新工作台
@@ -256,7 +289,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                       {publication
                         ? publication.active_publication_id
                           ? '已有发布配置'
-                          : '当前无生效配置'
+                          : publication.version ? '已停用' : '尚未发布'
                         : '线上状态未确认'}
                     </Tag>
                     <Typography.Text>
@@ -266,6 +299,8 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                   <Typography.Paragraph type="secondary">
                     业务入口是否开放仍由独立准入配置控制，此处不推断。修改版本不会影响当前线上配置。
                   </Typography.Paragraph>
+                  {scene === 'mbti' && publication && !publication.active_publication_id &&
+                    <Alert type="info" showIcon message={templates.length ? '可从首版模板创建方案，完成评测和人工审核后再发布。' : '首版模板尚未安装，请联系管理员核对初始化。'} />}
                   <Space direction="vertical" style={{ width: '100%' }}>
                     <Input
                       aria-label="新修改版本名称"
@@ -287,13 +322,14 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                         disabled={
                           !allowed ||
                           locked ||
-                          !publication?.active_publication_id ||
+                          !publication ||
+                          (!publication.active_publication_id && !(scene === 'mbti' && templates.length)) ||
                           !title.trim() ||
                           !validReason(reason)
                         }
                         onClick={() => create()}
                       >
-                        从线上方案创建修改版本
+                        {scene === 'mbti' && !publication?.active_publication_id ? '创建首版方案' : '从线上方案创建修改版本'}
                       </Button>
                       <Button
                         disabled={locked}
@@ -310,11 +346,14 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                 <Card title="修改版本" style={{ marginTop: 16 }}>
                   <Table<SolutionSummary>
                     rowKey="solution_id"
-                    dataSource={items}
+                    dataSource={items.filter((item) => scene === 'mbti'
+                      ? item.scene_contract_version === 'mbti-single-assessment/v1'
+                      : !item.scene_contract_version)}
                     pagination={false}
                     loading={loading}
                     columns={[
                       { title: '名称', dataIndex: 'title' },
+                      { title: '场景', render: (_, row) => row.scene_contract_version === 'mbti-single-assessment/v1' ? 'MBTI 单次解读' : '量表单次解读' },
                       { title: '修改目的', dataIndex: 'reason' },
                       { title: '负责人', dataIndex: 'created_by' },
                       {
@@ -336,7 +375,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                         }
                       }
                     ]}
-                    locale={{ emptyText: '还没有修改版本，从线上方案开始一次改进。' }}
+                    locale={{ emptyText: scene === 'mbti' ? '还没有 MBTI 方案，可从首版模板开始。' : '还没有修改版本，从线上方案开始一次改进。' }}
                   />
                   {cursor && (
                     <Button onClick={() => refresh(cursor)} loading={loading}>
@@ -363,6 +402,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                 <Typography.Title level={4} style={{ margin: 0 }}>
                   {solution?.title || (externalRun === 'publication' ? '线上发布与回退' : '评测与审核')}
                 </Typography.Title>
+                {solution && <Tag color="blue">{solution.scene_contract_version === 'mbti-single-assessment/v1' ? 'MBTI 单次解读' : '量表单次解读'}</Tag>}
                 {dirty && <Tag color="orange">请先保存修改</Tag>}
               </Space>
               <Steps
@@ -462,6 +502,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                     guided
                     key={`${owner}:${activeRun}`}
                     owner={owner}
+                    initialSelector={sceneSelector}
                     initialRunID={validUUID(activeRun) ? activeRun : ''}
                     onState={reportPublication}
                   />

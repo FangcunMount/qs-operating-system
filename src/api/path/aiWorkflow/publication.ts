@@ -5,8 +5,8 @@ import type { RegisteredManifest } from './types'
 
 export interface PublicationSelector {
   audience: 'participant'
-  model_kind: 'scale'
-  decision_kind: 'score_range'
+  model_kind: 'scale' | 'typology'
+  decision_kind: 'score_range' | 'pole_composition'
   model_code?: string | null
   model_version?: string | null
 }

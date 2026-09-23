@@ -30,6 +30,7 @@ export function SolutionChanges({ solution }: { solution: Solution }): JSX.Eleme
   const promptChanged = !equal(solution.content, solution.original_content)
   return (
     <Card title="本次变更" size="small">
+      <Tag color="blue">{solution.scene_contract_version === 'mbti-single-assessment/v1' ? 'MBTI 单次解读' : '量表单次解读'}</Tag>
       <Typography.Paragraph>{solution.reason}</Typography.Paragraph>
       <Tag color={promptChanged ? 'blue' : undefined}>
         {promptChanged ? 'Prompt 已修改' : 'Prompt 继承来源'}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Checkbox, Descriptions, Form, Input, Space, Table, Typography } from 'antd'
-import type { PublicationHistoryEntry, PublicationState } from '@/api/path/aiWorkflow'
+import type { PublicationHistoryEntry, PublicationSelector, PublicationState } from '@/api/path/aiWorkflow'
 import { JsonEvidence } from '../../components/JsonEvidence'
 import { validReason, validUUID } from './commands'
 import {
@@ -46,12 +46,14 @@ function StateEvidence({ value }: { value: PublicationState }): JSX.Element {
 export function NativePublicationWorkspace({
   owner,
   initialRunID = '',
+  initialSelector = defaultPublicationSelector,
   onState,
   guided = false
 }: {
   guided?: boolean
   owner: string
   initialRunID?: string
+  initialSelector?: PublicationSelector
   onState?: (value: PublicationState | null) => void
 }): JSX.Element {
   const c = usePublication(owner)
@@ -60,14 +62,14 @@ export function NativePublicationWorkspace({
     if (!guided || opened.current || c.locked) return
     opened.current = true
     if (validUUID(initialRunID)) c.prepare(initialRunID)
-    else c.inspect(defaultPublicationSelector)
+    else c.inspect(initialSelector)
   }, [guided, initialRunID, c.locked])
   useEffect(() => {
     onState?.(c.current)
   }, [c.current, onState])
   const [runID, setRunID] = useState(initialRunID)
-  const [modelCode, setModelCode] = useState('')
-  const [modelVersion, setModelVersion] = useState('')
+  const [modelCode, setModelCode] = useState(initialSelector.model_code || '')
+  const [modelVersion, setModelVersion] = useState(initialSelector.model_version || '')
   const [reason, setReason] = useState('')
   const [confirmed, setConfirmed] = useState(false)
   useEffect(() => {
@@ -77,7 +79,7 @@ export function NativePublicationWorkspace({
   useEffect(() => {
     setConfirmed(false)
   }, [c.current, c.target, c.candidate, c.receipt])
-  const selector = {
+  const selector: PublicationSelector = initialSelector.model_kind === 'typology' ? initialSelector : {
     ...defaultPublicationSelector,
     ...(modelCode ? { model_code: modelCode } : {}),
     ...(modelVersion ? { model_version: modelVersion } : {})
@@ -157,7 +159,7 @@ export function NativePublicationWorkspace({
               <Input
                 aria-label="发布测评编码"
                 value={modelCode}
-                disabled={c.locked}
+                disabled={c.locked || initialSelector.model_kind === 'typology'}
                 onChange={(e) => {
                   setModelCode(e.target.value)
                   setConfirmed(false)
@@ -168,7 +170,7 @@ export function NativePublicationWorkspace({
               <Input
                 aria-label="发布测评版本"
                 value={modelVersion}
-                disabled={c.locked}
+                disabled={c.locked || initialSelector.model_kind === 'typology'}
                 onChange={(e) => {
                   setModelVersion(e.target.value)
                   setConfirmed(false)

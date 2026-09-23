@@ -7,6 +7,7 @@ import {
   checkHistory,
   checkPublicationReceipt,
   defaultPublicationSelector,
+  mbtiPublicationSelector,
   sameSelector,
   validSelector,
   PendingPublication
@@ -222,6 +223,14 @@ it('treats absent optional scope fields as equivalent without widening a specifi
   expect(validSelector({ ...nullable, model_code: '' })).toBe(false)
   expect(validSelector({ ...nullable, model_code: 123 })).toBe(false)
   expect(validSelector({ ...nullable, model_code: 'SCL90', model_version: '' })).toBe(false)
+})
+
+it('accepts only the fixed MBTI publication scope', () => {
+  expect(validSelector(mbtiPublicationSelector)).toBe(true)
+  expect(sameSelector(mbtiPublicationSelector, defaultPublicationSelector)).toBe(false)
+  expect(validSelector({ ...mbtiPublicationSelector, model_version: 'v65' })).toBe(false)
+  expect(validSelector({ ...mbtiPublicationSelector, model_code: 'OTHER' })).toBe(false)
+  expect(validSelector({ ...mbtiPublicationSelector, decision_kind: 'score_range' })).toBe(false)
 })
 
 it.each(['unapproved', 'missing-finalization', 'wrong-profile', 'wrong-selector'])(

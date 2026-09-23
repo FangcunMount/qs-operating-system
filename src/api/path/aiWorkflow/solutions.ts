@@ -49,7 +49,8 @@ export interface SolutionSummary {
   created_by: string
   updated_at: string
   target_version: string
-  source: { publication_id: string | null; run_id: string | null }
+  scene_contract_version?: string
+  source: { publication_id: string | null; run_id: string | null; template_ref?: SolutionTemplate['template_ref'] | null }
   prepared: null | {
     plan: {
       generation_case_count: number
@@ -65,6 +66,14 @@ export interface SolutionSummary {
     prepared_at: string
     steps: string[]
   }
+}
+export interface SolutionTemplate {
+  name: string
+  template_ref: { id: string; version: string; fingerprint: string }
+  scene_contract_version: 'mbti-single-assessment/v1'
+  selector: import('./publication').PublicationSelector
+  published: false
+  reason: 'requires_evaluation_review_and_publication'
 }
 export interface Solution extends SolutionSummary {
   schema_version: 'qs-ai-solution/v1'
@@ -95,10 +104,11 @@ export type SolutionCommand = {
   title?: string
   publication_id?: string
   source_run_id?: string
+  template_ref?: SolutionTemplate['template_ref']
 } & Partial<SolutionEdits>
 type Result<T> = Promise<[unknown, QSResponse<T> | undefined]>
 const BASE = '/interpretation/ai-workflow/solutions'
-export const listSolutions = (cursor = ''): Result<{ items: SolutionSummary[]; next_cursor: string }> =>
+export const listSolutions = (cursor = ''): Result<{ items: SolutionSummary[]; templates?: SolutionTemplate[]; next_cursor: string }> =>
   internalV2Get(BASE, { cursor })
 export const getSolutionModels = (): Result<SolutionModels> => internalV2Get(`${BASE}/models`)
 export const getSolution = (id: string): Result<Solution> =>
