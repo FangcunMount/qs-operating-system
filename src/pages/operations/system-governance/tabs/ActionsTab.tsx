@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Alert, Button, Card, Col, Row, Space, Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { getSystemGovernancePendingReplayAudits } from '@/api/path/systemGovernance'
-import type { ActionDescriptor, PendingReplayAudit, Signal } from '@/api/path/systemGovernance'
+import { getSystemGovernanceDeliveryReplayReviews, getSystemGovernancePendingReplayAudits } from '@/api/path/systemGovernance'
+import type { ActionDescriptor, DeliveryReplayReview, PendingReplayAudit, Signal } from '@/api/path/systemGovernance'
 import { extractErrorMessage } from '@/utils/apiError'
 import { formatDateTime, renderActionStatusTags } from '../../shared/utils/formatters'
 import { ActionRunDrawer } from '../components/ActionRunDrawer'
@@ -52,6 +52,36 @@ function renderPendingRequestID(value: string) {
   return <Text code copyable>{value}</Text>
 }
 
+const deliveryDispositionLabels: Record<string, string> = {
+  automatic: '已占用，待核对',
+  manual_required: '待人工处理',
+  terminal: '已标记终态',
+  archived_mock: '历史 mock 已归档',
+  unavailable: '未找到或不在当前机构'
+}
+
+function renderDeliveryTargets(_value: unknown, record: DeliveryReplayReview) {
+  if (!record.targets_readable) return <Text type="warning">原目标无法解析，请人工核对审计</Text>
+  return (
+    <details>
+      <summary>{record.targets.length} 条目标</summary>
+      <Space direction="vertical" size={2}>
+        {record.targets.map((target) => (
+          <Space key={target.dead_letter_id} wrap>
+            <Text code copyable>#{target.dead_letter_id}</Text>
+            <Tag color={target.disposition === 'automatic' ? 'orange' : undefined}>
+              {deliveryDispositionLabels[target.disposition] || target.disposition}
+            </Tag>
+            {target.linked_to_request ? <Text type="warning">关联本操作</Text> : null}
+            {!target.linked_to_request && target.disposition === 'automatic'
+              ? <Text type="warning">由其他操作占用</Text> : null}
+          </Space>
+        ))}
+      </Space>
+    </details>
+  )
+}
+
 export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] }) => {
   const [selectedAction, setSelectedAction] = useState<ActionDescriptor | null>(null)
   const [selectedAudit, setSelectedAudit] = useState<PendingReplayAudit | null>(null)
@@ -61,6 +91,11 @@ export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] })
   const [pendingLoading, setPendingLoading] = useState(false)
   const [pendingError, setPendingError] = useState('')
   const replayAction = actions.find((action) => action.id === 'events.replay_pending')
+  const deliveryReplayAction = actions.find((action) => action.id === 'events.replay_delivery')
+  const [deliveryReviews, setDeliveryReviews] = useState<DeliveryReplayReview[]>([])
+  const [deliveryCursor, setDeliveryCursor] = useState('')
+  const [deliveryLoading, setDeliveryLoading] = useState(false)
+  const [deliveryError, setDeliveryError] = useState('')
 
   const loadPending = useCallback(async (cursor?: string) => {
     setPendingLoading(true)
@@ -82,6 +117,26 @@ export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] })
     if (replayAction) void loadPending()
   }, [loadPending, replayAction?.id])
 
+  const loadDeliveryReviews = useCallback(async (cursor?: string) => {
+    setDeliveryLoading(true)
+    const [requestError, response] = await getSystemGovernanceDeliveryReplayReviews({
+      ...(cursor ? { cursor } : {}), limit: 50
+    })
+    if (requestError || !response?.data) {
+      setDeliveryError(extractErrorMessage(requestError, '获取传输重放审计失败'))
+      setDeliveryLoading(false)
+      return
+    }
+    setDeliveryReviews((current) => cursor ? [...current, ...(response.data.items || [])] : response.data.items || [])
+    setDeliveryCursor(response.data.next_cursor || '')
+    setDeliveryError('')
+    setDeliveryLoading(false)
+  }, [])
+
+  useEffect(() => {
+    if (deliveryReplayAction) void loadDeliveryReviews()
+  }, [deliveryReplayAction?.id, loadDeliveryReviews])
+
   const openDrawer = (action: ActionDescriptor, audit?: PendingReplayAudit) => {
     setSelectedAction(action)
     setSelectedAudit(audit || null)
@@ -102,6 +157,15 @@ export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] })
     { title: '原操作者', dataIndex: 'actor_user_id', key: 'actor_user_id', width: 150 },
     { title: '进入待核对时间', dataIndex: 'updated_at', key: 'updated_at', width: 190, render: formatDateTime },
     { title: '操作', key: 'reconcile', width: 150, render: renderReconcileButton }
+  ]
+
+  const deliveryColumns: ColumnsType<DeliveryReplayReview> = [
+    { title: '原操作编号', dataIndex: 'request_id', key: 'request_id', width: 230, render: renderPendingRequestID },
+    { title: '原操作者', dataIndex: 'actor_user_id', key: 'actor_user_id', width: 130 },
+    { title: '审计状态', dataIndex: 'status', key: 'status', width: 160, render: (value: string) => value === 'running' ? '仍标记运行中' : '待核对' },
+    { title: '开始时间', dataIndex: 'started_at', key: 'started_at', width: 190, render: formatDateTime },
+    { title: '更新时间', dataIndex: 'updated_at', key: 'updated_at', width: 190, render: formatDateTime },
+    { title: '目标当前状态', key: 'targets', render: renderDeliveryTargets }
   ]
 
   const columns: ColumnsType<ActionDescriptor> = [
@@ -178,6 +242,33 @@ export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] })
             locale={{ emptyText: '当前没有待核对的重放操作' }}
           />
           {pendingCursor ? <Button loading={pendingLoading} onClick={() => void loadPending(pendingCursor)}>加载更多待核对操作</Button> : null}
+        </section>
+      ) : null}
+      {deliveryReplayAction ? (
+        <section className="system-governance-delivery-replay-reviews">
+          <Typography.Title level={5}>超过五分钟未结案的传输重放操作</Typography.Title>
+          <Alert
+            type="warning"
+            showIcon
+            message="仅供核对，不能据此再次投递"
+            description="请结合原操作编号、死信记录和下游业务事实核对。未找到占用记录不代表消息一定没有发出；运行中审计也可能仍在执行。"
+            style={{ marginBottom: 12 }}
+          />
+          {deliveryError ? <Alert type="error" message={deliveryError} style={{ marginBottom: 12 }} /> : null}
+          <Table
+            rowKey="request_id"
+            columns={deliveryColumns}
+            dataSource={deliveryReviews}
+            loading={deliveryLoading && !deliveryReviews.length}
+            pagination={false}
+            size="small"
+            scroll={{ x: 950 }}
+            locale={{ emptyText: '当前没有超过五分钟未结案的传输重放操作' }}
+          />
+          <Space style={{ marginTop: 8 }}>
+            <Button loading={deliveryLoading} onClick={() => void loadDeliveryReviews()}>刷新核对列表</Button>
+            {deliveryCursor ? <Button loading={deliveryLoading} onClick={() => void loadDeliveryReviews(deliveryCursor)}>加载更多</Button> : null}
+          </Space>
         </section>
       ) : null}
       {recommendedActions.length ? (

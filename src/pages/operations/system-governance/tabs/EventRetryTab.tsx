@@ -21,14 +21,19 @@ const KIND_LABELS: Record<string, string> = {
 const DISPOSITION_LABELS: Record<string, string> = {
   automatic: '自动重试',
   manual_required: '需要人工处理',
+  reconciliation_required: '投递结果待核对',
   terminal: '终态'
 }
 
 const renderDisposition = (value: string): React.ReactElement => (
-  <Tag color={value === 'manual_required' ? 'orange' : 'blue'}>
+  <Tag color={value === 'reconciliation_required' ? 'red' : value === 'manual_required' ? 'orange' : 'blue'}>
     {DISPOSITION_LABELS[value] || value}
   </Tag>
 )
+
+const renderCopyableID = (value?: string): React.ReactNode => value
+  ? <Text copyable={{ text: value }}>{value}</Text>
+  : '-'
 
 interface EventRetryTabProps {
   refreshKey?: number
@@ -67,6 +72,16 @@ export const EventRetryTab: React.FC<EventRetryTabProps> = ({ refreshKey = 0, on
       { title: '任务类型', dataIndex: 'kind', key: 'kind', width: 130, render: (value: string) => KIND_LABELS[value] || value },
       { title: '存储', dataIndex: 'store', key: 'store', width: 100 },
       { title: '资源标识', dataIndex: 'resource_id', key: 'resource_id', width: 220, render: renderTooltipText },
+      { title: '原事件 ID', dataIndex: 'event_id', key: 'event_id', width: 250, render: renderCopyableID },
+      { title: '原死信消息 ID', dataIndex: 'message_id', key: 'message_id', width: 250, render: renderCopyableID },
+      {
+        title: '原失败通道',
+        key: 'message_source',
+        width: 260,
+        render: (_: unknown, record: RetryCandidate) => renderTooltipText(
+          record.topic_name && record.channel_name ? `${record.topic_name} / ${record.channel_name}` : undefined
+        )
+      },
       { title: '尝试次数', dataIndex: 'attempt', key: 'attempt', width: 100 },
       {
         title: '处理方式',
@@ -76,6 +91,7 @@ export const EventRetryTab: React.FC<EventRetryTabProps> = ({ refreshKey = 0, on
         render: renderDisposition
       },
       { title: '最近错误', dataIndex: 'last_error_kind', key: 'last_error_kind', width: 180, render: renderTooltipText },
+      { title: '操作编号', dataIndex: 'action_request_id', key: 'action_request_id', width: 220, render: renderTooltipText },
       { title: '下次尝试', dataIndex: 'next_attempt_at', key: 'next_attempt_at', width: 180, render: formatDateTime },
       { title: '更新时间', dataIndex: 'updated_at', key: 'updated_at', width: 180, render: formatDateTime }
     ],
@@ -88,8 +104,8 @@ export const EventRetryTab: React.FC<EventRetryTabProps> = ({ refreshKey = 0, on
         type="info"
         showIcon
         message="这里只列出有界的重试候选"
-        description="候选记录不等于可以直接重试。请核对处理方式、尝试次数和最近错误，再进入操作中心执行受控动作。"
-        action={onOpenActions ? <Button onClick={onOpenActions}>前往操作中心</Button> : undefined}
+        description="候选记录不等于可以直接重试。标记为「投递结果待核对」时，请优先按原事件 ID 核对业务结果；原死信消息 ID、失败通道和操作编号可辅助定位。系统不会自动重发。"
+        action={onOpenActions ? <Button onClick={onOpenActions}>查看操作记录</Button> : undefined}
       />
       {error ? <Alert type="error" showIcon message="重试候选获取失败" description={error} /> : null}
       <Table
@@ -99,7 +115,7 @@ export const EventRetryTab: React.FC<EventRetryTabProps> = ({ refreshKey = 0, on
         loading={loading && !items.length}
         pagination={false}
         size="small"
-        scroll={{ x: 1250 }}
+        scroll={{ x: 2230 }}
         locale={{ emptyText: <Empty description="当前没有需要人工处理的重试候选" /> }}
       />
       <div className="system-governance-load-more">

@@ -47,3 +47,29 @@ export interface PendingReplayAuditQuery {
   cursor?: string
   limit?: number
 }
+
+export interface DeliveryReplayReviewTarget {
+  dead_letter_id: number
+  disposition: string
+  linked_to_request: boolean
+}
+
+export interface DeliveryReplayReview {
+  request_id: string
+  actor_user_id: string
+  status: string
+  targets_readable: boolean
+  targets: DeliveryReplayReviewTarget[]
+  started_at: string
+  updated_at: string
+}
+
+export interface DeliveryReplayReviewPage {
+  items: DeliveryReplayReview[]
+  next_cursor?: string
+}
+
+export interface DeliveryReplayReviewQuery {
+  cursor?: string
+  limit?: number
+}

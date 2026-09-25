@@ -1,20 +1,30 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { getSystemGovernancePendingReplayAudits } from '@/api/path/systemGovernance'
+import { getSystemGovernanceDeliveryReplayReviews, getSystemGovernancePendingReplayAudits } from '@/api/path/systemGovernance'
 import type { ActionDescriptor, Signal } from '@/api/path/systemGovernance'
 import { ActionsTab } from './ActionsTab'
 
 jest.mock('@/api/path/systemGovernance', () => {
   const actual = jest.requireActual('@/api/path/systemGovernance')
-  return { ...actual, getSystemGovernancePendingReplayAudits: jest.fn() }
+  return { ...actual, getSystemGovernancePendingReplayAudits: jest.fn(), getSystemGovernanceDeliveryReplayReviews: jest.fn() }
 })
 
 const getPendingMock = getSystemGovernancePendingReplayAudits as jest.Mock
+const getDeliveryReviewsMock = getSystemGovernanceDeliveryReplayReviews as jest.Mock
 
 const actions: ActionDescriptor[] = [
   {
     id: 'events.replay_pending',
     domain: 'events',
     label: 'Replay pending outbox events',
+    risk_level: 'high',
+    enabled: true,
+    planned: false,
+    requires_confirmation: true
+  },
+  {
+    id: 'events.replay_delivery',
+    domain: 'events',
+    label: 'Replay transport dead letter',
     risk_level: 'high',
     enabled: true,
     planned: false,
@@ -45,6 +55,8 @@ describe('ActionsTab', () => {
   beforeEach(() => {
     getPendingMock.mockReset()
     getPendingMock.mockResolvedValue([null, { data: { items: [], next_cursor: '' } }])
+    getDeliveryReviewsMock.mockReset()
+    getDeliveryReviewsMock.mockResolvedValue([null, { data: { items: [], next_cursor: '' } }])
   })
 
   it('promotes actions linked by the current problem signals', async () => {
@@ -73,5 +85,23 @@ describe('ActionsTab', () => {
     const inputField = screen.getByDisplayValue(/"event_id": "event-1"/) as HTMLTextAreaElement
     expect(inputField).toHaveAttribute('readonly')
     await waitFor(() => expect(getPendingMock).toHaveBeenCalledWith({ limit: 50 }))
+  })
+
+  it('shows unfinished transport replay audits as read-only evidence', async () => {
+    getDeliveryReviewsMock.mockResolvedValue([null, { data: { items: [{
+      request_id: 'stale-delivery-request', actor_user_id: '110004', status: 'running',
+      targets_readable: true, started_at: '2026-09-25T08:00:00+08:00', updated_at: '2026-09-25T08:00:00+08:00',
+      targets: [{ dead_letter_id: 42, disposition: 'automatic', linked_to_request: true }]
+    }], next_cursor: '' } }])
+
+    render(<ActionsTab actions={actions} />)
+
+    expect(await screen.findByText('stale-delivery-request')).toBeInTheDocument()
+    expect(screen.getByText('仅供核对，不能据此再次投递')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('1 条目标'))
+    expect(screen.getByText('#42')).toBeInTheDocument()
+    expect(screen.getByText('关联本操作')).toBeInTheDocument()
+    expect(screen.queryByText('按原编号核对')).not.toBeInTheDocument()
+    await waitFor(() => expect(getDeliveryReviewsMock).toHaveBeenCalledWith({ limit: 50 }))
   })
 })

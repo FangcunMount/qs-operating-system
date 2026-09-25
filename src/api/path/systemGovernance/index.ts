@@ -9,6 +9,8 @@ import {
 import type {
   ActionRunRequest,
   ActionRunResponse,
+  DeliveryReplayReviewPage,
+  DeliveryReplayReviewQuery,
   GovernanceActionsResponse,
   GovernanceCacheResponse,
   GovernanceEventsResponse,
@@ -101,6 +103,14 @@ export const getSystemGovernancePendingReplayAudits = (
   const params: PendingReplayAuditQuery = { limit: query.limit || 50 }
   if (query.cursor) params.cursor = query.cursor
   return internalGet<PendingReplayAuditPage>('/system-governance/actions/pending-reconciliations', params)
+}
+
+export const getSystemGovernanceDeliveryReplayReviews = (
+  query: DeliveryReplayReviewQuery = {}
+): Promise<[any, QSResponse<DeliveryReplayReviewPage> | undefined]> => {
+  const params: DeliveryReplayReviewQuery = { limit: query.limit || 50 }
+  if (query.cursor) params.cursor = query.cursor
+  return internalGet<DeliveryReplayReviewPage>('/system-governance/actions/delivery-replay-reviews', params)
 }
 
 export const postSystemGovernanceActionRun = (
