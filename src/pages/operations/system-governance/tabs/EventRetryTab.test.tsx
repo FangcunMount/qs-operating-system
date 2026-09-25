@@ -71,6 +71,10 @@ describe('EventRetryTab', () => {
           attempt: 8,
           retry_disposition: 'reconciliation_required',
           action_request_id: 'delivery-batch-7',
+          event_id: 'original-event-7',
+          message_id: 'broker-message-7',
+          topic_name: 'qs.evaluation.lifecycle',
+          channel_name: 'qs-worker',
           last_error_kind: 'publish outcome unknown',
           updated_at: '2026-09-25T21:00:00+08:00'
         }],
@@ -82,6 +86,9 @@ describe('EventRetryTab', () => {
 
     expect(await screen.findByText('投递结果待核对')).toBeInTheDocument()
     expect(screen.getByText('delivery-batch-7')).toBeInTheDocument()
-    expect(screen.getByText(/先按操作编号核对原消息和下游结果/)).toBeInTheDocument()
+    expect(screen.getByText('original-event-7')).toBeInTheDocument()
+    expect(screen.getByText('broker-message-7')).toBeInTheDocument()
+    expect(screen.getByText('qs.evaluation.lifecycle / qs-worker')).toBeInTheDocument()
+    expect(screen.getByText(/请用原事件 ID、消息 ID 和操作编号核对下游业务结果/)).toBeInTheDocument()
   })
 })

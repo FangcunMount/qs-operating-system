@@ -31,6 +31,10 @@ const renderDisposition = (value: string): React.ReactElement => (
   </Tag>
 )
 
+const renderCopyableID = (value?: string): React.ReactNode => value
+  ? <Text copyable={{ text: value }}>{value}</Text>
+  : '-'
+
 interface EventRetryTabProps {
   refreshKey?: number
   onOpenActions?: () => void
@@ -68,6 +72,16 @@ export const EventRetryTab: React.FC<EventRetryTabProps> = ({ refreshKey = 0, on
       { title: '任务类型', dataIndex: 'kind', key: 'kind', width: 130, render: (value: string) => KIND_LABELS[value] || value },
       { title: '存储', dataIndex: 'store', key: 'store', width: 100 },
       { title: '资源标识', dataIndex: 'resource_id', key: 'resource_id', width: 220, render: renderTooltipText },
+      { title: '原事件 ID', dataIndex: 'event_id', key: 'event_id', width: 250, render: renderCopyableID },
+      { title: '消息 ID', dataIndex: 'message_id', key: 'message_id', width: 250, render: renderCopyableID },
+      {
+        title: '消息来源',
+        key: 'message_source',
+        width: 260,
+        render: (_: unknown, record: RetryCandidate) => renderTooltipText(
+          record.topic_name && record.channel_name ? `${record.topic_name} / ${record.channel_name}` : undefined
+        )
+      },
       { title: '尝试次数', dataIndex: 'attempt', key: 'attempt', width: 100 },
       {
         title: '处理方式',
@@ -90,8 +104,8 @@ export const EventRetryTab: React.FC<EventRetryTabProps> = ({ refreshKey = 0, on
         type="info"
         showIcon
         message="这里只列出有界的重试候选"
-        description="候选记录不等于可以直接重试。标记为「投递结果待核对」时，先按操作编号核对原消息和下游结果，确认后再决定如何处理。"
-        action={onOpenActions ? <Button onClick={onOpenActions}>前往操作中心</Button> : undefined}
+        description="候选记录不等于可以直接重试。标记为「投递结果待核对」时，请用原事件 ID、消息 ID 和操作编号核对下游业务结果；系统不会自动重发。"
+        action={onOpenActions ? <Button onClick={onOpenActions}>查看操作记录</Button> : undefined}
       />
       {error ? <Alert type="error" showIcon message="重试候选获取失败" description={error} /> : null}
       <Table
@@ -101,7 +115,7 @@ export const EventRetryTab: React.FC<EventRetryTabProps> = ({ refreshKey = 0, on
         loading={loading && !items.length}
         pagination={false}
         size="small"
-        scroll={{ x: 1470 }}
+        scroll={{ x: 2230 }}
         locale={{ emptyText: <Empty description="当前没有需要人工处理的重试候选" /> }}
       />
       <div className="system-governance-load-more">
