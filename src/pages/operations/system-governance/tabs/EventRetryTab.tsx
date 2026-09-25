@@ -21,11 +21,12 @@ const KIND_LABELS: Record<string, string> = {
 const DISPOSITION_LABELS: Record<string, string> = {
   automatic: '自动重试',
   manual_required: '需要人工处理',
+  reconciliation_required: '投递结果待核对',
   terminal: '终态'
 }
 
 const renderDisposition = (value: string): React.ReactElement => (
-  <Tag color={value === 'manual_required' ? 'orange' : 'blue'}>
+  <Tag color={value === 'reconciliation_required' ? 'red' : value === 'manual_required' ? 'orange' : 'blue'}>
     {DISPOSITION_LABELS[value] || value}
   </Tag>
 )
@@ -76,6 +77,7 @@ export const EventRetryTab: React.FC<EventRetryTabProps> = ({ refreshKey = 0, on
         render: renderDisposition
       },
       { title: '最近错误', dataIndex: 'last_error_kind', key: 'last_error_kind', width: 180, render: renderTooltipText },
+      { title: '操作编号', dataIndex: 'action_request_id', key: 'action_request_id', width: 220, render: renderTooltipText },
       { title: '下次尝试', dataIndex: 'next_attempt_at', key: 'next_attempt_at', width: 180, render: formatDateTime },
       { title: '更新时间', dataIndex: 'updated_at', key: 'updated_at', width: 180, render: formatDateTime }
     ],
@@ -88,7 +90,7 @@ export const EventRetryTab: React.FC<EventRetryTabProps> = ({ refreshKey = 0, on
         type="info"
         showIcon
         message="这里只列出有界的重试候选"
-        description="候选记录不等于可以直接重试。请核对处理方式、尝试次数和最近错误，再进入操作中心执行受控动作。"
+        description="候选记录不等于可以直接重试。标记为「投递结果待核对」时，先按操作编号核对原消息和下游结果，确认后再决定如何处理。"
         action={onOpenActions ? <Button onClick={onOpenActions}>前往操作中心</Button> : undefined}
       />
       {error ? <Alert type="error" showIcon message="重试候选获取失败" description={error} /> : null}
@@ -99,7 +101,7 @@ export const EventRetryTab: React.FC<EventRetryTabProps> = ({ refreshKey = 0, on
         loading={loading && !items.length}
         pagination={false}
         size="small"
-        scroll={{ x: 1250 }}
+        scroll={{ x: 1470 }}
         locale={{ emptyText: <Empty description="当前没有需要人工处理的重试候选" /> }}
       />
       <div className="system-governance-load-more">

@@ -59,4 +59,29 @@ describe('EventRetryTab', () => {
     await waitFor(() => expect(screen.getByText('report-9')).toBeInTheDocument())
     expect(retryMock).toHaveBeenLastCalledWith({ cursor: 'page-2', limit: 50 })
   })
+
+  it('shows unresolved delivery replay as requiring reconciliation with its action ID', async () => {
+    retryMock.mockResolvedValueOnce([null, {
+      code: 0,
+      data: {
+        items: [{
+          kind: 'transport_delivery',
+          store: 'mysql',
+          resource_id: '21',
+          attempt: 8,
+          retry_disposition: 'reconciliation_required',
+          action_request_id: 'delivery-batch-7',
+          last_error_kind: 'publish outcome unknown',
+          updated_at: '2026-09-25T21:00:00+08:00'
+        }],
+        next_cursor: ''
+      }
+    }])
+
+    render(<EventRetryTab />)
+
+    expect(await screen.findByText('投递结果待核对')).toBeInTheDocument()
+    expect(screen.getByText('delivery-batch-7')).toBeInTheDocument()
+    expect(screen.getByText(/先按操作编号核对原消息和下游结果/)).toBeInTheDocument()
+  })
 })
