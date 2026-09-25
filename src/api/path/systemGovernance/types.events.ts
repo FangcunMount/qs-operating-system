@@ -67,6 +67,7 @@ export interface RetryCandidate {
   action_request_id?: string
   event_id?: string
   message_id?: string
+  transport_message_id?: string
   topic_name?: string
   channel_name?: string
   last_error_kind?: string
