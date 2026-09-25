@@ -73,9 +73,9 @@ export const EventRetryTab: React.FC<EventRetryTabProps> = ({ refreshKey = 0, on
       { title: '存储', dataIndex: 'store', key: 'store', width: 100 },
       { title: '资源标识', dataIndex: 'resource_id', key: 'resource_id', width: 220, render: renderTooltipText },
       { title: '原事件 ID', dataIndex: 'event_id', key: 'event_id', width: 250, render: renderCopyableID },
-      { title: '消息 ID', dataIndex: 'message_id', key: 'message_id', width: 250, render: renderCopyableID },
+      { title: '原死信消息 ID', dataIndex: 'message_id', key: 'message_id', width: 250, render: renderCopyableID },
       {
-        title: '消息来源',
+        title: '原失败通道',
         key: 'message_source',
         width: 260,
         render: (_: unknown, record: RetryCandidate) => renderTooltipText(
@@ -104,7 +104,7 @@ export const EventRetryTab: React.FC<EventRetryTabProps> = ({ refreshKey = 0, on
         type="info"
         showIcon
         message="这里只列出有界的重试候选"
-        description="候选记录不等于可以直接重试。标记为「投递结果待核对」时，请用原事件 ID、消息 ID 和操作编号核对下游业务结果；系统不会自动重发。"
+        description="候选记录不等于可以直接重试。标记为「投递结果待核对」时，请优先按原事件 ID 核对业务结果；原死信消息 ID、失败通道和操作编号可辅助定位。系统不会自动重发。"
         action={onOpenActions ? <Button onClick={onOpenActions}>查看操作记录</Button> : undefined}
       />
       {error ? <Alert type="error" showIcon message="重试候选获取失败" description={error} /> : null}
