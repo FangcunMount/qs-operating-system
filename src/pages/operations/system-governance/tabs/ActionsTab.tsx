@@ -162,7 +162,12 @@ export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] })
   const deliveryColumns: ColumnsType<DeliveryReplayReview> = [
     { title: '原操作编号', dataIndex: 'request_id', key: 'request_id', width: 230, render: renderPendingRequestID },
     { title: '原操作者', dataIndex: 'actor_user_id', key: 'actor_user_id', width: 130 },
-    { title: '审计状态', dataIndex: 'status', key: 'status', width: 160, render: (value: string) => value === 'running' ? '仍标记运行中' : '待核对' },
+    { title: '审计状态', dataIndex: 'status', key: 'status', width: 190, render: (value: string) => ({
+      running: '仍标记运行中',
+      pending_reconciliation: '待核对',
+      failed: '操作失败，投递待核对',
+      timeout: '操作超时，投递待核对'
+    }[value] || value) },
     { title: '开始时间', dataIndex: 'started_at', key: 'started_at', width: 190, render: formatDateTime },
     { title: '更新时间', dataIndex: 'updated_at', key: 'updated_at', width: 190, render: formatDateTime },
     { title: '目标当前状态', key: 'targets', render: renderDeliveryTargets }
@@ -246,12 +251,12 @@ export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] })
       ) : null}
       {deliveryReplayAction ? (
         <section className="system-governance-delivery-replay-reviews">
-          <Typography.Title level={5}>超过五分钟未结案的传输重放操作</Typography.Title>
+          <Typography.Title level={5}>传输重放待核对操作</Typography.Title>
           <Alert
             type="warning"
             showIcon
             message="仅供核对，不能据此再次投递"
-            description="请结合原操作编号、死信记录和下游业务事实核对。未找到占用记录不代表消息一定没有发出；运行中审计也可能仍在执行。"
+            description="请结合原操作编号、死信记录和下游业务事实核对。操作失败不代表消息一定没有发出；运行中审计也可能仍在执行。"
             style={{ marginBottom: 12 }}
           />
           {deliveryError ? <Alert type="error" message={deliveryError} style={{ marginBottom: 12 }} /> : null}
@@ -263,7 +268,7 @@ export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] })
             pagination={false}
             size="small"
             scroll={{ x: 950 }}
-            locale={{ emptyText: '当前没有超过五分钟未结案的传输重放操作' }}
+            locale={{ emptyText: '当前没有传输重放待核对操作' }}
           />
           <Space style={{ marginTop: 8 }}>
             <Button loading={deliveryLoading} onClick={() => void loadDeliveryReviews()}>刷新核对列表</Button>
