@@ -66,6 +66,7 @@ const signals: Signal[] = [{
 
 describe('ActionsTab', () => {
   beforeEach(() => {
+    window.sessionStorage.clear()
     Object.defineProperty(window, 'crypto', {
       configurable: true,
       value: { getRandomValues: (bytes: Uint8Array) => {
@@ -154,7 +155,7 @@ describe('ActionsTab', () => {
     postResolutionMock.mockResolvedValue([new Error('network lost'), undefined])
     getResolutionMock.mockResolvedValue([new Error('temporarily unavailable'), undefined])
 
-    render(<ActionsTab actions={actions} />)
+    const view = render(<ActionsTab actions={actions} />)
     expect(await screen.findByText('failed-report-replay')).toBeInTheDocument()
     fireEvent.click(screen.getByText('1 条目标'))
     fireEvent.click(screen.getByText('核实业务事实后结案'))
@@ -178,5 +179,36 @@ describe('ActionsTab', () => {
     await waitFor(() => expect(getResolutionMock).toHaveBeenCalledWith(originalRequestID))
     expect(requestInput.value).toBe(originalRequestID)
     expect(screen.getByText(/请保留本次结案编号/)).toBeInTheDocument()
+    expect(requestInput).toHaveAttribute('readonly')
+    expect(screen.getByLabelText('业务核实说明')).toHaveAttribute('readonly')
+    expect(window.sessionStorage.getItem('qs-delivery-resolution:failed-report-replay:44')).toBe(originalRequestID)
+
+    fireEvent.click(screen.getByText('按原编号重试结案'))
+    await waitFor(() => expect(postResolutionMock).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(getResolutionMock).toHaveBeenCalledTimes(2))
+    expect(postResolutionMock.mock.calls[1][0]).toEqual(postResolutionMock.mock.calls[0][0])
+
+    view.unmount()
+    render(<ActionsTab actions={actions} />)
+    expect(await screen.findByText('failed-report-replay')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('1 条目标'))
+    fireEvent.click(screen.getByText('核实业务事实后结案'))
+    const restoredID = await screen.findByLabelText('本次结案编号') as HTMLInputElement
+    expect(restoredID.value).toBe(originalRequestID)
+    expect(restoredID).toHaveAttribute('readonly')
+    expect(screen.getByRole('button', { name: '核实后结案' })).toBeDisabled()
+    expect(screen.getByText(/原输入已不在页面中/)).toBeInTheDocument()
+    fireEvent.click(screen.getByText('查询结案回执'))
+    await waitFor(() => expect(getResolutionMock).toHaveBeenCalledTimes(3))
+    expect(postResolutionMock).toHaveBeenCalledTimes(2)
+
+    getResolutionMock.mockResolvedValue([null, { data: {
+      request_id: originalRequestID, action_id: 'events.resolve_delivery', status: 'succeeded',
+      result: { original_replay_request_id: 'failed-report-replay', dead_letter_id: 45, event_id: 'event-44' }
+    } }])
+    fireEvent.click(screen.getByText('查询结案回执'))
+    expect(await screen.findByText(/回执不属于当前死信与原事件/)).toBeInTheDocument()
+    expect(screen.queryByText('结案已提交')).not.toBeInTheDocument()
+    expect(postResolutionMock).toHaveBeenCalledTimes(2)
   })
 })
