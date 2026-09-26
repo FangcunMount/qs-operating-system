@@ -1,11 +1,13 @@
 import {
   getSystemGovernanceActions,
   getSystemGovernanceCache,
+  getSystemGovernanceDeliveryResolution,
   getSystemGovernanceEvents,
   getSystemGovernanceOverview,
   getSystemGovernanceRetryCandidates,
   getSystemGovernanceResilience,
-  postSystemGovernanceActionRun
+  postSystemGovernanceActionRun,
+  postSystemGovernanceDeliveryResolution
 } from './systemGovernance'
 import { internalGet, internalPost } from '../qsServer'
 import healthyFixture from './__fixtures__/systemGovernance.healthy.json'
@@ -54,6 +56,17 @@ describe('systemGovernance API', () => {
     const disabled = response?.data.actions.find((item) => item.id === 'events.replay')
     expect(disabled?.enabled).toBe(false)
     expect(disabled?.planned).toBe(true)
+  })
+
+  it('uses dedicated org-scoped transport resolution routes', async () => {
+    const request = {
+      request_id: 'resolve-44', original_replay_request_id: 'replay-44', dead_letter_id: 44,
+      event_id: 'event-44', expected_delivery_attempts: 3, reason: 'facts verified', confirm: true as const
+    }
+    await postSystemGovernanceDeliveryResolution(request)
+    await getSystemGovernanceDeliveryResolution(request.request_id)
+    expect(internalPostMock).toHaveBeenCalledWith('/system-governance/actions/delivery-resolutions', request)
+    expect(internalGetMock).toHaveBeenCalledWith('/system-governance/actions/delivery-resolutions/resolve-44')
   })
 
   it('accepts healthy overview fixture', async () => {
