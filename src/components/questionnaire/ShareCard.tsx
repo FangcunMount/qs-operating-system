@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Card, Spin, message } from 'antd'
+import { Button, Card, Spin, message } from 'antd'
 import { QrcodeOutlined } from '@ant-design/icons'
 import './ShareCard.scss'
 
@@ -18,11 +18,13 @@ const ShareCard: React.FC<ShareCardProps> = ({
   const themeClass = type === 'survey' ? 'survey-theme' : 'scale-theme'
   const [qrcodeUrl, setQrcodeUrl] = useState<string>('')
   const [loading, setLoading] = useState(false)
+  const [reloadNonce, setReloadNonce] = useState(0)
 
   // 加载小程序码
   useEffect(() => {
-    console.log('---- load qrcode, code: ', code)
-    if (!code) return
+    let cancelled = false
+    setQrcodeUrl('')
+    if (!code) return () => { cancelled = true }
 
     const loadQRCode = async () => {
       setLoading(true)
@@ -34,7 +36,7 @@ const ShareCard: React.FC<ShareCardProps> = ({
             console.error('获取问卷小程序码失败:', err)
             return
           }
-          setQrcodeUrl(res.data.qrcode_url)
+          if (!cancelled) setQrcodeUrl(res.data.qrcode_url)
         } else {
           const { scaleDefinitionApi } = await import('@/api/path/scaleDefinition')
           const [err, res] = await scaleDefinitionApi.getScaleQRCode(code)
@@ -42,18 +44,19 @@ const ShareCard: React.FC<ShareCardProps> = ({
             console.error('获取量表小程序码失败:', err)
             return
           }
-          setQrcodeUrl(res.data.qrcode_url)
+          if (!cancelled) setQrcodeUrl(res.data.qrcode_url)
         }
       } catch (error) {
         console.error('加载小程序码失败:', error)
-        message.error('加载小程序码失败')
+        if (!cancelled) message.error('加载小程序码失败')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
     loadQRCode()
-  }, [code, type])
+    return () => { cancelled = true }
+  }, [code, type, reloadNonce])
 
   return (
     <Card title='分享设置' bordered={false} className={`share-card ${themeClass}`}>
@@ -64,8 +67,10 @@ const ShareCard: React.FC<ShareCardProps> = ({
             <QrcodeOutlined /> {type === 'survey' ? '问卷' : '量表'}小程序码
           </div>
 
-          <div>
-            
+          <div className='qrcode-actions'>
+            <Button size='small' disabled={!code} loading={loading} onClick={() => setReloadNonce(value => value + 1)}>
+              重新获取小程序码
+            </Button>
           </div>
 
           <div className='qrcode-wrapper'>
@@ -79,6 +84,7 @@ const ShareCard: React.FC<ShareCardProps> = ({
                 onError={() => {
                   console.error('小程序码图片加载失败')
                   message.error('小程序码加载失败')
+                  setQrcodeUrl('')
                 }}
               />
             ) : (
