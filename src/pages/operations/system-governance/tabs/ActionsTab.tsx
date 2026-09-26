@@ -2,10 +2,11 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { Alert, Button, Card, Col, Row, Space, Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { getSystemGovernanceDeliveryReplayReviews, getSystemGovernancePendingReplayAudits } from '@/api/path/systemGovernance'
-import type { ActionDescriptor, DeliveryReplayReview, PendingReplayAudit, Signal } from '@/api/path/systemGovernance'
+import type { ActionDescriptor, DeliveryReplayReview, DeliveryReplayReviewTarget, PendingReplayAudit, Signal } from '@/api/path/systemGovernance'
 import { extractErrorMessage } from '@/utils/apiError'
 import { formatDateTime, renderActionStatusTags } from '../../shared/utils/formatters'
 import { ActionRunDrawer } from '../components/ActionRunDrawer'
+import { DeliveryResolutionDrawer } from '../components/DeliveryResolutionDrawer'
 import { actionPresentation, domainPresentation } from '../presentation'
 
 const { Text } = Typography
@@ -57,10 +58,15 @@ const deliveryDispositionLabels: Record<string, string> = {
   manual_required: '待人工处理',
   terminal: '已标记终态',
   archived_mock: '历史 mock 已归档',
+  resolved_verified: '已按业务事实结案',
   unavailable: '未找到或不在当前机构'
 }
 
-function renderDeliveryTargets(_value: unknown, record: DeliveryReplayReview) {
+function renderDeliveryTargets(
+  _value: unknown,
+  record: DeliveryReplayReview,
+  openResolution: (review: DeliveryReplayReview, target: DeliveryReplayReviewTarget) => void
+) {
   if (!record.targets_readable) return <Text type="warning">原目标无法解析，请人工核对审计</Text>
   return (
     <details>
@@ -75,6 +81,11 @@ function renderDeliveryTargets(_value: unknown, record: DeliveryReplayReview) {
             {target.linked_to_request ? <Text type="warning">关联本操作</Text> : null}
             {!target.linked_to_request && target.disposition === 'automatic'
               ? <Text type="warning">由其他操作占用</Text> : null}
+            {['failed', 'timeout', 'pending_reconciliation'].includes(record.status) &&
+              target.disposition === 'automatic' && target.linked_to_request &&
+              target.event_type === 'interpretation.report.generated' &&
+              target.event_id && target.delivery_attempts && target.delivery_attempts > 0
+              ? <Button type="link" onClick={() => openResolution(record, target)}>核实业务事实后结案</Button> : null}
           </Space>
         ))}
       </Space>
@@ -96,6 +107,15 @@ export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] })
   const [deliveryCursor, setDeliveryCursor] = useState('')
   const [deliveryLoading, setDeliveryLoading] = useState(false)
   const [deliveryError, setDeliveryError] = useState('')
+  const [resolutionReview, setResolutionReview] = useState<DeliveryReplayReview | null>(null)
+  const [resolutionTarget, setResolutionTarget] = useState<DeliveryReplayReviewTarget | null>(null)
+  const [resolutionVisible, setResolutionVisible] = useState(false)
+
+  const openResolution = (review: DeliveryReplayReview, target: DeliveryReplayReviewTarget) => {
+    setResolutionReview(review)
+    setResolutionTarget(target)
+    setResolutionVisible(true)
+  }
 
   const loadPending = useCallback(async (cursor?: string) => {
     setPendingLoading(true)
@@ -170,7 +190,7 @@ export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] })
     }[value] || value) },
     { title: '开始时间', dataIndex: 'started_at', key: 'started_at', width: 190, render: formatDateTime },
     { title: '更新时间', dataIndex: 'updated_at', key: 'updated_at', width: 190, render: formatDateTime },
-    { title: '目标当前状态', key: 'targets', render: renderDeliveryTargets }
+    { title: '目标当前状态', key: 'targets', render: (value, record) => renderDeliveryTargets(value, record, openResolution) }
   ]
 
   const columns: ColumnsType<ActionDescriptor> = [
@@ -255,8 +275,8 @@ export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] })
           <Alert
             type="warning"
             showIcon
-            message="仅供核对，不能据此再次投递"
-            description="请结合原操作编号、死信记录和下游业务事实核对。操作失败不代表消息一定没有发出；运行中审计也可能仍在执行。"
+            message="先核对业务事实，不能据此再次投递"
+            description="请结合原操作编号、死信记录和下游业务事实核对。报告生成事件满足条件时可提交按事实结案；操作失败不代表消息一定没有发出，运行中审计也可能仍在执行。"
             style={{ marginBottom: 12 }}
           />
           {deliveryError ? <Alert type="error" message={deliveryError} style={{ marginBottom: 12 }} /> : null}
@@ -313,6 +333,13 @@ export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] })
         initialRequestID={selectedAudit?.request_id}
         onClose={() => setDrawerVisible(false)}
         onFinished={() => { if (selectedAction?.id === 'events.replay_pending') void loadPending() }}
+      />
+      <DeliveryResolutionDrawer
+        review={resolutionReview}
+        target={resolutionTarget}
+        visible={resolutionVisible}
+        onClose={() => setResolutionVisible(false)}
+        onResolved={() => { void loadDeliveryReviews() }}
       />
     </>
   )

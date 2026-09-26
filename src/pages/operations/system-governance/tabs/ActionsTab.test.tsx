@@ -1,15 +1,28 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { getSystemGovernanceDeliveryReplayReviews, getSystemGovernancePendingReplayAudits } from '@/api/path/systemGovernance'
+import {
+  getSystemGovernanceDeliveryReplayReviews,
+  getSystemGovernanceDeliveryResolution,
+  getSystemGovernancePendingReplayAudits,
+  postSystemGovernanceDeliveryResolution
+} from '@/api/path/systemGovernance'
 import type { ActionDescriptor, Signal } from '@/api/path/systemGovernance'
 import { ActionsTab } from './ActionsTab'
 
 jest.mock('@/api/path/systemGovernance', () => {
   const actual = jest.requireActual('@/api/path/systemGovernance')
-  return { ...actual, getSystemGovernancePendingReplayAudits: jest.fn(), getSystemGovernanceDeliveryReplayReviews: jest.fn() }
+  return {
+    ...actual,
+    getSystemGovernancePendingReplayAudits: jest.fn(),
+    getSystemGovernanceDeliveryReplayReviews: jest.fn(),
+    getSystemGovernanceDeliveryResolution: jest.fn(),
+    postSystemGovernanceDeliveryResolution: jest.fn()
+  }
 })
 
 const getPendingMock = getSystemGovernancePendingReplayAudits as jest.Mock
 const getDeliveryReviewsMock = getSystemGovernanceDeliveryReplayReviews as jest.Mock
+const getResolutionMock = getSystemGovernanceDeliveryResolution as jest.Mock
+const postResolutionMock = postSystemGovernanceDeliveryResolution as jest.Mock
 
 const actions: ActionDescriptor[] = [
   {
@@ -53,10 +66,19 @@ const signals: Signal[] = [{
 
 describe('ActionsTab', () => {
   beforeEach(() => {
+    Object.defineProperty(window, 'crypto', {
+      configurable: true,
+      value: { getRandomValues: (bytes: Uint8Array) => {
+        bytes.forEach((_, index) => { bytes[index] = index + 1 })
+        return bytes
+      } }
+    })
     getPendingMock.mockReset()
     getPendingMock.mockResolvedValue([null, { data: { items: [], next_cursor: '' } }])
     getDeliveryReviewsMock.mockReset()
     getDeliveryReviewsMock.mockResolvedValue([null, { data: { items: [], next_cursor: '' } }])
+    getResolutionMock.mockReset()
+    postResolutionMock.mockReset()
   })
 
   it('promotes actions linked by the current problem signals', async () => {
@@ -97,11 +119,12 @@ describe('ActionsTab', () => {
     render(<ActionsTab actions={actions} />)
 
     expect(await screen.findByText('stale-delivery-request')).toBeInTheDocument()
-    expect(screen.getByText('仅供核对，不能据此再次投递')).toBeInTheDocument()
+    expect(screen.getByText('先核对业务事实，不能据此再次投递')).toBeInTheDocument()
     fireEvent.click(screen.getByText('1 条目标'))
     expect(screen.getByText('#42')).toBeInTheDocument()
     expect(screen.getByText('关联本操作')).toBeInTheDocument()
     expect(screen.queryByText('按原编号核对')).not.toBeInTheDocument()
+    expect(screen.queryByText('核实业务事实后结案')).not.toBeInTheDocument()
     await waitFor(() => expect(getDeliveryReviewsMock).toHaveBeenCalledWith({ limit: 50 }))
   })
 
@@ -118,5 +141,42 @@ describe('ActionsTab', () => {
     expect(screen.getByText('传输重放待核对操作')).toBeInTheDocument()
     expect(screen.getByText('操作失败，投递待核对')).toBeInTheDocument()
     expect(screen.getByText(/操作失败不代表消息一定没有发出/)).toBeInTheDocument()
+    expect(screen.queryByText('核实业务事实后结案')).not.toBeInTheDocument()
+  })
+
+  it('opens the fact-verified resolution only for a linked report event and preserves the request ID on unknown result', async () => {
+    getDeliveryReviewsMock.mockResolvedValue([null, { data: { items: [{
+      request_id: 'failed-report-replay', actor_user_id: '110004', status: 'failed',
+      targets_readable: true, started_at: '2026-09-25T08:00:00+08:00', updated_at: '2026-09-25T08:01:00+08:00',
+      targets: [{ dead_letter_id: 44, event_id: 'event-44', event_type: 'interpretation.report.generated',
+        delivery_attempts: 3, disposition: 'automatic', linked_to_request: true }]
+    }], next_cursor: '' } }])
+    postResolutionMock.mockResolvedValue([new Error('network lost'), undefined])
+    getResolutionMock.mockResolvedValue([new Error('temporarily unavailable'), undefined])
+
+    render(<ActionsTab actions={actions} />)
+    expect(await screen.findByText('failed-report-replay')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('1 条目标'))
+    fireEvent.click(screen.getByText('核实业务事实后结案'))
+
+    const requestInput = await screen.findByLabelText('本次结案编号') as HTMLInputElement
+    const originalRequestID = requestInput.value
+    expect(originalRequestID).toMatch(/^[0-9a-f]{32}$/)
+    fireEvent.change(screen.getByLabelText('业务核实说明'), { target: { value: '已逐项核对报告和关注结果' } })
+    fireEvent.change(screen.getByLabelText('确认文本'), { target: { value: '确认结案' } })
+    fireEvent.click(screen.getByText('核实后结案'))
+
+    await waitFor(() => expect(postResolutionMock).toHaveBeenCalledWith({
+      request_id: originalRequestID,
+      original_replay_request_id: 'failed-report-replay',
+      dead_letter_id: 44,
+      event_id: 'event-44',
+      expected_delivery_attempts: 3,
+      reason: '已逐项核对报告和关注结果',
+      confirm: true
+    }))
+    await waitFor(() => expect(getResolutionMock).toHaveBeenCalledWith(originalRequestID))
+    expect(requestInput.value).toBe(originalRequestID)
+    expect(screen.getByText(/请保留本次结案编号/)).toBeInTheDocument()
   })
 })

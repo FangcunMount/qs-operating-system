@@ -50,8 +50,21 @@ export interface PendingReplayAuditQuery {
 
 export interface DeliveryReplayReviewTarget {
   dead_letter_id: number
+  event_id?: string
+  event_type?: string
+  delivery_attempts?: number
   disposition: string
   linked_to_request: boolean
+}
+
+export interface DeliveryResolutionRequest {
+  request_id: string
+  original_replay_request_id: string
+  dead_letter_id: number
+  event_id: string
+  expected_delivery_attempts: number
+  reason: string
+  confirm: true
 }
 
 export interface DeliveryReplayReview {

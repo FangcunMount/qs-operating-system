@@ -11,6 +11,7 @@ import type {
   ActionRunResponse,
   DeliveryReplayReviewPage,
   DeliveryReplayReviewQuery,
+  DeliveryResolutionRequest,
   GovernanceActionsResponse,
   GovernanceCacheResponse,
   GovernanceEventsResponse,
@@ -112,6 +113,16 @@ export const getSystemGovernanceDeliveryReplayReviews = (
   if (query.cursor) params.cursor = query.cursor
   return internalGet<DeliveryReplayReviewPage>('/system-governance/actions/delivery-replay-reviews', params)
 }
+
+export const postSystemGovernanceDeliveryResolution = (
+  data: DeliveryResolutionRequest
+): Promise<[any, QSResponse<ActionRunResponse> | undefined]> =>
+  internalPost<ActionRunResponse>('/system-governance/actions/delivery-resolutions', data)
+
+export const getSystemGovernanceDeliveryResolution = (
+  requestID: string
+): Promise<[any, QSResponse<ActionRunResponse> | undefined]> =>
+  internalGet<ActionRunResponse>(`/system-governance/actions/delivery-resolutions/${encodeURIComponent(requestID)}`)
 
 export const postSystemGovernanceActionRun = (
   actionId: string,
