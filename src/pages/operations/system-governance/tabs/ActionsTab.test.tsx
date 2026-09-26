@@ -104,4 +104,19 @@ describe('ActionsTab', () => {
     expect(screen.queryByText('按原编号核对')).not.toBeInTheDocument()
     await waitFor(() => expect(getDeliveryReviewsMock).toHaveBeenCalledWith({ limit: 50 }))
   })
+
+  it('labels a failed replay with an uncertain delivery for review', async () => {
+    getDeliveryReviewsMock.mockResolvedValue([null, { data: { items: [{
+      request_id: 'failed-delivery-request', actor_user_id: '110004', status: 'failed',
+      targets_readable: true, started_at: '2026-09-25T08:00:00+08:00', updated_at: '2026-09-25T08:01:00+08:00',
+      targets: [{ dead_letter_id: 43, disposition: 'automatic', linked_to_request: true }]
+    }], next_cursor: '' } }])
+
+    render(<ActionsTab actions={actions} />)
+
+    expect(await screen.findByText('failed-delivery-request')).toBeInTheDocument()
+    expect(screen.getByText('传输重放待核对操作')).toBeInTheDocument()
+    expect(screen.getByText('操作失败，投递待核对')).toBeInTheDocument()
+    expect(screen.getByText(/操作失败不代表消息一定没有发出/)).toBeInTheDocument()
+  })
 })
