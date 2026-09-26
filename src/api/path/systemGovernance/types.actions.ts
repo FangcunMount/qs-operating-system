@@ -86,3 +86,25 @@ export interface DeliveryReplayReviewQuery {
   cursor?: string
   limit?: number
 }
+
+export interface ReminderReview {
+  delivery_id: number
+  task_id: string
+  opening_event_id: string
+  schedule_revision: number
+  user_id: string
+  state: 'sending' | 'manual_required'
+  external_call_started_at?: string
+  resolution_code?: string
+  updated_at: string
+}
+
+export interface ReminderReviewPage {
+  items: ReminderReview[]
+  next_cursor?: string
+}
+
+export interface ReminderReviewQuery {
+  cursor?: string
+  limit?: number
+}
