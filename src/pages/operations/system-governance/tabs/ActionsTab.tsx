@@ -7,6 +7,7 @@ import { extractErrorMessage } from '@/utils/apiError'
 import { formatDateTime, renderActionStatusTags } from '../../shared/utils/formatters'
 import { ActionRunDrawer } from '../components/ActionRunDrawer'
 import { DeliveryResolutionDrawer } from '../components/DeliveryResolutionDrawer'
+import { ReminderReviewsPanel } from '../components/ReminderReviewsPanel'
 import { actionPresentation, domainPresentation } from '../presentation'
 
 const { Text } = Typography
@@ -296,6 +297,7 @@ export const ActionsTab: React.FC<ActionsTabProps> = ({ actions, signals = [] })
           </Space>
         </section>
       ) : null}
+      <ReminderReviewsPanel />
       {recommendedActions.length ? (
         <section className="system-governance-recommended-actions">
           <Typography.Title level={5}>根据当前问题建议</Typography.Title>

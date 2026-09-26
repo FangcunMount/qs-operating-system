@@ -24,6 +24,8 @@ import type {
   RawSystemGovernanceEventsResponse,
   RawSystemGovernanceOverviewResponse,
   RawSystemGovernanceResilienceResponse,
+  ReminderReviewPage,
+  ReminderReviewQuery,
   RetryCandidatePage,
   RetryCandidateQuery
 } from './types'
@@ -112,6 +114,14 @@ export const getSystemGovernanceDeliveryReplayReviews = (
   const params: DeliveryReplayReviewQuery = { limit: query.limit || 50 }
   if (query.cursor) params.cursor = query.cursor
   return internalGet<DeliveryReplayReviewPage>('/system-governance/actions/delivery-replay-reviews', params)
+}
+
+export const getSystemGovernanceReminderReviews = (
+  query: ReminderReviewQuery = {}
+): Promise<[any, QSResponse<ReminderReviewPage> | undefined]> => {
+  const params: ReminderReviewQuery = { limit: query.limit || 50 }
+  if (query.cursor) params.cursor = query.cursor
+  return internalGet<ReminderReviewPage>('/system-governance/actions/reminder-reviews', params)
 }
 
 export const postSystemGovernanceDeliveryResolution = (

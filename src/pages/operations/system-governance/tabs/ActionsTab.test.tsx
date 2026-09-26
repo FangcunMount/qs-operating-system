@@ -3,6 +3,7 @@ import {
   getSystemGovernanceDeliveryReplayReviews,
   getSystemGovernanceDeliveryResolution,
   getSystemGovernancePendingReplayAudits,
+  getSystemGovernanceReminderReviews,
   postSystemGovernanceDeliveryResolution
 } from '@/api/path/systemGovernance'
 import type { ActionDescriptor, Signal } from '@/api/path/systemGovernance'
@@ -14,6 +15,7 @@ jest.mock('@/api/path/systemGovernance', () => {
     ...actual,
     getSystemGovernancePendingReplayAudits: jest.fn(),
     getSystemGovernanceDeliveryReplayReviews: jest.fn(),
+    getSystemGovernanceReminderReviews: jest.fn(),
     getSystemGovernanceDeliveryResolution: jest.fn(),
     postSystemGovernanceDeliveryResolution: jest.fn()
   }
@@ -21,6 +23,7 @@ jest.mock('@/api/path/systemGovernance', () => {
 
 const getPendingMock = getSystemGovernancePendingReplayAudits as jest.Mock
 const getDeliveryReviewsMock = getSystemGovernanceDeliveryReplayReviews as jest.Mock
+const getReminderReviewsMock = getSystemGovernanceReminderReviews as jest.Mock
 const getResolutionMock = getSystemGovernanceDeliveryResolution as jest.Mock
 const postResolutionMock = postSystemGovernanceDeliveryResolution as jest.Mock
 
@@ -78,6 +81,8 @@ describe('ActionsTab', () => {
     getPendingMock.mockResolvedValue([null, { data: { items: [], next_cursor: '' } }])
     getDeliveryReviewsMock.mockReset()
     getDeliveryReviewsMock.mockResolvedValue([null, { data: { items: [], next_cursor: '' } }])
+    getReminderReviewsMock.mockReset()
+    getReminderReviewsMock.mockResolvedValue([null, { data: { items: [], next_cursor: '' } }])
     getResolutionMock.mockReset()
     postResolutionMock.mockReset()
   })
@@ -127,6 +132,23 @@ describe('ActionsTab', () => {
     expect(screen.queryByText('按原编号核对')).not.toBeInTheDocument()
     expect(screen.queryByText('核实业务事实后结案')).not.toBeInTheDocument()
     await waitFor(() => expect(getDeliveryReviewsMock).toHaveBeenCalledWith({ limit: 50 }))
+  })
+
+  it('shows unknown reminder sends without offering another send and pages by cursor', async () => {
+    getReminderReviewsMock.mockResolvedValueOnce([null, { data: { items: [{
+      delivery_id: 12, task_id: 'task-12', opening_event_id: 'event-12',
+      schedule_revision: 1, user_id: 'user-12', state: 'manual_required',
+      resolution_code: 'response_lost', updated_at: '2026-09-26T22:00:00+08:00'
+    }], next_cursor: 'next-review' } }])
+    getReminderReviewsMock.mockResolvedValueOnce([null, { data: { items: [], next_cursor: '' } }])
+
+    render(<ActionsTab actions={actions} />)
+
+    expect(await screen.findByText('task-12')).toBeInTheDocument()
+    expect(screen.getByText('发送结果未知，先核对平台记录')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '补发' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '加载更多' }))
+    await waitFor(() => expect(getReminderReviewsMock).toHaveBeenCalledWith({ cursor: 'next-review', limit: 50 }))
   })
 
   it('labels a failed replay with an uncertain delivery for review', async () => {

@@ -5,6 +5,7 @@ import {
   getSystemGovernanceEvents,
   getSystemGovernanceOverview,
   getSystemGovernanceRetryCandidates,
+  getSystemGovernanceReminderReviews,
   getSystemGovernanceResilience,
   postSystemGovernanceActionRun,
   postSystemGovernanceDeliveryResolution
@@ -67,6 +68,14 @@ describe('systemGovernance API', () => {
     await getSystemGovernanceDeliveryResolution(request.request_id)
     expect(internalPostMock).toHaveBeenCalledWith('/system-governance/actions/delivery-resolutions', request)
     expect(internalGetMock).toHaveBeenCalledWith('/system-governance/actions/delivery-resolutions/resolve-44')
+  })
+
+  it('uses the read-only reminder review route with a bounded cursor', async () => {
+    await getSystemGovernanceReminderReviews({ cursor: 'next-page', limit: 25 })
+    expect(internalGetMock).toHaveBeenCalledWith('/system-governance/actions/reminder-reviews', {
+      cursor: 'next-page', limit: 25
+    })
+    expect(internalPostMock).not.toHaveBeenCalled()
   })
 
   it('accepts healthy overview fixture', async () => {
