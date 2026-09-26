@@ -36,6 +36,17 @@ const canResolve = (review: DeliveryReplayReview | null, target: DeliveryReplayR
     target.event_type === 'interpretation.report.generated' &&
     target.event_id && target.delivery_attempts && target.delivery_attempts > 0)
 
+const matchesReceipt = (
+  result: ActionRunResponse, requestID: string,
+  review: DeliveryReplayReview | null, target: DeliveryReplayReviewTarget | null
+): boolean => Boolean(review && target && result.request_id === requestID &&
+  result.action_id === 'events.resolve_delivery' && result.status === 'succeeded' &&
+  String(result.result?.original_replay_request_id) === review.request_id &&
+  String(result.result?.dead_letter_id) === String(target.dead_letter_id) &&
+  String(result.result?.event_id) === target.event_id)
+
+type ReceiptCheck = 'confirmed' | 'mismatch' | 'unavailable'
+
 export const DeliveryResolutionDrawer: React.FC<DeliveryResolutionDrawerProps> = ({
   review, target, visible, onClose, onResolved
 }) => {
@@ -62,19 +73,24 @@ export const DeliveryResolutionDrawer: React.FC<DeliveryResolutionDrawerProps> =
       setReceipt(null)
       setAttemptedCommand(null)
       setRestoredAttempt(Boolean(savedID))
+      setSubmitting(false)
+      setChecking(false)
       setError(savedID ? '此浏览器会话曾提交该结案编号。请先查询回执；原输入已不在页面中，不可新建编号或盲目重试。' : '')
     }
   }, [form, targetKey, visible])
 
-  const checkReceipt = async (id: string): Promise<boolean> => {
+  const checkReceipt = async (id: string): Promise<ReceiptCheck> => {
+    const queriedTargetKey = targetKey
     const [requestError, response] = await getSystemGovernanceDeliveryResolution(id)
+    if (lastTargetKey.current !== queriedTargetKey) return 'unavailable'
     if (!requestError && response?.data?.status === 'succeeded') {
+      if (!matchesReceipt(response.data, id, review, target)) return 'mismatch'
       setReceipt(response.data)
       setError('')
       onResolved()
-      return true
+      return 'confirmed'
     }
-    return false
+    return 'unavailable'
   }
 
   const submit = async () => {
@@ -103,17 +119,22 @@ export const DeliveryResolutionDrawer: React.FC<DeliveryResolutionDrawerProps> =
     setRequestID(command.request_id)
     setSubmitting(true)
     setError('')
+    const submittedTargetKey = targetKey
     const [requestError, response] = await postSystemGovernanceDeliveryResolution(command)
+    if (lastTargetKey.current !== submittedTargetKey) return
     setSubmitting(false)
-    if (!requestError && response?.data?.status === 'succeeded') {
+    if (!requestError && response?.data && matchesReceipt(response.data, command.request_id, review, target)) {
       setReceipt(response.data)
       onResolved()
       return
     }
     setChecking(true)
-    const committed = await checkReceipt(command.request_id)
+    const receiptCheck = await checkReceipt(command.request_id)
+    if (lastTargetKey.current !== submittedTargetKey) return
     setChecking(false)
-    if (!committed) {
+    if (receiptCheck === 'mismatch') {
+      setError('该结案编号的回执不属于当前死信与原事件。请停止操作并人工核对审计。')
+    } else if (receiptCheck === 'unavailable') {
       const failure = extractErrorMessage(requestError, '结案结果尚未确认')
       setError(`${failure}。请保留本次结案编号，先查询回执；本页面只允许用锁定的编号和原输入重试。`)
     }
@@ -123,9 +144,15 @@ export const DeliveryResolutionDrawer: React.FC<DeliveryResolutionDrawerProps> =
     const id = requestID.trim()
     if (!id) return
     setChecking(true)
-    const committed = await checkReceipt(id)
+    const queriedTargetKey = targetKey
+    const receiptCheck = await checkReceipt(id)
+    if (lastTargetKey.current !== queriedTargetKey) return
     setChecking(false)
-    if (!committed) setError('尚未读到已提交的结案回执。不要据此判断原操作没有提交，也不要重新投递消息。')
+    if (receiptCheck === 'mismatch') {
+      setError('该结案编号的回执不属于当前死信与原事件。请停止操作并人工核对审计。')
+    } else if (receiptCheck === 'unavailable') {
+      setError('尚未读到已提交的结案回执。不要据此判断原操作没有提交，也不要重新投递消息。')
+    }
   }
 
   return (

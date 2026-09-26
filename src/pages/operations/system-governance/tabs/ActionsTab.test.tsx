@@ -201,5 +201,14 @@ describe('ActionsTab', () => {
     fireEvent.click(screen.getByText('查询结案回执'))
     await waitFor(() => expect(getResolutionMock).toHaveBeenCalledTimes(3))
     expect(postResolutionMock).toHaveBeenCalledTimes(2)
+
+    getResolutionMock.mockResolvedValue([null, { data: {
+      request_id: originalRequestID, action_id: 'events.resolve_delivery', status: 'succeeded',
+      result: { original_replay_request_id: 'failed-report-replay', dead_letter_id: 45, event_id: 'event-44' }
+    } }])
+    fireEvent.click(screen.getByText('查询结案回执'))
+    expect(await screen.findByText(/回执不属于当前死信与原事件/)).toBeInTheDocument()
+    expect(screen.queryByText('结案已提交')).not.toBeInTheDocument()
+    expect(postResolutionMock).toHaveBeenCalledTimes(2)
   })
 })
