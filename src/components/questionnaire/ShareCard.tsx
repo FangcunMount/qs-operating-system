@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Button, Card, Spin, message } from 'antd'
+import { Button, Card, Input, Spin, message } from 'antd'
 import { QrcodeOutlined } from '@ant-design/icons'
 import './ShareCard.scss'
 
@@ -18,7 +18,10 @@ const ShareCard: React.FC<ShareCardProps> = ({
   const themeClass = type === 'survey' ? 'survey-theme' : 'scale-theme'
   const [qrcodeUrl, setQrcodeUrl] = useState<string>('')
   const [loading, setLoading] = useState(false)
-  const [reloadNonce, setReloadNonce] = useState(0)
+  const scope = `${type}:${code}`
+  const [versionDraft, setVersionDraft] = useState({ scope: '', value: '' })
+  const [retrieval, setRetrieval] = useState({ scope: '', version: '', nonce: 0 })
+  const requestedVersion = retrieval.scope === scope ? retrieval.version : ''
 
   // 加载小程序码
   useEffect(() => {
@@ -31,7 +34,9 @@ const ShareCard: React.FC<ShareCardProps> = ({
       try {
         if (type === 'survey') {
           const { surveyApi } = await import('@/api/path/survey')
-          const [err, res] = await surveyApi.getQuestionnaireQRCode(code)
+          const [err, res] = requestedVersion
+            ? await surveyApi.getQuestionnaireQRCode(code, requestedVersion)
+            : await surveyApi.getQuestionnaireQRCode(code)
           if (err || !res?.data?.qrcode_url) {
             console.error('获取问卷小程序码失败:', err)
             return
@@ -56,7 +61,7 @@ const ShareCard: React.FC<ShareCardProps> = ({
 
     loadQRCode()
     return () => { cancelled = true }
-  }, [code, type, reloadNonce])
+  }, [code, type, retrieval, requestedVersion])
 
   return (
     <Card title='分享设置' bordered={false} className={`share-card ${themeClass}`}>
@@ -68,7 +73,23 @@ const ShareCard: React.FC<ShareCardProps> = ({
           </div>
 
           <div className='qrcode-actions'>
-            <Button size='small' disabled={!code} loading={loading} onClick={() => setReloadNonce(value => value + 1)}>
+            {type === 'survey' && (
+              <Input
+                aria-label='补取问卷版本'
+                placeholder='补取版本，留空使用线上版本'
+                size='small'
+                maxLength={128}
+                disabled={loading}
+                style={{ width: 260, marginRight: 8 }}
+                value={versionDraft.scope === scope ? versionDraft.value : ''}
+                onChange={event => setVersionDraft({ scope, value: event.target.value })}
+              />
+            )}
+            <Button size='small' disabled={!code} loading={loading} onClick={() => setRetrieval(previous => ({
+              scope,
+              version: type === 'survey' && versionDraft.scope === scope ? versionDraft.value.trim() : '',
+              nonce: previous.nonce + 1,
+            }))}>
               重新获取小程序码
             </Button>
           </div>
@@ -95,6 +116,9 @@ const ShareCard: React.FC<ShareCardProps> = ({
           </div>
           <div className='qrcode-tip'>
             扫描小程序码即可{type === 'survey' ? '填写问卷' : '填写量表'}
+            {type === 'survey' && requestedVersion && (
+              <div>本次补取版本：{requestedVersion}。扫码内容仍按当前发布状态确定。</div>
+            )}
           </div>
         </div>
       </div>
