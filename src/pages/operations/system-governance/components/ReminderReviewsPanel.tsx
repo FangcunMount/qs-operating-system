@@ -54,7 +54,7 @@ export const ReminderReviewsPanel: React.FC = () => {
   useEffect(() => { void load() }, [load])
 
   function renderManualReview(_value: unknown, item: ReminderReview) {
-    return <Button type="link" disabled={item.state !== 'manual_required'} onClick={() => setReview(item)}>记录核对结果</Button>
+    return <Button type="link" onClick={() => setReview(item)}>记录核对结果</Button>
   }
 
   return (

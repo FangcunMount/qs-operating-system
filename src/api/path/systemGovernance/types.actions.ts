@@ -119,4 +119,5 @@ export interface ReminderResolutionRequest {
   evidence_reference: string
   reason: string
   confirm: boolean
+  acknowledge_original_call_may_complete?: boolean
 }

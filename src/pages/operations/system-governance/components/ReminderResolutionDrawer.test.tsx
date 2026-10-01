@@ -18,10 +18,13 @@ beforeEach(() => {
   } })
 })
 
-it('never permits resolution of an in-flight sending row', () => {
+it('requires explicit acknowledgment before recording an in-flight call as unknown', () => {
   render(<ReminderResolutionDrawer review={{ ...review, state: 'sending' }} onClose={jest.fn()} onResolved={jest.fn()} />)
   expect(screen.getByText('记录核对结果').closest('button')).toBeDisabled()
   expect(postResolution).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('checkbox'))
+  expect(screen.getByText('记录核对结果').closest('button')).not.toBeDisabled()
+  expect(screen.getByRole('combobox')).toHaveAttribute('disabled')
 })
 
 it('restores only the original request ID and rejects a mismatched receipt without resending', async () => {
@@ -36,4 +39,26 @@ it('restores only the original request ID and rejects a mismatched receipt witho
   await screen.findByText('未取得匹配的结案回执。请保留原编号，不要补发提醒或重新创建结案编号。')
   expect(onResolved).not.toHaveBeenCalled()
   expect(postResolution).not.toHaveBeenCalled()
+})
+
+
+it('submits only an acknowledged unknown finding for sending and retains its original identity', async () => {
+  const id = '07'.repeat(16)
+  postResolution.mockResolvedValue([null, { data: { request_id: id, action_id: 'notifications.resolve_reminder',
+    status: 'succeeded', result: { delivery_id: 42, task_id: 'task-1', opening_event_id: 'event-1',
+      finding: 'unknown_no_resend', automatic_resend: false } } }])
+  const onResolved = jest.fn()
+  render(<ReminderResolutionDrawer review={{ ...review, state: 'sending' }} onClose={jest.fn()} onResolved={onResolved} />)
+  fireEvent.change(screen.getByLabelText('证据位置或记录编号'), { target: { value: 'incident-42' } })
+  fireEvent.change(screen.getByLabelText('核对说明'), { target: { value: '外部结果无法确认，保留原调用事实，禁止重发' } })
+  fireEvent.click(screen.getByRole('checkbox'))
+  fireEvent.click(screen.getByText('记录核对结果'))
+  await waitFor(() => expect(postResolution).toHaveBeenCalledWith(expect.objectContaining({
+    request_id: id, delivery_id: 42, task_id: 'task-1', opening_event_id: 'event-1',
+    expected_updated_at: review.updated_at, finding: 'unknown_no_resend', confirm: true,
+    acknowledge_original_call_may_complete: true
+  })))
+  await waitFor(() => expect(onResolved).toHaveBeenCalledTimes(1))
+  expect(postResolution).toHaveBeenCalledTimes(1)
+  expect(screen.getByText('按原输入重试结案').closest('button')).toBeDisabled()
 })
