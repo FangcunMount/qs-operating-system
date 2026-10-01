@@ -108,3 +108,16 @@ export interface ReminderReviewQuery {
   cursor?: string
   limit?: number
 }
+
+export interface ReminderResolutionRequest {
+  request_id: string
+  delivery_id: number
+  task_id: string
+  opening_event_id: string
+  expected_updated_at: string
+  finding: 'recipient_received' | 'platform_rejected' | 'unknown_no_resend'
+  evidence_reference: string
+  reason: string
+  confirm: boolean
+  acknowledge_original_call_may_complete?: boolean
+}

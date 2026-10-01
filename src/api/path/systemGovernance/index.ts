@@ -12,6 +12,7 @@ import type {
   DeliveryReplayReviewPage,
   DeliveryReplayReviewQuery,
   DeliveryResolutionRequest,
+  ReminderResolutionRequest,
   GovernanceActionsResponse,
   GovernanceCacheResponse,
   GovernanceEventsResponse,
@@ -139,3 +140,13 @@ export const postSystemGovernanceActionRun = (
   data: ActionRunRequest = {}
 ): Promise<[any, QSResponse<ActionRunResponse> | undefined]> =>
   internalPost<ActionRunResponse>(`/system-governance/actions/${encodeURIComponent(actionId)}/runs`, data)
+
+export const postSystemGovernanceReminderResolution = (
+  data: ReminderResolutionRequest
+): Promise<[any, QSResponse<ActionRunResponse> | undefined]> =>
+  internalPost<ActionRunResponse>('/system-governance/actions/reminder-resolutions', data)
+
+export const getSystemGovernanceReminderResolution = (
+  requestID: string
+): Promise<[any, QSResponse<ActionRunResponse> | undefined]> =>
+  internalGet<ActionRunResponse>(`/system-governance/actions/reminder-resolutions/${encodeURIComponent(requestID)}`)

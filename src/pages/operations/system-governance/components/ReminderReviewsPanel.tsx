@@ -4,6 +4,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { getSystemGovernanceReminderReviews } from '@/api/path/systemGovernance'
 import type { ReminderReview } from '@/api/path/systemGovernance'
 import { extractErrorMessage } from '@/utils/apiError'
+import { ReminderResolutionDrawer } from './ReminderResolutionDrawer'
 import { formatDateTime } from '../../shared/utils/formatters'
 
 const { Text } = Typography
@@ -28,6 +29,7 @@ const columns: ColumnsType<ReminderReview> = [
 ]
 
 export const ReminderReviewsPanel: React.FC = () => {
+  const [review, setReview] = useState<ReminderReview | null>(null)
   const [items, setItems] = useState<ReminderReview[]>([])
   const [cursor, setCursor] = useState('')
   const [loading, setLoading] = useState(false)
@@ -51,6 +53,10 @@ export const ReminderReviewsPanel: React.FC = () => {
 
   useEffect(() => { void load() }, [load])
 
+  function renderManualReview(_value: unknown, item: ReminderReview) {
+    return <Button type="link" onClick={() => setReview(item)}>记录核对结果</Button>
+  }
+
   return (
     <section className="system-governance-reminder-reviews">
       <Typography.Title level={5}>任务开放提醒待核对</Typography.Title>
@@ -64,7 +70,7 @@ export const ReminderReviewsPanel: React.FC = () => {
       {error ? <Alert type="error" message={error} style={{ marginBottom: 12 }} /> : null}
       <Table
         rowKey="delivery_id"
-        columns={columns}
+        columns={[...columns, { title: '人工核对', key: 'review', render: renderManualReview }]}
         dataSource={items}
         loading={loading && !items.length}
         pagination={false}
@@ -76,6 +82,7 @@ export const ReminderReviewsPanel: React.FC = () => {
         <Button loading={loading} onClick={() => void load()}>刷新核对列表</Button>
         {cursor ? <Button loading={loading} onClick={() => void load(cursor)}>加载更多</Button> : null}
       </Space>
+      <ReminderResolutionDrawer review={review} onClose={() => setReview(null)} onResolved={() => void load()} />
     </section>
   )
 }
