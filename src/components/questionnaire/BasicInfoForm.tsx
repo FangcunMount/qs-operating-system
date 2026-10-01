@@ -94,26 +94,14 @@ export const useBasicInfoForm = ({
     }
   }
 
-  // 初始化新建模式
+  // 明确的新建路由必须使用空白身份；已有草稿通过其 ID 返回编辑。
   const initCreateMode = () => {
-    // 尝试从 localStorage 恢复数据
-    const restored = store.loadFromLocalStorage()
-    
-    if (restored && store.title) {
-      // 成功恢复数据
-      message.success('已恢复上次编辑的内容')
-      syncFormFromStore()
-    } else if (!store.title) {
-      // 首次创建，初始化空白问卷
-      if (type === 'survey') {
-        store.initSurvey()
-      } else {
-        store.initScale()
-      }
+    if (type === 'survey') {
+      store.initSurvey()
     } else {
-      // 从下一步返回，复用 store 中的数据
-      syncFormFromStore()
+      store.initScale()
     }
+    syncFormFromStore()
   }
 
   // 初始化
