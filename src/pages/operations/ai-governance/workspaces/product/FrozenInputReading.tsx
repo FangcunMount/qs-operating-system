@@ -5,6 +5,35 @@ export function FrozenInputReading({ evidence }: { evidence: unknown }): JSX.Ele
   const value = (evidence as any)?.frozen_input
   const content = value?.content,
     facts = content?.facts
+  const axes = ['EI', 'SN', 'TF', 'JP']
+  const type = facts?.model_result?.type_code
+  const mbti = value?.available === true &&
+    ['ai-explanation-input/v2', 'ai-explanation-input/v3'].includes(content?.schema_version) &&
+    typeof facts?.model?.title === 'string' && typeof facts?.overall_result?.standard_conclusion === 'string' &&
+    facts?.model?.code === 'MBTI_OEJTS' && facts?.model?.version === 'v64-report-202608-v1' &&
+    typeof type === 'string' && /^[EI][SN][TF][JP]$/.test(type) &&
+    Array.isArray(facts?.dimensions) && facts.dimensions.length === 4 &&
+    new Set(facts.dimensions.map((d: any) => d?.code)).size === 4 &&
+    facts.dimensions.every((d: any) => typeof d?.standard_description === 'string' && axes.includes(d?.code) && d.ref === `dimension:${d.code}` &&
+      d?.pole_facts?.preference === type[axes.indexOf(d.code)] &&
+      d?.pole_facts?.schema_version === 'mbti-pole-facts/v1' &&
+      typeof d.pole_facts.strength === 'number' && Number.isFinite(d.pole_facts.strength) &&
+      d.pole_facts.strength >= 0 && d.pole_facts.strength <= 100 &&
+      d.strength_semantics === 'preference_strength_not_confidence')
+  if (mbti) return <section aria-label="本次测试冻结输入">
+    <Typography.Title level={4}>本次测试使用的 MBTI 事实</Typography.Title>
+    <Descriptions size="small" column={1}>
+      <Descriptions.Item label="测评">{facts.model.title}</Descriptions.Item>
+      <Descriptions.Item label="本次类型">{type}</Descriptions.Item>
+      <Descriptions.Item label="标准结论">{facts.overall_result?.standard_conclusion}</Descriptions.Item>
+    </Descriptions>
+    <Alert type="info" message="偏好方向与强度来自本次标准报告；强度不是可信度、能力或人格优劣。" />
+    {facts.dimensions.map((d: any) => <Card size="small" key={d.code} title={`${d.code} 偏好轴`}>
+      <Typography.Paragraph>本次方向：{d.pole_facts.preference}；报告偏好强度：{d.pole_facts.strength}%</Typography.Paragraph>
+      <Typography.Paragraph>{d.standard_description}</Typography.Paragraph>
+    </Card>)}
+    <details><summary>查看完整冻结事实、来源与指纹</summary><JsonEvidence value={value} /></details>
+  </section>
   if (
     !value?.available ||
     content?.schema_version !== 'ai-explanation-input/v1' ||
