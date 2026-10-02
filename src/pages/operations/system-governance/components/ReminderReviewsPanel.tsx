@@ -12,7 +12,7 @@ const { Text } = Typography
 function renderNumber(value: number) { return <Text code copyable>#{value}</Text> }
 function renderIdentity(value: string) { return <Text code copyable>{value}</Text> }
 function renderReminderState(value: ReminderReview['state']) {
-  return <Tag color="orange">{value === 'sending' ? '调用中断，结果未知' : '需人工核对'}</Tag>
+  return <Tag color={value === 'rejected' ? 'red' : 'orange'}>{value === 'rejected' ? '微信明确拒绝' : value === 'sending' ? '调用中断，结果未知' : '需人工核对'}</Tag>
 }
 function renderOptionalTime(value?: string) { return value ? formatDateTime(value) : '—' }
 function renderResolutionCode(value?: string) { return value || '—' }
@@ -63,8 +63,8 @@ export const ReminderReviewsPanel: React.FC = () => {
       <Alert
         type="warning"
         showIcon
-        message="发送结果未知，先核对平台记录"
-        description="调用中断或超时不代表微信没有接受提醒。请用任务、开放事件和账本编号核对；本页不提供补发。"
+        message="先核对发送结果，再处理提醒"
+        description="微信明确拒绝会保留错误码；调用中断或超时不代表微信没有接受提醒。请用任务、开放事件和账本编号核对；本页不提供补发。"
         style={{ marginBottom: 12 }}
       />
       {error ? <Alert type="error" message={error} style={{ marginBottom: 12 }} /> : null}

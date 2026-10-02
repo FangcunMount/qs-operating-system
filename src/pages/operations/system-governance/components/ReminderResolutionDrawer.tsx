@@ -13,6 +13,7 @@ export const ReminderResolutionDrawer: React.FC<Props> = ({ review, onClose, onR
   const [busy, setBusy] = useState(false)
   const [acknowledged, setAcknowledged] = useState(false)
   const sending = review?.state === 'sending'
+  const rejected = review?.state === 'rejected'
   const [error, setError] = useState('')
   const [receipt, setReceipt] = useState<ActionRunResponse | null>(null)
   const key = review ? `qs-reminder-resolution:${review.delivery_id}:${review.opening_event_id}` : ''
@@ -31,6 +32,7 @@ export const ReminderResolutionDrawer: React.FC<Props> = ({ review, onClose, onR
     setAcknowledged(false)
     form.resetFields()
     if (review?.state === 'sending') form.setFieldsValue({ finding: 'unknown_no_resend' })
+    if (review?.state === 'rejected') form.setFieldsValue({ finding: 'platform_rejected' })
   }, [key, form, review?.state])
 
   const matches = (result: ActionRunResponse, id: string, expected = command) => Boolean(review &&
@@ -79,7 +81,9 @@ export const ReminderResolutionDrawer: React.FC<Props> = ({ review, onClose, onR
         onClick={() => void submit()}>
         {command ? '按原输入重试结案' : '记录核对结果'}</Button></Space>}>
     <Alert type="warning" showIcon message="不会补发，也不会伪造平台成功"
-      description="请先核对收件人或平台证据。仍无法确定时请选择结果未知；结案只记录人工发现并停止重发。原调用可能仍在进行；记录未知结果不会取消原调用，晚到平台回执仍会保留。" />
+      description={rejected
+        ? `微信已明确拒绝，账本记录：${review?.resolution_code || '平台错误'}。只能记录平台拒绝，不能改为未知或成功；结案不会重新发送。`
+        : '请先核对收件人或平台证据。仍无法确定时请选择结果未知；结案只记录人工发现并停止重发。原调用可能仍在进行；记录未知结果不会取消原调用，晚到平台回执仍会保留。'} />
     {sending ? <Checkbox checked={acknowledged} disabled={locked} onChange={(event) => setAcknowledged(event.target.checked)}>
       我理解原调用仍可能完成；仅记录未知并禁止重发，不代表取消或发送成功</Checkbox> : null}
     <Typography.Paragraph copyable>{requestID}</Typography.Paragraph>
@@ -87,7 +91,7 @@ export const ReminderResolutionDrawer: React.FC<Props> = ({ review, onClose, onR
     {receipt ? <Alert type="success" message="人工核对已记录，提醒不会补发" /> : null}
     <Form form={form} layout="vertical">
       <Form.Item name="finding" label="核对结果" rules={[{ required: true }]} >
-        <Select disabled={locked || sending} options={[
+        <Select disabled={locked || sending || rejected} options={[
           { value: 'recipient_received', label: '收件人确认收到' }, { value: 'platform_rejected', label: '平台明确拒绝' },
           { value: 'unknown_no_resend', label: '仍未知，停止重发' }]} /></Form.Item>
       <Form.Item name="evidence_reference" label="证据位置或记录编号"
