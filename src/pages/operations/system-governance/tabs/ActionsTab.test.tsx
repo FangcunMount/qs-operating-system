@@ -145,7 +145,7 @@ describe('ActionsTab', () => {
     render(<ActionsTab actions={actions} />)
 
     expect(await screen.findByText('task-12')).toBeInTheDocument()
-    expect(screen.getByText('发送结果未知，先核对平台记录')).toBeInTheDocument()
+    expect(screen.getByText('先核对发送结果，再处理提醒')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '补发' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '加载更多' }))
     await waitFor(() => expect(getReminderReviewsMock).toHaveBeenCalledWith({ cursor: 'next-review', limit: 50 }))

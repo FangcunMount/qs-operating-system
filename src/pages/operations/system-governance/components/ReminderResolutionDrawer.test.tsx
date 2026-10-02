@@ -62,3 +62,13 @@ it('submits only an acknowledged unknown finding for sending and retains its ori
   expect(postResolution).toHaveBeenCalledTimes(1)
   expect(screen.getByText('按原输入重试结案').closest('button')).toBeDisabled()
 })
+
+it('keeps an explicit platform rejection distinct and locks its finding without resending', () => {
+  render(<ReminderResolutionDrawer review={{ ...review, state: 'rejected', resolution_code: 'platform_rejected_43101' }}
+    onClose={jest.fn()} onResolved={jest.fn()} />)
+  expect(screen.getByRole('combobox')).toHaveAttribute('disabled')
+  expect(screen.getByText('平台明确拒绝')).toBeInTheDocument()
+  expect(screen.getByText(/账本记录：platform_rejected_43101/)).toBeInTheDocument()
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+  expect(postResolution).not.toHaveBeenCalled()
+})

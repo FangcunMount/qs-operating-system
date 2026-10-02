@@ -93,7 +93,7 @@ export interface ReminderReview {
   opening_event_id: string
   schedule_revision: number
   user_id: string
-  state: 'sending' | 'manual_required'
+  state: 'sending' | 'manual_required' | 'rejected'
   external_call_started_at?: string
   resolution_code?: string
   updated_at: string
