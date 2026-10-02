@@ -92,3 +92,32 @@ it('keeps first MBTI creation closed without an installed template', async () =>
   await screen.findByText('首版模板尚未安装，请联系管理员核对初始化。')
   expect(screen.getByRole('button', { name: '创建首版方案' })).toBeDisabled()
 })
+
+it('requires an explicit content version when both legacy and three-topic templates are installed', async () => {
+  Object.defineProperty(window, 'crypto', { configurable: true, value: { getRandomValues: (bytes: Uint8Array) => bytes.fill(2) } })
+  const legacy = { id: 'participant-mbti-single', version: 'v1', fingerprint: `sha256:${'a'.repeat(64)}` }
+  const thematic = { id: 'participant-mbti-single', version: 'three-topic-v1', fingerprint: `sha256:${'b'.repeat(64)}` }
+  ;(listSolutions as jest.Mock).mockResolvedValue([null, { data: { items: [], next_cursor: '', templates: [
+    { name: '旧版 MBTI', template_ref: legacy, scene_contract_version: 'mbti-single-assessment/v1',
+      selector: mbtiPublicationSelector, published: false },
+    { name: 'MBTI 三主题', template_ref: thematic, scene_contract_version: 'mbti-single-assessment/v2',
+      selector: mbtiPublicationSelector, published: false }
+  ] } }])
+  ;(getPublication as jest.Mock).mockImplementation(async (selector) => [null, {
+    data: { selector, version: 0, active_publication_id: '', changed_at: '' }
+  }])
+  const submit = jest.fn().mockResolvedValue(null)
+  ;(useSolution as jest.Mock).mockReturnValue({ solution: null, error: '', pending: null, busy: false, storageFailed: false,
+    clearView: jest.fn(), read: jest.fn(), submit })
+  page('/operations/ai-governance/solutions?aiScene=mbti')
+  await screen.findByText('可从首版模板创建方案，完成评测和人工审核后再发布。')
+  fireEvent.change(screen.getByLabelText('创建修改目的'), { target: { value: '验证 MBTI 三主题完整评测' } })
+  expect(screen.getByRole('button', { name: '创建首版方案' })).toBeDisabled()
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: '首版方案模板' }))
+  fireEvent.click(await screen.findByText('MBTI 三主题（three-topic-v1）'))
+  expect(screen.getByText(/参考内容随模板版本固定/)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: '创建首版方案' }))
+  await waitFor(() => expect(submit).toHaveBeenCalledWith(expect.any(String), 'create', {
+    template_ref: thematic, title: '解读方案改进', reason: '验证 MBTI 三主题完整评测'
+  }))
+})

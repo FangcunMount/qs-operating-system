@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Prompt, useHistory, useLocation } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
-import { Alert, Button, Card, Input, Space, Steps, Table, Tag, Typography } from 'antd'
+import { Alert, Button, Card, Input, Select, Space, Steps, Table, Tag, Typography } from 'antd'
 import { rootStore } from '@/store'
 import { getPublication } from '@/api/path/aiWorkflow'
 import type { NativeEvaluationState, PublicationState, NativeReviewRole } from '@/api/path/aiWorkflow'
@@ -20,6 +20,8 @@ import { FlowPanel } from '../flow/FlowPanel'
 import type { EditTarget } from '@/api/path/aiWorkflow/flow'
 import { useSolution } from './useSolution'
 
+const templateKey = (template: SolutionTemplate) => JSON.stringify(template.template_ref)
+
 function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX.Element {
   const history = useHistory()
   const location = useLocation()
@@ -29,6 +31,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
   const controller = useSolution(owner)
   const [items, setItems] = useState<SolutionSummary[]>([])
   const [templates, setTemplates] = useState<SolutionTemplate[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState('')
   const [cursor, setCursor] = useState('')
   const [publication, setPublication] = useState<PublicationState | null>(null)
   const [models, setModels] = useState<SolutionModels | null>(null)
@@ -53,6 +56,8 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
   const activeRun = solution?.prepared?.run_id || externalRun
   const working = Boolean(solution || externalRun)
   const locked = controller.busy || Boolean(controller.pending) || controller.storageFailed
+  const creationTemplate = scene === 'mbti' ? templates.find((entry) =>
+    templateKey(entry) === selectedTemplate && sameSelector(entry.selector, sceneSelector)) : undefined
   const navigate = (id: string, stage: string, runID = '', role?: NativeReviewRole) => {
     const url = new URL(window.location.href)
     url.search = location.search
@@ -87,12 +92,14 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
       if (!after) {
         const catalog = page.data.templates || []
         if (!Array.isArray(catalog) || catalog.some((entry) =>
-          entry.scene_contract_version !== 'mbti-single-assessment/v1' ||
+          !['mbti-single-assessment/v1', 'mbti-single-assessment/v2'].includes(entry.scene_contract_version) ||
           !sameSelector(entry.selector, mbtiPublicationSelector) ||
-          !entry.template_ref?.id || !entry.template_ref?.version ||
+          !entry.template_ref?.id || !entry.template_ref?.version || entry.published !== false ||
           !/^sha256:[a-f0-9]{64}$/.test(entry.template_ref.fingerprint)
         )) throw new Error('首版模板目录不完整，请刷新后重试。')
         setTemplates(catalog)
+        setSelectedTemplate((previous) => catalog.some((entry) => templateKey(entry) === previous)
+          ? previous : catalog.length === 1 ? templateKey(catalog[0]) : '')
       }
       setCursor(page.data.next_cursor)
       if (pubError || !pub) {
@@ -164,7 +171,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
   }
   const create = async (sourceRun?: string) => {
     if (!allowed || locked || dirty) return false
-    const template = scene === 'mbti' ? templates.find((entry) => sameSelector(entry.selector, sceneSelector)) : undefined
+    const template = creationTemplate
     if (!sourceRun && (!publication || (!publication.active_publication_id && !template) || !validReason(reason) || !title.trim()))
       return false
     const id = newCommandID()
@@ -198,7 +205,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
     if (next === scene || locked || dirty) return
     epoch.current++
     controller.clearView()
-    setItems([]); setTemplates([]); setPublication(null); setRun(null); setExternalRun('')
+    setItems([]); setTemplates([]); setSelectedTemplate(''); setPublication(null); setRun(null); setExternalRun('')
     setTitle(next === 'mbti' ? 'MBTI 首版解读' : '解读方案改进')
     setReason('')
     const url = new URLSearchParams()
@@ -302,6 +309,16 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                   {scene === 'mbti' && publication && !publication.active_publication_id &&
                     <Alert type="info" showIcon message={templates.length ? '可从首版模板创建方案，完成评测和人工审核后再发布。' : '首版模板尚未安装，请联系管理员核对初始化。'} />}
                   <Space direction="vertical" style={{ width: '100%' }}>
+                    {scene === 'mbti' && publication && !publication.active_publication_id && templates.length > 0 && <>
+                      <Select aria-label="首版方案模板" placeholder="选择首版内容模板" value={selectedTemplate || undefined}
+                        style={{ width: '100%' }} disabled={!allowed || locked} onChange={setSelectedTemplate}>
+                        {templates.map((entry) => <Select.Option key={templateKey(entry)} value={templateKey(entry)}>
+                          {entry.name}（{entry.template_ref.version}）
+                        </Select.Option>)}
+                      </Select>
+                      {creationTemplate?.scene_contract_version === 'mbti-single-assessment/v2' &&
+                        <Typography.Paragraph type="secondary">包含性格特征与自我理解、职业发展探索、恋爱婚姻中的沟通与相处。参考内容随模板版本固定，仍需完整评测与人工审核。</Typography.Paragraph>}
+                    </>}
                     <Input
                       aria-label="新修改版本名称"
                       placeholder="修改版本名称"
@@ -323,7 +340,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                           !allowed ||
                           locked ||
                           !publication ||
-                          (!publication.active_publication_id && !(scene === 'mbti' && templates.length)) ||
+                          (!publication.active_publication_id && !creationTemplate) ||
                           !title.trim() ||
                           !validReason(reason)
                         }

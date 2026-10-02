@@ -70,7 +70,7 @@ export interface SolutionSummary {
 export interface SolutionTemplate {
   name: string
   template_ref: { id: string; version: string; fingerprint: string }
-  scene_contract_version: 'mbti-single-assessment/v1'
+  scene_contract_version: 'mbti-single-assessment/v1' | 'mbti-single-assessment/v2'
   selector: import('./publication').PublicationSelector
   published: false
   reason: 'requires_evaluation_review_and_publication'
