@@ -220,7 +220,7 @@ export function NativeCandidateWorkspace({
                 ) : (
                   <Tabs defaultActiveKey="output">
                     <Tabs.TabPane tab="生成内容" key="output">
-                      <CandidateReading raw={detail.normalized_output} />
+                      <CandidateReading raw={detail.normalized_output} evidence={detail.evidence} />
                     </Tabs.TabPane>
                     <Tabs.TabPane tab="原始事实" key="facts">
                       <FrozenInputReading evidence={detail.evidence} />
@@ -228,7 +228,7 @@ export function NativeCandidateWorkspace({
                     <Tabs.TabPane tab="事实对照" key="comparison">
                       <div className="candidate-review-comparison">
                         <FrozenInputReading evidence={detail.evidence} />
-                        <CandidateReading raw={detail.normalized_output} />
+                        <CandidateReading raw={detail.normalized_output} evidence={detail.evidence} />
                       </div>
                     </Tabs.TabPane>
                     <Tabs.TabPane tab="检查与证据" key="evidence">
