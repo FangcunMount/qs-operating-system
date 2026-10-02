@@ -1,8 +1,14 @@
 import { Alert, Card, Typography } from 'antd'
+import { isMBTIThreeTopicOutput } from './mbtiThreeTopicOutput'
+import { MBTIThreeTopicReading } from './MBTIThreeTopicReading'
 
 export function CandidateReading({ raw }: { raw: string }): JSX.Element {
   try {
     const value = JSON.parse(raw)
+    if (isMBTIThreeTopicOutput(value)) return <>
+      <MBTIThreeTopicReading value={value} />
+      <details><summary>查看完整原文与引用</summary><pre style={{ whiteSpace: 'pre-wrap' }}>{raw}</pre></details>
+    </>
     if (value.schema_version !== 'ai-explanation-output/v1' || typeof value.summary !== 'string' ||
       !Array.isArray(value.integrated_insights) || !Array.isArray(value.suggestions) || !Array.isArray(value.limitations) ||
       !value.integrated_insights.every((v: any) => v && [v.title, v.content, v.why_it_matters].every((x) => typeof x === 'string')) ||
