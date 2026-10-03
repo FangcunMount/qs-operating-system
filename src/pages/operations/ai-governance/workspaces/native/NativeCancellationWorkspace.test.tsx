@@ -1,3 +1,5 @@
+import * as commands from './commands'
+import { getMessagingOperation } from '@/api/path/aiWorkflow/operations'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import * as api from '@/api/path/aiWorkflow'
 import { NativeEvaluationWorkspace } from './NativeEvaluationWorkspace'
@@ -6,6 +8,7 @@ import { evaluationJournalKey } from './useNativeEvaluation'
 import { releaseKeys } from './evaluationValidation'
 import { cancellationReceipt, canRequestCancellation } from './cancellationValidation'
 
+jest.mock('@/api/path/aiWorkflow/operations', () => ({ ...jest.requireActual('@/api/path/aiWorkflow/operations'), getMessagingOperation: jest.fn() }))
 jest.mock('@/api/path/aiWorkflow', () => ({ getNativeEvaluation: jest.fn(), cancelNativeEvaluation: jest.fn(), listNativeCandidates: jest.fn() }))
 const id = '44444444-4444-4444-8444-444444444444'
 const fp = 'sha256:' + 'a'.repeat(64)
@@ -23,7 +26,16 @@ function canceled(status: api.NativeCancellationReceipt['source_status'] = 'requ
   } }
 }
 const ok = (data: unknown) => [null, { data }]
-beforeEach(() => { jest.clearAllMocks(); sessionStorage.clear() })
+beforeEach(() => {
+  jest.spyOn(commands, 'newCommandID').mockReturnValue(id)
+  jest.clearAllMocks()
+  ;(getMessagingOperation as jest.Mock).mockResolvedValue({
+    operation_id: id, command_id: id, resource_id: id, status: 'accepted', decision: 'accepted', transport_status: 'confirmed',
+    receipt: { command_id: id, command_body_sha256: 'a'.repeat(64), decision: 'ACCEPTED',
+      evaluation_receipt: { run_id: id, status: 'collecting', version: '8' } }
+  })
+  sessionStorage.clear()
+})
 afterEach(() => jest.restoreAllMocks())
 async function open(run = state()) {
   (api.getNativeEvaluation as jest.Mock).mockResolvedValue(ok(run))
@@ -47,7 +59,7 @@ it.each(['requested', 'collecting', 'blocked', 'awaiting_review'] as const)(
     confirm(discard)
     await screen.findByText(discard ? '评审已废弃' : '取消记录')
     expect(api.cancelNativeEvaluation).toHaveBeenCalledTimes(1)
-    expect(api.cancelNativeEvaluation).toHaveBeenCalledWith(id, { expected_version: 7, reason, confirm: true, discard })
+    expect(api.cancelNativeEvaluation).toHaveBeenCalledWith(id, { command_id: id, expected_version: 7, reason, confirm: true, discard })
     expect(sessionStorage.getItem(evaluationJournalKey('42'))).not.toContain(reason)
     expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('42')) || '{}').pending).toBeNull()
   })
@@ -86,7 +98,7 @@ it('stores recovery identity before sending and prevents double submission', asy
   const journal = JSON.parse(sessionStorage.getItem(evaluationJournalKey('42')) || '{}')
   expect(journal).toMatchObject({ pending: 'cancel', expectedVersion: 7,
     cancellation: { actor: 'user:42', discard: false, sourceStatus: 'requested' } })
-  expect(JSON.stringify(journal)).not.toContain(reason)
+  expect(journal).toMatchObject({ commandID: id, transport: 'mq', commandIntent: { reason, confirm: true, discard: false } })
   finish(ok(canceled()))
   await screen.findByText('取消记录')
 })
@@ -133,17 +145,25 @@ it.each([
   expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('42')) || '{}').pending).toBe('cancel')
   expect(screen.queryByText('取消记录')).not.toBeInTheDocument()
 })
-it('keeps same-version read uncertain and recognizes a later noncanceled CAS as not accepted', async () => {
+it('keeps MQ cancellation uncertain despite an advanced projection until the original durable rejection', async () => {
   (api.cancelNativeEvaluation as jest.Mock).mockResolvedValue([{ response: { status: 409 } }, undefined])
   await open(state('collecting'))
   confirm()
   await screen.findByText('取消结果尚未确认，请查询原任务，暂不重复提交。')
   fireEvent.click(screen.getByText('查询任务状态'))
-  await screen.findByText('取消结果尚未确认，请保留原任务并稍后查询。')
+  await screen.findByText('命令已接单，任务状态尚未核对。请保留编号继续查询。')
   expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('42')) || '{}').pending).toBe('cancel')
   ;(api.getNativeEvaluation as jest.Mock).mockResolvedValue(ok({ ...state('blocked'), version: 8 }))
+  ;(getMessagingOperation as jest.Mock).mockRejectedValue(new Error('missing operation'))
   fireEvent.click(screen.getByText('查询任务状态'))
-  await screen.findByText('任务已推进，此次取消未生效；请按最新状态重新操作。')
+  await screen.findByText('原命令决定尚未核对。请保留编号继续查询。')
+  expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('42')) || '{}').pending).toBe('cancel')
+  ;(getMessagingOperation as jest.Mock).mockResolvedValue({
+    operation_id: id, command_id: id, resource_id: id, status: 'rejected', decision: 'rejected', transport_status: 'confirmed',
+    receipt: { command_id: id, command_body_sha256: 'a'.repeat(64), decision: 'REJECTED' }
+  })
+  fireEvent.click(screen.getByText('查询任务状态'))
+  await screen.findByText('服务端拒绝了原命令。请读取当前任务状态、权限和额度后再决定。')
   expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('42')) || '{}').pending).toBeNull()
   expect(api.cancelNativeEvaluation).toHaveBeenCalledTimes(1)
 })

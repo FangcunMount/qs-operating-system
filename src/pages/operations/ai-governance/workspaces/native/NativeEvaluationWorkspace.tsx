@@ -64,8 +64,15 @@ export function NativeEvaluationWorkspace({
   const [runID, setRunID] = useState(c.journal?.runID || '')
   const opened = useRef('')
   useEffect(() => {
-    if (!initialRunID || opened.current === initialRunID || c.busy || c.journal?.pending || c.storageFailed)
+    if (!initialRunID || opened.current === initialRunID || c.storageFailed)
       return
+    // A restored intent is resolved through its original operation query. Mark
+    // it opened before settlement so clearing pending cannot erase a refusal.
+    if (c.journal?.pending) {
+      if (c.journal.runID === initialRunID) opened.current = initialRunID
+      return
+    }
+    if (c.busy) return
     opened.current = initialRunID
     setRunID(initialRunID)
     c.read(initialRunID)

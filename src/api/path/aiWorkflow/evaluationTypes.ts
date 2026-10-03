@@ -82,6 +82,7 @@ export interface NativeEvaluationCreate {
   confirm: true
 }
 export interface NativeEvaluationStart {
+  command_id: string
   expected_version: number
   reason: string
   confirm: true
@@ -217,6 +218,7 @@ export interface NativeResolutionCommand {
 }
 
 export interface NativeCancelCommand {
+  command_id: string
   expected_version: number
   reason: string
   confirm: true
