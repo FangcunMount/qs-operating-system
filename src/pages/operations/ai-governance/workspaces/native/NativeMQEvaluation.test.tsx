@@ -66,6 +66,27 @@ async function open() {
   return view
 }
 
+it.each(['start', 'cancel'] as const)('retains original MQ intent after retired immediate %s reply and refresh', async (action) => {
+  const write = action === 'start' ? api.startNativeEvaluation : api.cancelNativeEvaluation
+  ;(write as jest.Mock).mockResolvedValue(ok(action === 'cancel' ? canceled() : state('collecting', 8)))
+  const view = await open()
+  fireEvent.click(screen.getByText(action))
+  await screen.findByText(action === 'start' ? '启动结果尚未确认，请查询原任务，暂不重复启动。' : '取消结果尚未确认，请查询原任务，暂不重复提交。')
+  const original = saved()
+  expect(original).toMatchObject({ commandID, pending: action, transport: 'mq',
+    releaseFingerprint: fp, commandIntent: { reason, confirm: true } })
+  expect(write).toHaveBeenCalledTimes(1)
+  expect(getMessagingOperation).not.toHaveBeenCalled()
+  view.unmount()
+  ;(getMessagingOperation as jest.Mock).mockRejectedValue(new Error('unavailable'))
+  render(<Harness />)
+  fireEvent.click(screen.getByText('read'))
+  await screen.findByText('原命令决定尚未核对。请保留编号继续查询。')
+  expect(saved()).toEqual(original)
+  expect(write).toHaveBeenCalledTimes(1)
+  expect(commands.newCommandID).toHaveBeenCalledTimes(1)
+})
+
 it.each(['start', 'cancel'] as const)('shows maintenance before %s submission without an AI decision or automatic retry', async (action) => {
   const write = action === 'start' ? api.startNativeEvaluation : api.cancelNativeEvaluation
   ;(write as jest.Mock).mockResolvedValue([{ status: 429, data: { code: 115010,

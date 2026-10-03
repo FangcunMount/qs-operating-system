@@ -410,7 +410,7 @@ export function useNativeEvaluation(
         } else setError('启动结果尚未确认，请查询原任务，暂不重复启动。')
       } else if (isSubmittedOperation(response.data, commandID)) {
         await waitForMQDecision(markMQ(pending))
-      } else complete(response.data, pending)
+      } else throw new Error('Expected original submitted MQ operation')
     } catch {
       if (active.current) setError('启动结果尚未确认，请查询原任务，暂不重复启动。')
     } finally {
@@ -617,12 +617,7 @@ export function useNativeEvaluation(
         } else setError('取消结果尚未确认，请查询原任务，暂不重复提交。')
       } else if (isSubmittedOperation(response.data, commandID)) {
         await waitForMQDecision(markMQ(pending))
-      } else {
-        checkEvaluation(response.data, run.run_id, original.releaseFingerprint)
-        const receipt = confirmsCancellation(response.data, cancellation, run.version)
-        if (receipt.reason !== reason.trim()) throw new Error('Cancellation reason mismatch')
-        complete(response.data, pending)
-      }
+      } else throw new Error('Expected original submitted MQ operation')
     } catch {
       if (active.current) setError('取消结果尚未确认，请查询原任务，暂不重复提交。')
     } finally { end() }

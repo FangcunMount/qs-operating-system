@@ -34,8 +34,30 @@ async function select() {
   fireEvent.change(screen.getByLabelText('参与者重试理由'), { target: { value: '重新核对后重试' } })
   fireEvent.click(screen.getByText('确认新增一次模型调用及费用'))
 }
-it('requires unknown-result risk confirmation and posts one version-bound command', async () => {
+it('rejects a retired immediate retry reply without erasing original intent or reposting after refresh', async () => {
   retry.mockResolvedValue([null, { data: accepted }])
+  const view = render(<NativeParticipantRetryWorkspace owner="owner" />)
+  await select()
+  fireEvent.click(screen.getByText('原调用结果未知，我接受重复调用和重复费用风险'))
+  fireEvent.click(screen.getByText('确认重试原解读'))
+  await screen.findByText(/命令结果尚未确认/)
+  const original = sessionStorage.getItem(pendingKey)
+  expect(JSON.parse(original || '{}')).toMatchObject({ sessionID, runID, commandID, transport: 'mq',
+    reason: '重新核对后重试', acceptResultUnknownRisk: true })
+  expect(screen.queryByText('重试已受理，等待执行')).not.toBeInTheDocument()
+  expect(operation).not.toHaveBeenCalled()
+  view.unmount()
+  render(<NativeParticipantRetryWorkspace owner="owner" />)
+  fireEvent.click(await screen.findByText('查询原重试回执'))
+  await screen.findByText(/未找到回执也不代表命令未提交/)
+  expect(sessionStorage.getItem(pendingKey)).toBe(original)
+  expect(receipt).not.toHaveBeenCalled()
+  expect(retry).toHaveBeenCalledTimes(1)
+})
+
+it('requires unknown-result risk confirmation and posts one version-bound command', async () => {
+  retry.mockResolvedValue([null, { data: submitted }])
+  operation.mockResolvedValue(acceptedOperation)
   render(<NativeParticipantRetryWorkspace owner="owner" />)
   await select()
   expect(screen.getByText('确认重试原解读').closest('button')).toBeDisabled()

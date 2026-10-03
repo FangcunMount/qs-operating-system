@@ -42,8 +42,8 @@ export const createNativeEvaluation = (
 export const startNativeEvaluation = (
   id: string,
   command: NativeEvaluationStart
-): Result<NativeEvaluationState | SubmittedOperation> =>
-  internalV2PostOnce<NativeEvaluationState | SubmittedOperation>(`${path(id)}/start`, command)
+): Result<SubmittedOperation> =>
+  internalV2PostOnce<SubmittedOperation>(`${path(id)}/start`, command)
 export const getNativeEvaluation = (id: string): Result<NativeEvaluationState> =>
   internalV2Get<NativeEvaluationState>(path(id))
 export const listNativeCandidates = (id: string): Result<NativeCandidateIndex> =>
@@ -83,8 +83,8 @@ export const listNativeUnknowns = (id: string, version: number): Result<NativeUn
 export const resolveNativeUnknown = (id: string, command: NativeResolutionCommand): Result<NativeEvaluationState> =>
   internalV2PostOnce<NativeEvaluationState>(`${path(id)}/result-unknown/resolve`, command)
 
-export const cancelNativeEvaluation = (id: string, command: NativeCancelCommand): Result<NativeEvaluationState | SubmittedOperation> =>
-  internalV2PostOnce<NativeEvaluationState | SubmittedOperation>(`${path(id)}/cancel`, command)
+export const cancelNativeEvaluation = (id: string, command: NativeCancelCommand): Result<SubmittedOperation> =>
+  internalV2PostOnce<SubmittedOperation>(`${path(id)}/cancel`, command)
 
 export const getNativeEvaluationCapacity = (): Result<NativeEvaluationCapacity> =>
   internalV2Get<NativeEvaluationCapacity>('/interpretation/ai-workflow/evaluation-capacity')

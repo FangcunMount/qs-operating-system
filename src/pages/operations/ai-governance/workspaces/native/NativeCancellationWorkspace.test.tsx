@@ -26,6 +26,13 @@ function canceled(status: api.NativeCancellationReceipt['source_status'] = 'requ
   } }
 }
 const ok = (data: unknown) => [null, { data }]
+const submitted = () => ok({ operation_id: id, command_id: id, status: 'submitted', status_url: '/ignored' })
+const respondWithDecision = (value: api.NativeEvaluationState) => {
+  (api.cancelNativeEvaluation as jest.Mock).mockImplementation(async () => {
+    (api.getNativeEvaluation as jest.Mock).mockResolvedValue(ok(value))
+    return submitted()
+  })
+}
 beforeEach(() => {
   jest.spyOn(commands, 'newCommandID').mockReturnValue(id)
   jest.clearAllMocks()
@@ -52,7 +59,7 @@ function confirm(discard = false) {
 }
 it.each(['requested', 'collecting', 'blocked', 'awaiting_review'] as const)(
   'sends one explicit %s cancellation and shows original audit', async (status) => {
-    (api.cancelNativeEvaluation as jest.Mock).mockResolvedValue(ok(canceled(status)))
+    respondWithDecision(canceled(status))
     await open(state(status))
     const discard = status === 'awaiting_review'
     expect(screen.getByText(discard ? '确认废弃评审' : '确认取消评测').closest('button')).toBeDisabled()
@@ -99,7 +106,8 @@ it('stores recovery identity before sending and prevents double submission', asy
   expect(journal).toMatchObject({ pending: 'cancel', expectedVersion: 7,
     cancellation: { actor: 'user:42', discard: false, sourceStatus: 'requested' } })
   expect(journal).toMatchObject({ commandID: id, transport: 'mq', commandIntent: { reason, confirm: true, discard: false } })
-  finish(ok(canceled()))
+  ;(api.getNativeEvaluation as jest.Mock).mockResolvedValue(ok(canceled()))
+  finish(submitted())
   await screen.findByText('取消记录')
 })
 it('does not send when recovery storage fails', async () => {
@@ -138,10 +146,10 @@ it.each([
 ])('keeps malformed or mismatched response pending: %j', async (patch) => {
   const result = canceled()
   result.cancellation = { ...(result.cancellation as api.NativeCancellationReceipt), ...patch }
-  ;(api.cancelNativeEvaluation as jest.Mock).mockResolvedValue(ok(result))
+  respondWithDecision(result)
   await open()
   confirm()
-  await screen.findByText('取消结果尚未确认，请查询原任务，暂不重复提交。')
+  await screen.findByText(/尚未取得本次取消的原始回执|原取消意图尚未核对|取消回执与原任务不一致|请保留编号|请保留原任务/)
   expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('42')) || '{}').pending).toBe('cancel')
   expect(screen.queryByText('取消记录')).not.toBeInTheDocument()
 })
@@ -208,7 +216,7 @@ it('accepts stop intent without claiming cancellation finished or allowing a sec
     cancel_request: { schema_version: 'qs-ai-evaluation-cancel-request/v1', run_id: id,
       source_version: 7, version: 8, status: 'cancel_requested', actor: 'user:42', reason,
       requested_at: '2026-09-13T02:00:00Z' } }
-  ;(api.cancelNativeEvaluation as jest.Mock).mockResolvedValue(ok(draining))
+  respondWithDecision(draining)
   confirm()
   await screen.findByText('停止请求已接受，正在排空')
   expect(screen.queryByText('确认取消评测')).not.toBeInTheDocument()

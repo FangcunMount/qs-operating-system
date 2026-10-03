@@ -106,7 +106,7 @@ beforeEach(() => {
   jest.spyOn(commands, 'newCommandID').mockReturnValue(id)
   ;(api.prepareNativeEvaluation as jest.Mock).mockResolvedValue(ok(plan))
   ;(api.createNativeEvaluation as jest.Mock).mockResolvedValue(ok(state()))
-  ;(api.startNativeEvaluation as jest.Mock).mockResolvedValue(ok(state(2, 'collecting')))
+  ;(api.startNativeEvaluation as jest.Mock).mockResolvedValue(ok({ operation_id: id, command_id: id, status: 'submitted', status_url: '/ignored' }))
   ;(api.getNativeEvaluation as jest.Mock).mockResolvedValue(ok(state()))
 })
 afterEach(() => jest.restoreAllMocks())
@@ -147,6 +147,7 @@ it('prepares, explicitly creates and separately starts the exact frozen task onc
   expect(api.startNativeEvaluation).not.toHaveBeenCalled()
   expect(screen.getByRole('button', { name: '启动评测任务' })).toBeDisabled()
   expect(sessionStorage.getItem(evaluationJournalKey('u1'))).not.toContain('新策略评测')
+  ;(api.getNativeEvaluation as jest.Mock).mockResolvedValue(ok(state(2, 'collecting')))
   start()
   await screen.findByText('正在评测')
   expect(api.startNativeEvaluation).toHaveBeenCalledWith(id, {
