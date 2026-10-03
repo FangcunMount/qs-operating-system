@@ -7,7 +7,8 @@ import type { MessagingOperation } from '@/api/path/aiWorkflow/operations'
 import { waitForMessagingOperation } from './operationWaiting'
 import { definitelyRejected, newCommandID, validReason, validUUID } from './commands'
 
-type Pending = { sessionID: string; commandID: string; runID: string; version: number; reason?: string; acceptResultUnknownRisk?: boolean; transport?: 'mq' }
+type Pending = { sessionID: string; commandID: string; runID: string; version: number;
+  reason?: string; acceptResultUnknownRisk?: boolean; transport?: 'mq' }
 const pendingKey = (owner: string) => `qs-ai:participant-retry:v1:${encodeURIComponent(owner)}`
 function loadPending(owner: string): Pending | null {
   const raw = sessionStorage.getItem(pendingKey(owner))
@@ -126,7 +127,8 @@ export function NativeParticipantRetryWorkspace({ owner, initialSessionID = '' }
     if (locked || !current?.can_retry || !confirmed || !validReason(reason) ||
       current.retry_provider_invocations !== 1 || (current.unknown_result_risk && !risk) || !begin()) return
     try {
-      const intent = { sessionID: current.session_id, runID: current.run_id, version: current.version, commandID: newCommandID(), reason: reason.trim(), acceptResultUnknownRisk: risk }
+      const intent = { sessionID: current.session_id, runID: current.run_id, version: current.version,
+        commandID: newCommandID(), transport: 'mq' as const, reason: reason.trim(), acceptResultUnknownRisk: risk }
       try {
         sessionStorage.setItem(pendingKey(owner), JSON.stringify(intent))
         setPending(intent)

@@ -81,7 +81,7 @@ it('routes native evaluation prepare/create/start and versioned result reads onl
     reason: '创建',
     confirm: true
   }
-  const start: api.NativeEvaluationStart = { expected_version: 7, reason: '启动', confirm: true }
+  const start: api.NativeEvaluationStart = { command_id: '00000000-0000-4000-8000-000000000009', expected_version: 7, reason: '启动', confirm: true }
   api.prepareNativeEvaluation(query)
   api.createNativeEvaluation('run/id', create)
   api.startNativeEvaluation('run/id', start)
@@ -209,7 +209,8 @@ it('reads version-bound native gates and preserves explicit false finalization t
 })
 
 it.each([false, true])('sends explicit discard=%s cancellation once', (discard) => {
-  const command: api.NativeCancelCommand = { expected_version: 7, reason: '结束任务', confirm: true, discard }
+  const command: api.NativeCancelCommand = { command_id: '00000000-0000-4000-8000-000000000009',
+    expected_version: 7, reason: '结束任务', confirm: true, discard }
   api.cancelNativeEvaluation('run/id', command)
   expect(post.mock.calls).toEqual([['/interpretation/ai-workflow/evaluations/run%2Fid/cancel', command]])
   expect(get).not.toHaveBeenCalled()

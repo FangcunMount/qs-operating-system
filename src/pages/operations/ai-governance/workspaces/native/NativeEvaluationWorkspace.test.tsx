@@ -1,3 +1,4 @@
+import { getMessagingOperation } from '@/api/path/aiWorkflow/operations'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import * as api from '@/api/path/aiWorkflow'
 import * as commands from './commands'
@@ -6,6 +7,7 @@ import { NativeCandidateWorkspace } from './NativeCandidateWorkspace'
 import { evaluationJournalKey } from './useNativeEvaluation'
 import { releaseKeys } from './evaluationValidation'
 
+jest.mock('@/api/path/aiWorkflow/operations', () => ({ ...jest.requireActual('@/api/path/aiWorkflow/operations'), getMessagingOperation: jest.fn() }))
 jest.mock('@/api/path/aiWorkflow', () => ({
   listNativeEvaluations: jest.fn(),
   prepareNativeEvaluation: jest.fn(),
@@ -94,6 +96,12 @@ const start = () => {
 }
 beforeEach(() => {
   jest.clearAllMocks()
+  ;(getMessagingOperation as jest.Mock).mockResolvedValue({
+    operation_id: id, command_id: id, resource_id: id, status: 'accepted', decision: 'accepted', transport_status: 'confirmed',
+    receipt: { command_id: id, command_body_sha256: 'a'.repeat(64), decision: 'ACCEPTED',
+      evaluation_receipt: { run_id: id, status: 'collecting', version: '2' } }
+  })
+
   sessionStorage.clear()
   jest.spyOn(commands, 'newCommandID').mockReturnValue(id)
   ;(api.prepareNativeEvaluation as jest.Mock).mockResolvedValue(ok(plan))
@@ -142,6 +150,7 @@ it('prepares, explicitly creates and separately starts the exact frozen task onc
   start()
   await screen.findByText('正在评测')
   expect(api.startNativeEvaluation).toHaveBeenCalledWith(id, {
+    command_id: id,
     expected_version: 1,
     reason: '确认执行',
     confirm: true
@@ -167,7 +176,7 @@ it.each([409, 504])(
   }
 )
 
-it('keeps an uncertain Start locked when an early read still sees requested, then recovers advanced state', async () => {
+it('keeps an uncertain MQ Start locked until its original decision and projection are both available', async () => {
   (api.startNativeEvaluation as jest.Mock).mockResolvedValue([{ status: 504 }, undefined])
   const view = render(<NativeEvaluationWorkspace owner="u1" selection={selection} />)
   await create()
@@ -177,7 +186,7 @@ it('keeps an uncertain Start locked when an early read still sees requested, the
   view.unmount()
   render(<NativeEvaluationWorkspace owner="u1" selection={{}} />)
   fireEvent.click(screen.getByText('查询任务状态'))
-  await screen.findByText('启动结果尚未确认，请保留原任务并稍后查询。')
+  await screen.findByText('命令已接单，任务状态尚未核对。请保留编号继续查询。')
   expect(JSON.parse(sessionStorage.getItem(evaluationJournalKey('u1')) || '{}').pending).toBe('start')
   expect(screen.getByRole('button', { name: '结束查看，准备另一评测' })).toBeDisabled()
   ;(api.getNativeEvaluation as jest.Mock).mockResolvedValue(ok(state(2, 'collecting')))

@@ -29,6 +29,9 @@ import { checkReviewCommand, confirmsReview } from './reviewValidation'
 import { canRequestReopening, confirmsReopening } from './reopeningValidation'
 import { canRequestCancellation, confirmsCancellation, validPendingCancellation } from './cancellationValidation'
 import type { PendingCancellation } from './cancellationValidation'
+import { checkMessagingOperation, getMessagingOperation, isSubmittedOperation } from '@/api/path/aiWorkflow/operations'
+import type { MessagingOperation } from '@/api/path/aiWorkflow/operations'
+import { waitForMessagingOperation } from './operationWaiting'
 import { definitelyRejected, newCommandID, validReason, validUUID } from './commands'
 import {
   checkEvaluation,
@@ -43,6 +46,9 @@ interface Journal {
   runID: string
   releaseFingerprint: string
   pending: 'create' | 'start' | 'review' | 'finalize' | 'reopen' | 'resolve' | 'cancel' | null
+  commandID?: string
+  commandIntent?: { reason: string; confirm: true; discard?: boolean }
+  transport?: 'mq'
   expectedVersion?: number
   lastVersion?: number
   cancellation?: PendingCancellation
@@ -62,7 +68,11 @@ const readJournal = (owner: string): Journal | null => {
     (['start', 'review', 'finalize', 'reopen', 'resolve', 'cancel'].includes(j.pending) && !safeCount(j.expectedVersion)) ||
     (j.pending === 'cancel' && (!validPendingCancellation(j.cancellation) || j.cancellation.actor !== `user:${owner}`)) ||
     (j.pending === 'resolve' && (!validPendingResolution(j.resolution) || j.resolution.actor !== `user:${owner}`)) ||
-    (j.lastVersion !== undefined && !safeCount(j.lastVersion))
+    (j.lastVersion !== undefined && !safeCount(j.lastVersion)) ||
+    (j.commandID !== undefined && (!['start', 'cancel'].includes(j.pending) || !validUUID(j.commandID) ||
+      !j.commandIntent || !validReason(j.commandIntent.reason) || j.commandIntent.confirm !== true ||
+      (j.pending === 'cancel' && j.commandIntent.discard !== j.cancellation?.discard))) ||
+    (j.transport !== undefined && (j.transport !== 'mq' || !j.commandID))
   ) {
     throw new Error('Invalid journal')
   }
@@ -116,6 +126,7 @@ export function useNativeEvaluation(
   const [busy, setBusy] = useState(false)
   const lock = useRef(false)
   const active = useRef(true)
+  const queryController = useRef<AbortController | null>(null)
   const selectionKey = JSON.stringify(selection)
   const currentSelection = useRef(selectionKey)
   currentSelection.current = selectionKey
@@ -126,6 +137,7 @@ export function useNativeEvaluation(
     active.current = true
     return () => {
       active.current = false
+      queryController.current?.abort()
     }
   }, [])
   const remember = (value: Journal | null) => {
@@ -173,6 +185,52 @@ export function useNativeEvaluation(
     })
     setUnknowns(null)
     setRun(value)
+  }
+  const markMQ = (original: Journal): Journal => {
+    const saved: Journal = { ...original, transport: 'mq' }
+    remember(saved)
+    return saved
+  }
+  const applyMQDecision = async (operation: MessagingOperation, original: Journal) => {
+    if (!original.commandID) throw new Error('缺少原命令身份，请保留任务编号。')
+    checkMessagingOperation(operation, original.commandID)
+    if (operation.resource_id !== original.runID) throw new Error('原操作与任务身份不一致，请保留编号。')
+    if (operation.status === 'submitted') throw new Error('原命令已提交，接单决定仍待确认。请保留编号继续查询。')
+    if (operation.status === 'held') throw new Error('原命令技术挂起，接单结果尚未确认。请保留编号继续核对。')
+    if (operation.status === 'rejected') {
+      remember({ runID: original.runID, releaseFingerprint: original.releaseFingerprint, pending: null, lastVersion: original.lastVersion })
+      setRun(null)
+      setError('服务端拒绝了原命令。请读取当前任务状态、权限和额度后再决定。')
+      return
+    }
+    const receipt = operation.receipt?.evaluation_receipt
+    if (!receipt || receipt.run_id !== original.runID ||
+      (typeof receipt.version === 'string' && !/^[1-9][0-9]*$/.test(receipt.version)) ||
+      !Number.isSafeInteger(Number(receipt.version)) || Number(receipt.version) <= (original.expectedVersion || 0))
+      throw new Error('原命令持久回执尚未核对，请保留编号。')
+    const [failure, response] = await getNativeEvaluation(original.runID)
+    if (!active.current) return
+    if (failure || !response || response.data.version < Number(receipt.version))
+      throw new Error('命令已接单，任务状态尚未核对。请保留编号继续查询。')
+    if (original.pending === 'cancel') {
+      if (!original.cancellation) throw new Error('缺少原取消记录。')
+      const confirmation = confirmsCancellation(response.data, original.cancellation, original.expectedVersion || 0)
+      if (confirmation.reason !== original.commandIntent?.reason) throw new Error('原取消意图尚未核对，请保留编号。')
+    }
+    complete(response.data, original)
+  }
+  const waitForMQDecision = async (original: Journal) => {
+    if (!original.commandID) throw new Error('缺少原命令身份，请保留任务编号。')
+    const controller = new AbortController()
+    queryController.current = controller
+    try {
+      const result = await waitForMessagingOperation(original.commandID, { signal: controller.signal })
+      if (!active.current || controller.signal.aborted) return
+      if (result.status === 'decided' && result.operation) await applyMQDecision(result.operation, original)
+      else setError('原命令已提交，接单决定仍待确认。请保留编号继续查询，不重复提交。')
+    } catch (e) {
+      if (active.current) setError(e instanceof Error ? e.message : '原命令尚未核对，请保留编号。')
+    } finally { if (queryController.current === controller) queryController.current = null }
   }
   const prepare = async () => {
     if (
@@ -263,6 +321,14 @@ export function useNativeEvaluation(
     setGates(null)
     setRun(null)
     try {
+      if (original?.runID === id && original.commandID && ['start', 'cancel'].includes(original.pending || '')) {
+        let operation: MessagingOperation | undefined
+        try { operation = await getMessagingOperation(original.commandID) } catch {
+          if (original.transport === 'mq') throw new Error('原命令决定尚未核对。请保留编号继续查询。')
+        }
+        if (!active.current) return
+        if (operation) { await applyMQDecision(operation, markMQ(original)); return }
+      }
       const expected = original?.runID === id ? original.releaseFingerprint : undefined
       const [failure, response] = await getNativeEvaluation(id)
       if (!active.current) return
@@ -311,8 +377,12 @@ export function useNativeEvaluation(
       !begin()
     )
       return
-    const pending: Journal = { ...original, pending: 'start', expectedVersion: run.version }
+    const pending: Journal = { ...original, pending: 'start', transport: 'mq', expectedVersion: run.version,
+      commandIntent: { reason: reason.trim(), confirm: true } }
+    let commandID: string
     try {
+      commandID = newCommandID()
+      pending.commandID = commandID
       remember(pending)
     } catch {
       setStorageFailed(true)
@@ -322,6 +392,7 @@ export function useNativeEvaluation(
     }
     try {
       const [failure, response] = await startNativeEvaluation(run.run_id, {
+        command_id: commandID,
         expected_version: run.version,
         reason: reason.trim(),
         confirm: true
@@ -333,6 +404,8 @@ export function useNativeEvaluation(
           setRun(null)
           setError('启动被拒绝，请重新查询任务并检查管理权限。')
         } else setError('启动结果尚未确认，请查询原任务，暂不重复启动。')
+      } else if (isSubmittedOperation(response.data, commandID)) {
+        await waitForMQDecision(markMQ(pending))
       } else complete(response.data, pending)
     } catch {
       if (active.current) setError('启动结果尚未确认，请查询原任务，暂不重复启动。')
@@ -515,8 +588,10 @@ export function useNativeEvaluation(
     const cancellation: PendingCancellation = { actor: `user:${owner}`, discard,
       sourceStatus: run.status as PendingCancellation['sourceStatus'] }
     if (!validPendingCancellation(cancellation) || !begin()) return
-    const pending: Journal = { ...original, pending: 'cancel', expectedVersion: run.version, cancellation }
-    try { remember(pending) } catch {
+    const pending: Journal = { ...original, pending: 'cancel', transport: 'mq', expectedVersion: run.version,
+      cancellation, commandIntent: { reason: reason.trim(), confirm: true, discard } }
+    let commandID: string
+    try { commandID = newCommandID(); pending.commandID = commandID; remember(pending) } catch {
       setStorageFailed(true)
       setError('无法保存取消记录，本次未发送。')
       end()
@@ -526,6 +601,7 @@ export function useNativeEvaluation(
     setUnknowns(null)
     try {
       const [failure, response] = await cancelNativeEvaluation(run.run_id, {
+        command_id: commandID,
         expected_version: run.version, reason: reason.trim(), confirm: true, discard
       })
       if (!active.current) return
@@ -535,6 +611,8 @@ export function useNativeEvaluation(
           setRun(null)
           setError('取消被拒绝，请重新查询任务并检查管理权限。')
         } else setError('取消结果尚未确认，请查询原任务，暂不重复提交。')
+      } else if (isSubmittedOperation(response.data, commandID)) {
+        await waitForMQDecision(markMQ(pending))
       } else {
         checkEvaluation(response.data, run.run_id, original.releaseFingerprint)
         const receipt = confirmsCancellation(response.data, cancellation, run.version)

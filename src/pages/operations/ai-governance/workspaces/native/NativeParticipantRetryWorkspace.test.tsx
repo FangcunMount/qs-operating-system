@@ -21,7 +21,12 @@ const state = {
 }
 const accepted = { session_id: sessionID, run_id: '00000000-0000-4000-8000-000000000003', version: 5, status: 'queued' }
 const pendingKey = 'qs-ai:participant-retry:v1:owner'
-beforeEach(() => { jest.resetAllMocks(); sessionStorage.clear(); read.mockResolvedValue([null, { data: state }]); operation.mockRejectedValue(new Error('legacy query unavailable')) })
+beforeEach(() => {
+  jest.resetAllMocks()
+  sessionStorage.clear()
+  read.mockResolvedValue([null, { data: state }])
+  operation.mockRejectedValue(new Error('legacy query unavailable'))
+})
 async function select() {
   fireEvent.change(screen.getByLabelText('参与者会话编号'), { target: { value: sessionID } })
   fireEvent.click(screen.getByText('查询参与者执行'))
@@ -45,7 +50,7 @@ it('requires unknown-result risk confirmation and posts one version-bound comman
 })
 it('keeps an uncertain command through remount and missing receipt without another post', async () => {
   retry.mockResolvedValue([new Error('timeout')])
-  receipt.mockResolvedValueOnce([{ status: 404 }]).mockResolvedValueOnce([null, { data: accepted }])
+  operation.mockRejectedValueOnce({ status: 404 }).mockResolvedValueOnce(acceptedOperation)
   const view = render(<NativeParticipantRetryWorkspace owner="owner" />)
   await select()
   fireEvent.click(screen.getByText('原调用结果未知，我接受重复调用和重复费用风险'))
@@ -60,7 +65,8 @@ it('keeps an uncertain command through remount and missing receipt without anoth
   expect(sessionStorage.getItem(pendingKey)).toContain(commandID)
   fireEvent.click(screen.getByText('查询原重试回执'))
   await screen.findByText('重试已受理，等待执行')
-  expect(receipt).toHaveBeenLastCalledWith(commandID)
+  expect(operation).toHaveBeenLastCalledWith(commandID)
+  expect(receipt).not.toHaveBeenCalled()
   expect(retry).toHaveBeenCalledTimes(1)
   expect(sessionStorage.getItem(pendingKey)).toBeNull()
 })
@@ -105,7 +111,7 @@ it('keeps the 202 intent until the original durable operation confirms it', asyn
   let finish!: (value: unknown) => void
   operation.mockReturnValue(new Promise((resolve) => { finish = resolve }))
   retry.mockImplementation(async () => {
-    const intent = JSON.parse(sessionStorage.getItem(pendingKey)!)
+    const intent = JSON.parse(sessionStorage.getItem(pendingKey) || '{}')
     expect(intent.commandID).toBe(commandID)
     expect(intent.reason).toBe('重新核对后重试')
     expect(intent.acceptResultUnknownRisk).toBe(true)
@@ -127,7 +133,8 @@ it('keeps the 202 intent until the original durable operation confirms it', asyn
 it('keeps a technically held operation across refresh without another write', async () => {
   operation.mockResolvedValue({ ...acceptedOperation, status: 'held', decision: 'held', transport_status: 'held',
     receipt: { command_id: commandID, command_body_sha256: 'a'.repeat(64), decision: 'HELD' } })
-  sessionStorage.setItem(pendingKey, JSON.stringify({ sessionID, commandID, runID, version: 4, reason: '核对', acceptResultUnknownRisk: true, transport: 'mq' }))
+  sessionStorage.setItem(pendingKey, JSON.stringify({ sessionID, commandID, runID, version: 4,
+    reason: '核对', acceptResultUnknownRisk: true, transport: 'mq' }))
   render(<NativeParticipantRetryWorkspace owner="owner" />)
   await screen.findByText('查询原重试回执')
   fireEvent.click(screen.getByText('查询原重试回执'))

@@ -6,10 +6,12 @@ import { waitForMessagingOperation } from './operationWaiting'
 jest.mock('@/api/qsServer', () => ({ qsInternalV2Axios: { get: jest.fn() } }))
 const id = '00000000-0000-4000-8000-000000000001'
 const resource = '00000000-0000-4000-8000-000000000002'
-const submitted: MessagingOperation = { operation_id: id, command_id: id, resource_id: resource, status: 'submitted', transport_status: 'awaiting_receipt' }
+const submitted: MessagingOperation = { operation_id: id, command_id: id, resource_id: resource,
+  status: 'submitted', transport_status: 'awaiting_receipt' }
 const decided = (decision: 'accepted' | 'rejected' | 'held'): MessagingOperation => ({
   ...submitted, status: decision, decision, transport_status: decision === 'held' ? 'held' : 'confirmed',
-  receipt: { command_id: id, command_body_sha256: 'a'.repeat(64), decision: decision === 'held' ? 'HELD' : decision === 'rejected' ? 'REJECTED' : 'ACCEPTED' }
+  receipt: { command_id: id, command_body_sha256: 'a'.repeat(64),
+    decision: decision === 'held' ? 'HELD' : decision === 'rejected' ? 'REJECTED' : 'ACCEPTED' }
 })
 const flush = async () => { for (let i = 0; i < 10; i++) await Promise.resolve() }
 beforeEach(() => { jest.resetAllMocks(); jest.useFakeTimers() })
