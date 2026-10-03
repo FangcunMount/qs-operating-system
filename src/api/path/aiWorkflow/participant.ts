@@ -1,3 +1,4 @@
+import type { SubmittedOperation } from './operations'
 import { internalV2Get, internalV2PostOnce } from '@/api/qsServer'
 import type { QSResponse } from '@/types/qs'
 
@@ -72,7 +73,7 @@ export const getParticipantExecution = (sessionID: string): Promise<[unknown, QS
   internalV2Get<ParticipantExecution>(`/interpretation/ai-workflow/participants/${encodeURIComponent(sessionID)}`)
 export const retryParticipant = (
   sessionID: string, command: ParticipantRetryCommand
-): Promise<[unknown, QSResponse<ParticipantRetryReceipt> | undefined]> =>
-  internalV2PostOnce<ParticipantRetryReceipt>(`/interpretation/ai-workflow/participants/${encodeURIComponent(sessionID)}/retry`, command)
+): Promise<[unknown, QSResponse<ParticipantRetryReceipt | SubmittedOperation> | undefined]> =>
+  internalV2PostOnce<ParticipantRetryReceipt | SubmittedOperation>(`/interpretation/ai-workflow/participants/${encodeURIComponent(sessionID)}/retry`, command)
 export const getParticipantRetryReceipt = (commandID: string): Promise<[unknown, QSResponse<ParticipantRetryReceipt> | undefined]> =>
   internalV2Get<ParticipantRetryReceipt>(`/interpretation/ai-workflow/participants/retry-commands/${encodeURIComponent(commandID)}`)

@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Checkbox, Descriptions, Input, Space, Typography } from 'antd'
 import { getParticipantExecution, getParticipantRetryReceipt, retryParticipant } from '@/api/path/aiWorkflow'
 import type { ParticipantExecution, ParticipantRetryReceipt } from '@/api/path/aiWorkflow'
+import { getMessagingOperation, isSubmittedOperation } from '@/api/path/aiWorkflow/operations'
+import type { MessagingOperation } from '@/api/path/aiWorkflow/operations'
+import { waitForMessagingOperation } from './operationWaiting'
 import { definitelyRejected, newCommandID, validReason, validUUID } from './commands'
 
-type Pending = { sessionID: string; commandID: string; runID: string; version: number }
+type Pending = { sessionID: string; commandID: string; runID: string; version: number; reason?: string; acceptResultUnknownRisk?: boolean; transport?: 'mq' }
 const pendingKey = (owner: string) => `qs-ai:participant-retry:v1:${encodeURIComponent(owner)}`
 function loadPending(owner: string): Pending | null {
   const raw = sessionStorage.getItem(pendingKey(owner))
@@ -13,6 +16,9 @@ function loadPending(owner: string): Pending | null {
   if (!validUUID(value.sessionID || '') || !validUUID(value.commandID || '') ||
     !validUUID(value.runID || '') || !Number.isSafeInteger(value.version) || value.version < 1)
     throw new Error('invalid pending record')
+  if ((value.reason !== undefined && !validReason(value.reason)) ||
+    (value.acceptResultUnknownRisk !== undefined && typeof value.acceptResultUnknownRisk !== 'boolean') ||
+    (value.transport !== undefined && value.transport !== 'mq')) throw new Error('invalid pending intent')
   return value
 }
 function validateReceipt(value: ParticipantRetryReceipt, pending: Pending): void {
@@ -40,10 +46,11 @@ export function NativeParticipantRetryWorkspace({ owner, initialSessionID = '' }
   const [message, setMessage] = useState('')
   const live = useRef(true)
   const working = useRef(false)
+  const queryController = useRef<AbortController | null>(null)
   useEffect(() => {
     live.current = true
     try { setPending(loadPending(owner)) } catch { setStorageError(true) }
-    return () => { live.current = false }
+    return () => { live.current = false; queryController.current?.abort() }
   }, [owner])
   const locked = busy || Boolean(pending) || storageError
   const begin = () => {
@@ -57,6 +64,47 @@ export function NativeParticipantRetryWorkspace({ owner, initialSessionID = '' }
   const clearPending = () => {
     sessionStorage.removeItem(pendingKey(owner))
     setPending(null)
+  }
+  const markMQ = (intent: Pending): Pending => {
+    const saved: Pending = { ...intent, transport: 'mq' }
+    sessionStorage.setItem(pendingKey(owner), JSON.stringify(saved))
+    setPending(saved)
+    return saved
+  }
+  const applyOperation = (operation: MessagingOperation, intent: Pending) => {
+    if (operation.resource_id !== intent.sessionID) throw new Error('operation resource mismatch')
+    if (operation.status === 'held') {
+      setMessage('原命令技术挂起，尚未确认接单。请保留编号继续核对。')
+      return
+    }
+    if (operation.status === 'rejected') {
+      clearPending()
+      setMessage('服务端拒绝了原重试命令，请查询当前状态、权限和额度后再决定。')
+      return
+    }
+    if (operation.status !== 'accepted' || !operation.receipt?.workflow_receipt) throw new Error('missing durable receipt')
+    const source = operation.receipt.workflow_receipt
+    if (typeof source.version === 'string' && !/^[1-9][0-9]*$/.test(source.version)) throw new Error('invalid version')
+    const version = Number(source.version)
+    if (!Number.isSafeInteger(version)) throw new Error('unsafe version')
+    const value: ParticipantRetryReceipt = { session_id: source.session_id, run_id: source.run_id || '', status: source.status, version }
+    validateReceipt(value, intent)
+    setSessionID(intent.sessionID)
+    setCurrent(null)
+    setReceipt(value)
+    clearPending()
+  }
+  const waitForIntent = async (intent: Pending) => {
+    const controller = new AbortController()
+    queryController.current = controller
+    try {
+      const result = await waitForMessagingOperation(intent.commandID, { signal: controller.signal })
+      if (!live.current || controller.signal.aborted) return
+      if (result.status === 'decided' && result.operation) applyOperation(result.operation, intent)
+      else setMessage('已提交原命令，接单决定仍待确认。请保留编号继续查询；不要重复创建重试。')
+    } finally {
+      if (queryController.current === controller) queryController.current = null
+    }
   }
   const read = async () => {
     if (locked || !validUUID(sessionID) || !begin()) return
@@ -78,7 +126,7 @@ export function NativeParticipantRetryWorkspace({ owner, initialSessionID = '' }
     if (locked || !current?.can_retry || !confirmed || !validReason(reason) ||
       current.retry_provider_invocations !== 1 || (current.unknown_result_risk && !risk) || !begin()) return
     try {
-      const intent = { sessionID: current.session_id, runID: current.run_id, version: current.version, commandID: newCommandID() }
+      const intent = { sessionID: current.session_id, runID: current.run_id, version: current.version, commandID: newCommandID(), reason: reason.trim(), acceptResultUnknownRisk: risk }
       try {
         sessionStorage.setItem(pendingKey(owner), JSON.stringify(intent))
         setPending(intent)
@@ -100,6 +148,10 @@ export function NativeParticipantRetryWorkspace({ owner, initialSessionID = '' }
         throw new Error('unknown outcome')
       }
       if (!response?.data) throw new Error('missing receipt')
+      if (isSubmittedOperation(response.data, intent.commandID)) {
+        await waitForIntent(markMQ(intent))
+        return
+      }
       validateReceipt(response.data, intent)
       setReceipt(response.data)
       clearPending()
@@ -109,6 +161,18 @@ export function NativeParticipantRetryWorkspace({ owner, initialSessionID = '' }
   const recover = async () => {
     if (!pending || busy || storageError || !begin()) return
     try {
+      let operation: MessagingOperation | undefined
+      try { operation = await getMessagingOperation(pending.commandID) } catch {
+        if (pending.transport === 'mq') throw new Error('operation unavailable')
+      }
+      if (!live.current) return
+      if (operation) {
+        const intent = markMQ(pending)
+        if (operation.status === 'submitted') {
+          setMessage('原命令已提交，仍待服务端决定。请保留编号继续查询。')
+        } else applyOperation(operation, intent)
+        return
+      }
       const [error, response] = await getParticipantRetryReceipt(pending.commandID)
       if (!live.current) return
       if (error || !response?.data) throw new Error('receipt unavailable')

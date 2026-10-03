@@ -2,6 +2,13 @@ import axios from 'axios'
 import { qsInternalV2Axios } from '@/api/qsServer'
 import type { QSResponse } from '@/types/qs'
 
+export interface SubmittedOperation {
+  operation_id: string
+  command_id: string
+  status: 'submitted'
+  status_url: string
+}
+
 export type MessagingDecision = 'accepted' | 'rejected' | 'held'
 export interface MessagingOperation {
   operation_id: string
@@ -21,7 +28,7 @@ export interface MessagingOperation {
 }
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-export const isSubmittedOperation = (value: unknown, id: string): boolean => {
+export const isSubmittedOperation = (value: unknown, id: string): value is SubmittedOperation => {
   const v = value as Partial<MessagingOperation> | null
   return Boolean(v && uuid.test(id) && v.operation_id === id && v.command_id === id && v.status === 'submitted')
 }
