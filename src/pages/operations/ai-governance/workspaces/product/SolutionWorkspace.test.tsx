@@ -121,3 +121,24 @@ it('requires an explicit content version when both legacy and three-topic templa
     template_ref: thematic, title: '解读方案改进', reason: '验证 MBTI 三主题完整评测'
   }))
 })
+
+it('keeps both MBTI versions visible in their scene without including scale solutions', async () => {
+  const common = { reason: '验证配置', created_by: 'user:10001', updated_at: '2026-09-23T00:00:00Z', prepared: null }
+  ;(listSolutions as jest.Mock).mockResolvedValue([null, { data: { items: [
+    { ...common, solution_id: '00000000-0000-4000-8000-000000000001', title: '旧版人格方案', scene_contract_version: 'mbti-single-assessment/v1' },
+    { ...common, solution_id: '00000000-0000-4000-8000-000000000002', title: '三主题人格方案', scene_contract_version: 'mbti-single-assessment/v2' },
+    { ...common, solution_id: '00000000-0000-4000-8000-000000000003', title: '量表方案' }
+  ], next_cursor: '' } }])
+  ;(getPublication as jest.Mock).mockImplementation(async (selector) => [null, {
+    data: { selector, version: 0, active_publication_id: '', changed_at: '' }
+  }])
+  page('/operations/ai-governance/solutions?aiScene=mbti')
+  await screen.findByText('三主题人格方案')
+  expect(screen.getByText('旧版人格方案')).toBeInTheDocument()
+  expect(screen.queryByText('量表方案')).not.toBeInTheDocument()
+  expect(screen.queryByText('量表单次解读', { selector: 'td' })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: '量表单次解读' }))
+  await screen.findByText('量表方案')
+  expect(screen.queryByText('旧版人格方案')).not.toBeInTheDocument()
+  expect(screen.queryByText('三主题人格方案')).not.toBeInTheDocument()
+})
