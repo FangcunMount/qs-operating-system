@@ -195,6 +195,7 @@ export function useNativeEvaluation(
     if (!original.commandID) throw new Error('缺少原命令身份，请保留任务编号。')
     checkMessagingOperation(operation, original.commandID)
     if (operation.resource_id !== original.runID) throw new Error('原操作与任务身份不一致，请保留编号。')
+    if (operation.status === 'submitted' && operation.transport_status === 'held') throw new Error('原命令投递已技术挂起，尚未取得 AI 接单决定。请保留编号继续核对。')
     if (operation.status === 'submitted') throw new Error('原命令已提交，接单决定仍待确认。请保留编号继续查询。')
     if (operation.status === 'held') throw new Error('原命令技术挂起，接单结果尚未确认。请保留编号继续核对。')
     if (operation.status === 'rejected') {
@@ -226,7 +227,7 @@ export function useNativeEvaluation(
     try {
       const result = await waitForMessagingOperation(original.commandID, { signal: controller.signal })
       if (!active.current || controller.signal.aborted) return
-      if (result.status === 'decided' && result.operation) await applyMQDecision(result.operation, original)
+      if ((result.status === 'decided' || result.status === 'held') && result.operation) await applyMQDecision(result.operation, original)
       else setError('原命令已提交，接单决定仍待确认。请保留编号继续查询，不重复提交。')
     } catch (e) {
       if (active.current) setError(e instanceof Error ? e.message : '原命令尚未核对，请保留编号。')

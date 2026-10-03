@@ -92,3 +92,12 @@ it('queries only the configured QS path with bounded timeout and cancellation', 
   await expect(getMessagingOperation('../other')).rejects.toThrow()
   expect(read).toHaveBeenCalledTimes(1)
 })
+
+it('stops polling a publisher hold without inventing an AI decision', async () => {
+  const held: MessagingOperation = { ...submitted, transport_status: 'held' }
+  const query = jest.fn().mockResolvedValue(held)
+  expect(await waitForMessagingOperation(id, { query })).toEqual({ status: 'held', operation: held })
+  expect(query).toHaveBeenCalledTimes(1)
+  expect(held.decision).toBeUndefined()
+  expect(held.receipt).toBeUndefined()
+})

@@ -74,6 +74,10 @@ export function NativeParticipantRetryWorkspace({ owner, initialSessionID = '' }
   }
   const applyOperation = (operation: MessagingOperation, intent: Pending) => {
     if (operation.resource_id !== intent.sessionID) throw new Error('operation resource mismatch')
+    if (operation.status === 'submitted' && operation.transport_status === 'held') {
+      setMessage('原命令投递已技术挂起，尚未取得 AI 接单决定。请保留编号继续核对。')
+      return
+    }
     if (operation.status === 'held') {
       setMessage('原命令技术挂起，尚未确认接单。请保留编号继续核对。')
       return
@@ -101,7 +105,7 @@ export function NativeParticipantRetryWorkspace({ owner, initialSessionID = '' }
     try {
       const result = await waitForMessagingOperation(intent.commandID, { signal: controller.signal })
       if (!live.current || controller.signal.aborted) return
-      if (result.status === 'decided' && result.operation) applyOperation(result.operation, intent)
+      if ((result.status === 'decided' || result.status === 'held') && result.operation) applyOperation(result.operation, intent)
       else setMessage('已提交原命令，接单决定仍待确认。请保留编号继续查询；不要重复创建重试。')
     } finally {
       if (queryController.current === controller) queryController.current = null
@@ -170,7 +174,7 @@ export function NativeParticipantRetryWorkspace({ owner, initialSessionID = '' }
       if (!live.current) return
       if (operation) {
         const intent = markMQ(pending)
-        if (operation.status === 'submitted') {
+        if (operation.status === 'submitted' && operation.transport_status !== 'held') {
           setMessage('原命令已提交，仍待服务端决定。请保留编号继续查询。')
         } else applyOperation(operation, intent)
         return

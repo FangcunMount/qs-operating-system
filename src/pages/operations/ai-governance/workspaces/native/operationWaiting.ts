@@ -2,7 +2,7 @@ import { checkMessagingOperation, getMessagingOperation } from '@/api/path/aiWor
 import type { MessagingOperation } from '@/api/path/aiWorkflow/operations'
 
 type Query = (id: string, signal: AbortSignal) => Promise<MessagingOperation>
-type WaitingResult = { status: 'pending' | 'decided'; operation?: MessagingOperation }
+type WaitingResult = { status: 'pending' | 'decided' | 'held'; operation?: MessagingOperation }
 
 function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -42,6 +42,7 @@ export async function waitForMessagingOperation(
         if (controller.signal.aborted) break
         operation = checkMessagingOperation(next, id)
         options.observed?.(operation)
+        if (operation.status === 'submitted' && operation.transport_status === 'held') return { status: 'held', operation }
         if (operation.status !== 'submitted') return { status: 'decided', operation }
       } catch {
         // Missing/unauthorized/timeout is unknown. Never create a new UUID or POST.

@@ -7,6 +7,9 @@ from pathlib import Path
 report = json.loads(Path(sys.argv[1]).read_text())
 cases = [case for suite in report.get("testResults", []) for case in suite.get("assertionResults", [])]
 required = {
+    "stops polling a publisher hold without inventing an AI decision",
+    "keeps publisher-held evaluation intent without claiming AI acceptance",
+    "keeps publisher-held retry intent across refresh without a business decision",
     "persists start identity and intent before POST; 202 cannot clear it",
     "persists cancel identity and intent before POST; 202 cannot clear it",
     "retains timed out start across refresh even when a later run is visible",

@@ -165,3 +165,19 @@ it('ignores a decision arriving after unmount and recovers by reading the same o
   expect(api.startNativeEvaluation).toHaveBeenCalledTimes(1)
   expect(commands.newCommandID).toHaveBeenCalledTimes(1)
 })
+
+
+it('keeps publisher-held evaluation intent without claiming AI acceptance', async () => {
+  (api.startNativeEvaluation as jest.Mock).mockResolvedValue(submitted())
+  ;(getMessagingOperation as jest.Mock).mockResolvedValue({ operation_id: commandID, command_id: commandID,
+    resource_id: runID, status: 'submitted', transport_status: 'held' })
+  render(<Harness />)
+  fireEvent.click(screen.getByText('read'))
+  await screen.findByText('requested')
+  fireEvent.click(screen.getByText('start'))
+  await screen.findByText('原命令投递已技术挂起，尚未取得 AI 接单决定。请保留编号继续核对。')
+  expect(saved()).toMatchObject({ runID, releaseFingerprint: fp, pending: 'start', lastVersion: 7 })
+  expect(api.startNativeEvaluation).toHaveBeenCalledTimes(1)
+  expect(getMessagingOperation).toHaveBeenCalledTimes(1)
+  expect(api.getNativeEvaluation).toHaveBeenCalledTimes(1)
+})

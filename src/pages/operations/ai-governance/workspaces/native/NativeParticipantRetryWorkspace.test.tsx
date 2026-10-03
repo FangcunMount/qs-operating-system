@@ -168,3 +168,16 @@ it('clears intent only for the matching persisted rejection', async () => {
   expect(sessionStorage.getItem(pendingKey)).toBeNull()
   expect(retry).not.toHaveBeenCalled()
 })
+
+it('keeps publisher-held retry intent across refresh without a business decision', async () => {
+  operation.mockResolvedValue({ operation_id: commandID, command_id: commandID, resource_id: sessionID,
+    status: 'submitted', transport_status: 'held' })
+  sessionStorage.setItem(pendingKey, JSON.stringify({ sessionID, commandID, runID, version: 4,
+    reason: '核对', acceptResultUnknownRisk: true, transport: 'mq' }))
+  render(<NativeParticipantRetryWorkspace owner="owner" />)
+  fireEvent.click(await screen.findByText('查询原重试回执'))
+  await screen.findByText('原命令投递已技术挂起，尚未取得 AI 接单决定。请保留编号继续核对。')
+  expect(sessionStorage.getItem(pendingKey)).toContain(commandID)
+  expect(retry).not.toHaveBeenCalled()
+  expect(receipt).not.toHaveBeenCalled()
+})
