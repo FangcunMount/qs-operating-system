@@ -45,3 +45,21 @@ it.each([
     warning.mockRestore()
   }
 })
+
+
+it('does not classify a read failure as a definitively unsubmitted runtime write', async () => {
+  const reason = 'AI runtime command admission is closed for maintenance; operation was not submitted'
+  const warning = jest.spyOn(message, 'warning').mockImplementation(() => (() => undefined) as any)
+  const adapter = jest.fn((config) => Promise.reject({ config, response: { status: 429, data: { message: reason } } }))
+  const previous = qsInternalV2Axios.defaults.adapter
+  qsInternalV2Axios.defaults.adapter = adapter
+  try {
+    await expect(qsInternalV2Axios.get('/interpretation/ai-workflow/operations/original')).rejects.toMatchObject({ status: 429 })
+    expect(adapter).toHaveBeenCalledTimes(1)
+    expect(adapter.mock.calls[0][0].method).toBe('get')
+    expect(warning).toHaveBeenCalledWith(reason)
+  } finally {
+    qsInternalV2Axios.defaults.adapter = previous
+    warning.mockRestore()
+  }
+})
