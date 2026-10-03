@@ -7,6 +7,7 @@ from pathlib import Path
 report = json.loads(Path(sys.argv[1]).read_text())
 cases = [case for suite in report.get("testResults", []) for case in suite.get("assertionResults", [])]
 required = {
+    "shows partial detail without inventing model outcomes",
     "does not classify a read failure as a definitively unsubmitted runtime write",
     "retains one original write and preserves the meaning of HTTP 429: AI runtime command admission is closed for maintenance; operation was not submitted",
     "retains one original write and preserves the meaning of HTTP 429: Daily capacity reached",
