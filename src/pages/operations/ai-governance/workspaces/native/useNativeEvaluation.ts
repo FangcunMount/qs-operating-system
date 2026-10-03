@@ -29,7 +29,7 @@ import { checkReviewCommand, confirmsReview } from './reviewValidation'
 import { canRequestReopening, confirmsReopening } from './reopeningValidation'
 import { canRequestCancellation, confirmsCancellation, validPendingCancellation } from './cancellationValidation'
 import type { PendingCancellation } from './cancellationValidation'
-import { checkMessagingOperation, getMessagingOperation, isSubmittedOperation } from '@/api/path/aiWorkflow/operations'
+import { checkMessagingOperation, getMessagingOperation, isSubmittedOperation, messagingRejectionText } from '@/api/path/aiWorkflow/operations'
 import type { MessagingOperation } from '@/api/path/aiWorkflow/operations'
 import { waitForMessagingOperation } from './operationWaiting'
 import { definitelyRejected, newCommandID, validReason, validUUID } from './commands'
@@ -201,7 +201,7 @@ export function useNativeEvaluation(
     if (operation.status === 'rejected') {
       remember({ runID: original.runID, releaseFingerprint: original.releaseFingerprint, pending: null, lastVersion: original.lastVersion })
       setRun(null)
-      setError('服务端拒绝了原命令。请读取当前任务状态、权限和额度后再决定。')
+      setError(messagingRejectionText(operation.code))
       return
     }
     const receipt = operation.receipt?.evaluation_receipt

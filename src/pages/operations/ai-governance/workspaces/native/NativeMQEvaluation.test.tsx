@@ -5,6 +5,7 @@ import type { MessagingOperation } from '@/api/path/aiWorkflow/operations'
 import * as commands from './commands'
 import { useNativeEvaluation, evaluationJournalKey } from './useNativeEvaluation'
 import { releaseKeys } from './evaluationValidation'
+import { NativeEvaluationWorkspace } from './NativeEvaluationWorkspace'
 
 jest.mock('@/api/path/aiWorkflow', () => ({
   getNativeEvaluation: jest.fn(), startNativeEvaluation: jest.fn(), cancelNativeEvaluation: jest.fn()
@@ -180,4 +181,21 @@ it('keeps publisher-held evaluation intent without claiming AI acceptance', asyn
   expect(api.startNativeEvaluation).toHaveBeenCalledTimes(1)
   expect(getMessagingOperation).toHaveBeenCalledTimes(1)
   expect(api.getNativeEvaluation).toHaveBeenCalledTimes(1)
+})
+
+it('retains a restored command rejection without an automatic task read erasing it', async () => {
+  sessionStorage.setItem(evaluationJournalKey('42'), JSON.stringify({
+    runID, releaseFingerprint: fp, pending: 'start', lastVersion: 7, expectedVersion: 7,
+    commandID, transport: 'mq', commandIntent: { reason, confirm: true }
+  }))
+  ;(getMessagingOperation as jest.Mock).mockResolvedValue({ ...decision('rejected'), code: 'evaluation_capacity_exceeded' })
+  render(<NativeEvaluationWorkspace owner="42" selection={{}} initialRunID={runID} guided />)
+  fireEvent.click(screen.getByRole('button', { name: '刷新测试与审核状态' }))
+  await screen.findByText('评测容量不足，原命令已被拒绝。请查询当前容量后再决定。')
+  await act(async () => undefined)
+  expect(api.getNativeEvaluation).not.toHaveBeenCalled()
+  expect(api.startNativeEvaluation).not.toHaveBeenCalled()
+  expect(commands.newCommandID).not.toHaveBeenCalled()
+  expect(saved()).toMatchObject({ runID, releaseFingerprint: fp, pending: null, lastVersion: 7 })
+  expect(screen.getByText('评测容量不足，原命令已被拒绝。请查询当前容量后再决定。')).toBeInTheDocument()
 })

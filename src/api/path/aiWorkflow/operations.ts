@@ -10,6 +10,18 @@ export interface SubmittedOperation {
 }
 
 export type MessagingDecision = 'accepted' | 'rejected' | 'held'
+export const messagingRejectionText = (code?: string): string => {
+  const reasons: Record<string, string> = {
+    evaluation_capacity_exceeded: '评测容量不足，原命令已被拒绝。请查询当前容量后再决定。',
+    participant_daily_capacity_exceeded: '参与者调用额度不足，原命令已被拒绝。请核对额度后再决定。',
+    evaluation_state_conflict: '评测状态或版本已变化，原命令已被拒绝。请读取最新状态后再决定。',
+    resource_access_denied: '当前资源权限不足，原命令已被拒绝。请核对权限后再决定。',
+    resource_not_found: '原命令关联的资源不可用，命令已被拒绝。请核对原资源。'
+  }
+  return Object.prototype.hasOwnProperty.call(reasons, code || '')
+    ? reasons[code || '']
+    : '服务端拒绝了原命令。请读取当前任务状态、权限和额度后再决定。'
+}
 export interface MessagingOperation {
   operation_id: string
   command_id: string
