@@ -112,6 +112,8 @@ it('shows partial detail without inventing model outcomes', async () => {
   await screen.findByText('AI 状态暂未确认')
   expect(screen.getByText(/仅展示 QS 已知事实/)).toBeInTheDocument()
   expect(screen.queryByText('原命令保护处置')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: '核对允许的处置' }))
+  expect(screen.getByText('原命令保护处置')).toBeInTheDocument()
 })
 it('discards the previous account response after remount', async () => {
   let resolve: (value: unknown) => void = () => undefined

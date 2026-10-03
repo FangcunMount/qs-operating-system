@@ -4,6 +4,7 @@ import { errorHandler } from 'fc-tools-pc/dist/bundle'
 import { config } from '../config/config'
 import type { QSResponse } from '@/types/qs'
 import { handle401Error } from './tokenRefresh'
+import { runtimeAdmissionRejectionText } from './runtimeAdmission'
 import { getStoredAccessToken } from '@/utils/jwtClaims'
 
 const isDev = process.env.NODE_ENV === 'development'
@@ -160,8 +161,10 @@ const createResponseErrorHandler = (
   }
 
   if (err.response?.status === 429) {
+    const maintenanceMessage = originalRequest?.method?.toLowerCase() === 'post' && originalRequest.qsNoReplay
+      ? runtimeAdmissionRejectionText(err) : undefined
     const rateLimitMessage =
-      err.response?.data?.message || '请求过于频繁，请稍后再试'
+      maintenanceMessage || err.response?.data?.message || '请求过于频繁，请稍后再试'
     message.warning(rateLimitMessage)
     return Promise.reject(err?.response || err)
   }

@@ -349,6 +349,10 @@ export function RuntimeRequestDetail({ owner }: { owner: string }): JSX.Element 
                   </Descriptions.Item>
                   <Descriptions.Item label="当前执行">{ai.execution.run_id}</Descriptions.Item>
                 </Descriptions>
+              </>
+            )}
+            {detail.request.session_id && (
+              <>
                 <Button onClick={() => setAction(!action)}>
                   {action ? '收起处置' : '核对允许的处置'}
                 </Button>
