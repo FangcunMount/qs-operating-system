@@ -10,6 +10,7 @@ export interface SubmittedOperation {
 }
 
 export type MessagingDecision = 'accepted' | 'rejected' | 'held'
+export { runtimeAdmissionRejectionText } from '@/api/runtimeAdmission'
 export const messagingRejectionText = (code?: string): string => {
   const reasons: Record<string, string> = {
     evaluation_capacity_exceeded: '评测容量不足，原命令已被拒绝。请查询当前容量后再决定。',

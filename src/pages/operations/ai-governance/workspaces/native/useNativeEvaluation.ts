@@ -29,7 +29,10 @@ import { checkReviewCommand, confirmsReview } from './reviewValidation'
 import { canRequestReopening, confirmsReopening } from './reopeningValidation'
 import { canRequestCancellation, confirmsCancellation, validPendingCancellation } from './cancellationValidation'
 import type { PendingCancellation } from './cancellationValidation'
-import { checkMessagingOperation, getMessagingOperation, isSubmittedOperation, messagingRejectionText } from '@/api/path/aiWorkflow/operations'
+import {
+  checkMessagingOperation, getMessagingOperation, isSubmittedOperation,
+  messagingRejectionText, runtimeAdmissionRejectionText
+} from '@/api/path/aiWorkflow/operations'
 import type { MessagingOperation } from '@/api/path/aiWorkflow/operations'
 import { waitForMessagingOperation } from './operationWaiting'
 import { definitelyRejected, newCommandID, validReason, validUUID } from './commands'
@@ -403,7 +406,7 @@ export function useNativeEvaluation(
         if (definitelyRejected(failure)) {
           remember(original)
           setRun(null)
-          setError('启动被拒绝，请重新查询任务并检查管理权限。')
+          setError(runtimeAdmissionRejectionText(failure) || '启动被拒绝，请重新查询任务并检查管理权限。')
         } else setError('启动结果尚未确认，请查询原任务，暂不重复启动。')
       } else if (isSubmittedOperation(response.data, commandID)) {
         await waitForMQDecision(markMQ(pending))
@@ -610,7 +613,7 @@ export function useNativeEvaluation(
         if (definitelyRejected(failure)) {
           remember(original)
           setRun(null)
-          setError('取消被拒绝，请重新查询任务并检查管理权限。')
+          setError(runtimeAdmissionRejectionText(failure) || '取消被拒绝，请重新查询任务并检查管理权限。')
         } else setError('取消结果尚未确认，请查询原任务，暂不重复提交。')
       } else if (isSubmittedOperation(response.data, commandID)) {
         await waitForMQDecision(markMQ(pending))

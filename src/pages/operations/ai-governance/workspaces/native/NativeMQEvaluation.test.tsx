@@ -66,6 +66,35 @@ async function open() {
   return view
 }
 
+it.each(['start', 'cancel'] as const)('shows maintenance before %s submission without an AI decision or automatic retry', async (action) => {
+  const write = action === 'start' ? api.startNativeEvaluation : api.cancelNativeEvaluation
+  ;(write as jest.Mock).mockResolvedValue([{ status: 429, data: { code: 115010,
+    message: 'AI runtime command admission is closed for maintenance; operation was not submitted' } }, undefined])
+  const view = await open()
+  fireEvent.click(screen.getByText(action))
+  await screen.findByText('运行服务正在维护，新命令未提交。请稍后重新查询，再决定是否操作。')
+  expect(saved().pending).toBeNull()
+  expect(screen.getByTestId('run')).toHaveTextContent('unread')
+  expect(write).toHaveBeenCalledTimes(1)
+  expect(getMessagingOperation).not.toHaveBeenCalled()
+  view.unmount()
+  render(<Harness />)
+  expect(write).toHaveBeenCalledTimes(1)
+  expect(commands.newCommandID).toHaveBeenCalledTimes(1)
+})
+
+it.each(['start', 'cancel'] as const)('keeps uncertain %s intent when storage is unavailable even with a maintenance message', async (action) => {
+  const write = action === 'start' ? api.startNativeEvaluation : api.cancelNativeEvaluation
+  ;(write as jest.Mock).mockResolvedValue([{ status: 503, data: {
+    message: 'AI runtime command admission is closed for maintenance; operation was not submitted' } }, undefined])
+  await open()
+  fireEvent.click(screen.getByText(action))
+  await screen.findByText(action === 'start' ? '启动结果尚未确认，请查询原任务，暂不重复启动。' : '取消结果尚未确认，请查询原任务，暂不重复提交。')
+  expect(saved()).toMatchObject({ commandID, pending: action })
+  expect(write).toHaveBeenCalledTimes(1)
+  expect(screen.queryByText('运行服务正在维护，新命令未提交。请稍后重新查询，再决定是否操作。')).not.toBeInTheDocument()
+})
+
 it.each(['start', 'cancel'] as const)('persists %s identity and intent before POST; 202 cannot clear it', async (action) => {
   let settle: (value: MessagingOperation) => void = () => undefined
   ;(getMessagingOperation as jest.Mock).mockImplementation(() => new Promise((resolve) => { settle = resolve }))

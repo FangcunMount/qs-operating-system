@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Checkbox, Descriptions, Input, Space, Typography } from 'antd'
 import { getParticipantExecution, getParticipantRetryReceipt, retryParticipant } from '@/api/path/aiWorkflow'
 import type { ParticipantExecution, ParticipantRetryReceipt } from '@/api/path/aiWorkflow'
-import { getMessagingOperation, isSubmittedOperation } from '@/api/path/aiWorkflow/operations'
+import { getMessagingOperation, isSubmittedOperation, runtimeAdmissionRejectionText } from '@/api/path/aiWorkflow/operations'
 import type { MessagingOperation } from '@/api/path/aiWorkflow/operations'
 import { waitForMessagingOperation } from './operationWaiting'
 import { definitelyRejected, newCommandID, validReason, validUUID } from './commands'
@@ -148,7 +148,7 @@ export function NativeParticipantRetryWorkspace({ owner, initialSessionID = '' }
       if (error) {
         if (rejected(error)) {
           clearPending()
-          setMessage('重试未被接受，请重新查询状态、权限和额度后再决定。')
+          setMessage(runtimeAdmissionRejectionText(error) || '重试未被接受，请重新查询状态、权限和额度后再决定。')
           return
         }
         throw new Error('unknown outcome')

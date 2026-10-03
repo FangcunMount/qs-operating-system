@@ -80,6 +80,21 @@ it.each([403, 409, 429])('clears a definitively rejected %s submission and requi
   expect(screen.queryByText('确认重试原解读')).not.toBeInTheDocument()
   expect(sessionStorage.getItem(pendingKey)).toBeNull()
 })
+it('shows maintenance for retry without inventing an AI rejection or another write', async () => {
+  retry.mockResolvedValue([{ response: { status: 429, data: {
+    message: 'AI runtime command admission is closed for maintenance; operation was not submitted' } } }])
+  const view = render(<NativeParticipantRetryWorkspace owner="owner" />)
+  await select()
+  fireEvent.click(screen.getByText('原调用结果未知，我接受重复调用和重复费用风险'))
+  fireEvent.click(screen.getByText('确认重试原解读'))
+  await screen.findByText('运行服务正在维护，新命令未提交。请稍后重新查询，再决定是否操作。')
+  expect(screen.queryByText('确认重试原解读')).not.toBeInTheDocument()
+  expect(sessionStorage.getItem(pendingKey)).toBeNull()
+  expect(operation).not.toHaveBeenCalled()
+  view.unmount()
+  render(<NativeParticipantRetryWorkspace owner="owner" />)
+  expect(retry).toHaveBeenCalledTimes(1)
+})
 it('preserves the original command when receipt bindings differ', async () => {
   retry.mockResolvedValue([null, { data: { ...accepted, session_id: runID } }])
   render(<NativeParticipantRetryWorkspace owner="owner" />)

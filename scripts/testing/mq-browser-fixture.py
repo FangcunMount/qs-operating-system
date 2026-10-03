@@ -56,8 +56,8 @@ def main():
         def log_message(self, *_):
             pass
 
-        def reply(self, data, status=200):
-            raw = json.dumps({"code": 0, "message": "isolated browser fixture", "data": data}).encode()
+        def reply(self, data, status=200, message="isolated browser fixture"):
+            raw = json.dumps({"code": 115010 if status == 429 else 0, "message": message, "data": data}).encode()
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(raw)))
@@ -93,6 +93,11 @@ def main():
             if path == write_path:
                 command = data.get("command_id")
                 self.record(command)
+                if mode_path.exists() and mode_path.read_text().strip() == "maintenance":
+                    # Definitive host refusal before persisting an operation;
+                    # still record the one physical attempt for browser evidence.
+                    return self.reply({"error": "runtime admission closed"}, 429,
+                        "AI runtime command admission is closed for maintenance; operation was not submitted")
                 if original:
                     return self.reply({"error": "unexpected second write"}, 409)
                 original.update(data)

@@ -7,6 +7,13 @@ from pathlib import Path
 report = json.loads(Path(sys.argv[1]).read_text())
 cases = [case for suite in report.get("testResults", []) for case in suite.get("assertionResults", [])]
 required = {
+    "retains one original write and preserves the meaning of HTTP 429: AI runtime command admission is closed for maintenance; operation was not submitted",
+    "retains one original write and preserves the meaning of HTTP 429: Daily capacity reached",
+    "shows maintenance before start submission without an AI decision or automatic retry",
+    "shows maintenance before cancel submission without an AI decision or automatic retry",
+    "shows maintenance for retry without inventing an AI rejection or another write",
+    "keeps uncertain start intent when storage is unavailable even with a maintenance message",
+    "keeps uncertain cancel intent when storage is unavailable even with a maintenance message",
     "retains a restored command rejection without an automatic task read erasing it",
     "stops polling a publisher hold without inventing an AI decision",
     "keeps publisher-held evaluation intent without claiming AI acceptance",

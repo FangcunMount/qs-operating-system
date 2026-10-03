@@ -18,7 +18,7 @@ jobs:
       - name: Verify required MQ UI scenarios
         run: |
           mkdir -p artifacts
-          CI=true npm test -- --watchAll=false --runInBand src/pages/operations/ai-governance/workspaces/native src/api/path/aiWorkflow --json --outputFile=artifacts/mq-ui.json
+          CI=true npm test -- --watchAll=false --runInBand src/pages/operations/ai-governance/workspaces/native src/api/path/aiWorkflow src/api/qsServer.noReplay.test.ts --json --outputFile=artifacts/mq-ui.json
           python3 scripts/ci/verify_mq_report.py artifacts/mq-ui.json
       - run: npx tsc --noEmit --pretty false
       - run: npx eslint . --ext .ts,.tsx,.js,.jsx --max-warnings 0
