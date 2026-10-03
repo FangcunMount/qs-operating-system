@@ -1,3 +1,4 @@
+import { isMbtiSceneContract } from './solutionScene'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Prompt, useHistory, useLocation } from 'react-router-dom'
 import { observer } from 'mobx-react-lite'
@@ -92,7 +93,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
       if (!after) {
         const catalog = page.data.templates || []
         if (!Array.isArray(catalog) || catalog.some((entry) =>
-          !['mbti-single-assessment/v1', 'mbti-single-assessment/v2'].includes(entry.scene_contract_version) ||
+          !isMbtiSceneContract(entry.scene_contract_version) ||
           !sameSelector(entry.selector, mbtiPublicationSelector) ||
           !entry.template_ref?.id || !entry.template_ref?.version || entry.published !== false ||
           !/^sha256:[a-f0-9]{64}$/.test(entry.template_ref.fingerprint)
@@ -364,13 +365,13 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                   <Table<SolutionSummary>
                     rowKey="solution_id"
                     dataSource={items.filter((item) => scene === 'mbti'
-                      ? item.scene_contract_version === 'mbti-single-assessment/v1'
+                      ? isMbtiSceneContract(item.scene_contract_version)
                       : !item.scene_contract_version)}
                     pagination={false}
                     loading={loading}
                     columns={[
                       { title: '名称', dataIndex: 'title' },
-                      { title: '场景', render: (_, row) => row.scene_contract_version === 'mbti-single-assessment/v1' ? 'MBTI 单次解读' : '量表单次解读' },
+                      { title: '场景', render: (_, row) => isMbtiSceneContract(row.scene_contract_version) ? 'MBTI 单次解读' : '量表单次解读' },
                       { title: '修改目的', dataIndex: 'reason' },
                       { title: '负责人', dataIndex: 'created_by' },
                       {
@@ -419,7 +420,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                 <Typography.Title level={4} style={{ margin: 0 }}>
                   {solution?.title || (externalRun === 'publication' ? '线上发布与回退' : '评测与审核')}
                 </Typography.Title>
-                {solution && <Tag color="blue">{solution.scene_contract_version === 'mbti-single-assessment/v1' ? 'MBTI 单次解读' : '量表单次解读'}</Tag>}
+                {solution && <Tag color="blue">{isMbtiSceneContract(solution.scene_contract_version) ? 'MBTI 单次解读' : '量表单次解读'}</Tag>}
                 {dirty && <Tag color="orange">请先保存修改</Tag>}
               </Space>
               <Steps
