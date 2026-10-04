@@ -158,9 +158,7 @@ export function NativeParticipantRetryWorkspace({ owner, initialSessionID = '' }
         await waitForIntent(markMQ(intent))
         return
       }
-      validateReceipt(response.data, intent)
-      setReceipt(response.data)
-      clearPending()
+      throw new Error('Expected original submitted MQ operation')
     } catch { if (live.current) setMessage('命令结果尚未确认，请查询原命令回执。不要重复创建重试。') }
     finally { end() }
   }

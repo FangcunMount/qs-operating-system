@@ -73,8 +73,8 @@ export const getParticipantExecution = (sessionID: string): Promise<[unknown, QS
   internalV2Get<ParticipantExecution>(`/interpretation/ai-workflow/participants/${encodeURIComponent(sessionID)}`)
 export const retryParticipant = (
   sessionID: string, command: ParticipantRetryCommand
-): Promise<[unknown, QSResponse<ParticipantRetryReceipt | SubmittedOperation> | undefined]> =>
-  internalV2PostOnce<ParticipantRetryReceipt | SubmittedOperation>(
+): Promise<[unknown, QSResponse<SubmittedOperation> | undefined]> =>
+  internalV2PostOnce<SubmittedOperation>(
     `/interpretation/ai-workflow/participants/${encodeURIComponent(sessionID)}/retry`, command)
 export const getParticipantRetryReceipt = (commandID: string): Promise<[unknown, QSResponse<ParticipantRetryReceipt> | undefined]> =>
   internalV2Get<ParticipantRetryReceipt>(`/interpretation/ai-workflow/participants/retry-commands/${encodeURIComponent(commandID)}`)
