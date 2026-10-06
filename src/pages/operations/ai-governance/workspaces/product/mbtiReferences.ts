@@ -1,3 +1,4 @@
+import { frozenInputDocument } from './frozenInput'
 import type { MBTITheme, MBTIThemeEvidence } from './mbtiThreeTopicOutput'
 
 export interface MBTIReferenceSource {
@@ -59,9 +60,9 @@ export function isMBTIReferenceSelection(v: unknown): v is MBTIReferenceSelectio
 // Byte-level fingerprint verification is owned by authenticated QS/qs-ai reads.
 // The UI only reads that original projection; it never fetches a newer asset.
 export function frozenMBTIReferences(evidence: unknown): MBTIFrozenReferences | undefined {
-  if (!object(evidence) || !object(evidence.frozen_input) || evidence.frozen_input.available !== true ||
-    !object(evidence.frozen_input.content) || evidence.frozen_input.content.schema_version !== 'ai-explanation-input/v3') return
-  const input = evidence.frozen_input.content
+  const document = frozenInputDocument(evidence)
+  if (document?.schemaVersion !== 'ai-explanation-input/v3') return
+  const input = document.content
   if (!object(input.reference_material)) return
   const { fingerprint: digest, ...material } = input.reference_material
   if (!fingerprint(digest) || !isMBTIReferenceSelection(material) || !object(input.facts) ||

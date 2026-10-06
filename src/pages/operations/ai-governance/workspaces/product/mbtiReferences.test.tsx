@@ -58,3 +58,49 @@ it('rejects wrong report type rather than drawing facts from a current source', 
   render(<FrozenInputReading evidence={e} />)
   expect(screen.getByText('本候选的冻结输入暂不可读')).toBeInTheDocument()
 })
+
+const providerEvidence = () => {
+  const e: any = evidence()
+  delete e.frozen_input.content.schema_version
+  e.frozen_input.input_schema = { id: 'ai-explanation-input', version: 'ai-explanation-input/v3', fingerprint: `sha256:${'a'.repeat(64)}` }
+  e.release = { input_schema: { ...e.frozen_input.input_schema } }
+  return e
+}
+it('reads the unwrapped frozen provider payload and references without changing its content', () => {
+  const e = providerEvidence(), before = JSON.stringify(e)
+  render(<FrozenInputReading evidence={e} />)
+  expect(screen.getByText('ISFJ')).toBeInTheDocument()
+  expect(frozenMBTIReferences(e)?.content).toEqual(material())
+  expect(JSON.stringify(e)).toBe(before)
+})
+it('uses the original release contract for historical unwrapped payloads', () => {
+  const e = providerEvidence(); delete e.frozen_input.input_schema
+  render(<FrozenInputReading evidence={e} />)
+  expect(screen.getByText('ISFJ')).toBeInTheDocument()
+  expect(frozenMBTIReferences(e)).toBeDefined()
+})
+it.each([
+  ['missing contract', (e: any) => { delete e.frozen_input.input_schema; delete e.release }],
+  ['unknown version', (e: any) => { e.frozen_input.input_schema.version = 'latest' }],
+  ['damaged digest', (e: any) => { e.frozen_input.input_schema.fingerprint = 'broken' }],
+  ['wrong identity', (e: any) => { e.frozen_input.input_schema.id = 'different' }],
+  ['release disagreement', (e: any) => { e.release.input_schema.fingerprint = `sha256:${'b'.repeat(64)}` }],
+  ['wrapper disagreement', (e: any) => { e.frozen_input.content.schema_version = 'ai-explanation-input/v2' }],
+  ['unavailable payload', (e: any) => { e.frozen_input.available = false }]
+])('refuses unverifiable provider payload: %s', (_name, mutate) => {
+  const e = providerEvidence(); (mutate as (value: any) => void)(e)
+  render(<FrozenInputReading evidence={e} />)
+  expect(screen.getByText('本候选的冻结输入暂不可读')).toBeInTheDocument()
+  expect(frozenMBTIReferences(e)).toBeUndefined()
+  expect(screen.queryByText('ISFJ')).not.toBeInTheDocument()
+})
+it('keeps unwrapped v1 scale inputs readable through their frozen contract', () => {
+  const e = { frozen_input: { available: true, input_schema: { id: 'ai-explanation-input',
+    version: 'ai-explanation-input/v1', fingerprint: `sha256:${'a'.repeat(64)}` }, content: { facts: {
+    model: { title: '固定量表' }, overall_result: { primary_score: { value: 21 } },
+    dimensions: [{ code: 'D1', primary_score: { value: 7 }, standard_description: '固定说明' }]
+  } } } }
+  render(<FrozenInputReading evidence={e} />)
+  expect(screen.getByText('固定量表')).toBeInTheDocument()
+  expect(screen.getByText('21')).toBeInTheDocument()
+})

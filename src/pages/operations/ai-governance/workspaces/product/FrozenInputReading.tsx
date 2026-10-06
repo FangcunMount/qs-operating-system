@@ -1,14 +1,16 @@
 import { Alert, Card, Descriptions, Typography } from 'antd'
 import { JsonEvidence } from '../../components/JsonEvidence'
+import { frozenInputDocument } from './frozenInput'
 
 export function FrozenInputReading({ evidence }: { evidence: unknown }): JSX.Element {
-  const value = (evidence as any)?.frozen_input
-  const content = value?.content,
+  const document = frozenInputDocument(evidence)
+  const value = document?.value
+  const content = document?.content,
     facts = content?.facts
   const axes = ['EI', 'SN', 'TF', 'JP']
   const type = facts?.model_result?.type_code
   const mbti = value?.available === true &&
-    ['ai-explanation-input/v2', 'ai-explanation-input/v3'].includes(content?.schema_version) &&
+    ['ai-explanation-input/v2', 'ai-explanation-input/v3'].includes(document?.schemaVersion) &&
     typeof facts?.model?.title === 'string' && typeof facts?.overall_result?.standard_conclusion === 'string' &&
     facts?.model?.code === 'MBTI_OEJTS' && facts?.model?.version === 'v64-report-202608-v1' &&
     typeof type === 'string' && /^[EI][SN][TF][JP]$/.test(type) &&
@@ -36,7 +38,7 @@ export function FrozenInputReading({ evidence }: { evidence: unknown }): JSX.Ele
   </section>
   if (
     !value?.available ||
-    content?.schema_version !== 'ai-explanation-input/v1' ||
+    document?.schemaVersion !== 'ai-explanation-input/v1' ||
     !Array.isArray(facts?.dimensions)
   )
     return (
