@@ -200,6 +200,18 @@ it('sends native candidate review once with version and encoded Run identity', (
   expect(get).not.toHaveBeenCalled()
 })
 
+it('submits an evidence-bound correction once without client actor or model calls', () => {
+  const digest = 'sha256:' + 'a'.repeat(64)
+  const command: api.NativeReviewCorrectionCommand = {
+    command_id: '00000000-0000-4000-8000-000000000009', expected_version: 151,
+    candidate_id: 'candidate:1', role: 'safety_product', previous_review_fingerprint: digest,
+    candidate_output_fingerprint: digest, decision: 'approve', reason: '正文准确，记录标题建议', confirm: true
+  }
+  api.correctNativeReview('run/id', command)
+  expect(post.mock.calls).toEqual([['/interpretation/ai-workflow/evaluations/run%2Fid/review-corrections', command]])
+  expect(get).not.toHaveBeenCalled()
+})
+
 it('reads version-bound native gates and preserves explicit false finalization through the no-replay proxy', () => {
   api.previewNativeGates('run/id', 8)
   const command = { expected_version: 8, expected_passed: false, reason: '门槛未通过', confirm: true as const }

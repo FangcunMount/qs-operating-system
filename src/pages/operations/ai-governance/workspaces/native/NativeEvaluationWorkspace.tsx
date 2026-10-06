@@ -23,6 +23,7 @@ const pendingLabels = {
   create: '创建',
   start: '启动',
   review: '审核',
+  correct_review: '审核更正',
   finalize: '最终审核',
   reopen: '复审',
   resolve: '处置',
@@ -392,10 +393,14 @@ export function NativeEvaluationWorkspace({
               run={c.run}
               locked={c.busy || c.storageFailed || Boolean(c.journal?.pending)}
               review={c.review}
+              owner={owner}
+              correctReview={c.correctReview}
             />
           )}
         </Card>
       )}
+      {c.journal?.pending === 'correct_review' && <Button disabled={c.busy || c.storageFailed}
+        onClick={c.retryCorrection}>重试原审核更正命令</Button>}
       {!guided && (c.run || c.journal) && (
         <Button
           style={{ marginTop: 16 }}
