@@ -6,6 +6,7 @@ import type {
   NativeCandidateIndex,
   NativeEvaluationState,
   NativeReviewCommand,
+  NativeReviewCorrectionCommand,
   NativeReviewRole
 } from '@/api/path/aiWorkflow'
 import { NativeReviewWorkspace } from './NativeReviewWorkspace'
@@ -18,6 +19,8 @@ export function NativeCandidateWorkspace({
   run,
   locked = false,
   review,
+  owner,
+  correctReview,
   initialRole,
   autoLoad = false
 }: {
@@ -26,6 +29,8 @@ export function NativeCandidateWorkspace({
   initialRole?: NativeReviewRole
   locked?: boolean
   review?(command: NativeReviewCommand, confirm: boolean): Promise<void>
+  owner?: string
+  correctReview?(command: NativeReviewCorrectionCommand): Promise<void>
 }): JSX.Element {
   const [index, setIndex] = useState<NativeCandidateIndex | null>(null)
   const [detail, setDetail] = useState<NativeCandidateEvidence | null>(null)
@@ -251,6 +256,8 @@ export function NativeCandidateWorkspace({
                     detail={detail}
                     locked={locked || busy}
                     submit={review}
+                    owner={owner}
+                    correctReview={correctReview}
                     onDirty={setReviewDirty}
                     enqueue={(command) => {
                       setQueued(command)

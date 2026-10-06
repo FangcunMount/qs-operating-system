@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Card, Checkbox, Input, Radio, Select, Space, Table, Typography } from 'antd'
-import type { NativeCandidateEvidence, NativeEvaluationState, NativeReviewCommand, NativeReviewRole } from '@/api/path/aiWorkflow'
+import type { NativeCandidateEvidence, NativeEvaluationState, NativeReviewCommand,
+  NativeReviewRole, NativeReviewCorrectionCommand } from '@/api/path/aiWorkflow'
 import { validReason } from './commands'
 import { contradictionTargets, reviewRecords, validSemanticReview } from './reviewValidation'
+import { NativeReviewCorrectionWorkspace } from './NativeReviewCorrectionWorkspace'
 
-export function NativeReviewWorkspace({ run, detail, locked, submit, enqueue, initialRole, onDirty }: {
+export function NativeReviewWorkspace({ run, detail, locked, submit, enqueue, initialRole, onDirty, owner, correctReview }: {
   onDirty?(dirty: boolean): void
+  owner?: string
+  correctReview?(command: NativeReviewCorrectionCommand): Promise<void>
   initialRole?: NativeReviewRole
   run: NativeEvaluationState
   detail: NativeCandidateEvidence
@@ -13,6 +17,7 @@ export function NativeReviewWorkspace({ run, detail, locked, submit, enqueue, in
   enqueue?(command: NativeReviewCommand): void
   submit(command: NativeReviewCommand, confirm: boolean): Promise<void>
 }): JSX.Element {
+  const [correctionDirty, setCorrectionDirty] = useState(false)
   const [role, setRole] = useState<NativeReviewRole>(initialRole || 'assessment_semantics')
   const [decision, setDecision] = useState<'approve' | 'reject'>('approve')
   const [reason, setReason] = useState('')
@@ -21,7 +26,9 @@ export function NativeReviewWorkspace({ run, detail, locked, submit, enqueue, in
   const [ordinal, setOrdinal] = useState<number>()
   const [excerpt, setExcerpt] = useState('')
   const [exceptionReason, setExceptionReason] = useState('')
-  useEffect(() => { onDirty?.(Boolean(reason || excerpt || exceptionReason || confirmed)) }, [reason, excerpt, exceptionReason, confirmed, onDirty])
+  useEffect(() => {
+    onDirty?.(Boolean(reason || excerpt || exceptionReason || confirmed || correctionDirty))
+  }, [reason, excerpt, exceptionReason, confirmed, correctionDirty, onDirty])
   let history
   try { history = reviewRecords(run.reviews).filter((r) => r.candidate_id === detail.candidate_id) }
   catch { return <Alert type="warning" message="审核历史暂不可读，请重新查询任务。" /> }
@@ -59,6 +66,8 @@ export function NativeReviewWorkspace({ run, detail, locked, submit, enqueue, in
             { title: '理由', dataIndex: 'reason' }, { title: '时间', dataIndex: 'reviewed_at' }
           ]} />
       </details>
+      {correctReview && owner && <NativeReviewCorrectionWorkspace run={run} detail={detail}
+        owner={owner} locked={locked} submit={correctReview} onDirty={setCorrectionDirty} />}
       <Space direction="vertical" style={{ width: '100%', marginTop: 12 }}>
         <Radio.Group aria-label="审核职责" value={role} disabled={locked} onChange={(e) => { setRole(e.target.value); setConfirmed(false) }}>
           <Radio value="assessment_semantics">测评语义</Radio><Radio value="safety_product">安全与产品</Radio>

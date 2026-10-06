@@ -5,6 +5,7 @@ import {
   prepareNativeEvaluation,
   startNativeEvaluation,
   reviewNativeEvaluation,
+  correctNativeReview,
   previewNativeGates,
   finalizeNativeEvaluation,
   reopenNativeReview,
@@ -18,6 +19,7 @@ import type {
   EvaluationSelection,
   NativeEvaluationState,
   NativeReviewCommand,
+  NativeReviewCorrectionCommand,
   NativeGatePreview,
   NativeUnknownIndex,
   NativeResolutionCommand
@@ -26,6 +28,7 @@ import { checkUnknownIndex, confirmsResolution, validPendingResolution } from '.
 import type { PendingResolution } from './unknownValidation'
 import { checkGatePreview, finalizationReceipt, gatePassed, reviewIncomplete } from './finalizationValidation'
 import { checkReviewCommand, confirmsReview } from './reviewValidation'
+import { checkCorrection, confirmsCorrection, excludesCorrection } from './reviewCorrectionValidation'
 import { canRequestReopening, confirmsReopening } from './reopeningValidation'
 import { canRequestCancellation, confirmsCancellation, validPendingCancellation } from './cancellationValidation'
 import type { PendingCancellation } from './cancellationValidation'
@@ -48,7 +51,7 @@ import {
 interface Journal {
   runID: string
   releaseFingerprint: string
-  pending: 'create' | 'start' | 'review' | 'finalize' | 'reopen' | 'resolve' | 'cancel' | null
+  pending: 'create' | 'start' | 'review' | 'finalize' | 'reopen' | 'resolve' | 'cancel' | 'correct_review' | null
   commandID?: string
   commandIntent?: { reason: string; confirm: true; discard?: boolean }
   transport?: 'mq'
@@ -56,6 +59,7 @@ interface Journal {
   lastVersion?: number
   cancellation?: PendingCancellation
   resolution?: PendingResolution
+  correction?: NativeReviewCorrectionCommand
 }
 export const evaluationJournalKey = (owner: string): string =>
   `qs-ai:evaluation:v1:${encodeURIComponent(owner)}`
@@ -67,8 +71,8 @@ const readJournal = (owner: string): Journal | null => {
     !j ||
     !validUUID(j.runID || '') ||
     !fingerprint(j.releaseFingerprint) ||
-    ![null, 'create', 'start', 'review', 'finalize', 'reopen', 'resolve', 'cancel'].includes(j.pending) ||
-    (['start', 'review', 'finalize', 'reopen', 'resolve', 'cancel'].includes(j.pending) && !safeCount(j.expectedVersion)) ||
+    ![null, 'create', 'start', 'review', 'finalize', 'reopen', 'resolve', 'cancel', 'correct_review'].includes(j.pending) ||
+    (['start', 'review', 'finalize', 'reopen', 'resolve', 'cancel', 'correct_review'].includes(j.pending) && !safeCount(j.expectedVersion)) ||
     (j.pending === 'cancel' && (!validPendingCancellation(j.cancellation) || j.cancellation.actor !== `user:${owner}`)) ||
     (j.pending === 'resolve' && (!validPendingResolution(j.resolution) || j.resolution.actor !== `user:${owner}`)) ||
     (j.lastVersion !== undefined && !safeCount(j.lastVersion)) ||
@@ -78,6 +82,10 @@ const readJournal = (owner: string): Journal | null => {
     (j.transport !== undefined && (j.transport !== 'mq' || !j.commandID))
   ) {
     throw new Error('Invalid journal')
+  }
+  if (j.pending === 'correct_review') {
+    checkCorrection(j.correction)
+    if (j.correction.expected_version !== j.expectedVersion) throw new Error('Invalid correction journal')
   }
   return j
 }
@@ -96,6 +104,8 @@ interface EvaluationController {
   read(id?: string): Promise<void>
   start(reason: string, confirm: boolean): Promise<void>
   review(command: NativeReviewCommand, confirm: boolean): Promise<void>
+  correctReview(command: NativeReviewCorrectionCommand): Promise<void>
+  retryCorrection(): Promise<void>
   previewGates(): Promise<void>
   finalize(reason: string, confirm: boolean): Promise<void>
   reopen(reason: string, confirm: boolean): Promise<void>
@@ -164,12 +174,16 @@ export function useNativeEvaluation(
     checkEvaluation(value, original.runID, original.releaseFingerprint)
     if (original.lastVersion && value.version < original.lastVersion)
       throw new Error('任务版本倒退，请重新读取。')
-    if (['start', 'review', 'finalize', 'reopen', 'resolve', 'cancel'].includes(original.pending || '') &&
+    if (['start', 'review', 'finalize', 'reopen', 'resolve', 'cancel', 'correct_review'].includes(original.pending || '') &&
       value.version <= (original.expectedVersion || 0)) {
       const action = original.pending === 'cancel' ? '取消' : original.pending === 'resolve' ? '处置'
         : original.pending === 'reopen' ? '复审'
           : original.pending === 'finalize' ? '最终审核' : original.pending === 'review' ? '审核' : '启动'
       throw new Error(`${action}结果尚未确认，请保留原任务并稍后查询。`)
+    }
+    if (original.pending === 'correct_review') {
+      if (!original.correction || !confirmsCorrection(value, original.correction, owner))
+        throw new Error('审核更正回执尚未确认，请保留原命令。')
     }
     if (original.pending === 'cancel') {
       if (!original.cancellation) throw new Error('缺少原取消记录。')
@@ -347,6 +361,10 @@ export function useNativeEvaluation(
         value.version > (original.expectedVersion || 0)) {
         complete(value, { ...original, pending: null })
         setError('任务已推进，此次取消未生效；请按最新状态重新操作。')
+      } else if (original?.runID === id && original.pending === 'correct_review' && original.correction &&
+        excludesCorrection(value, original.correction)) {
+        complete(value, { ...original, pending: null })
+        setError('任务版本已更新，原更正命令未生效；请核对最新审核后重新操作。')
       } else if (original?.runID === id) complete(value, original)
       else {
         // A legacy response is readable, but cannot enable Start without its frozen creation.
@@ -452,6 +470,39 @@ export function useNativeEvaluation(
     } catch {
       if (active.current) setError('审核结果尚未确认，请查询原任务，暂不重复提交。')
     } finally { end() }
+  }
+  const sendCorrection = async (pending: Journal) => {
+    if (!pending.correction || !owner || !begin()) return
+    setGates(null)
+    try {
+      const [failure, response] = await correctNativeReview(pending.runID, pending.correction)
+      if (!active.current) return
+      if (failure || !response) {
+        if (definitelyRejected(failure)) {
+          remember({ ...pending, pending: null, correction: undefined })
+          setRun(null)
+          setError('审核更正被拒绝，请刷新任务并核对原审核者、版本和权限。')
+        } else setError('更正结果尚未确认，请查询原任务；可重试原命令，不要创建新决定。')
+      } else {
+        if (!confirmsCorrection(response.data, pending.correction, owner)) throw new Error('Correction receipt mismatch')
+        complete(response.data, pending)
+      }
+    } catch {
+      if (active.current) setError('更正结果尚未确认，请查询原任务；原命令已保留。')
+    } finally { end() }
+  }
+  const correctReview = async (command: NativeReviewCorrectionCommand) => {
+    const original = journalRef.current
+    if (!owner || !run?.creation || run.status !== 'awaiting_review' || !original ||
+      original.pending || original.runID !== run.run_id || storageFailed || command.expected_version !== run.version) return
+    try { checkCorrection(command) } catch { return }
+    const pending: Journal = { ...original, pending: 'correct_review', expectedVersion: run.version, correction: command }
+    try { remember(pending) } catch { setStorageFailed(true); setError('无法保存更正命令，本次未发送。'); return }
+    await sendCorrection(pending)
+  }
+  const retryCorrection = async () => {
+    const pending = journalRef.current
+    if (pending?.pending === 'correct_review' && !storageFailed) await sendCorrection(pending)
   }
   const previewGates = async () => {
     if (!run?.creation || run.status !== 'awaiting_review' || journalRef.current?.pending || !begin()) return
@@ -651,6 +702,8 @@ export function useNativeEvaluation(
     read,
     start,
     review,
+    correctReview,
+    retryCorrection,
     previewGates,
     finalize,
     reopen,

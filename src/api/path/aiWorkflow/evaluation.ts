@@ -10,6 +10,7 @@ import type {
   NativeCandidateIndex,
   NativeCandidateEvidence,
   NativeReviewCommand,
+  NativeReviewCorrectionCommand,
   NativeGatePreview,
   NativeFinalizeCommand,
   NativeReopenCommand,
@@ -88,3 +89,6 @@ export const cancelNativeEvaluation = (id: string, command: NativeCancelCommand)
 
 export const getNativeEvaluationCapacity = (): Result<NativeEvaluationCapacity> =>
   internalV2Get<NativeEvaluationCapacity>('/interpretation/ai-workflow/evaluation-capacity')
+
+export const correctNativeReview = (id: string, command: NativeReviewCorrectionCommand): Result<NativeEvaluationState> =>
+  internalV2PostOnce<NativeEvaluationState>(`${path(id)}/review-corrections`, command)

@@ -57,6 +57,9 @@ export interface NativeEvaluationState {
   creation?: EvaluationCreation
   resolutions: unknown[]
   reviews: unknown[]
+  original_reviews?: unknown[]
+  review_corrections?: NativeReviewCorrectionReceipt[]
+  review_fingerprints?: Array<{candidate_id: string; role: NativeReviewRole; fingerprint: string}>
   review_reopenings: unknown[]
   execution_mode?: 'serial_v1' | 'candidate_v2'
   active_call_count?: number
@@ -305,4 +308,25 @@ export interface NativeEvaluationCapacity {
   reservation_count: number
   reservations: Array<{ run_id: string; provider_calls: number; requested_by: string; reserved_at: string }>
   reservations_truncated: boolean
+}
+
+export interface NativeReviewCorrectionCommand {
+  command_id: string
+  expected_version: number
+  candidate_id: string
+  role: NativeReviewRole
+  previous_review_fingerprint: string
+  candidate_output_fingerprint: string
+  decision: 'approve' | 'reject'
+  reason: string
+  confirm: true
+}
+export interface NativeReviewCorrectionReceipt {
+  command_id: string
+  source_version: number
+  version: number
+  previous_review_fingerprint: string
+  candidate_output_fingerprint: string
+  previous_review: NativeReviewRecord
+  review: NativeReviewRecord
 }
