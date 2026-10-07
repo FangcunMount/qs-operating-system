@@ -8,7 +8,9 @@ import { getPublication } from '@/api/path/aiWorkflow'
 import type { NativeEvaluationState, PublicationState, NativeReviewRole } from '@/api/path/aiWorkflow'
 import { getSolutionModels, listSolutions } from '@/api/path/aiWorkflow/solutions'
 import type { SolutionModels, SolutionSummary, SolutionTemplate } from '@/api/path/aiWorkflow/solutions'
-import { checkPublication, defaultPublicationSelector, mbtiPublicationSelector, mbtiExplorationPublicationSelector, sameSelector } from '../native/publicationValidation'
+import {
+  checkPublication, defaultPublicationSelector, mbtiPublicationSelector, mbtiExplorationPublicationSelector, sameSelector
+} from '../native/publicationValidation'
 import { newCommandID, validReason, validUUID } from '../native/commands'
 import { ConfigurationAssets } from './ConfigurationAssets'
 import type { EvaluationSelection } from '@/api/path/aiWorkflow'
@@ -30,7 +32,8 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
   const sceneParam = new URLSearchParams(location.search).get('aiScene')
   const scene = sceneParam === 'mbti' || sceneParam === 'mbti-exploration' ? sceneParam : 'scale'
   const mbtiScene = scene !== 'scale'
-  const sceneSelector = scene === 'mbti-exploration' ? mbtiExplorationPublicationSelector : scene === 'mbti' ? mbtiPublicationSelector : defaultPublicationSelector
+  const sceneSelector = scene === 'mbti-exploration' ? mbtiExplorationPublicationSelector
+    : scene === 'mbti' ? mbtiPublicationSelector : defaultPublicationSelector
   const controller = useSolution(owner)
   const [items, setItems] = useState<SolutionSummary[]>([])
   const [templates, setTemplates] = useState<SolutionTemplate[]>([])

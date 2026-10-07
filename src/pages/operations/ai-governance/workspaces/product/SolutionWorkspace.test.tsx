@@ -1,7 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { SolutionWorkspace } from './SolutionWorkspace'
-import { defaultPublicationSelector, mbtiPublicationSelector } from '../native/publicationValidation'
+import {
+  defaultPublicationSelector, mbtiPublicationSelector, mbtiExplorationPublicationSelector
+} from '../native/publicationValidation'
 import { getPublication } from '@/api/path/aiWorkflow'
 import { getSolutionModels, listSolutions } from '@/api/path/aiWorkflow/solutions'
 import { useSolution } from './useSolution'
@@ -144,18 +146,22 @@ it('keeps both MBTI versions visible in their scene without including scale solu
 })
 
 it('keeps exploration templates, solutions and publication separate from the basic model', async () => {
-  const { mbtiExplorationPublicationSelector: selector } = require('../native/publicationValidation')
+  const selector = mbtiExplorationPublicationSelector
   const baseRef = { id: 'participant-mbti-single', version: 'three-topic-v1', fingerprint: `sha256:${'b'.repeat(64)}` }
   const explorationRef = { id: 'participant-mbti-exploration-single', version: 'three-topic-r17-v1', fingerprint: `sha256:${'c'.repeat(64)}` }
-  const common = { reason: '验证配置', created_by: 'user:10001', updated_at: '2026-10-07T00:00:00Z', prepared: null, scene_contract_version: 'mbti-single-assessment/v2' }
+  const common = { reason: '验证配置', created_by: 'user:10001', updated_at: '2026-10-07T00:00:00Z',
+    prepared: null, scene_contract_version: 'mbti-single-assessment/v2' }
   ;(listSolutions as jest.Mock).mockResolvedValue([null, { data: { items: [
     { ...common, solution_id: '00000000-0000-4000-8000-000000000001', title: '基础版固定方案', selector: mbtiPublicationSelector },
     { ...common, solution_id: '00000000-0000-4000-8000-000000000002', title: '探索版固定方案', selector }
   ], next_cursor: '', templates: [
-    { name: '基础版模板', template_ref: baseRef, scene_contract_version: 'mbti-single-assessment/v2', selector: mbtiPublicationSelector, published: false },
+    { name: '基础版模板', template_ref: baseRef, scene_contract_version: 'mbti-single-assessment/v2',
+      selector: mbtiPublicationSelector, published: false },
     { name: '探索版模板', template_ref: explorationRef, scene_contract_version: 'mbti-single-assessment/v2', selector, published: false }
   ] } }])
-  ;(getPublication as jest.Mock).mockImplementation(async (s) => [null, { data: { selector: s, version: 0, active_publication_id: '', changed_at: '' } }])
+  ;(getPublication as jest.Mock).mockImplementation(async (s) => [null, { data: {
+    selector: s, version: 0, active_publication_id: '', changed_at: ''
+  } }])
   page('/operations/ai-governance/solutions?aiScene=mbti-exploration')
   await screen.findByText('探索版固定方案')
   expect(getPublication).toHaveBeenLastCalledWith(selector)
@@ -165,5 +171,7 @@ it('keeps exploration templates, solutions and publication separate from the bas
   expect(screen.queryByText('基础版模板（three-topic-v1）')).not.toBeInTheDocument()
   fireEvent.change(screen.getByRole('textbox', { name: '创建修改目的' }), { target: { value: '验证探索版独立评测与发布' } })
   fireEvent.click(screen.getByRole('button', { name: '创建首版方案' }))
-  await waitFor(() => expect((useSolution as jest.Mock).mock.results[0].value.submit).toHaveBeenCalledWith(expect.any(String), 'create', expect.objectContaining({ template_ref: explorationRef })))
+  await waitFor(() => expect((useSolution as jest.Mock).mock.results[0].value.submit).toHaveBeenCalledWith(
+    expect.any(String), 'create', expect.objectContaining({ template_ref: explorationRef })
+  ))
 })
