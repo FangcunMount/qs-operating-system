@@ -49,6 +49,7 @@ export interface SolutionSummary {
   created_by: string
   updated_at: string
   target_version: string
+  selector?: import('./publication').PublicationSelector
   scene_contract_version?: string
   source: { publication_id: string | null; run_id: string | null; template_ref?: SolutionTemplate['template_ref'] | null }
   prepared: null | {

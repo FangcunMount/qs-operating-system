@@ -2,7 +2,7 @@
 // substitute a current report: that would change the payload fingerprint.
 const object = (value: unknown): value is Record<string, any> =>
   !!value && typeof value === 'object' && !Array.isArray(value)
-const schemas = ['ai-explanation-input/v1', 'ai-explanation-input/v2', 'ai-explanation-input/v3']
+const schemas = ['ai-explanation-input/v1', 'ai-explanation-input/v2', 'ai-explanation-input/v3', 'ai-explanation-input/v4']
 export function frozenInputDocument(evidence: unknown): Record<string, any> | undefined {
   if (!object(evidence) || !object(evidence.frozen_input)) return
   const value = evidence.frozen_input

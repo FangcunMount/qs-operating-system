@@ -104,3 +104,17 @@ it('keeps unwrapped v1 scale inputs readable through their frozen contract', () 
   expect(screen.getByText('固定量表')).toBeInTheDocument()
   expect(screen.getByText('21')).toBeInTheDocument()
 })
+
+it('reads exploration v4 facts and references and rejects cross-bound old schema', () => {
+  const e = evidence()
+  e.frozen_input.content.schema_version = 'ai-explanation-input/v4'
+  e.frozen_input.content.facts.model.code = 'MBTI_FC_93'
+  e.frozen_input.content.facts.model.version = 'v55-report-202608-v1'
+  e.frozen_input.content.reference_material.model_code = 'MBTI_FC_93'
+  e.frozen_input.content.reference_material.model_version = 'v55-report-202608-v1'
+  expect(frozenMBTIReferences(e)?.content.model_code).toBe('MBTI_FC_93')
+  render(<FrozenInputReading evidence={e} />)
+  expect(screen.getByText('本次测试使用的 MBTI 事实')).toBeInTheDocument()
+  e.frozen_input.content.schema_version = 'ai-explanation-input/v3'
+  expect(frozenMBTIReferences(e)).toBeUndefined()
+})
