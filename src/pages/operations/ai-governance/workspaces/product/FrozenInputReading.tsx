@@ -1,5 +1,6 @@
 import { Alert, Card, Descriptions, Typography } from 'antd'
 import { JsonEvidence } from '../../components/JsonEvidence'
+import { isMBTIInputModel } from './solutionScene'
 import { frozenInputDocument } from './frozenInput'
 
 export function FrozenInputReading({ evidence }: { evidence: unknown }): JSX.Element {
@@ -10,9 +11,8 @@ export function FrozenInputReading({ evidence }: { evidence: unknown }): JSX.Ele
   const axes = ['EI', 'SN', 'TF', 'JP']
   const type = facts?.model_result?.type_code
   const mbti = value?.available === true &&
-    ['ai-explanation-input/v2', 'ai-explanation-input/v3'].includes(document?.schemaVersion) &&
+    isMBTIInputModel(document?.schemaVersion, facts?.model?.code, facts?.model?.version) &&
     typeof facts?.model?.title === 'string' && typeof facts?.overall_result?.standard_conclusion === 'string' &&
-    facts?.model?.code === 'MBTI_OEJTS' && facts?.model?.version === 'v64-report-202608-v1' &&
     typeof type === 'string' && /^[EI][SN][TF][JP]$/.test(type) &&
     Array.isArray(facts?.dimensions) && facts.dimensions.length === 4 &&
     new Set(facts.dimensions.map((d: any) => d?.code)).size === 4 &&

@@ -28,6 +28,10 @@ export const mbtiPublicationSelector: PublicationSelector = {
   audience: 'participant', model_kind: 'typology', decision_kind: 'pole_composition',
   model_code: 'MBTI_OEJTS', model_version: 'v64-report-202608-v1'
 }
+export const mbtiExplorationPublicationSelector: PublicationSelector = {
+  audience: 'participant', model_kind: 'typology', decision_kind: 'pole_composition',
+  model_code: 'MBTI_FC_93', model_version: 'v55-report-202608-v1'
+}
 export const publicationLabels: Record<PublicationAction, string> = {
   publish: '发布',
   rollback: '回退',
@@ -46,8 +50,10 @@ export function validSelector(s: PublicationSelector): boolean {
         s.audience === 'participant' &&
         ((s.model_kind === 'scale' && s.decision_kind === 'score_range') ||
           (s.model_kind === 'typology' && s.decision_kind === 'pole_composition' &&
-            s.model_code === mbtiPublicationSelector.model_code &&
-            s.model_version === mbtiPublicationSelector.model_version)) &&
+            ((s.model_code === mbtiPublicationSelector.model_code &&
+              s.model_version === mbtiPublicationSelector.model_version) ||
+             (s.model_code === mbtiExplorationPublicationSelector.model_code &&
+              s.model_version === mbtiExplorationPublicationSelector.model_version)))) &&
         (s.model_code === undefined || s.model_code === null ||
           (typeof s.model_code === 'string' &&
             s.model_code.trim() &&

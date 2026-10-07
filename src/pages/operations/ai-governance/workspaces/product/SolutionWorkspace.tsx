@@ -8,7 +8,9 @@ import { getPublication } from '@/api/path/aiWorkflow'
 import type { NativeEvaluationState, PublicationState, NativeReviewRole } from '@/api/path/aiWorkflow'
 import { getSolutionModels, listSolutions } from '@/api/path/aiWorkflow/solutions'
 import type { SolutionModels, SolutionSummary, SolutionTemplate } from '@/api/path/aiWorkflow/solutions'
-import { checkPublication, defaultPublicationSelector, mbtiPublicationSelector, sameSelector } from '../native/publicationValidation'
+import {
+  checkPublication, defaultPublicationSelector, mbtiPublicationSelector, mbtiExplorationPublicationSelector, sameSelector
+} from '../native/publicationValidation'
 import { newCommandID, validReason, validUUID } from '../native/commands'
 import { ConfigurationAssets } from './ConfigurationAssets'
 import type { EvaluationSelection } from '@/api/path/aiWorkflow'
@@ -27,8 +29,11 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
   const history = useHistory()
   const location = useLocation()
   const section = location.pathname.includes('/reviews') ? 'reviews' : location.pathname.includes('/runtime/evaluations') ? 'runs' : 'solutions'
-  const scene = new URLSearchParams(location.search).get('aiScene') === 'mbti' ? 'mbti' : 'scale'
-  const sceneSelector = scene === 'mbti' ? mbtiPublicationSelector : defaultPublicationSelector
+  const sceneParam = new URLSearchParams(location.search).get('aiScene')
+  const scene = sceneParam === 'mbti' || sceneParam === 'mbti-exploration' ? sceneParam : 'scale'
+  const mbtiScene = scene !== 'scale'
+  const sceneSelector = scene === 'mbti-exploration' ? mbtiExplorationPublicationSelector
+    : scene === 'mbti' ? mbtiPublicationSelector : defaultPublicationSelector
   const controller = useSolution(owner)
   const [items, setItems] = useState<SolutionSummary[]>([])
   const [templates, setTemplates] = useState<SolutionTemplate[]>([])
@@ -57,7 +62,8 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
   const activeRun = solution?.prepared?.run_id || externalRun
   const working = Boolean(solution || externalRun)
   const locked = controller.busy || Boolean(controller.pending) || controller.storageFailed
-  const creationTemplate = scene === 'mbti' ? templates.find((entry) =>
+  const sceneTemplates = templates.filter((entry) => sameSelector(entry.selector, sceneSelector))
+  const creationTemplate = mbtiScene ? templates.find((entry) =>
     templateKey(entry) === selectedTemplate && sameSelector(entry.selector, sceneSelector)) : undefined
   const navigate = (id: string, stage: string, runID = '', role?: NativeReviewRole) => {
     const url = new URL(window.location.href)
@@ -94,7 +100,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
         const catalog = page.data.templates || []
         if (!Array.isArray(catalog) || catalog.some((entry) =>
           !isMbtiSceneContract(entry.scene_contract_version) ||
-          !sameSelector(entry.selector, mbtiPublicationSelector) ||
+          !(sameSelector(entry.selector, mbtiPublicationSelector) || sameSelector(entry.selector, mbtiExplorationPublicationSelector)) ||
           !entry.template_ref?.id || !entry.template_ref?.version || entry.published !== false ||
           !/^sha256:[a-f0-9]{64}$/.test(entry.template_ref.fingerprint)
         )) throw new Error('首版模板目录不完整，请刷新后重试。')
@@ -202,15 +208,15 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
   )
   const reviewing = run && ['awaiting_review', 'approved', 'rejected'].includes(run.status)
   const phase = step === 'publish' ? (isPublished ? 4 : 3) : step === 'test' ? (reviewing ? 2 : 1) : 0
-  const switchScene = (next: 'scale' | 'mbti') => {
+  const switchScene = (next: 'scale' | 'mbti' | 'mbti-exploration') => {
     if (next === scene || locked || dirty) return
     epoch.current++
     controller.clearView()
     setItems([]); setTemplates([]); setSelectedTemplate(''); setPublication(null); setRun(null); setExternalRun('')
-    setTitle(next === 'mbti' ? 'MBTI 首版解读' : '解读方案改进')
+    setTitle(next === 'mbti-exploration' ? 'MBTI 探索版首版解读' : next === 'mbti' ? 'MBTI 首版解读' : '解读方案改进')
     setReason('')
     const url = new URLSearchParams()
-    if (next === 'mbti') url.set('aiScene', 'mbti')
+    if (next !== 'scale') url.set('aiScene', next)
     history.push(`/operations/ai-governance/solutions${url.toString() ? `?${url}` : ''}`)
   }
   return (
@@ -282,9 +288,11 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                     onClick={() => switchScene('scale')}>量表单次解读</Button>
                   <Button type={scene === 'mbti' ? 'primary' : 'default'} disabled={locked || dirty}
                     onClick={() => switchScene('mbti')}>MBTI 单次解读</Button>
+                  <Button type={scene === 'mbti-exploration' ? 'primary' : 'default'} disabled={locked || dirty}
+                    onClick={() => switchScene('mbti-exploration')}>MBTI 探索版（93题）</Button>
                 </Space>
                 <Card
-                  title={scene === 'mbti' ? 'MBTI 单次解读' : '单次测评补充解读'}
+                  title={scene === 'mbti-exploration' ? 'MBTI 探索版（93题）' : mbtiScene ? 'MBTI 单次解读' : '单次测评补充解读'}
                   extra={
                     <Button loading={loading} onClick={() => refresh()}>
                       刷新工作台
@@ -307,13 +315,13 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                   <Typography.Paragraph type="secondary">
                     业务入口是否开放仍由独立准入配置控制，此处不推断。修改版本不会影响当前线上配置。
                   </Typography.Paragraph>
-                  {scene === 'mbti' && publication && !publication.active_publication_id &&
-                    <Alert type="info" showIcon message={templates.length ? '可从首版模板创建方案，完成评测和人工审核后再发布。' : '首版模板尚未安装，请联系管理员核对初始化。'} />}
+                  {mbtiScene && publication && !publication.active_publication_id &&
+                    <Alert type="info" showIcon message={sceneTemplates.length ? '可从首版模板创建方案，完成评测和人工审核后再发布。' : '首版模板尚未安装，请联系管理员核对初始化。'} />}
                   <Space direction="vertical" style={{ width: '100%' }}>
-                    {scene === 'mbti' && publication && !publication.active_publication_id && templates.length > 0 && <>
+                    {mbtiScene && publication && !publication.active_publication_id && sceneTemplates.length > 0 && <>
                       <Select aria-label="首版方案模板" placeholder="选择首版内容模板" value={selectedTemplate || undefined}
                         style={{ width: '100%' }} disabled={!allowed || locked} onChange={setSelectedTemplate}>
-                        {templates.map((entry) => <Select.Option key={templateKey(entry)} value={templateKey(entry)}>
+                        {sceneTemplates.map((entry) => <Select.Option key={templateKey(entry)} value={templateKey(entry)}>
                           {entry.name}（{entry.template_ref.version}）
                         </Select.Option>)}
                       </Select>
@@ -347,7 +355,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                         }
                         onClick={() => create()}
                       >
-                        {scene === 'mbti' && !publication?.active_publication_id ? '创建首版方案' : '从线上方案创建修改版本'}
+                        {mbtiScene && !publication?.active_publication_id ? '创建首版方案' : '从线上方案创建修改版本'}
                       </Button>
                       <Button
                         disabled={locked}
@@ -364,8 +372,9 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                 <Card title="修改版本" style={{ marginTop: 16 }}>
                   <Table<SolutionSummary>
                     rowKey="solution_id"
-                    dataSource={items.filter((item) => scene === 'mbti'
-                      ? isMbtiSceneContract(item.scene_contract_version)
+                    dataSource={items.filter((item) => mbtiScene
+                      ? isMbtiSceneContract(item.scene_contract_version) && (item.selector
+                        ? sameSelector(item.selector, sceneSelector) : scene === 'mbti')
                       : !item.scene_contract_version)}
                     pagination={false}
                     loading={loading}
@@ -393,7 +402,7 @@ function Workspace({ owner, allowed }: { owner: string; allowed: boolean }): JSX
                         }
                       }
                     ]}
-                    locale={{ emptyText: scene === 'mbti' ? '还没有 MBTI 方案，可从首版模板开始。' : '还没有修改版本，从线上方案开始一次改进。' }}
+                    locale={{ emptyText: mbtiScene ? '还没有 MBTI 方案，可从首版模板开始。' : '还没有修改版本，从线上方案开始一次改进。' }}
                   />
                   {cursor && (
                     <Button onClick={() => refresh(cursor)} loading={loading}>

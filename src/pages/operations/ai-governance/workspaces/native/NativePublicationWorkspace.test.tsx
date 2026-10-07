@@ -8,6 +8,7 @@ import {
   checkPublicationReceipt,
   defaultPublicationSelector,
   mbtiPublicationSelector,
+  mbtiExplorationPublicationSelector,
   sameSelector,
   validSelector,
   PendingPublication
@@ -436,4 +437,14 @@ it('requires a fresh snapshot after a definitive permission rejection', async ()
   expect(sessionStorage.getItem(publicationJournalKey('42'))).toBeNull()
   expect(screen.queryByText('最近读取的发布状态')).not.toBeInTheDocument()
   expect(api.publishConfiguration).toHaveBeenCalledTimes(1)
+})
+
+
+test('exploration publication is exact and independent from the basic model', () => {
+  expect(validSelector(mbtiExplorationPublicationSelector)).toBe(true)
+  expect(sameSelector(mbtiPublicationSelector, mbtiExplorationPublicationSelector)).toBe(false)
+  expect(validSelector({ ...mbtiExplorationPublicationSelector,
+    model_version: mbtiPublicationSelector.model_version })).toBe(false)
+  expect(validSelector({ ...mbtiPublicationSelector,
+    model_version: mbtiExplorationPublicationSelector.model_version })).toBe(false)
 })

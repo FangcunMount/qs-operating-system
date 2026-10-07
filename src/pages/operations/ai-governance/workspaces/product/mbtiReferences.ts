@@ -1,3 +1,4 @@
+import { isMBTIInputModel, isMBTIModelVersion } from './solutionScene'
 import { frozenInputDocument } from './frozenInput'
 import type { MBTITheme, MBTIThemeEvidence } from './mbtiThreeTopicOutput'
 
@@ -10,7 +11,7 @@ export interface MBTIReferenceEntry {
 }
 export interface MBTIReferenceSelection {
   schema_version: 'mbti-reference-selection/v1'; version: string
-  model_code: 'MBTI_OEJTS'; model_version: 'v64-report-202608-v1'; type_code: string
+  model_code: 'MBTI_OEJTS' | 'MBTI_FC_93'; model_version: 'v64-report-202608-v1' | 'v55-report-202608-v1'; type_code: string
   sources: MBTIReferenceSource[]; entries: MBTIReferenceEntry[]
 }
 export interface MBTIFrozenReferences { content: MBTIReferenceSelection; fingerprint: string }
@@ -42,8 +43,7 @@ function entry(v: unknown): v is MBTIReferenceEntry {
 }
 export function isMBTIReferenceSelection(v: unknown): v is MBTIReferenceSelection {
   if (!object(v) || !keys(v, ['schema_version', 'version', 'model_code', 'model_version', 'type_code', 'sources', 'entries']) ||
-    v.schema_version !== 'mbti-reference-selection/v1' || v.model_code !== 'MBTI_OEJTS' ||
-    v.model_version !== 'v64-report-202608-v1' ||
+    v.schema_version !== 'mbti-reference-selection/v1' || !isMBTIModelVersion(v.model_code, v.model_version) ||
     typeof v.version !== 'string' ||
     !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/.test(v.version) ||
     typeof v.type_code !== 'string' || !/^[EI][SN][TF][JP]$/.test(v.type_code) ||
@@ -61,11 +61,12 @@ export function isMBTIReferenceSelection(v: unknown): v is MBTIReferenceSelectio
 // The UI only reads that original projection; it never fetches a newer asset.
 export function frozenMBTIReferences(evidence: unknown): MBTIFrozenReferences | undefined {
   const document = frozenInputDocument(evidence)
-  if (document?.schemaVersion !== 'ai-explanation-input/v3') return
+  if (!document || !['ai-explanation-input/v3', 'ai-explanation-input/v4'].includes(document.schemaVersion)) return
   const input = document.content
   if (!object(input.reference_material)) return
   const { fingerprint: digest, ...material } = input.reference_material
-  if (!fingerprint(digest) || !isMBTIReferenceSelection(material) || !object(input.facts) ||
+  if (!isMBTIInputModel(document?.schemaVersion, material.model_code, material.model_version) ||
+    !fingerprint(digest) || !isMBTIReferenceSelection(material) || !object(input.facts) ||
     !object(input.facts.model) || input.facts.model.code !== material.model_code ||
     input.facts.model.version !== material.model_version || !object(input.facts.model_result) ||
     input.facts.model_result.type_code !== material.type_code) return
