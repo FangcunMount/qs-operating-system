@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { Alert, Button, Card, Descriptions, Form, Input, Space, Typography } from 'antd'
+import { Alert, Button, Card, Descriptions, Form, Input, InputNumber, Space, Typography } from 'antd'
 import type { AssetDetail, AssetReference, RegisteredManifest } from '@/api/path/aiWorkflow'
 import { JsonEvidence } from '../../components/JsonEvidence'
 import { validReason } from './commands'
-import { profileDefinition } from './profileRegistration'
+import { profileDefinition, scaleDimensionLimit } from './profileRegistration'
 import { useProfileRegistration } from './useProfileRegistration'
 
 export interface ProfileSelection {
@@ -21,10 +21,12 @@ export const ProfileRegistrationWorkspace: React.FC<{
 }> = ({ owner, selection, onSuite }) => {
   const [version, setVersion] = useState('')
   const [reason, setReason] = useState('')
+  const [maxDimensionRefs, setMaxDimensionRefs] = useState<number | undefined>(scaleDimensionLimit(selection.profile))
   const command = useProfileRegistration(owner)
   useEffect(() => {
     setVersion('')
     setReason('')
+    setMaxDimensionRefs(scaleDimensionLimit(selection.profile))
   }, [selection.profile])
   const { profile, prompt, route } = selection
   const alreadyRegistered = Boolean(
@@ -36,7 +38,9 @@ export const ProfileRegistrationWorkspace: React.FC<{
   let validation = ''
   if (profile && prompt && route && version) {
     try {
-      definition = profileDefinition(profile, version, prompt, route)
+      if (scaleDimensionLimit(profile) !== undefined && maxDimensionRefs === undefined)
+        throw new Error('请填写维度上限。')
+      definition = profileDefinition(profile, version, prompt, route, maxDimensionRefs)
     } catch {
       validation = '来源策略或新版本不符合要求，请重新选择并检查版本。'
     }
@@ -84,6 +88,13 @@ export const ProfileRegistrationWorkspace: React.FC<{
         <Descriptions.Item label="模型路线版本">{label(route)}</Descriptions.Item>
       </Descriptions>
       <Form layout="vertical" style={{ marginTop: 16 }}>
+        {scaleDimensionLimit(profile) !== undefined && (
+          <Form.Item label="每条洞察最多引用维度" extra="至少引用两个不同维度；全部证据引用合计最多六条。新规则需重新评测和审核。">
+            <InputNumber aria-label="每条洞察最多引用维度" min={2} max={6} precision={0}
+              value={maxDimensionRefs} disabled={command.locked}
+              onChange={(value) => setMaxDimensionRefs(typeof value === 'number' ? value : undefined)} />
+          </Form.Item>
+        )}
         <Form.Item label="新策略版本">
           <Input
             aria-label="新策略版本"

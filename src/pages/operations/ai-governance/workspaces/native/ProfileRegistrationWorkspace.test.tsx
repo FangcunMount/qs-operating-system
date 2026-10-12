@@ -65,6 +65,36 @@ beforeEach(() => {
   )
 })
 afterEach(() => jest.restoreAllMocks())
+const scaleSelection = {
+  ...selection,
+  profile: {
+    item: { kind: 'profile' as const, reference: ref('participant-scale-score-range-default', 'v1') },
+    definition_json: JSON.stringify({ ...original, profile_id: 'participant-scale-score-range-default',
+      insight_policy: { min_dimension_refs_per_item: 2, max_dimension_refs_per_item: 3, max_items: 3 } })
+  }
+}
+it('explicitly changes only the scale dimension maximum and keeps the source immutable', () => {
+  const before = scaleSelection.profile.definition_json
+  const unchanged = JSON.parse(profileDefinition(scaleSelection.profile, 'v2', selection.prompt, selection.route))
+  const changed = JSON.parse(profileDefinition(scaleSelection.profile, 'v2', selection.prompt, selection.route, 6))
+  expect(changed).toEqual({ ...unchanged, insight_policy: { ...unchanged.insight_policy, max_dimension_refs_per_item: 6 } })
+  expect(scaleSelection.profile.definition_json).toBe(before)
+})
+it.each([1, 7, 2.5, NaN])('rejects invalid scale dimension maximum %s', (maximum) => {
+  expect(() => profileDefinition(scaleSelection.profile, 'v2', selection.prompt, selection.route, maximum)).toThrow()
+})
+it('does not enable scale policy edits for another scene', () => {
+  expect(() => profileDefinition(selection.profile, 'v2', selection.prompt, selection.route, 6)).toThrow()
+  render(<ProfileRegistrationWorkspace owner="u1" selection={selection} />)
+  expect(screen.queryByLabelText('每条洞察最多引用维度')).not.toBeInTheDocument()
+})
+it('shows the frozen source limit and previews an explicit six-dimension candidate', () => {
+  render(<ProfileRegistrationWorkspace owner="u1" selection={scaleSelection} />)
+  setup()
+  expect(screen.getByLabelText('每条洞察最多引用维度')).toHaveValue('3')
+  fireEvent.change(screen.getByLabelText('每条洞察最多引用维度'), { target: { value: '6' } })
+  expect(screen.getByText(/"max_dimension_refs_per_item":\s*6/)).toBeInTheDocument()
+})
 it('preserves the original policy while binding selected immutable prompt and route', async () => {
   const before = selection.profile.definition_json
   const result = JSON.parse(
