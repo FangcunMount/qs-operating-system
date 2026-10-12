@@ -3,7 +3,7 @@ import { Alert, Button, Card, Descriptions, Form, Input, Space, Typography } fro
 import type { AssetReference, SuiteRegistrationReceipt } from '@/api/path/aiWorkflow'
 import { JsonEvidence } from '../../components/JsonEvidence'
 import { validReason } from './commands'
-import { publishedCaseSource, sameSuite, suiteSource, validSuiteTarget } from './suiteRegistration'
+import { supportedCaseSources, supportedCaseSource, suiteSource, validSuiteTarget } from './suiteRegistration'
 import { useSuiteRegistration } from './useSuiteRegistration'
 
 export interface SuiteSelection {
@@ -30,7 +30,7 @@ export const SuiteRegistrationWorkspace: React.FC<{
     setVersion('')
     setReason('')
   }, [suite])
-  const supportedSource = Boolean(suite && sameSuite(suiteSource(suite), publishedCaseSource))
+  const supportedSource = Boolean(suite && supportedCaseSource(suiteSource(suite)))
   const registered = command.receipt?.suite
   const alreadyRegistered = registered?.id === suiteID && registered?.version === version
   const ready =
@@ -60,7 +60,7 @@ export const SuiteRegistrationWorkspace: React.FC<{
         message="复用已迁入的发布输入案例，绑定策略、Prompt 和模型路线的新版本。注册保留原案例及质量要求，需要重新评测和审核，不能继承旧版本批准。"
       />
       <Typography.Paragraph type="secondary" style={{ marginTop: 12 }}>
-        当前支持的案例来源：{publishedCaseSource.id} · {publishedCaseSource.version}
+        当前支持的案例来源：{supportedCaseSources.map((source) => `${source.id} · ${source.version}`).join('；')}
       </Typography.Paragraph>
       {suite && !supportedSource && (
         <Alert

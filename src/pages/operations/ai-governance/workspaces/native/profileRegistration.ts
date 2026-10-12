@@ -26,7 +26,8 @@ export function profileDefinition(
   source: AssetDetail,
   version: string,
   prompt: AssetReference,
-  route: AssetReference
+  route: AssetReference,
+  maxDimensionRefs?: number
 ): string {
   const definition = JSON.parse(source.definition_json)
   if (
@@ -49,9 +50,27 @@ export function profileDefinition(
     prompt_version: prompt.version,
     provider_route: route.identity
   }
+  if (maxDimensionRefs !== undefined) {
+    if (
+      scaleDimensionLimit(source) === undefined ||
+      !Number.isInteger(maxDimensionRefs) || maxDimensionRefs < 2 || maxDimensionRefs > 6
+    ) throw new Error('量表洞察维度上限必须为 2 到 6。')
+    definition.insight_policy.max_dimension_refs_per_item = maxDimensionRefs
+  }
   const raw = JSON.stringify(definition)
   if (unescape(encodeURIComponent(raw)).length > 131072) throw new Error('策略内容超过限制。')
   return raw
+}
+
+export function scaleDimensionLimit(source?: AssetDetail): number | undefined {
+  try {
+    const definition = JSON.parse(source?.definition_json || '')
+    const limit = definition.insight_policy?.max_dimension_refs_per_item
+    return source?.item.kind === 'profile' &&
+      definition.profile_id === 'participant-scale-score-range-default' &&
+      definition.insight_policy?.min_dimension_refs_per_item === 2 &&
+      Number.isInteger(limit) && limit >= 2 && limit <= 6 ? limit : undefined
+  } catch { return undefined }
 }
 
 export function checkProfileReceipt(

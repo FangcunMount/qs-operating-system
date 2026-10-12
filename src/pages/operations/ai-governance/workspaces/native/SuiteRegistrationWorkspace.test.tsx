@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import * as api from '@/api/path/aiWorkflow'
 import * as commands from './commands'
 import { SuiteRegistrationWorkspace } from './SuiteRegistrationWorkspace'
-import { publishedCaseSource } from './suiteRegistration'
+import { publishedCaseSource, cap6CaseSource, supportedCaseSource, validSuiteTarget } from './suiteRegistration'
 import { suiteJournalKey } from './useSuiteRegistration'
 
 jest.mock('@/api/path/aiWorkflow', () => ({ registerSuite: jest.fn(), getSuiteReceipt: jest.fn() }))
@@ -53,6 +53,19 @@ beforeEach(() => {
   )
 })
 afterEach(() => jest.restoreAllMocks())
+it('registers the exact cap6 root and rejects drift or replacement of either root', async () => {
+  expect(supportedCaseSource(cap6CaseSource)).toBe(true)
+  expect(supportedCaseSource({ ...cap6CaseSource, fingerprint: 'sha256:' + '0'.repeat(64) })).toBe(false)
+  expect(validSuiteTarget(cap6CaseSource.id, cap6CaseSource.version)).toBe(false)
+  expect(validSuiteTarget(publishedCaseSource.id, publishedCaseSource.version)).toBe(false)
+  render(<SuiteRegistrationWorkspace owner="u1" selection={{ ...selection, suite: {
+    ...selection.suite, identity: cap6CaseSource.id, version: cap6CaseSource.version, fingerprint: cap6CaseSource.fingerprint
+  } }} />)
+  fill()
+  fireEvent.click(screen.getByRole('button', { name: '注册评测套件' }))
+  await screen.findByText('已注册的评测套件')
+  expect((api.registerSuite as jest.Mock).mock.calls[0][0].source).toEqual(cap6CaseSource)
+})
 it('registers only the confirmed baseline and exact selected asset bindings without approval reuse', async () => {
   render(<SuiteRegistrationWorkspace owner="u1" selection={selection} />)
   fill()

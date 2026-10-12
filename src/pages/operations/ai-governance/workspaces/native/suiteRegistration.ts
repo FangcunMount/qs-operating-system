@@ -6,13 +6,20 @@ import type {
 } from '@/api/path/aiWorkflow'
 import { sameReference } from './profileRegistration'
 
-// The current registrar only derives the migrated published-input case baseline.
-// Keep this contract aligned with qs-ai infrastructure/qs_server/evaluation_suite.py.
+// Exact immutable roots supported by qs-ai; existing sources remain unchanged.
 export const publishedCaseSource: FrozenSuiteReference = {
   id: 'cross-dimension-participant-scale-v6-published',
   version: 'qs-ai-evaluation-cases/v1',
   fingerprint: 'sha256:42afcc73db6fa272ab54aa17bcb9b30dc8797a382ee9329d9453aa9c9953e382'
 }
+export const cap6CaseSource: FrozenSuiteReference = {
+  id: 'cross-dimension-participant-scale-cap6-root',
+  version: 'v1',
+  fingerprint: 'sha256:a8e95bea9050ccab631881d5b8b4b8db51bd80c2be4eaac90bcd9ba17e146bb5'
+}
+export const supportedCaseSources = [publishedCaseSource, cap6CaseSource]
+export const supportedCaseSource = (value: FrozenSuiteReference): boolean =>
+  supportedCaseSources.some((source) => sameSuite(source, value))
 export const sameSuite = (a: FrozenSuiteReference, b: FrozenSuiteReference): boolean =>
   Boolean(a && b) && a.id === b.id && a.version === b.version && a.fingerprint === b.fingerprint
 export const suiteSource = (value: AssetReference): FrozenSuiteReference => ({
@@ -23,7 +30,7 @@ export const suiteSource = (value: AssetReference): FrozenSuiteReference => ({
 export const validSuiteTarget = (id: string, version: string): boolean =>
   /^[A-Za-z0-9][A-Za-z0-9:._/-]{0,127}$/.test(id) &&
   /^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/.test(version) &&
-  !(id === publishedCaseSource.id && version === publishedCaseSource.version)
+  !supportedCaseSources.some((source) => id === source.id && version === source.version)
 
 export function checkSuiteReceipt(
   value: SuiteRegistrationReceipt,
@@ -37,7 +44,7 @@ export function checkSuiteReceipt(
     command.command_id !== id ||
     !manifest ||
     !value.suite ||
-    !sameSuite(command.source, publishedCaseSource) ||
+    !supportedCaseSource(command.source) ||
     !validSuiteTarget(command.suite_id, command.suite_version) ||
     value.suite.id !== command.suite_id ||
     value.suite.version !== command.suite_version ||
