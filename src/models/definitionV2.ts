@@ -1,8 +1,8 @@
 /**
  * The AssessmentModel DefinitionV2 wire contract deliberately keeps the
  * server's PascalCase field names.  Editors work on projections of this
- * object, but PUT must always send the complete object back unchanged apart
- * from fields owned by the current editor.
+ * object. PUT preserves the complete canonical source, with editor-owned changes,
+ * while excluding server-derived DecisionSpec and InterpretationAssets.
  */
 export type DefinitionV2Record = Record<string, unknown>
 
@@ -140,3 +140,12 @@ export const isDefinitionV2 = (value: unknown): value is DefinitionV2 => (
 export const cloneDefinitionV2 = (definition: DefinitionV2): DefinitionV2 => (
   JSON.parse(JSON.stringify(definition)) as DefinitionV2
 )
+
+
+/** Runtime projections are read-only; every model Definition PUT uses this boundary. */
+export const canonicalDefinitionForWrite = (definition: DefinitionV2): DefinitionV2 => {
+  const canonical = cloneDefinitionV2(definition)
+  delete canonical.DecisionSpec
+  delete canonical.InterpretationAssets
+  return canonical
+}

@@ -1,0 +1,115 @@
+{
+  "Measure": {
+    "Factors": [
+      {
+        "Code": "TOTAL",
+        "Title": "总分",
+        "Role": "total"
+      }
+    ],
+    "FactorGraph": {
+      "Roots": [
+        "TOTAL"
+      ],
+      "Edges": [],
+      "SortOrders": {
+        "TOTAL": 0
+      }
+    },
+    "Scoring": [
+      {
+        "FactorCode": "TOTAL",
+        "Sources": [
+          {
+            "Kind": "question",
+            "Code": "Q1",
+            "ScoringMode": "option_override",
+            "Sign": 1,
+            "Weight": 0.5,
+            "OptionScores": {
+              "A": 1,
+              "B": 0
+            }
+          }
+        ],
+        "Strategy": "sum",
+        "MaxScore": 1
+      }
+    ]
+  },
+  "Calibration": {
+    "NormRefs": [
+      {
+        "FactorCode": "TOTAL",
+        "NormTableVersion": "spm-v1"
+      }
+    ]
+  },
+  "Execution": {
+    "SPM": {
+      "TimeLimitSeconds": 900,
+      "TotalFactorCode": "TOTAL",
+      "ItemSets": [
+        {
+          "Code": "A",
+          "Items": [
+            {
+              "QuestionCode": "Q1",
+              "CorrectOptionCode": "A"
+            }
+          ]
+        }
+      ]
+    },
+    "FutureExecution": {
+      "preserve": true
+    }
+  },
+  "Conclusions": [
+    {
+      "Kind": "ability",
+      "FactorCode": "TOTAL",
+      "ScoreBasis": "raw_score",
+      "Primary": true,
+      "Rules": [
+        {
+          "MinScore": 0,
+          "MaxScore": 10,
+          "MaxInclusive": true,
+          "OutcomeCode": "average"
+        }
+      ]
+    }
+  ],
+  "Outcomes": [
+    {
+      "Code": "average",
+      "Title": "一般水平",
+      "Summary": "保持原始结论"
+    }
+  ],
+  "ReportMap": {
+    "Sections": [
+      {
+        "Code": "scores",
+        "Kind": "factor_scores",
+        "SourceRefs": [
+          "TOTAL"
+        ],
+        "TemplateID": "spm",
+        "TemplateVersion": "2026-10-v1"
+      }
+    ]
+  },
+  "DecisionSpec": {
+    "Kind": "ability_level",
+    "OutcomeCodes": [
+      "average"
+    ]
+  },
+  "InterpretationAssets": {
+    "TemplateID": "spm",
+    "TemplateVersion": "2026-10-v1",
+    "FrozenText": "已发布报告保持此版本"
+  }
+}

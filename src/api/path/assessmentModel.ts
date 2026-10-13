@@ -11,6 +11,7 @@ import {
   AssessmentQRCodeResponse
 } from '@/models/assessmentModel'
 import type { DefinitionV2 } from '@/models/definitionV2'
+import { canonicalDefinitionForWrite } from '@/models/definitionV2'
 import {
   normalizeAssessmentModelDetail,
   normalizeDefinitionV2,
@@ -163,7 +164,7 @@ export async function saveAssessmentModelDefinition(
   code: string,
   definition: DefinitionV2
 ): Promise<[any, QSResponse<DefinitionV2> | undefined]> {
-  const [err, res] = await put<any>(`/assessment-models/${code}/definition`, definition)
+  const [err, res] = await put<any>(`/assessment-models/${code}/definition`, canonicalDefinitionForWrite(definition))
   return [err, mapResponse(res, normalizeDefinitionV2)]
 }
 
