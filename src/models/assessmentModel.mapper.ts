@@ -173,21 +173,11 @@ export const normalizeValidationResult = (raw: unknown): AssessmentModelValidati
   }
   const data = raw as {
     passed?: boolean
-    valid?: boolean
     issues?: AssessmentModelValidationIssue[]
-    errors?: string[]
-  }
-  if ('passed' in data) {
-    return {
-      passed: Boolean(data.passed),
-      issues: Array.isArray(data.issues) ? data.issues : []
-    }
   }
   return {
-    passed: Boolean(data.valid),
-    issues: Array.isArray(data.errors)
-      ? data.errors.map((message: string) => ({ field: 'unknown', message }))
-      : []
+    passed: Boolean(data.passed),
+    issues: Array.isArray(data.issues) ? data.issues : []
   }
 }
 
