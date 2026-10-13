@@ -219,7 +219,7 @@ const PeriodicStats: React.FC<PeriodicStatsProps> = ({ data, testeeId, onRefresh
 
     if (realTask.status === 'pending' && canOpen) {
       return (
-        <Popconfirm title="确定要开放此任务吗？系统将自动生成入口令牌、入口 URL 和过期时间。" onConfirm={() => handleOpenTask(realTask.id)}>
+        <Popconfirm title="确定要开放此任务吗？系统将自动生成入口 URL 和过期时间。" onConfirm={() => handleOpenTask(realTask.id)}>
           <Button type="link" size="small" style={{ padding: 0, height: 'auto' }} loading={openingTaskId === realTask.id}>
             开放任务
           </Button>

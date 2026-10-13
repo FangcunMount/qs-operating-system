@@ -167,9 +167,6 @@ const TaskDetail: React.FC = () => {
           {task.assessment_id && (
             <Descriptions.Item label="测评ID">{task.assessment_id}</Descriptions.Item>
           )}
-          {task.entry_token && (
-            <Descriptions.Item label="入口令牌">{task.entry_token}</Descriptions.Item>
-          )}
           {task.entry_url && (
             <Descriptions.Item label="入口URL" span={2}>
               <a href={task.entry_url} target="_blank" rel="noopener noreferrer">
@@ -185,7 +182,7 @@ const TaskDetail: React.FC = () => {
           <Space>
             {task.status === 'pending' && (
               <Popconfirm
-                title="确定要开放此任务吗？系统将自动生成入口令牌、入口 URL 和过期时间。"
+                title="确定要开放此任务吗？系统将自动生成入口 URL 和过期时间。"
                 onConfirm={handleOpen}
               >
                 <Button
