@@ -152,7 +152,8 @@ describe('assessmentModelApi', () => {
   })
 
   it('normalizes validation and qrcode responses', async () => {
-    postMock.mockResolvedValueOnce([null, { data: { valid: false, errors: ['缺因子'] } }])
+    const issues = [{ field: 'measure.factors', code: 'measure.factors.required', level: 'error', message: '缺因子' }]
+    postMock.mockResolvedValueOnce([null, { data: { passed: false, issues } }])
     getMock.mockResolvedValueOnce([null, { data: { code: 'm1', qrcode_url: 'http://qr', url: 'http://entry' } }])
 
     const [, validateRes] = await assessmentModelApi.validateAssessmentModel('m1')
@@ -160,13 +161,33 @@ describe('assessmentModelApi', () => {
 
     expect(validateRes?.data).toEqual({
       passed: false,
-      issues: [{ field: 'unknown', message: '缺因子' }]
+      issues
     })
     expect(qrRes?.data).toMatchObject({
       code: 'm1',
       qrcode_url: 'http://qr',
       entry_url: 'http://entry'
     })
+  })
+
+  it('preserves warning-only validation and ignores retired response fields', async () => {
+    const issues = [{ field: 'report', code: 'report.copy.warning', level: 'warning', message: '请补充报告说明' }]
+    postMock.mockResolvedValueOnce([null, { data: { passed: true, issues, valid: false, errors: ['旧错误'] } }])
+    const [err, res] = await assessmentModelApi.validateAssessmentModel('m1')
+    expect(err).toBeNull()
+    expect(res?.data).toEqual({ passed: true, issues })
+
+    postMock.mockResolvedValueOnce([null, { data: { valid: true, errors: ['旧错误'] } }])
+    const [, retiredRes] = await assessmentModelApi.validateAssessmentModel('m1')
+    expect(retiredRes?.data).toEqual({ passed: false, issues: [] })
+  })
+
+  it('keeps validation transport errors and absent responses for the page error path', async () => {
+    const error = { code: 400, message: '校验请求失败' }
+    postMock.mockResolvedValueOnce([error, undefined])
+    const [err, res] = await assessmentModelApi.validateAssessmentModel('m1')
+    expect(err).toBe(error)
+    expect(res).toBeUndefined()
   })
 
   it('normalizes preview report responses', async () => {
