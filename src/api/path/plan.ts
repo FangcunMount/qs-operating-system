@@ -128,7 +128,6 @@ export interface ITask {
   open_at?: string // 实际开放时间
   expire_at?: string // 截止时间
   completed_at?: string // 完成时间
-  entry_token?: string // 入口令牌
   entry_url?: string // 入口URL
   assessment_id?: string // 关联的测评ID（如已完成）
 }
