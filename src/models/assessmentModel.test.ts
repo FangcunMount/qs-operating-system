@@ -96,16 +96,37 @@ describe('assessment model mappers', () => {
     expect(summary).toMatchObject({ code: 'm1', description: '说明', tags: ['a'] })
   })
 
-  it('normalizes validation result from legacy valid/errors', () => {
-    expect(normalizeValidationResult({ valid: false, errors: ['缺少维度'] })).toEqual({
+  it('does not authorize validation or manufacture issues from retired valid/errors', () => {
+    expect(normalizeValidationResult({ valid: true, errors: ['缺少维度'] })).toEqual({
       passed: false,
-      issues: [{ field: 'unknown', message: '缺少维度' }]
+      issues: []
     })
   })
 
   it('normalizes validation result from passed/issues', () => {
     expect(normalizeValidationResult({ passed: true, issues: [] })).toEqual({
       passed: true, issues: []
+    })
+  })
+
+  it('preserves canonical failure issues, codes, messages and severity', () => {
+    const issues = [
+      { field: 'conclusions.risk.rules', message: '缺少末端区间', code: 'conclusion.range.endpoint.required', level: 'error' },
+      { field: 'report', message: '请补充报告说明', code: 'report.copy.warning', level: 'warning' }
+    ]
+    expect(normalizeValidationResult({ passed: false, issues, valid: true, errors: ['旧错误'] })).toEqual({ passed: false, issues })
+  })
+
+  it('preserves a passing warning-only result and normalizes null issues', () => {
+    const issues = [{ field: 'report', message: '请补充报告说明', code: 'report.copy.warning', level: 'warning' }]
+    expect(normalizeValidationResult({ passed: true, issues, valid: false, errors: ['旧错误'] })).toEqual({ passed: true, issues })
+    expect(normalizeValidationResult({ passed: true, issues: null })).toEqual({ passed: true, issues: [] })
+  })
+
+  it.each([undefined, null, 'missing result'])('retains the missing validation result error for %s', (raw) => {
+    expect(normalizeValidationResult(raw)).toEqual({
+      passed: false,
+      issues: [{ field: 'unknown', message: '后端未返回校验结果' }]
     })
   })
 

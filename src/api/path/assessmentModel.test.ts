@@ -1,3 +1,4 @@
+import derivedDefinitionFixture from '@/models/__fixtures__/canonicalDefinition.derived.contract.json'
 import { assessmentModelApi } from './assessmentModel'
 import { del, get, post, put } from '../qsServer'
 
@@ -151,7 +152,8 @@ describe('assessmentModelApi', () => {
   })
 
   it('normalizes validation and qrcode responses', async () => {
-    postMock.mockResolvedValueOnce([null, { data: { valid: false, errors: ['缺因子'] } }])
+    const issues = [{ field: 'measure.factors', code: 'measure.factors.required', level: 'error', message: '缺因子' }]
+    postMock.mockResolvedValueOnce([null, { data: { passed: false, issues } }])
     getMock.mockResolvedValueOnce([null, { data: { code: 'm1', qrcode_url: 'http://qr', url: 'http://entry' } }])
 
     const [, validateRes] = await assessmentModelApi.validateAssessmentModel('m1')
@@ -159,13 +161,33 @@ describe('assessmentModelApi', () => {
 
     expect(validateRes?.data).toEqual({
       passed: false,
-      issues: [{ field: 'unknown', message: '缺因子' }]
+      issues
     })
     expect(qrRes?.data).toMatchObject({
       code: 'm1',
       qrcode_url: 'http://qr',
       entry_url: 'http://entry'
     })
+  })
+
+  it('preserves warning-only validation and ignores retired response fields', async () => {
+    const issues = [{ field: 'report', code: 'report.copy.warning', level: 'warning', message: '请补充报告说明' }]
+    postMock.mockResolvedValueOnce([null, { data: { passed: true, issues, valid: false, errors: ['旧错误'] } }])
+    const [err, res] = await assessmentModelApi.validateAssessmentModel('m1')
+    expect(err).toBeNull()
+    expect(res?.data).toEqual({ passed: true, issues })
+
+    postMock.mockResolvedValueOnce([null, { data: { valid: true, errors: ['旧错误'] } }])
+    const [, retiredRes] = await assessmentModelApi.validateAssessmentModel('m1')
+    expect(retiredRes?.data).toEqual({ passed: false, issues: [] })
+  })
+
+  it('keeps validation transport errors and absent responses for the page error path', async () => {
+    const error = { code: 400, message: '校验请求失败' }
+    postMock.mockResolvedValueOnce([error, undefined])
+    const [err, res] = await assessmentModelApi.validateAssessmentModel('m1')
+    expect(err).toBe(error)
+    expect(res).toBeUndefined()
   })
 
   it('normalizes preview report responses', async () => {
@@ -191,5 +213,57 @@ describe('assessmentModelApi', () => {
       report_sections: [{ title: '概览', content: '热情开放' }],
       issues: [{ field: 'report', message: '示例 warning', level: 'warning' }]
     })
+  })
+})
+
+
+describe('canonical Definition write boundary', () => {
+  const canonicalFields = ['Measure', 'Calibration', 'Execution', 'Conclusions', 'Outcomes', 'ReportMap'] as const
+  const canonicalBytes = (definition: Record<string, unknown>) => canonicalFields.map(field => JSON.stringify(definition[field]))
+
+  beforeEach(() => {
+    getMock.mockReset().mockResolvedValue([null, { data: derivedDefinitionFixture }])
+    putMock.mockReset().mockResolvedValue([null, { data: derivedDefinitionFixture }])
+    postMock.mockReset().mockResolvedValue([null, { data: { code: 'spm_copy', kind: 'cognitive', algorithm: 'spm' } }])
+  })
+
+  it('reads derived-bearing Definition, edits and writes all six canonical sections without runtime projections', async () => {
+    const [, response] = await assessmentModelApi.getAssessmentModelDefinition('spm')
+    const definition = response?.data
+    if (!definition?.Measure?.Factors?.[0]) throw new Error('expected complete GET Definition fixture')
+    expect(definition.DecisionSpec).toEqual(derivedDefinitionFixture.DecisionSpec)
+    expect(definition.InterpretationAssets).toEqual(derivedDefinitionFixture.InterpretationAssets)
+    definition.Measure.Factors[0].Title = '编辑后的总分'
+    const retainedSource = JSON.stringify(definition)
+    const frozenReportInput = { SchemaVersion: 3, InterpretationAssets: definition.InterpretationAssets }
+    const retainedReport = JSON.stringify(frozenReportInput)
+
+    await assessmentModelApi.saveAssessmentModelDefinition('spm', definition)
+
+    expect(putMock).toHaveBeenCalledTimes(1)
+    expect(putMock.mock.calls[0][0]).toBe('/assessment-models/spm/definition')
+    const body = putMock.mock.calls[0][1]
+    expect(body).not.toHaveProperty('DecisionSpec')
+    expect(body).not.toHaveProperty('InterpretationAssets')
+    expect(canonicalBytes(body)).toEqual(canonicalBytes(definition))
+    expect(JSON.stringify(definition)).toBe(retainedSource)
+    expect(JSON.stringify(frozenReportInput)).toBe(retainedReport)
+    expect(derivedDefinitionFixture.Measure.Factors[0].Title).toBe('总分')
+  })
+
+  it('copies a model through the same GET/create/PUT flow while preserving all canonical bytes', async () => {
+    const [, loaded] = await assessmentModelApi.getAssessmentModelDefinition('spm')
+    const [, created] = await assessmentModelApi.createAssessmentModel({ title: 'SPM 副本', kind: 'cognitive', algorithm: 'spm' })
+    if (!loaded?.data || !created?.data?.code) throw new Error('expected copy inputs')
+    const retainedSource = JSON.stringify(loaded.data)
+
+    await assessmentModelApi.saveAssessmentModelDefinition(created.data.code, loaded.data)
+
+    expect(putMock).toHaveBeenCalledWith('/assessment-models/spm_copy/definition', expect.any(Object))
+    const body = putMock.mock.calls[0][1]
+    expect(body).not.toHaveProperty('DecisionSpec')
+    expect(body).not.toHaveProperty('InterpretationAssets')
+    expect(canonicalBytes(body)).toEqual(canonicalBytes(derivedDefinitionFixture))
+    expect(JSON.stringify(loaded.data)).toBe(retainedSource)
   })
 })
