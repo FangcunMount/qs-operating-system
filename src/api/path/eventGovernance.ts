@@ -82,7 +82,7 @@ const GRAFANA_LINK_KEYS = ['overview', 'outbox', 'worker'] as const
 
 const GRAFANA_DASHBOARD_PATHS: Record<typeof GRAFANA_LINK_KEYS[number], string> = {
   overview: '/d/event-overview/qs-event-overview',
-  outbox: '/d/event-outbox/qs-event-outbox',
+  outbox: '/d/event-transactions/qs-event-transactions',
   worker: '/d/event-worker/qs-event-worker'
 }
 
@@ -107,7 +107,7 @@ export const getEventGovernanceLinks = (): IEventGovernanceLinks => buildGrafana
   GRAFANA_DASHBOARD_PATHS,
   {
     overview: process.env.REACT_APP_GRAFANA_EVENT_OVERVIEW_URL,
-    outbox: process.env.REACT_APP_GRAFANA_EVENT_OUTBOX_URL,
+    outbox: process.env.REACT_APP_GRAFANA_EVENT_TRANSACTIONS_URL,
     worker: process.env.REACT_APP_GRAFANA_EVENT_WORKER_URL
   }
 )

@@ -116,7 +116,7 @@ export const PRIMARY_GOVERNANCE_NAVIGATION: GovernanceNavigationItem[] = [
 
 export const SECONDARY_GOVERNANCE_NAVIGATION: Partial<Record<SystemGovernanceSection, GovernanceNavigationItem[]>> = {
   events: [
-    { view: 'events-drain', label: '排队与失败' },
+    { view: 'events-drain', label: '事务消息' },
     { view: 'events-retry', label: '重试候选' },
     { view: 'events-runtime', label: '运行拓扑与契约' }
   ],
