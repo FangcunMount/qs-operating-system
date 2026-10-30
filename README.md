@@ -479,3 +479,8 @@ Private
 只有 HTTP429 与固定维护原因同时匹配才按确定未提交处理。数据库不可用、超时、断连及查询失败继续保持原未确认意图；不将这些不确定错误解释为维护关闭。普通额度 HTTP429 沿用原含义。此页面提示不提供维护门禁操作入口。
 
 隔离浏览器后端 `scripts/testing/mq-browser-fixture.py` 的 `maintenance` 模式只记录一次物理请求并返回确定拒绝，不写操作、不调用模型；不能替代真实 QS 权限或生产业务验收。
+
+
+### 协调发布：复用冻结镜像
+
+手动 `cd.yml` 同时提供 `revision`（main 祖先的完整 SHA）、`candidate_digest`（ACR digest）和 `candidate_config_id`（linux/amd64 config ID）时，工作流核验该 SHA 的 push CI，跳过构建并按不可变 digest 拉取、检查平台和 config ID 后导出既有部署包。三项必须完整，工作流从 main 执行；`PRODUCTION_DEPLOY_PAUSED=true` 仍会阻止部署。服务源码 SHA 与控制工作流提交分别记录。未提供三项时使用既有构建发布路径。
